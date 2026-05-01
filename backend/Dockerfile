@@ -11,6 +11,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     curl \
     ca-certificates \
+    openssl \
+    && update-ca-certificates \
+    && sed -i 's/DEFAULT@SECLEVEL=2/DEFAULT@SECLEVEL=1/g' /etc/ssl/openssl.cnf \
     && rm -rf /var/lib/apt/lists/*
 
 # Instalar deps Python
