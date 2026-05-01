@@ -39,16 +39,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { user, accessToken, logout } = useAuthStore();
 
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [hydrated,   setHydrated]   = useState(false);
 
-  /* Redirect unauthenticated */
+  /* Esperar a que Zustand rehidrate desde localStorage antes de verificar auth */
+  useEffect(() => { setHydrated(true); }, []);
+
+  /* Redirigir si no autenticado — solo después de hidratación */
   useEffect(() => {
-    if (!accessToken) router.replace("/auth/login");
-  }, [accessToken, router]);
+    if (hydrated && !accessToken) router.replace("/auth/login");
+  }, [hydrated, accessToken, router]);
 
   /* Close drawer on route change */
   useEffect(() => { setDrawerOpen(false); }, [pathname]);
 
-  if (!accessToken) return null;
+  if (!hydrated || !accessToken) return null;
 
   function handleLogout() {
     logout();
