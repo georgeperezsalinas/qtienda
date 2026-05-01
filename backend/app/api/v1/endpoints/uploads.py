@@ -13,7 +13,7 @@ router = APIRouter()
 
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 MAX_SIZE_MB = 5
-UPLOADS_DIR = Path(os.getenv("UPLOADS_DIR", "/app/data/uploads"))
+UPLOADS_DIR = Path(os.getenv("UPLOADS_DIR", "/tmp/qtienda-uploads"))
 
 
 @router.post("/image")
