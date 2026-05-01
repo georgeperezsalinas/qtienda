@@ -20,10 +20,13 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    environment:
+      UPLOADS_DIR: /app/data/uploads
+      UPLOADS_BASE_URL: https://qtienda.shop/uploads
     ports:
       - "8001:8000"
     volumes:
-      - uploads_data:/tmp/qtienda-uploads
+      - ./data/uploads:/app/data/uploads
     depends_on:
       - redis
     healthcheck:
@@ -53,10 +56,6 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-
-volumes:
-  uploads_data:
-    driver: local
 
 networks:
   default:

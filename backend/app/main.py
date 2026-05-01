@@ -8,12 +8,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.staticfiles import StaticFiles
 
+import os
+
 from app.core.config import settings
 from app.db.session import engine
 from app.api.v1.router import api_router
 from app.middleware.logging import RequestLoggingMiddleware
 
-UPLOADS_DIR = Path("/tmp/qtienda-uploads")
+UPLOADS_DIR = Path(os.getenv("UPLOADS_DIR", "/app/data/uploads"))
 
 
 @asynccontextmanager

@@ -25,13 +25,12 @@ out/
 
 # Docker
 *.log
-*.yml
 
 # IDE
 .vscode/
 .idea/
 *.swp
 
-# Uploads
-/backend/uploads/
-/tmp/qtienda-uploads/
+# Uploads — keep directory, ignore contents
+/data/uploads/*
+!/data/uploads/.gitkeep
