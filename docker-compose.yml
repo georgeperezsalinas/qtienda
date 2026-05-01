@@ -22,6 +22,8 @@ services:
       - .env
     ports:
       - "8001:8000"
+    volumes:
+      - uploads_data:/tmp/qtienda-uploads
     depends_on:
       - redis
     healthcheck:
@@ -35,7 +37,12 @@ services:
         max-file: "3"
 
   web:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: https://qtienda.shop/api/v1
+        NEXT_PUBLIC_CDN_URL:
     container_name: qtienda_web
     restart: unless-stopped
     ports:
@@ -46,6 +53,10 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+volumes:
+  uploads_data:
+    driver: local
 
 networks:
   default:

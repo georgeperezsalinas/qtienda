@@ -2,6 +2,7 @@
 Vendor order management — authenticated, scoped to vendor's store.
 Multi-tenant: vendors only see their own orders.
 """
+from datetime import datetime, timezone, date, timedelta
 from typing import Optional
 from uuid import UUID
 
@@ -45,6 +46,61 @@ STATUS_TRANSITIONS = {
     "delivered":  set(),
     "cancelled":  set(),
 }
+
+
+@router.get("/stats/summary")
+async def order_stats(
+    from_date: Optional[date] = Query(None, description="YYYY-MM-DD"),
+    to_date:   Optional[date] = Query(None, description="YYYY-MM-DD"),
+    current_user = Depends(require_vendor),
+    db: AsyncSession = Depends(get_db),
+):
+    """KPI summary for vendor. Defaults to current month if no dates given."""
+    store = await get_vendor_store(current_user, db)
+
+    from sqlalchemy import case
+
+    now = datetime.now(timezone.utc)
+
+    if from_date is None:
+        # Default: first day of current month
+        start = datetime(now.year, now.month, 1, tzinfo=timezone.utc)
+    else:
+        start = datetime(from_date.year, from_date.month, from_date.day, tzinfo=timezone.utc)
+
+    if to_date is None:
+        end = now
+    else:
+        # Include the full to_date day
+        end = datetime(to_date.year, to_date.month, to_date.day, 23, 59, 59, tzinfo=timezone.utc)
+
+    result = await db.execute(
+        select(
+            func.count().label("total"),
+            func.count(case((Order.status == "pending",   1))).label("pending"),
+            func.count(case((Order.status == "delivered", 1))).label("delivered"),
+            func.count(case((Order.status == "cancelled", 1))).label("cancelled"),
+            func.coalesce(func.sum(
+                case((Order.status != "cancelled", Order.total_cents), else_=0)
+            ), 0).label("revenue_cents"),
+        )
+        .where(
+            Order.store_id == store.id,
+            Order.created_at >= start,
+            Order.created_at <= end,
+        )
+    )
+    row = result.one()
+
+    return {
+        "this_month": {
+            "total_orders":  row.total,
+            "pending":       row.pending,
+            "delivered":     row.delivered,
+            "cancelled":     row.cancelled,
+            "revenue_cents": row.revenue_cents,
+        }
+    }
 
 
 @router.get("/")
@@ -213,45 +269,3 @@ async def update_order_status(
 
     await db.commit()
     return {"order_id": order.id, "status": order.status}
-
-
-@router.get("/stats/summary")
-async def order_stats(
-    current_user = Depends(require_vendor),
-    db: AsyncSession = Depends(get_db),
-):
-    """Quick KPI dashboard for vendor."""
-    store = await get_vendor_store(current_user, db)
-
-    from sqlalchemy import case, extract
-    from datetime import datetime, timezone
-
-    now = datetime.now(timezone.utc)
-
-    result = await db.execute(
-        select(
-            func.count().label("total"),
-            func.count(case((Order.status == "pending",   1))).label("pending"),
-            func.count(case((Order.status == "delivered", 1))).label("delivered"),
-            func.count(case((Order.status == "cancelled", 1))).label("cancelled"),
-            func.coalesce(func.sum(
-                case((Order.status != "cancelled", Order.total_cents), else_=0)
-            ), 0).label("revenue_cents"),
-        )
-        .where(
-            Order.store_id == store.id,
-            extract("month", Order.created_at) == now.month,
-            extract("year",  Order.created_at) == now.year,
-        )
-    )
-    row = result.one()
-
-    return {
-        "this_month": {
-            "total_orders": row.total,
-            "pending":      row.pending,
-            "delivered":    row.delivered,
-            "cancelled":    row.cancelled,
-            "revenue_cents": row.revenue_cents,
-        }
-    }

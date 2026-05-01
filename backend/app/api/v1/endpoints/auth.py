@@ -1,5 +1,7 @@
+import uuid
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
+import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -92,6 +94,70 @@ async def refresh(payload: RefreshRequest, db: AsyncSession = Depends(get_db)):
         access_token=create_access_token(user.id, user.role.name),
         refresh_token=create_refresh_token(user.id),
         token_type="bearer",
+    )
+
+
+@router.post("/google", response_model=TokenResponse)
+async def google_login(payload: dict, db: AsyncSession = Depends(get_db)):
+    access_token = (payload.get("access_token") or "").strip()
+    if not access_token:
+        raise HTTPException(status_code=422, detail="Token requerido")
+
+    # Verify token and get user info from Google
+    async with httpx.AsyncClient(timeout=10) as client:
+        r = await client.get(
+            "https://www.googleapis.com/oauth2/v1/userinfo",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+    if r.status_code != 200:
+        raise HTTPException(status_code=401, detail="Token de Google inválido")
+
+    info = r.json()
+    email = (info.get("email") or "").lower().strip()
+    if not email or not info.get("verified_email", False):
+        raise HTTPException(status_code=401, detail="Email de Google no verificado")
+
+    # Find or create user
+    result = await db.execute(
+        select(User).options(selectinload(User.role)).where(
+            User.email == email, User.deleted_at.is_(None)
+        )
+    )
+    user = result.scalar_one_or_none()
+
+    if not user:
+        role_result = await db.execute(select(Role).where(Role.name == "vendor"))
+        vendor_role = role_result.scalar_one_or_none()
+        if not vendor_role:
+            raise HTTPException(status_code=500, detail="Error de configuración")
+
+        user = User(
+            role_id=vendor_role.id,
+            email=email,
+            full_name=info.get("name") or email.split("@")[0],
+            password_hash=hash_password(str(uuid.uuid4())),
+            avatar_url=info.get("picture"),
+            is_active=True,
+            is_verified=True,
+        )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+        # Reload with role
+        result2 = await db.execute(
+            select(User).options(selectinload(User.role)).where(User.id == user.id)
+        )
+        user = result2.scalar_one()
+
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Cuenta suspendida. Contacta soporte.")
+
+    user.last_login_at = datetime.now(timezone.utc)
+    await db.commit()
+
+    return TokenResponse(
+        access_token=create_access_token(user.id, user.role.name),
+        refresh_token=create_refresh_token(user.id),
     )
 
 

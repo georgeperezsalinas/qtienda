@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ExternalLink, Save, Plus, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
+import { ImageUpload } from "@/components/ui/ImageUpload";
 
 interface StoreData {
   id: string;
@@ -300,13 +301,21 @@ export default function ConfiguracionPage() {
               ))}
             </div>
           </div>
-          <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">URL del logo</label>
-            <input className="input" type="url" placeholder="https://..." value={info.logo_url} onChange={(e) => setInfo({ ...info, logo_url: e.target.value })} />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">URL del banner</label>
-            <input className="input" type="url" placeholder="https://..." value={info.banner_url} onChange={(e) => setInfo({ ...info, banner_url: e.target.value })} />
+          <div className="grid grid-cols-2 gap-3 items-start">
+            <ImageUpload
+              label="Logo"
+              value={info.logo_url}
+              onChange={(url) => setInfo((prev) => ({ ...prev, logo_url: url }))}
+              hint={"200×200 px · cuadrado\nJPEG, PNG o WebP · máx 5 MB"}
+              className="h-28 w-full"
+            />
+            <ImageUpload
+              label="Banner"
+              value={info.banner_url}
+              onChange={(url) => setInfo((prev) => ({ ...prev, banner_url: url }))}
+              hint={"1200×400 px · horizontal\nJPEG, PNG o WebP · máx 5 MB"}
+              className="h-28 w-full"
+            />
           </div>
           <button type="submit" disabled={saving} className="btn-primary w-full bg-brand-600">
             <Save size={15} />

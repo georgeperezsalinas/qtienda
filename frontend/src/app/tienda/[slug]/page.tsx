@@ -11,16 +11,22 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try {
     const store = await apiServer(`/public/store/${params.slug}`);
     return {
-      title: store.meta_title || store.name,
-      description: store.meta_desc || `Compra en ${store.name} - qtienda.shop`,
+      title:       store.meta_title || store.name,
+      description: store.meta_desc  || `Compra en ${store.name} · qtienda.shop`,
       openGraph: {
+        title:       store.name,
+        description: store.meta_desc || `Tienda de ${store.name}`,
+        images:      store.banner_url ? [{ url: store.banner_url }] : [],
+        type:        "website",
+        locale:      "es_PE",
+      },
+      twitter: {
+        card:  "summary_large_image",
         title: store.name,
-        images: store.banner_url ? [store.banner_url] : [],
-        type: "website",
       },
     };
   } catch {
-    return { title: "Tienda" };
+    return { title: "Tienda · qtienda.shop" };
   }
 }
 

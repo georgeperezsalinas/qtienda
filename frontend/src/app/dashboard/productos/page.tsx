@@ -1,27 +1,30 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import Image from "next/image";
-import { Plus, Pencil, Trash2, Package, X, Check, Image as ImageIcon } from "lucide-react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import {
+  Plus, Pencil, Trash2, Package, X,
+  Check, Search, SlidersHorizontal,
+  Star, Eye, EyeOff, Tag,
+} from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
+import { ImageUpload } from "@/components/ui/ImageUpload";
 
-interface Category {
-  id: string;
-  name: string;
-}
-
+/* ── Types ── */
+interface Category { id: string; name: string; icon?: string }
+interface ProductImage { id: string; url: string; is_primary: boolean }
 interface Product {
   id: string;
   name: string;
+  description?: string;
   price_cents: number;
   compare_price?: number;
   stock?: number;
   status: string;
   is_featured: boolean;
   category_id?: string;
-  images: { url: string; is_primary: boolean }[];
+  images: ProductImage[];
 }
 
 const EMPTY_FORM = {
@@ -35,24 +38,222 @@ const EMPTY_FORM = {
   image_url: "",
 };
 
-export default function ProductosPage() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [editId, setEditId] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(false);
-  const [saving, setSaving] = useState(false);
+type FilterStatus = "all" | "active" | "inactive";
 
+/* ── Tiny helpers ── */
+function getPrimaryImg(p: Product) {
+  return p.images.find((i) => i.is_primary)?.url ?? p.images[0]?.url ?? "";
+}
+
+function discountPct(price: number, compare?: number) {
+  if (!compare || compare <= price) return null;
+  return Math.round(((compare - price) / compare) * 100);
+}
+
+/* ════════════════════════════
+   PRODUCT CARD (list item)
+════════════════════════════ */
+function ProductCard({
+  product, onEdit, onDelete, onToggleStatus,
+}: {
+  product: Product;
+  onEdit: () => void;
+  onDelete: () => void;
+  onToggleStatus: () => void;
+}) {
+  const img      = getPrimaryImg(product);
+  const discount = discountPct(product.price_cents, product.compare_price);
+  const active   = product.status === "active";
+
+  return (
+    <div
+      className="rounded-2xl flex items-center gap-3.5 p-3 transition-all"
+      style={{
+        background: "var(--surface-0)",
+        border: "1.5px solid #E2E8F0",
+        boxShadow: "var(--shadow-sm)",
+        opacity: active ? 1 : 0.65,
+      }}
+    >
+      {/* Thumbnail */}
+      <div
+        className="w-16 h-16 rounded-xl flex-shrink-0 overflow-hidden relative"
+        style={{ background: "var(--surface-1)" }}
+      >
+        {img ? (
+          <img src={img} alt={product.name} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-2xl">🛍️</div>
+        )}
+        {discount && (
+          <span
+            className="absolute top-1 left-1 text-[9px] font-bold text-white px-1.5 py-0.5 rounded-full"
+            style={{ background: "var(--danger)" }}
+          >
+            -{discount}%
+          </span>
+        )}
+        {product.is_featured && (
+          <span
+            className="absolute bottom-1 right-1 w-4 h-4 rounded-full flex items-center justify-center"
+            style={{ background: "#F59E0B" }}
+          >
+            <Star size={8} fill="white" color="white" />
+          </span>
+        )}
+      </div>
+
+      {/* Info */}
+      <div className="flex-1 min-w-0">
+        <p className="font-display font-bold text-sm truncate" style={{ color: "var(--ink)" }}>
+          {product.name}
+        </p>
+        <div className="flex items-center gap-2 mt-0.5">
+          <span className="font-display font-bold text-sm" style={{ color: "var(--brand-600)" }}>
+            {formatPrice(product.price_cents)}
+          </span>
+          {product.compare_price && (
+            <span className="text-xs line-through" style={{ color: "var(--ink-3)" }}>
+              {formatPrice(product.compare_price)}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2 mt-1">
+          {product.stock != null && (
+            <span
+              className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+              style={{
+                background: product.stock > 0 ? "#D1FAE5" : "#FEE2E2",
+                color:      product.stock > 0 ? "#065F46" : "#991B1B",
+              }}
+            >
+              {product.stock > 0 ? `${product.stock} en stock` : "Agotado"}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex flex-col gap-1.5 flex-shrink-0">
+        <button
+          onClick={onToggleStatus}
+          title={active ? "Desactivar" : "Activar"}
+          className="w-8 h-8 rounded-xl flex items-center justify-center transition-all"
+          style={{
+            background: active ? "#D1FAE5" : "var(--surface-1)",
+            color:      active ? "#059669" : "var(--ink-3)",
+            border:     `1.5px solid ${active ? "#A7F3D0" : "#E2E8F0"}`,
+          }}
+        >
+          {active ? <Eye size={14} /> : <EyeOff size={14} />}
+        </button>
+        <button
+          onClick={onEdit}
+          className="w-8 h-8 rounded-xl flex items-center justify-center transition-all"
+          style={{
+            background: "var(--surface-1)",
+            color:      "var(--ink-2)",
+            border:     "1.5px solid #E2E8F0",
+          }}
+        >
+          <Pencil size={13} />
+        </button>
+        <button
+          onClick={onDelete}
+          className="w-8 h-8 rounded-xl flex items-center justify-center transition-all"
+          style={{
+            background: "#FEF2F2",
+            color:      "var(--danger)",
+            border:     "1.5px solid #FECACA",
+          }}
+        >
+          <Trash2 size={13} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════════════
+   TOGGLE SWITCH
+════════════════════════════ */
+function Toggle({ checked, onChange, label, sub }: {
+  checked: boolean; onChange: () => void; label: string; sub?: string;
+}) {
+  return (
+    <div className="flex items-center justify-between py-3.5"
+         style={{ borderBottom: "1px solid #F1F5F9" }}>
+      <div>
+        <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{label}</p>
+        {sub && <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>{sub}</p>}
+      </div>
+      <button
+        type="button"
+        onClick={onChange}
+        className="relative w-11 h-6 rounded-full transition-colors flex-shrink-0"
+        style={{ background: checked ? "var(--brand-600)" : "#E2E8F0" }}
+        aria-checked={checked}
+        role="switch"
+      >
+        <span
+          className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform"
+          style={{ transform: checked ? "translateX(20px)" : "translateX(2px)" }}
+        />
+      </button>
+    </div>
+  );
+}
+
+/* ════════════════════════════
+   FIELD + LABEL
+════════════════════════════ */
+function Field({ label, required, children }: {
+  label: string; required?: boolean; children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <label className="field-label">
+        {label}{required && <span style={{ color: "var(--danger)" }}> *</span>}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+/* ════════════════════════════
+   SKELETON
+════════════════════════════ */
+function Skel({ h = 80 }: { h?: number }) {
+  return <div className="skeleton rounded-2xl" style={{ height: h }} />;
+}
+
+/* ════════════════════════════
+   PAGE
+════════════════════════════ */
+export default function ProductosPage() {
+  const [products,   setProducts]   = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [saving,     setSaving]     = useState(false);
+  const [showForm,   setShowForm]   = useState(false);
+  const [editId,     setEditId]     = useState<string | null>(null);
+  const [editImgId,  setEditImgId]  = useState<string | null>(null);
+  const [origImgUrl, setOrigImgUrl] = useState("");
+  const [search,     setSearch]     = useState("");
+  const [filter,     setFilter]     = useState<FilterStatus>("all");
+  const [form,       setForm]       = useState({ ...EMPTY_FORM });
+  const drawerRef = useRef<HTMLDivElement>(null);
+
+  /* ── Data fetching ── */
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [prodRes, catRes] = await Promise.all([
+      const [pRes, cRes] = await Promise.all([
         apiClient.get("/products/?limit=100"),
         apiClient.get("/categories/"),
       ]);
-      setProducts(prodRes.data.items);
-      setCategories(catRes.data);
+      setProducts(pRes.data.items);
+      setCategories(cRes.data);
     } finally {
       setLoading(false);
     }
@@ -60,316 +261,433 @@ export default function ProductosPage() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
+  /* ── Filtered list ── */
+  const visible = products.filter((p) => {
+    const q = search.toLowerCase();
+    const matchSearch = !q || p.name.toLowerCase().includes(q);
+    const matchFilter =
+      filter === "all"      ? true :
+      filter === "active"   ? p.status === "active" :
+                              p.status !== "active";
+    return matchSearch && matchFilter;
+  });
+
+  /* ── Open / close form ── */
   function openCreate() {
-    setEditId(null);
-    setForm(EMPTY_FORM);
+    setEditId(null); setEditImgId(null); setOrigImgUrl("");
+    setForm({ ...EMPTY_FORM });
     setShowForm(true);
   }
 
   function openEdit(p: Product) {
+    const primary = p.images.find((i) => i.is_primary) ?? p.images[0];
     setEditId(p.id);
+    setEditImgId(primary?.id ?? null);
+    setOrigImgUrl(primary?.url ?? "");
     setForm({
-      name: p.name,
-      description: "",
-      price_cents: String(p.price_cents / 100),
+      name:          p.name,
+      description:   p.description ?? "",
+      price_cents:   String(p.price_cents / 100),
       compare_price: p.compare_price ? String(p.compare_price / 100) : "",
-      stock: p.stock != null ? String(p.stock) : "",
-      category_id: p.category_id || "",
-      is_featured: p.is_featured,
-      image_url: p.images.find((i) => i.is_primary)?.url || p.images[0]?.url || "",
+      stock:         p.stock != null ? String(p.stock) : "",
+      category_id:   p.category_id ?? "",
+      is_featured:   p.is_featured,
+      image_url:     primary?.url ?? "",
     });
     setShowForm(true);
   }
 
+  /* ── Save ── */
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.name.trim()) { toast.error("Nombre requerido"); return; }
-    const priceNum = parseFloat(form.price_cents);
-    if (!priceNum || priceNum <= 0) { toast.error("Precio inválido"); return; }
+    if (!form.name.trim())          { toast.error("El nombre es requerido"); return; }
+    const price = parseFloat(form.price_cents);
+    if (!price || price <= 0)       { toast.error("Precio inválido"); return; }
 
     setSaving(true);
     try {
       const payload: Record<string, any> = {
-        name: form.name.trim(),
-        description: form.description.trim() || undefined,
-        price_cents: Math.round(priceNum * 100),
+        name:          form.name.trim(),
+        description:   form.description.trim() || undefined,
+        price_cents:   Math.round(price * 100),
         compare_price: form.compare_price ? Math.round(parseFloat(form.compare_price) * 100) : undefined,
-        stock: form.stock !== "" ? parseInt(form.stock) : undefined,
-        category_id: form.category_id || undefined,
-        is_featured: form.is_featured,
+        stock:         form.stock !== "" ? parseInt(form.stock) : undefined,
+        category_id:   form.category_id || undefined,
+        is_featured:   form.is_featured,
       };
-
-      let productId = editId;
 
       if (editId) {
         await apiClient.patch(`/products/${editId}`, payload);
-        toast.success("Producto actualizado");
+        if (form.image_url !== origImgUrl) {
+          if (editImgId) await apiClient.delete(`/products/${editId}/images/${editImgId}`).catch(() => {});
+          if (form.image_url) await apiClient.post(`/products/${editId}/images`, { url: form.image_url, is_primary: true });
+        }
+        toast.success("Producto actualizado ✓");
       } else {
         const { data } = await apiClient.post("/products/", payload);
-        productId = data.id;
-        toast.success("Producto creado");
-      }
-
-      // Add image if provided and it's a new product or image changed
-      if (form.image_url.trim() && productId && !editId) {
-        await apiClient.post(`/products/${productId}/images`, {
-          url: form.image_url.trim(),
-          is_primary: true,
-        });
+        if (form.image_url) await apiClient.post(`/products/${data.id}/images`, { url: form.image_url, is_primary: true });
+        toast.success("Producto creado ✓");
       }
 
       setShowForm(false);
       fetchAll();
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || "Error al guardar");
+      toast.error(err.response?.data?.detail ?? "Error al guardar");
     } finally {
       setSaving(false);
     }
   }
 
+  /* ── Toggle status ── */
   async function toggleStatus(p: Product) {
     const newStatus = p.status === "active" ? "inactive" : "active";
     try {
       await apiClient.patch(`/products/${p.id}`, { status: newStatus });
       setProducts((prev) => prev.map((x) => x.id === p.id ? { ...x, status: newStatus } : x));
-    } catch {
-      toast.error("Error al actualizar");
-    }
+      toast.success(newStatus === "active" ? "Producto activado" : "Producto desactivado");
+    } catch { toast.error("Error al actualizar"); }
   }
 
+  /* ── Delete ── */
   async function deleteProduct(id: string) {
-    if (!confirm("¿Eliminar este producto?")) return;
+    if (!confirm("¿Eliminar este producto? Esta acción no se puede deshacer.")) return;
     try {
       await apiClient.delete(`/products/${id}`);
       setProducts((prev) => prev.filter((p) => p.id !== id));
       toast.success("Producto eliminado");
-    } catch {
-      toast.error("Error al eliminar");
-    }
+    } catch { toast.error("Error al eliminar"); }
   }
 
+  /* ── Render ── */
   return (
-    <div className="p-5 max-w-2xl mx-auto">
-      <div className="flex items-center justify-between mb-5">
-        <h1 className="font-display font-bold text-xl text-gray-900">Productos</h1>
-        <button onClick={openCreate} className="btn-primary py-2.5 px-4 bg-brand-600">
-          <Plus size={16} />
-          Agregar
-        </button>
-      </div>
+    <div
+      className="max-w-2xl mx-auto pb-8"
+      style={{ background: "var(--surface-2)", minHeight: "100%" }}
+    >
 
-      {loading ? (
-        <div className="space-y-3">
-          {[...Array(4)].map((_, i) => <div key={i} className="skeleton h-20 rounded-2xl" />)}
-        </div>
-      ) : products.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
-          <Package size={48} className="mx-auto mb-3 opacity-40" />
-          <p className="mb-4">Sin productos aún</p>
-          <button onClick={openCreate} className="btn-primary bg-brand-600">
-            <Plus size={16} />
-            Crear primer producto
+      {/* ── Header ── */}
+      <div
+        className="sticky top-0 z-10 px-5 pt-safe pt-5 pb-4"
+        style={{ background: "var(--surface-0)", borderBottom: "1px solid #F1F5F9" }}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="font-display font-extrabold text-xl" style={{ color: "var(--ink)" }}>
+              Productos
+            </h1>
+            <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
+              {products.length} producto{products.length !== 1 ? "s" : ""}
+            </p>
+          </div>
+          <button
+            onClick={openCreate}
+            className="btn-primary"
+            style={{ width: "auto", padding: "10px 16px" }}
+          >
+            <Plus size={16} /> Agregar
           </button>
         </div>
-      ) : (
-        <div className="space-y-3">
-          {products.map((p) => {
-            const img = p.images.find((i) => i.is_primary)?.url || p.images[0]?.url;
-            return (
-              <div key={p.id} className="card p-3 flex items-center gap-3">
-                <div className="w-14 h-14 rounded-xl bg-gray-50 flex-shrink-0 overflow-hidden">
-                  {img ? (
-                    <img src={img} alt={p.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-2xl">🛍️</div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm text-gray-900 truncate">{p.name}</p>
-                  <p className="text-sm font-bold text-brand-600">{formatPrice(p.price_cents)}</p>
-                  {p.stock != null && (
-                    <p className="text-xs text-gray-400">Stock: {p.stock}</p>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <button
-                    onClick={() => toggleStatus(p)}
-                    className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${
-                      p.status === "active"
-                        ? "bg-green-50 text-green-600"
-                        : "bg-gray-100 text-gray-400"
-                    }`}
-                    title={p.status === "active" ? "Activo — click para desactivar" : "Inactivo — click para activar"}
-                  >
-                    <Check size={14} />
-                  </button>
-                  <button
-                    onClick={() => openEdit(p)}
-                    className="w-8 h-8 rounded-xl bg-gray-50 flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors"
-                  >
-                    <Pencil size={14} />
-                  </button>
-                  <button
-                    onClick={() => deleteProduct(p.id)}
-                    className="w-8 h-8 rounded-xl bg-red-50 flex items-center justify-center text-red-500 hover:bg-red-100 transition-colors"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
 
-      {/* Form drawer */}
+        {/* Search + filter */}
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search
+              size={15}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2"
+              style={{ color: "var(--ink-3)" }}
+            />
+            <input
+              className="input pl-10 text-sm py-2.5"
+              placeholder="Buscar producto..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <div className="flex gap-1">
+            {(["all", "active", "inactive"] as FilterStatus[]).map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className="px-3 py-2.5 rounded-xl text-xs font-bold transition-all"
+                style={{
+                  background: filter === f ? "var(--brand-600)" : "var(--surface-0)",
+                  color:      filter === f ? "#fff" : "var(--ink-3)",
+                  border:     `1.5px solid ${filter === f ? "var(--brand-600)" : "#E2E8F0"}`,
+                }}
+              >
+                {f === "all" ? "Todos" : f === "active" ? "Activos" : "Inactivos"}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── List ── */}
+      <div className="px-5 pt-4 space-y-3">
+        {loading ? (
+          [...Array(5)].map((_, i) => <Skel key={i} h={88} />)
+        ) : visible.length === 0 ? (
+          <div className="py-20 flex flex-col items-center text-center animate-fade-in">
+            <div
+              className="w-20 h-20 rounded-2xl flex items-center justify-center mb-4"
+              style={{ background: "var(--surface-1)" }}
+            >
+              <Package size={36} style={{ color: "var(--ink-4)" }} />
+            </div>
+            <h3 className="font-display font-bold text-base mb-1" style={{ color: "var(--ink)" }}>
+              {search ? "Sin resultados" : "Aún no tienes productos"}
+            </h3>
+            <p className="text-sm mb-6" style={{ color: "var(--ink-3)" }}>
+              {search
+                ? "Prueba con otro nombre o categoría"
+                : "Agrega tu primer producto y empieza a vender"}
+            </p>
+            {!search && (
+              <button onClick={openCreate} className="btn-primary" style={{ width: "auto", padding: "12px 24px" }}>
+                <Plus size={16} /> Crear primer producto
+              </button>
+            )}
+          </div>
+        ) : (
+          visible.map((p) => (
+            <ProductCard
+              key={p.id}
+              product={p}
+              onEdit={() => openEdit(p)}
+              onDelete={() => deleteProduct(p.id)}
+              onToggleStatus={() => toggleStatus(p)}
+            />
+          ))
+        )}
+      </div>
+
+      {/* ══════════════════════════════════════
+          BOTTOM SHEET FORM
+      ══════════════════════════════════════ */}
       {showForm && (
         <>
-          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setShowForm(false)} />
-          <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl z-50 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 rounded-full bg-gray-200" />
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 z-40"
+            style={{ background: "rgba(15,23,42,.5)", backdropFilter: "blur(2px)" }}
+            onClick={() => setShowForm(false)}
+          />
+
+          {/* Sheet */}
+          <div
+            ref={drawerRef}
+            className="fixed bottom-0 left-0 right-0 z-50 animate-fade-up"
+            style={{
+              background:    "var(--surface-0)",
+              borderRadius:  "28px 28px 0 0",
+              boxShadow:     "0 -8px 40px rgba(15,23,42,.2)",
+              maxHeight:     "94dvh",
+              overflowY:     "auto",
+            }}
+          >
+            {/* Handle */}
+            <div className="flex justify-center pt-3 pb-2">
+              <div className="w-10 h-1 rounded-full" style={{ background: "var(--ink-4)" }} />
             </div>
-            <div className="px-5 pb-8">
-              <div className="flex items-center justify-between mb-5">
-                <h2 className="font-display font-bold text-lg">
+
+            {/* Sheet header */}
+            <div
+              className="flex items-center justify-between px-5 pb-4"
+              style={{ borderBottom: "1px solid #F1F5F9" }}
+            >
+              <div>
+                <h2 className="font-display font-extrabold text-lg" style={{ color: "var(--ink)" }}>
                   {editId ? "Editar producto" : "Nuevo producto"}
                 </h2>
-                <button onClick={() => setShowForm(false)} className="p-2 rounded-xl hover:bg-gray-100">
-                  <X size={18} />
-                </button>
+                <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
+                  {editId ? "Actualiza la información" : "Completa los datos del producto"}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowForm(false)}
+                className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors"
+                style={{ background: "var(--surface-1)", border: "1.5px solid #E2E8F0" }}
+              >
+                <X size={17} style={{ color: "var(--ink-2)" }} />
+              </button>
+            </div>
+
+            {/* Form body */}
+            <form onSubmit={handleSave} className="px-5 pt-5 pb-10 space-y-5">
+
+              {/* Image upload — prominent at top */}
+              <div>
+                <label className="field-label">Foto del producto</label>
+                <ImageUpload
+                  value={form.image_url}
+                  onChange={(url) => setForm((f) => ({ ...f, image_url: url }))}
+                  hint={"800×800 px · cuadrado\nJPEG, PNG o WebP · máx 5 MB"}
+                  className="h-44 w-full"
+                />
               </div>
 
-              <form onSubmit={handleSave} className="space-y-4">
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
-                    Nombre *
-                  </label>
-                  <input
-                    className="input"
-                    placeholder="Ej: Torta de chocolate"
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  />
-                </div>
+              {/* Name */}
+              <Field label="Nombre del producto" required>
+                <input
+                  className="input"
+                  placeholder="Ej: Polera oversize negra"
+                  value={form.name}
+                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                />
+              </Field>
 
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
-                    Descripción
-                  </label>
-                  <textarea
-                    className="input resize-none"
-                    rows={2}
-                    placeholder="Descripción del producto..."
-                    value={form.description}
-                    onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  />
-                </div>
+              {/* Description */}
+              <Field label="Descripción">
+                <textarea
+                  className="input resize-none"
+                  rows={3}
+                  placeholder="Talla, material, colores disponibles..."
+                  value={form.description}
+                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                  style={{ lineHeight: 1.6 }}
+                />
+              </Field>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
-                      Precio (S/) *
-                    </label>
-                    <input
-                      className="input"
-                      type="number"
-                      step="0.10"
-                      min="0.10"
-                      placeholder="25.00"
-                      value={form.price_cents}
-                      onChange={(e) => setForm({ ...form, price_cents: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
-                      Precio tachado
-                    </label>
-                    <input
-                      className="input"
-                      type="number"
-                      step="0.10"
-                      min="0"
-                      placeholder="35.00"
-                      value={form.compare_price}
-                      onChange={(e) => setForm({ ...form, compare_price: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
-                      Stock
-                    </label>
-                    <input
-                      className="input"
-                      type="number"
-                      min="0"
-                      placeholder="Sin límite"
-                      value={form.stock}
-                      onChange={(e) => setForm({ ...form, stock: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
-                      Categoría
-                    </label>
-                    <select
-                      className="input"
-                      value={form.category_id}
-                      onChange={(e) => setForm({ ...form, category_id: e.target.value })}
-                    >
-                      <option value="">Sin categoría</option>
-                      {categories.map((c) => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
-                    URL de imagen
-                  </label>
-                  <input
-                    className="input"
-                    type="url"
-                    placeholder="https://..."
-                    value={form.image_url}
-                    onChange={(e) => setForm({ ...form, image_url: e.target.value })}
-                  />
-                  {form.image_url && (
-                    <img
-                      src={form.image_url}
-                      alt="preview"
-                      className="mt-2 w-20 h-20 rounded-xl object-cover bg-gray-50"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                    />
-                  )}
-                </div>
-
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <div
-                    className={`w-10 h-6 rounded-full transition-colors relative ${
-                      form.is_featured ? "bg-brand-600" : "bg-gray-200"
-                    }`}
-                    onClick={() => setForm({ ...form, is_featured: !form.is_featured })}
-                  >
-                    <div
-                      className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                        form.is_featured ? "translate-x-4" : "translate-x-0.5"
-                      }`}
-                    />
-                  </div>
-                  <span className="text-sm font-medium text-gray-700">Destacar producto</span>
+              {/* Prices */}
+              <div>
+                <label className="field-label">
+                  Precios <span style={{ color: "var(--danger)" }}>*</span>
                 </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <div
+                      className="flex items-center rounded-xl overflow-hidden"
+                      style={{ border: "1.5px solid #E2E8F0", background: "var(--surface-1)" }}
+                    >
+                      <span
+                        className="px-3 font-bold text-sm"
+                        style={{ color: "var(--ink-2)", borderRight: "1px solid #E2E8F0" }}
+                      >
+                        S/
+                      </span>
+                      <input
+                        className="flex-1 bg-transparent px-3 py-3 text-sm outline-none"
+                        type="number"
+                        step="0.10"
+                        min="0.10"
+                        placeholder="0.00"
+                        value={form.price_cents}
+                        onChange={(e) => setForm((f) => ({ ...f, price_cents: e.target.value }))}
+                        style={{ color: "var(--ink)" }}
+                      />
+                    </div>
+                    <p className="text-[10px] mt-1" style={{ color: "var(--ink-3)" }}>Precio de venta</p>
+                  </div>
+                  <div>
+                    <div
+                      className="flex items-center rounded-xl overflow-hidden"
+                      style={{ border: "1.5px solid #E2E8F0", background: "var(--surface-1)" }}
+                    >
+                      <span
+                        className="px-3 font-bold text-sm"
+                        style={{ color: "var(--ink-2)", borderRight: "1px solid #E2E8F0" }}
+                      >
+                        S/
+                      </span>
+                      <input
+                        className="flex-1 bg-transparent px-3 py-3 text-sm outline-none"
+                        type="number"
+                        step="0.10"
+                        min="0"
+                        placeholder="0.00"
+                        value={form.compare_price}
+                        onChange={(e) => setForm((f) => ({ ...f, compare_price: e.target.value }))}
+                        style={{ color: "var(--ink)" }}
+                      />
+                    </div>
+                    <p className="text-[10px] mt-1" style={{ color: "var(--ink-3)" }}>
+                      Precio tachado {form.price_cents && form.compare_price && parseFloat(form.compare_price) > parseFloat(form.price_cents) ? (
+                        <span style={{ color: "var(--danger)", fontWeight: 700 }}>
+                          (-{Math.round(((parseFloat(form.compare_price) - parseFloat(form.price_cents)) / parseFloat(form.compare_price)) * 100)}%)
+                        </span>
+                      ) : null}
+                    </p>
+                  </div>
+                </div>
+              </div>
 
-                <button type="submit" disabled={saving} className="btn-primary w-full bg-brand-600">
-                  {saving ? "Guardando..." : editId ? "Guardar cambios" : "Crear producto"}
-                </button>
-              </form>
-            </div>
+              {/* Stock + Category */}
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Stock">
+                  <input
+                    className="input"
+                    type="number"
+                    min="0"
+                    placeholder="Sin límite"
+                    value={form.stock}
+                    onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))}
+                  />
+                </Field>
+                <Field label="Categoría">
+                  <select
+                    className="input"
+                    value={form.category_id}
+                    onChange={(e) => setForm((f) => ({ ...f, category_id: e.target.value }))}
+                    style={{ appearance: "none" }}
+                  >
+                    <option value="">Sin categoría</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.icon ? `${c.icon} ` : ""}{c.name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
+
+              {/* Toggles */}
+              <div style={{ borderTop: "1px solid #F1F5F9", borderRadius: 0 }}>
+                <Toggle
+                  checked={form.is_featured}
+                  onChange={() => setForm((f) => ({ ...f, is_featured: !f.is_featured }))}
+                  label="Producto destacado"
+                  sub="Aparece primero en tu tienda"
+                />
+              </div>
+
+              {/* Discount preview */}
+              {form.price_cents && form.compare_price &&
+               parseFloat(form.compare_price) > parseFloat(form.price_cents) && (
+                <div
+                  className="rounded-2xl p-3 flex items-center gap-3"
+                  style={{ background: "#FEF3C7", border: "1.5px solid #FDE68A" }}
+                >
+                  <Tag size={16} style={{ color: "#D97706", flexShrink: 0 }} />
+                  <p className="text-xs font-semibold" style={{ color: "#92400E" }}>
+                    Descuento activo: clientes verán{" "}
+                    <strong style={{ color: "#D97706" }}>
+                      {formatPrice(Math.round(parseFloat(form.price_cents) * 100))}
+                    </strong>{" "}
+                    en lugar de{" "}
+                    <s>{formatPrice(Math.round(parseFloat(form.compare_price) * 100))}</s>
+                  </p>
+                </div>
+              )}
+
+              {/* Submit */}
+              <button
+                type="submit"
+                disabled={saving}
+                className="btn-primary"
+                style={{ marginTop: 8 }}
+              >
+                {saving ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4" />
+                    </svg>
+                    Guardando...
+                  </span>
+                ) : editId ? "Guardar cambios" : "Crear producto"}
+              </button>
+
+            </form>
           </div>
         </>
       )}

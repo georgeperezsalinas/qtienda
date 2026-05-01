@@ -25,6 +25,7 @@ out/
 
 # Docker
 *.log
+*.yml
 
 # IDE
 .vscode/
