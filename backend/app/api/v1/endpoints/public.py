@@ -1,0 +1,306 @@
+"""
+Public endpoints — accessed by buyers via /tienda/{slug}
+No authentication required.
+"""
+from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, and_
+from sqlalchemy.orm import selectinload
+
+from app.db.session import get_db
+from app.models.models import Store, Product, Order, OrderItem, Payment, StoreSettings
+from app.schemas.orders import PublicOrderCreate, OrderResponse
+
+router = APIRouter()
+
+
+@router.get("/store/{slug}")
+async def get_store(slug: str, db: AsyncSession = Depends(get_db)):
+    """Load store page data for buyers."""
+    result = await db.execute(
+        select(Store)
+        .options(selectinload(Store.settings), selectinload(Store.categories))
+        .where(
+            Store.slug == slug,
+            Store.status == "active",
+            Store.deleted_at.is_(None),
+        )
+    )
+    store = result.scalar_one_or_none()
+    if not store:
+        raise HTTPException(status_code=404, detail="Tienda no encontrada")
+
+    return {
+        "id": store.id,
+        "slug": store.slug,
+        "name": store.name,
+        "description": store.description,
+        "logo_url": store.logo_url,
+        "banner_url": store.banner_url,
+        "whatsapp": store.whatsapp,
+        "primary_color": store.primary_color,
+        "city": store.city,
+        "categories": [
+            {"id": c.id, "name": c.name, "slug": c.slug, "icon": c.icon}
+            for c in sorted(store.categories, key=lambda x: x.sort_order)
+        ],
+        "settings": {
+            "accept_cash": store.settings.accept_cash if store.settings else True,
+            "accept_yape": store.settings.accept_yape if store.settings else False,
+            "accept_plin": store.settings.accept_plin if store.settings else False,
+            "delivery_fee_cents": store.settings.delivery_fee_cents if store.settings else 0,
+            "min_order_cents": store.settings.min_order_cents if store.settings else 0,
+            "free_delivery_above": store.settings.free_delivery_above if store.settings else None,
+        } if store.settings else {},
+        "meta_title": store.meta_title or store.name,
+        "meta_desc": store.meta_desc,
+    }
+
+
+@router.get("/store/{slug}/products")
+async def get_store_products(
+    slug: str,
+    category: str = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get active products for a store, optionally filtered by category slug."""
+    store_q = await db.execute(
+        select(Store.id).where(
+            Store.slug == slug,
+            Store.status == "active",
+            Store.deleted_at.is_(None),
+        )
+    )
+    store_id = store_q.scalar_one_or_none()
+    if not store_id:
+        raise HTTPException(status_code=404, detail="Tienda no encontrada")
+
+    filters = [
+        Product.store_id == store_id,
+        Product.status == "active",
+        Product.deleted_at.is_(None),
+    ]
+    if category:
+        from app.models.models import Category
+        cat_q = await db.execute(
+            select(Category.id).where(
+                Category.store_id == store_id,
+                Category.slug == category,
+            )
+        )
+        cat_id = cat_q.scalar_one_or_none()
+        if cat_id:
+            filters.append(Product.category_id == cat_id)
+
+    result = await db.execute(
+        select(Product)
+        .options(selectinload(Product.images))
+        .where(and_(*filters))
+        .order_by(Product.is_featured.desc(), Product.sort_order)
+    )
+    products = result.scalars().all()
+
+    return [
+        {
+            "id": p.id,
+            "name": p.name,
+            "slug": p.slug,
+            "description": p.description,
+            "price_cents": p.price_cents,
+            "compare_price": p.compare_price,
+            "stock": p.stock,
+            "is_featured": p.is_featured,
+            "category_id": p.category_id,
+            "images": [
+                {"url": img.url, "is_primary": img.is_primary}
+                for img in p.images
+            ],
+        }
+        for p in products
+    ]
+
+
+@router.post("/store/{slug}/orders", status_code=201)
+async def create_order(
+    slug: str,
+    payload: PublicOrderCreate,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Create order — no login required.
+    This is the core buyer checkout flow. Must be fast.
+    """
+    # Load store
+    store_q = await db.execute(
+        select(Store)
+        .options(selectinload(Store.settings))
+        .where(
+            Store.slug == slug,
+            Store.status == "active",
+            Store.deleted_at.is_(None),
+        )
+    )
+    store = store_q.scalar_one_or_none()
+    if not store:
+        raise HTTPException(status_code=404, detail="Tienda no encontrada")
+
+    # Load & validate products
+    product_ids = [item.product_id for item in payload.items]
+    prod_q = await db.execute(
+        select(Product)
+        .options(selectinload(Product.images))
+        .where(
+            Product.id.in_(product_ids),
+            Product.store_id == store.id,
+            Product.status == "active",
+            Product.deleted_at.is_(None),
+        )
+        .with_for_update()
+    )
+    products_map = {p.id: p for p in prod_q.scalars().all()}
+
+    if len(products_map) != len(set(product_ids)):
+        raise HTTPException(status_code=422, detail="Producto no disponible")
+
+    # Build order items + subtotal
+    order_items = []
+    subtotal = 0
+    for item in payload.items:
+        product = products_map[item.product_id]
+        if product.stock is not None and product.stock < item.quantity:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Stock insuficiente para '{product.name}'",
+            )
+        line = item.quantity * product.price_cents
+        subtotal += line
+        order_items.append(
+            OrderItem(
+                product_id=product.id,
+                product_name=product.name,
+                product_sku=product.sku,
+                unit_price=product.price_cents,
+                quantity=item.quantity,
+                subtotal=line,
+                image_url=next(
+                    (img.url for img in product.images if img.is_primary),
+                    product.images[0].url if product.images else None,
+                ),
+            )
+        )
+
+    settings = store.settings
+    delivery_cents = settings.delivery_fee_cents if settings else 0
+    if settings and settings.free_delivery_above and subtotal >= settings.free_delivery_above:
+        delivery_cents = 0
+
+    total = subtotal + delivery_cents
+
+    # Min order check
+    if settings and subtotal < settings.min_order_cents:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Monto mínimo S/ {settings.min_order_cents / 100:.2f}",
+        )
+
+    # Generate order number
+    from sqlalchemy import text
+    num_result = await db.execute(
+        text("SELECT generate_order_number(:store_id)"),
+        {"store_id": str(store.id)},
+    )
+    order_number = num_result.scalar()
+
+    order = Order(
+        store_id=store.id,
+        order_number=order_number,
+        buyer_name=payload.buyer_name,
+        buyer_phone=payload.buyer_phone,
+        buyer_email=payload.buyer_email,
+        buyer_address=payload.buyer_address,
+        buyer_reference=payload.buyer_reference,
+        subtotal_cents=subtotal,
+        delivery_cents=delivery_cents,
+        total_cents=total,
+        notes=payload.notes,
+        source=payload.source or "tiktok",
+        utm_source=payload.utm_source,
+        utm_campaign=payload.utm_campaign,
+        ip_address=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+    )
+    db.add(order)
+    await db.flush()
+
+    for oi in order_items:
+        oi.order_id = order.id
+        db.add(oi)
+
+        # Decrement stock
+        if products_map[oi.product_id].stock is not None:
+            products_map[oi.product_id].stock -= oi.quantity
+
+    await db.commit()
+    await db.refresh(order)
+
+    # WhatsApp deep-link for vendor notification
+    wa_link = None
+    if store.whatsapp:
+        wa_msg = (
+            f"🛍️ Nuevo pedido {order_number}\n"
+            f"👤 {payload.buyer_name} - {payload.buyer_phone}\n"
+            f"💰 Total: S/ {total/100:.2f}\n"
+            f"📦 {len(order_items)} productos"
+        )
+        from urllib.parse import quote
+        wa_link = f"https://wa.me/{store.whatsapp}?text={quote(wa_msg)}"
+
+    return {
+        "order_id": order.id,
+        "order_number": order.order_number,
+        "status": order.status,
+        "total_cents": order.total_cents,
+        "subtotal_cents": order.subtotal_cents,
+        "delivery_cents": order.delivery_cents,
+        "whatsapp_link": wa_link,
+        "payment_methods": {
+            "cash": settings.accept_cash if settings else True,
+            "yape": settings.accept_yape if settings else False,
+            "plin": settings.accept_plin if settings else False,
+            "yape_phone": settings.yape_phone if settings else None,
+            "plin_phone": settings.plin_phone if settings else None,
+        },
+    }
+
+
+@router.get("/store/{slug}/orders/{order_number}/track")
+async def track_order(slug: str, order_number: str, db: AsyncSession = Depends(get_db)):
+    """Buyer order tracking — public."""
+    store_q = await db.execute(select(Store.id).where(Store.slug == slug))
+    store_id = store_q.scalar_one_or_none()
+    if not store_id:
+        raise HTTPException(status_code=404, detail="Tienda no encontrada")
+
+    order_q = await db.execute(
+        select(Order)
+        .options(selectinload(Order.items))
+        .where(
+            Order.store_id == store_id,
+            Order.order_number == order_number,
+        )
+    )
+    order = order_q.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="Pedido no encontrado")
+
+    return {
+        "order_number": order.order_number,
+        "status": order.status,
+        "created_at": order.created_at,
+        "total_cents": order.total_cents,
+        "items": [
+            {"name": i.product_name, "qty": i.quantity, "image_url": i.image_url}
+            for i in order.items
+        ],
+    }
