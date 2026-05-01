@@ -1,25 +1,6 @@
 version: "3.9"
 
 services:
-  # ── PostgreSQL ─────────────────────────────────────────────
-  db:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB:       qtienda
-      POSTGRES_USER:     qtienda
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/01_init.sql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U qtienda"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - internal
-
   # ── Redis (sessions / rate-limit / cache) ─────────────────
   redis:
     image: redis:7-alpine
@@ -37,7 +18,7 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
-      DATABASE_URL:  postgresql+asyncpg://qtienda:${DB_PASSWORD}@db:5432/qtienda
+      DATABASE_URL:  postgresql+asyncpg://qtienda:${DB_PASSWORD}@siscont_db:5432/qtienda
       SECRET_KEY:    ${SECRET_KEY}
       DEBUG:         "false"
       REDIS_URL:     redis://:${REDIS_PASSWORD}@redis:6379/0
@@ -104,7 +85,6 @@ services:
       - web
 
 volumes:
-  pgdata:
   redisdata:
   letsencrypt:
 
