@@ -51,6 +51,7 @@ def _save_local(content: bytes, filename: str) -> str:
 
 async def _upload_s3(content: bytes, filename: str, content_type: str) -> str:
     try:
+        import certifi
         import boto3
         from botocore.config import Config
 
@@ -60,6 +61,7 @@ async def _upload_s3(content: bytes, filename: str, content_type: str) -> str:
             aws_access_key_id=settings.S3_ACCESS_KEY,
             aws_secret_access_key=settings.S3_SECRET_KEY,
             config=Config(signature_version="s3v4"),
+            verify=certifi.where(),
         )
         key = f"products/{filename}"
         s3.put_object(
