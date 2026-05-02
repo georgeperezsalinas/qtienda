@@ -52,7 +52,9 @@ export default function LoginPage() {
       setUser(me);
 
       toast.success("¡Bienvenido de vuelta!");
-      router.push("/dashboard");
+      if (me.role === "admin")        router.push("/admin");
+      else if (me.role === "buyer")  router.push("/mis-pedidos");
+      else                           router.push("/dashboard");
     } catch (err: any) {
       const status = err.response?.status;
       if (status === 401) toast.error("Email o contraseña incorrectos");

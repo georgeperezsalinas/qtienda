@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronDown, ChevronUp, Search, Package } from "lucide-react";
+import { ChevronDown, ChevronUp, Search, Package } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
@@ -372,7 +371,7 @@ function GroupedOrders({ orders }: { orders: Order[] }) {
 /* ── Main page ── */
 export default function MisPedidosPage() {
   const { user, accessToken } = useAuthStore();
-  const isLoggedIn = !!accessToken;
+  const isLoggedIn  = !!accessToken;
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
@@ -389,30 +388,8 @@ export default function MisPedidosPage() {
   }, [isLoggedIn]);
 
   return (
-    <div
-      className="min-h-dvh flex flex-col"
-      style={{ background: "var(--surface-2)" }}
-    >
-      {/* Nav */}
-      <nav className="flex items-center justify-between px-5 pt-safe pt-4 pb-2">
-        <Link
-          href="/"
-          className="flex items-center gap-1 text-sm font-semibold transition-colors"
-          style={{ color: "var(--ink-2)" }}
-        >
-          <ChevronLeft size={18} />
-          Inicio
-        </Link>
-        <span
-          className="font-display font-extrabold text-lg"
-          style={{ color: "var(--brand-600)" }}
-        >
-          q<span style={{ color: "var(--ink)" }}>tienda</span>
-        </span>
-        <div className="w-16" aria-hidden />
-      </nav>
-
-      <main className="flex-1 px-5 pt-4 pb-10 max-w-lg mx-auto w-full">
+    <div>
+      <main className="px-5 pt-5 pb-10 max-w-lg mx-auto w-full">
         <div className="mb-6">
           <h1
             className="font-display font-extrabold text-2xl mb-1"
@@ -499,3 +476,4 @@ export default function MisPedidosPage() {
     </div>
   );
 }
+
