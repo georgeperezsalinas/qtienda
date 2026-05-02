@@ -1,7 +1,6 @@
 """Image upload endpoint — local storage o Cloudflare R2."""
-import ctypes
+import asyncio
 import os
-import ssl
 import uuid
 from pathlib import Path
 
@@ -15,23 +14,6 @@ router = APIRouter()
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 MAX_SIZE_MB = 5
 UPLOADS_DIR = Path(os.getenv("UPLOADS_DIR", "/tmp/qtienda-uploads"))
-
-
-def _remove_mlkem_groups(ctx: ssl.SSLContext) -> None:
-    """
-    OpenSSL 3.5 agrega ML-KEM (post-quantum) a los grupos TLS por defecto,
-    produciendo un ClientHello de ~1600 bytes que Cloudflare R2 rechaza.
-    Llamamos SSL_CTX_set1_groups_list vía ctypes para restringirlos.
-    """
-    try:
-        libssl = ctypes.CDLL("libssl.so.3")
-        libssl.SSL_CTX_set1_groups_list.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
-        libssl.SSL_CTX_set1_groups_list.restype = ctypes.c_int
-        # CPython PySSLContext layout: PyObject_HEAD (16 bytes) + SSL_CTX* (8 bytes)
-        ssl_ctx_ptr = ctypes.cast(id(ctx) + 16, ctypes.POINTER(ctypes.c_void_p))[0]
-        libssl.SSL_CTX_set1_groups_list(ssl_ctx_ptr, b"X25519:P-256:P-384:P-521:X448")
-    except Exception:
-        pass
 
 
 @router.post("/image")
@@ -65,15 +47,19 @@ def _save_local(content: bytes, filename: str) -> str:
 
 
 async def _upload_r2(content: bytes, filename: str, content_type: str) -> str:
+    """
+    Sube a Cloudflare R2.
+    - boto3 genera la URL presignada localmente (sin red).
+    - curl hace el PUT con --curves para excluir ML-KEM de OpenSSL 3.5,
+      cuyo ClientHello de ~1600 bytes Cloudflare R2 rechaza con handshake_failure.
+    """
     try:
         import certifi
-        import httpx
         import boto3
         from botocore.config import Config
 
         key = f"products/{filename}"
 
-        # Generar URL firmada localmente (sin llamada de red)
         s3 = boto3.client(
             "s3",
             endpoint_url=settings.S3_ENDPOINT,
@@ -91,18 +77,24 @@ async def _upload_r2(content: bytes, filename: str, content_type: str) -> str:
             ExpiresIn=300,
         )
 
-        # Contexto SSL sin grupos ML-KEM para compatibilidad con R2
-        ssl_ctx = ssl.create_default_context(cafile=certifi.where())
-        _remove_mlkem_groups(ssl_ctx)
+        proc = await asyncio.create_subprocess_exec(
+            "curl", "-s", "-S", "-X", "PUT",
+            "--curves", "X25519:P-256:P-384:P-521",
+            "--cacert", certifi.where(),
+            "-H", f"Content-Type: {content_type}",
+            "--data-binary", "@-",
+            "-o", "/dev/null",
+            "-w", "%{http_code}",
+            presigned_url,
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await asyncio.wait_for(proc.communicate(content), timeout=30)
+        http_code = int(stdout.decode().strip())
 
-        async with httpx.AsyncClient(verify=ssl_ctx) as client:
-            resp = await client.put(
-                presigned_url,
-                content=content,
-                headers={"Content-Type": content_type},
-                timeout=30.0,
-            )
-            resp.raise_for_status()
+        if http_code not in (200, 201, 204):
+            raise Exception(f"HTTP {http_code}: {stderr.decode()[:300]}")
 
         base = settings.CDN_URL or f"{settings.S3_ENDPOINT}/{settings.S3_BUCKET}"
         return f"{base}/{key}"

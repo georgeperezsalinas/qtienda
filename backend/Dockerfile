@@ -5,30 +5,20 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Dependencias sistema
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     libpq-dev \
     curl \
     ca-certificates \
-    openssl \
     && update-ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-
-# Configuración OpenSSL: excluir grupos ML-KEM (post-quantum) no soportados por R2
-COPY openssl-compat.cnf /etc/ssl/openssl-compat.cnf
-ENV OPENSSL_CONF=/etc/ssl/openssl-compat.cnf
-
-# Instalar deps Python
 COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Copiar app
 COPY . .
 
-# Usuario no root
 RUN useradd -m appuser && chown -R appuser:appuser /app
 USER appuser
 
