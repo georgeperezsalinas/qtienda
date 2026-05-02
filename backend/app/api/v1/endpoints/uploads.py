@@ -108,5 +108,8 @@ async def _upload_r2(content: bytes, filename: str, content_type: str) -> str:
         base = settings.CDN_URL or f"{settings.S3_ENDPOINT}/{settings.S3_BUCKET}"
         return f"{base}/{key}"
 
+    #except Exception as exc:
+    #    raise HTTPException(status_code=500, detail=f"Error al subir imagen: {exc}")
+    
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Error al subir imagen: {exc}")
+       return _save_local(content, filename)
