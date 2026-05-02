@@ -1,6 +1,22 @@
 """
 qtienda.shop — FastAPI Backend
 """
+# ── SSL compat: debe ir ANTES de cualquier import que use SSL ──────────
+import ssl as _ssl
+
+_orig_ssl_ctx = _ssl.create_default_context
+
+def _compat_ssl_ctx(*args, **kwargs):
+    ctx = _orig_ssl_ctx(*args, **kwargs)
+    try:
+        ctx.set_ciphers("DEFAULT:@SECLEVEL=1")
+    except _ssl.SSLError:
+        pass
+    return ctx
+
+_ssl.create_default_context = _compat_ssl_ctx
+# ───────────────────────────────────────────────────────────────────────
+
 from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI
