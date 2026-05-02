@@ -79,11 +79,15 @@ async def _upload_r2(content: bytes, filename: str, content_type: str) -> str:
 
         # OPENSSL_CONF per-proceso excluye X25519MLKEM768 (OpenSSL 3.5+)
         # que Cloudflare R2 rechaza con handshake_failure.
-        _openssl_cnf = str(Path(__file__).resolve().parents[4] / "openssl-compat.cnf")
+        #_openssl_cnf = str(Path(__file__).resolve().parents[4] / "openssl-compat.cnf")
+        _openssl_cnf = "/app/openssl-compat.cnf"
         _env = {**os.environ, "OPENSSL_CONF": _openssl_cnf}
 
         proc = await asyncio.create_subprocess_exec(
-            "curl", "-s", "-S", "-X", "PUT",
+            #"curl", "-s", "-S", "-X", "PUT",
+            "curl", "--http1.1", "--tlsv1.2",
+            "--curves", "X25519:P-256:P-384",
+            "-s", "-S", "-X", "PUT",
             "--cacert", certifi.where(),
             "-H", f"Content-Type: {content_type}",
             "--data-binary", "@-",
