@@ -1,5 +1,7 @@
 """Image upload endpoint — local storage o Cloudflare R2."""
+import ctypes
 import os
+import ssl
 import uuid
 from pathlib import Path
 
@@ -13,6 +15,23 @@ router = APIRouter()
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 MAX_SIZE_MB = 5
 UPLOADS_DIR = Path(os.getenv("UPLOADS_DIR", "/tmp/qtienda-uploads"))
+
+
+def _remove_mlkem_groups(ctx: ssl.SSLContext) -> None:
+    """
+    OpenSSL 3.5 agrega ML-KEM (post-quantum) a los grupos TLS por defecto,
+    produciendo un ClientHello de ~1600 bytes que Cloudflare R2 rechaza.
+    Llamamos SSL_CTX_set1_groups_list vía ctypes para restringirlos.
+    """
+    try:
+        libssl = ctypes.CDLL("libssl.so.3")
+        libssl.SSL_CTX_set1_groups_list.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+        libssl.SSL_CTX_set1_groups_list.restype = ctypes.c_int
+        # CPython PySSLContext layout: PyObject_HEAD (16 bytes) + SSL_CTX* (8 bytes)
+        ssl_ctx_ptr = ctypes.cast(id(ctx) + 16, ctypes.POINTER(ctypes.c_void_p))[0]
+        libssl.SSL_CTX_set1_groups_list(ssl_ctx_ptr, b"X25519:P-256:P-384:P-521:X448")
+    except Exception:
+        pass
 
 
 @router.post("/image")
@@ -46,12 +65,6 @@ def _save_local(content: bytes, filename: str) -> str:
 
 
 async def _upload_r2(content: bytes, filename: str, content_type: str) -> str:
-    """
-    Sube a Cloudflare R2 usando:
-      1. boto3 solo para firmar la URL presignada (sin llamada de red)
-      2. httpx con ssl.SSLContext explícito para el PUT real
-    Esto evita el stack SSL de botocore/urllib3 que falla en Debian Bookworm.
-    """
     try:
         import certifi
         import httpx
@@ -60,7 +73,7 @@ async def _upload_r2(content: bytes, filename: str, content_type: str) -> str:
 
         key = f"products/{filename}"
 
-        # Firmar URL localmente — cero llamadas de red aquí
+        # Generar URL firmada localmente (sin llamada de red)
         s3 = boto3.client(
             "s3",
             endpoint_url=settings.S3_ENDPOINT,
@@ -78,7 +91,11 @@ async def _upload_r2(content: bytes, filename: str, content_type: str) -> str:
             ExpiresIn=300,
         )
 
-        async with httpx.AsyncClient(verify=certifi.where()) as client:
+        # Contexto SSL sin grupos ML-KEM para compatibilidad con R2
+        ssl_ctx = ssl.create_default_context(cafile=certifi.where())
+        _remove_mlkem_groups(ssl_ctx)
+
+        async with httpx.AsyncClient(verify=ssl_ctx) as client:
             resp = await client.put(
                 presigned_url,
                 content=content,
