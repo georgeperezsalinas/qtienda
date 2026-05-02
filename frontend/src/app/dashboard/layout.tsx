@@ -6,7 +6,7 @@ import Link from "next/link";
 import {
   LayoutDashboard, ShoppingBag, Package,
   Settings, LogOut, ExternalLink,
-  ChevronRight, Menu, X,
+  ChevronRight, X, UserCircle,
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 
@@ -223,6 +223,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </Link>
             );
           })}
+
+          {/* Botón de cuenta / cerrar sesión */}
+          <button
+            onClick={() => setDrawerOpen(true)}
+            className="flex-1 flex flex-col items-center gap-0.5 pt-3 pb-2
+                       text-[10px] font-bold transition-colors"
+            style={{ color: "var(--ink-3)" }}
+          >
+            <div className="flex items-center justify-center w-10 h-7 rounded-xl">
+              <UserCircle size={20} />
+            </div>
+            Cuenta
+          </button>
         </div>
       </nav>
 

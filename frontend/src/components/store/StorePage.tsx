@@ -4,11 +4,12 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import Image from "next/image";
 import {
   ShoppingCart, Search, ChevronRight, Zap,
-  MapPin, Star, X, Plus, Minus, MessageCircle,
-  Share2, ArrowLeft,
+  MapPin, X, MessageCircle,
+  Share2, Download,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ProductCard from "./ProductCard";
+import ProductImageViewer from "./ProductImageViewer";
 import CartDrawer from "./CartDrawer";
 import { useCartStore } from "@/store/cartStore";
 import { formatPrice } from "@/lib/utils";
@@ -58,12 +59,31 @@ export default function StorePage({ store, initialProducts }: Props) {
   const [mounted,        setMounted]        = useState(false);
   const [searchFocused,  setSearchFocused]  = useState(false);
   const [headerScrolled, setHeaderScrolled] = useState(false);
+  const [viewProduct,    setViewProduct]    = useState<ProductData | null>(null);
+  const [installPrompt,  setInstallPrompt]  = useState<BeforeInstallPromptEvent | null>(null);
+  const [installDismissed, setInstallDismissed] = useState(false);
   const cartCount = useCartStore((s) => s.totalItems());
   const searchRef = useRef<HTMLInputElement>(null);
 
   const color = store.primary_color || "#2563EB";
 
+  async function handleInstall() {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    setInstallPrompt(null);
+  }
+
   useEffect(() => { setMounted(true); }, []);
+
+  /* Capturar evento de instalación PWA */
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e as BeforeInstallPromptEvent);
+    };
+    window.addEventListener("beforeinstallprompt", handler as EventListener);
+    return () => window.removeEventListener("beforeinstallprompt", handler as EventListener);
+  }, []);
 
   /* Shrink header on scroll */
   useEffect(() => {
@@ -182,6 +202,35 @@ export default function StorePage({ store, initialProducts }: Props) {
         </div>
       </header>
 
+      {/* Banner de instalación PWA */}
+      <AnimatePresence>
+        {mounted && installPrompt && !installDismissed && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="flex items-center gap-3 px-4 py-2.5 max-w-xl mx-auto"
+            style={{ background: `${color}10`, borderBottom: `1px solid ${color}18` }}
+          >
+            <span className="text-lg flex-shrink-0">📲</span>
+            <p className="flex-1 text-xs font-medium" style={{ color: "#475569" }}>
+              Instala la tienda para acceso rápido
+            </p>
+            <button
+              onClick={handleInstall}
+              className="flex-shrink-0 flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full text-white"
+              style={{ background: color }}
+            >
+              <Download size={11} />
+              Instalar
+            </button>
+            <button onClick={() => setInstallDismissed(true)} aria-label="Cerrar">
+              <X size={14} style={{ color: "#94A3B8" }} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ══════════════════════════════════
           HERO BANNER
       ══════════════════════════════════ */}
@@ -250,6 +299,7 @@ export default function StorePage({ store, initialProducts }: Props) {
                     storeColor={color}
                     storeSlug={store.slug}
                     featured
+                    onViewImages={p.images?.length > 0 ? () => setViewProduct(p) : undefined}
                   />
                 </div>
               ))}
@@ -381,6 +431,7 @@ export default function StorePage({ store, initialProducts }: Props) {
                       product={product}
                       storeColor={color}
                       storeSlug={store.slug}
+                      onViewImages={product.images?.length > 0 ? () => setViewProduct(product) : undefined}
                     />
                   </motion.div>
                 ))}
@@ -458,6 +509,22 @@ export default function StorePage({ store, initialProducts }: Props) {
         onClose={() => setCartOpen(false)}
         store={store as any}
       />
+
+      {/* Visor de imágenes del producto */}
+      {viewProduct && viewProduct.images?.length > 0 && (
+        <ProductImageViewer
+          images={viewProduct.images}
+          productName={viewProduct.name}
+          onClose={() => setViewProduct(null)}
+          storeColor={color}
+        />
+      )}
     </div>
   );
+}
+
+/* Tipo para el evento de instalación PWA (no incluido en lib.dom por defecto) */
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }

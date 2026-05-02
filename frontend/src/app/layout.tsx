@@ -3,12 +3,22 @@ import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import QueryProvider from "@/components/ui/QueryProvider";
 import { GoogleAuthProvider } from "@/components/ui/GoogleAuthProvider";
+import PWARegister from "@/components/ui/PWARegister";
 
 export const metadata: Metadata = {
   title: { default: "qtienda.shop — Tu tienda en TikTok", template: "%s | qtienda.shop" },
   description: "Crea tu tienda online en 2 minutos. Recibe pedidos directo a tu WhatsApp.",
   manifest: "/manifest.json",
   keywords: ["tienda online", "TikTok shop", "WhatsApp pedidos", "emprendimiento", "Peru"],
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "qtienda",
+  },
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg",
+  },
   openGraph: {
     title: "qtienda.shop",
     description: "Tu tienda online en 2 minutos",
@@ -30,6 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es" className="h-full">
       <body className="h-full">
         <QueryProvider>
+          <PWARegister />
           <GoogleAuthProvider>
           {children}
           </GoogleAuthProvider>

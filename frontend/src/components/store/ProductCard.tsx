@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Plus, Check } from "lucide-react";
+import { Plus, Check, Images } from "lucide-react";
 import { useState } from "react";
 import { useCartStore } from "@/store/cartStore";
 import { formatPrice } from "@/lib/utils";
@@ -21,9 +21,10 @@ interface Props {
   storeColor: string;
   storeSlug: string;
   featured?: boolean;
+  onViewImages?: () => void;
 }
 
-export default function ProductCard({ product, storeColor, storeSlug, featured }: Props) {
+export default function ProductCard({ product, storeColor, storeSlug, featured, onViewImages }: Props) {
   const [added, setAdded] = useState(false);
   const addItem = useCartStore((s) => s.addItem);
 
@@ -34,8 +35,10 @@ export default function ProductCard({ product, storeColor, storeSlug, featured }
   const discount = product.compare_price
     ? Math.round((1 - product.price_cents / product.compare_price) * 100)
     : null;
+  const multipleImages = (product.images?.length ?? 0) > 1;
 
-  function handleAdd() {
+  function handleAdd(e: React.MouseEvent) {
+    e.stopPropagation();
     if (outOfStock) return;
     addItem(
       {
@@ -56,7 +59,11 @@ export default function ProductCard({ product, storeColor, storeSlug, featured }
     return (
       <div className="flex-shrink-0 w-52 snap-start">
         <div className="card overflow-hidden">
-          <div className="relative h-36 bg-gray-50">
+          <div
+            className="relative h-36 bg-gray-50"
+            onClick={primaryImage && onViewImages ? onViewImages : undefined}
+            style={{ cursor: primaryImage && onViewImages ? "pointer" : "default" }}
+          >
             {primaryImage ? (
               <Image src={primaryImage} alt={product.name} fill className="object-cover" />
             ) : (
@@ -68,6 +75,15 @@ export default function ProductCard({ product, storeColor, storeSlug, featured }
                 style={{ background: storeColor }}
               >
                 -{discount}%
+              </span>
+            )}
+            {multipleImages && primaryImage && (
+              <span
+                className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full px-1.5 py-0.5 text-white text-[10px] font-semibold"
+                style={{ background: "rgba(0,0,0,.5)" }}
+              >
+                <Images size={10} />
+                {product.images.length}
               </span>
             )}
           </div>
@@ -94,7 +110,11 @@ export default function ProductCard({ product, storeColor, storeSlug, featured }
 
   return (
     <div className="card overflow-hidden flex flex-col">
-      <div className="relative bg-gray-50 aspect-square">
+      <div
+        className="relative bg-gray-50 aspect-square"
+        onClick={primaryImage && onViewImages ? onViewImages : undefined}
+        style={{ cursor: primaryImage && onViewImages ? "pointer" : "default" }}
+      >
         {primaryImage ? (
           <Image src={primaryImage} alt={product.name} fill className="object-cover" />
         ) : (
@@ -106,6 +126,15 @@ export default function ProductCard({ product, storeColor, storeSlug, featured }
             style={{ background: "#ef4444" }}
           >
             -{discount}%
+          </span>
+        )}
+        {multipleImages && primaryImage && (
+          <span
+            className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full px-2 py-0.5 text-white text-xs font-semibold"
+            style={{ background: "rgba(0,0,0,.5)" }}
+          >
+            <Images size={11} />
+            {product.images.length}
           </span>
         )}
         {outOfStock && (
