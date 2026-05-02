@@ -70,7 +70,6 @@ export default function CompradorCuentaPage() {
         style={{
           background: "var(--surface-0)",
           border: "1.5px solid #E2E8F0",
-          divideColor: "#F1F5F9",
         }}
       >
         <div className="flex items-center gap-3 px-4 py-3.5">
