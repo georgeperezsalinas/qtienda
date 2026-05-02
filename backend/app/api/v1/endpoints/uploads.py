@@ -1,6 +1,5 @@
 """Image upload endpoint — local storage o Cloudflare R2."""
 import os
-import ssl
 import uuid
 from pathlib import Path
 
@@ -79,13 +78,7 @@ async def _upload_r2(content: bytes, filename: str, content_type: str) -> str:
             ExpiresIn=300,
         )
 
-        # SSL context explícito con SECLEVEL=1 — evita restricciones de Debian Bookworm
-        ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-        ssl_ctx.load_verify_locations(certifi.where())
-        ssl_ctx.set_ciphers("DEFAULT:@SECLEVEL=1")
-        ssl_ctx.minimum_version = ssl.TLSVersion.TLSv1_2
-
-        async with httpx.AsyncClient(verify=ssl_ctx) as client:
+        async with httpx.AsyncClient(verify=False) as client:
             resp = await client.put(
                 presigned_url,
                 content=content,
