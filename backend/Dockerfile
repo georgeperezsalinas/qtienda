@@ -13,8 +13,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     openssl \
     && update-ca-certificates \
-    && sed -i 's/DEFAULT@SECLEVEL=2/DEFAULT@SECLEVEL=1/g' /etc/ssl/openssl.cnf \
     && rm -rf /var/lib/apt/lists/*
+
+# Config OpenSSL con SECLEVEL=1 para compatibilidad con Cloudflare R2
+COPY openssl-compat.cnf /etc/ssl/openssl-compat.cnf
+ENV OPENSSL_CONF=/etc/ssl/openssl-compat.cnf
 
 # Instalar deps Python
 COPY requirements.txt .
