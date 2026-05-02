@@ -1,21 +1,25 @@
 """
 qtienda.shop — FastAPI Backend
 """
-# ── SSL compat: debe ir ANTES de cualquier import que use SSL ──────────
+# ── SSL compat para Cloudflare R2 en Debian Bookworm (va PRIMERO) ──────
+# botocore usa urllib3.util.ssl_.create_urllib3_context, NO ssl.create_default_context.
+# Hay que parchear ambas antes de que botocore sea importado.
 import ssl as _ssl
+import urllib3.util.ssl_ as _u3ssl
 
-_orig_ssl_ctx = _ssl.create_default_context
-
-def _compat_ssl_ctx(*args, **kwargs):
-    ctx = _orig_ssl_ctx(*args, **kwargs)
+def _patch_ctx(ctx):
     try:
         ctx.set_ciphers("DEFAULT:@SECLEVEL=1")
     except _ssl.SSLError:
         pass
     return ctx
 
-_ssl.create_default_context = _compat_ssl_ctx
-# ───────────────────────────────────────────────────────────────────────
+_o1 = _ssl.create_default_context
+_ssl.create_default_context = lambda *a, **kw: _patch_ctx(_o1(*a, **kw))
+
+_o2 = _u3ssl.create_urllib3_context
+_u3ssl.create_urllib3_context = lambda *a, **kw: _patch_ctx(_o2(*a, **kw))
+# ────────────────────────────────────────────────────────────────────────
 
 from contextlib import asynccontextmanager
 from pathlib import Path

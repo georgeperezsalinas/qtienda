@@ -1,7 +1,25 @@
 """Image upload endpoint — local storage or S3/R2."""
 import os
+import ssl
 import uuid
 from pathlib import Path
+
+import urllib3.util.ssl_ as _u3ssl
+import botocore.httpsession as _bh
+
+# Forzar SECLEVEL=1 en botocore/urllib3 (necesario para Cloudflare R2 en Docker)
+_orig_u3_ctx = _u3ssl.create_urllib3_context
+
+def _seclevel1(*a, **kw):
+    ctx = _orig_u3_ctx(*a, **kw)
+    try:
+        ctx.set_ciphers("DEFAULT:@SECLEVEL=1")
+    except ssl.SSLError:
+        pass
+    return ctx
+
+_u3ssl.create_urllib3_context = _seclevel1
+_bh.create_urllib3_context = _seclevel1
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
