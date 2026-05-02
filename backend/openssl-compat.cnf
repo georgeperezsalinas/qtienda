@@ -1,6 +1,6 @@
-openssl_conf = default_conf
+openssl_conf = openssl_init
 
-[default_conf]
+[openssl_init]
 ssl_conf = ssl_sect
 
 [ssl_sect]
@@ -8,4 +8,5 @@ system_default = system_default_sect
 
 [system_default_sect]
 MinProtocol = TLSv1.2
-CipherString = DEFAULT@SECLEVEL=1
+# Excluir ML-KEM (post-quantum) — no soportado por Cloudflare R2
+Groups = X25519:P-256:P-384:P-521:X448

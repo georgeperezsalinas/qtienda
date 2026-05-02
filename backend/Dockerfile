@@ -16,6 +16,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 
+# Configuración OpenSSL: excluir grupos ML-KEM (post-quantum) no soportados por R2
+COPY openssl-compat.cnf /etc/ssl/openssl-compat.cnf
+ENV OPENSSL_CONF=/etc/ssl/openssl-compat.cnf
+
 # Instalar deps Python
 COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \

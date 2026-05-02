@@ -78,7 +78,7 @@ async def _upload_r2(content: bytes, filename: str, content_type: str) -> str:
             ExpiresIn=300,
         )
 
-        async with httpx.AsyncClient(verify=False) as client:
+        async with httpx.AsyncClient(verify=certifi.where()) as client:
             resp = await client.put(
                 presigned_url,
                 content=content,
