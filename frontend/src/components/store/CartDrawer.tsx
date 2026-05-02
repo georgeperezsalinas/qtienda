@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Minus, Plus, ShoppingBag, MessageCircle, CheckCircle2 } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
+import { useAuthStore } from "@/store/authStore";
 import { formatPrice } from "@/lib/utils";
 import { apiClient } from "@/lib/api";
 import toast from "react-hot-toast";
@@ -18,6 +19,7 @@ type Step = "cart" | "info" | "success";
 
 export default function CartDrawer({ open, onClose, store }: Props) {
   const { items, updateQty, removeItem, clearCart, totalCents } = useCartStore();
+  const { user } = useAuthStore();
   const [step, setStep] = useState<Step>("cart");
   const [loading, setLoading] = useState(false);
   const [orderResult, setOrderResult] = useState<any>(null);
@@ -25,6 +27,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
   const [form, setForm] = useState({
     buyer_name: "",
     buyer_phone: "",
+    buyer_email: "",
     buyer_address: "",
     notes: "",
   });
@@ -45,6 +48,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
       const payload = {
         buyer_name: form.buyer_name,
         buyer_phone: form.buyer_phone,
+        buyer_email: form.buyer_email.trim() || undefined,
         buyer_address: form.buyer_address,
         notes: form.notes,
         source: "tiktok",
@@ -185,6 +189,26 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                   </div>
                   <div>
                     <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">
+                      Email {user ? "(para tus pedidos)" : "(opcional)"}
+                    </label>
+                    <input
+                      className="input"
+                      type="email"
+                      inputMode="email"
+                      placeholder="tu@email.com"
+                      value={form.buyer_email}
+                      readOnly={!!user?.email}
+                      onChange={(e) => setForm({ ...form, buyer_email: e.target.value })}
+                      style={user?.email ? { background: "var(--surface-1)", color: "var(--ink-3)" } : {}}
+                    />
+                    {user?.email && (
+                      <p className="text-xs mt-1" style={{ color: "var(--ink-4)" }}>
+                        El pedido se vinculará a tu cuenta
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">
                       Dirección de entrega
                     </label>
                     <input
@@ -286,7 +310,12 @@ export default function CartDrawer({ open, onClose, store }: Props) {
               <div className="px-5 py-4 pb-safe border-t border-gray-100">
                 {step === "cart" ? (
                   <button
-                    onClick={() => setStep("info")}
+                    onClick={() => {
+                      if (user?.email && !form.buyer_email) {
+                        setForm((f) => ({ ...f, buyer_email: user.email }));
+                      }
+                      setStep("info");
+                    }}
                     disabled={items.length === 0}
                     className="btn-primary w-full"
                     style={{ background: store.primary_color }}

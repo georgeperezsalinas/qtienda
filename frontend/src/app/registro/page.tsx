@@ -94,7 +94,9 @@ export default function RegistroPage() {
       setUser(me);
 
       toast.success("¡Bienvenido/a!");
-      router.push("/mis-pedidos");
+      if (me.role === "admin")       router.push("/admin");
+      else if (me.role === "vendor") router.push("/dashboard");
+      else                           router.push("/mis-pedidos");
     } catch (err: any) {
       const detail = err.response?.data?.detail;
       if (detail === "Contraseña incorrecta para esa cuenta") {
