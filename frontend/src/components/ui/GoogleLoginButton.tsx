@@ -29,19 +29,22 @@ function Spinner() {
 
 interface Props {
   label?: string;
+  mode?: "vendor" | "buyer";
 }
 
-// Inner component — only rendered when GoogleOAuthProvider is in the tree
-function Inner({ label }: Required<Props>) {
+function Inner({ label, mode }: Required<Props>) {
   const router = useRouter();
   const { setTokens, setUser } = useAuthStore();
   const [loading, setLoading] = useState(false);
+
+  const endpoint  = mode === "buyer" ? "/auth/google-buyer" : "/auth/google";
+  const redirectTo = mode === "buyer" ? "/mis-pedidos"       : "/dashboard";
 
   const login = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
       setLoading(true);
       try {
-        const { data } = await apiClient.post("/auth/google", {
+        const { data } = await apiClient.post(endpoint, {
           access_token: tokenResponse.access_token,
         });
         setTokens(data.access_token, data.refresh_token);
@@ -50,7 +53,7 @@ function Inner({ label }: Required<Props>) {
         });
         setUser(me);
         toast.success("¡Bienvenido!");
-        router.push("/dashboard");
+        router.push(redirectTo);
       } catch (err: any) {
         toast.error(err.response?.data?.detail || "Error al iniciar con Google");
       } finally {
@@ -73,8 +76,10 @@ function Inner({ label }: Required<Props>) {
   );
 }
 
-export default function GoogleLoginButton({ label = "Continuar con Google" }: Props) {
-  // Hide button entirely when Google OAuth is not configured
+export default function GoogleLoginButton({
+  label = "Continuar con Google",
+  mode  = "vendor",
+}: Props) {
   if (!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID) return null;
-  return <Inner label={label} />;
+  return <Inner label={label} mode={mode} />;
 }

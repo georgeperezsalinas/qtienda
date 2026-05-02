@@ -12,6 +12,7 @@ import ProductCard from "./ProductCard";
 import ProductDetailSheet from "./ProductDetailSheet";
 import CartDrawer from "./CartDrawer";
 import { useCartStore } from "@/store/cartStore";
+import { useAuthStore } from "@/store/authStore";
 import { formatPrice } from "@/lib/utils";
 
 interface StoreData {
@@ -60,10 +61,15 @@ export default function StorePage({ store, initialProducts }: Props) {
   const [searchFocused,  setSearchFocused]  = useState(false);
   const [headerScrolled, setHeaderScrolled] = useState(false);
   const [viewProduct,    setViewProduct]    = useState<ProductData | null>(null);
-  const [installPrompt,  setInstallPrompt]  = useState<BeforeInstallPromptEvent | null>(null);
-  const [installDismissed, setInstallDismissed] = useState(false);
-  const cartCount = useCartStore((s) => s.totalItems());
-  const searchRef = useRef<HTMLInputElement>(null);
+  const [installPrompt,       setInstallPrompt]       = useState<BeforeInstallPromptEvent | null>(null);
+  const [installDismissed,    setInstallDismissed]    = useState(false);
+  const [buyerBannerDismissed,setBuyerBannerDismissed]= useState(false);
+  const [accountOpen,         setAccountOpen]         = useState(false);
+  const cartCount  = useCartStore((s) => s.totalItems());
+  const isLoggedIn = useAuthStore((s) => s.isAuthenticated());
+  const user       = useAuthStore((s) => s.user);
+  const logout     = useAuthStore((s) => s.logout);
+  const searchRef  = useRef<HTMLInputElement>(null);
 
   const color = store.primary_color || "#2563EB";
 
@@ -73,7 +79,17 @@ export default function StorePage({ store, initialProducts }: Props) {
     setInstallPrompt(null);
   }
 
-  useEffect(() => { setMounted(true); }, []);
+  function dismissBuyerBanner() {
+    setBuyerBannerDismissed(true);
+    localStorage.setItem("qtienda_buyer_banner_dismissed", "1");
+  }
+
+  useEffect(() => {
+    setMounted(true);
+    if (localStorage.getItem("qtienda_buyer_banner_dismissed") === "1") {
+      setBuyerBannerDismissed(true);
+    }
+  }, []);
 
   /* Capturar evento de instalación PWA */
   useEffect(() => {
@@ -174,6 +190,23 @@ export default function StorePage({ store, initialProducts }: Props) {
             <Share2 size={16} style={{ color }} />
           </button>
 
+          {/* Cuenta comprador */}
+          {mounted && isLoggedIn && user && (
+            <button
+              onClick={() => setAccountOpen(true)}
+              className="relative w-9 h-9 rounded-xl flex items-center justify-center
+                         font-bold text-xs text-white transition-all active:scale-90"
+              style={{ background: `${color}cc` }}
+              aria-label="Mi cuenta"
+            >
+              {user.avatar_url ? (
+                <img src={user.avatar_url} alt="" className="w-full h-full rounded-xl object-cover" />
+              ) : (
+                (user.full_name?.[0] ?? user.email[0]).toUpperCase()
+              )}
+            </button>
+          )}
+
           {/* Cart */}
           <button
             onClick={() => setCartOpen(true)}
@@ -231,11 +264,39 @@ export default function StorePage({ store, initialProducts }: Props) {
         )}
       </AnimatePresence>
 
+      {/* Banner registro comprador */}
+      <AnimatePresence>
+        {mounted && !isLoggedIn && !buyerBannerDismissed && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="flex items-center gap-3 px-4 py-2.5 max-w-xl mx-auto"
+            style={{ background: "#F0FDF4", borderBottom: "1px solid #BBF7D0" }}
+          >
+            <span className="text-lg flex-shrink-0">🛍️</span>
+            <p className="flex-1 text-xs font-medium leading-snug" style={{ color: "#166534" }}>
+              ¿Compras aquí seguido? Crea una cuenta para ver tus pedidos
+            </p>
+            <a
+              href="/registro"
+              className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-full text-white whitespace-nowrap"
+              style={{ background: "#16A34A" }}
+            >
+              Crear cuenta
+            </a>
+            <button onClick={dismissBuyerBanner} aria-label="Cerrar">
+              <X size={14} style={{ color: "#86EFAC" }} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ══════════════════════════════════
           HERO BANNER
       ══════════════════════════════════ */}
       {store.banner_url ? (
-        <div className="relative h-44 overflow-hidden max-w-xl mx-auto">
+        <div className="relative h-24 overflow-hidden max-w-xl mx-auto">
           <Image
             src={store.banner_url}
             alt={store.name}
@@ -509,6 +570,96 @@ export default function StorePage({ store, initialProducts }: Props) {
         onClose={() => setCartOpen(false)}
         store={store as any}
       />
+
+      {/* Panel de cuenta comprador */}
+      <AnimatePresence>
+        {accountOpen && user && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[59]"
+              style={{ background: "rgba(15,23,42,.45)" }}
+              onClick={() => setAccountOpen(false)}
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 320 }}
+              className="fixed bottom-0 left-0 right-0 z-[60] max-w-xl mx-auto"
+              style={{
+                background:   "#fff",
+                borderRadius: "24px 24px 0 0",
+                boxShadow:    "0 -8px 40px rgba(15,23,42,.18)",
+              }}
+            >
+              {/* Handle */}
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="w-10 h-1 rounded-full bg-gray-200" />
+              </div>
+
+              <div className="px-5 pt-3 pb-safe pb-8">
+                {/* Avatar + nombre */}
+                <div className="flex items-center gap-3 mb-5">
+                  <div
+                    className="w-12 h-12 rounded-2xl flex items-center justify-center
+                               font-bold text-lg text-white flex-shrink-0 overflow-hidden"
+                    style={{ background: color }}
+                  >
+                    {user.avatar_url ? (
+                      <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      (user.full_name?.[0] ?? user.email[0]).toUpperCase()
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-display font-bold text-base leading-tight truncate"
+                       style={{ color: "#0F172A" }}>
+                      {user.full_name}
+                    </p>
+                    <p className="text-xs truncate mt-0.5" style={{ color: "#94A3B8" }}>
+                      {user.email}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Botones */}
+                <div className="space-y-2.5">
+                  <a
+                    href="/mis-pedidos"
+                    className="flex items-center gap-3 w-full rounded-2xl px-4 py-3.5 transition-colors"
+                    style={{ background: `${color}10`, border: `1.5px solid ${color}22` }}
+                  >
+                    <span className="text-xl">📦</span>
+                    <div className="flex-1">
+                      <p className="text-sm font-bold" style={{ color: "#0F172A" }}>
+                        Mis pedidos
+                      </p>
+                      <p className="text-xs mt-0.5" style={{ color: "#94A3B8" }}>
+                        Ver historial en todas las tiendas
+                      </p>
+                    </div>
+                    <ChevronRight size={16} style={{ color: "#CBD5E1" }} />
+                  </a>
+
+                  <button
+                    onClick={() => { logout(); setAccountOpen(false); }}
+                    className="flex items-center gap-3 w-full rounded-2xl px-4 py-3.5 transition-colors"
+                    style={{ background: "#FEF2F2", border: "1.5px solid #FECACA" }}
+                  >
+                    <span className="text-xl">👋</span>
+                    <p className="text-sm font-bold" style={{ color: "#DC2626" }}>
+                      Cerrar sesión
+                    </p>
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Ficha de detalle del producto */}
       <AnimatePresence>

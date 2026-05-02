@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
-import { X, ChevronLeft, ChevronRight, Check, ShoppingCart } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Check, ShoppingCart, ZoomIn } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCartStore } from "@/store/cartStore";
 import { formatPrice } from "@/lib/utils";
@@ -36,6 +36,7 @@ export default function ProductDetailSheet({
     () => Math.max(0, product.images.findIndex((i) => i.is_primary))
   );
   const [added, setAdded] = useState(false);
+  const [zoomOpen, setZoomOpen] = useState(false);
   const touchStartX = useRef(0);
   const addItem = useCartStore((s) => s.addItem);
 
@@ -188,6 +189,18 @@ export default function ProductDetailSheet({
             </span>
           )}
 
+          {/* Botón zoom */}
+          {hasImages && (
+            <button
+              onClick={() => setZoomOpen(true)}
+              className="absolute top-3 left-3 z-10 w-9 h-9 rounded-full flex items-center justify-center"
+              style={{ background: "rgba(15,23,42,.48)" }}
+              aria-label="Ver imagen completa"
+            >
+              <ZoomIn size={16} color="white" />
+            </button>
+          )}
+
           {/* Botón cerrar */}
           <button
             onClick={onClose}
@@ -321,6 +334,33 @@ export default function ProductDetailSheet({
           </motion.button>
         </div>
       </motion.div>
+      {/* Lightbox de imagen completa */}
+      {zoomOpen && hasImages && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[80] flex items-center justify-center"
+          style={{ background: "rgba(0,0,0,.95)" }}
+          onClick={() => setZoomOpen(false)}
+        >
+          <img
+            src={product.images[current].url}
+            alt={product.name}
+            className="max-w-full max-h-full object-contain"
+            style={{ maxHeight: "90dvh" }}
+            onClick={(e) => e.stopPropagation()}
+          />
+          <button
+            onClick={() => setZoomOpen(false)}
+            className="absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center"
+            style={{ background: "rgba(255,255,255,.15)" }}
+            aria-label="Cerrar"
+          >
+            <X size={20} color="white" />
+          </button>
+        </motion.div>
+      )}
     </>
   );
 }

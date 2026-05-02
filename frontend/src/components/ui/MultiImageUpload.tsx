@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useCallback } from "react";
-import { Plus, X, Star } from "lucide-react";
+import { Plus, X, Star, ZoomIn } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
 
@@ -19,6 +19,7 @@ interface Props {
 export function MultiImageUpload({ images, onChange, maxImages = 6 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const canAdd = images.length < maxImages && !uploading;
 
@@ -120,6 +121,17 @@ export function MultiImageUpload({ images, onChange, maxImages = 6 }: Props) {
               </div>
             )}
 
+            {/* Botón preview/zoom */}
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setPreviewUrl(img.url); }}
+              className="absolute bottom-1 right-1 w-5 h-5 rounded-full flex items-center justify-center"
+              style={{ background: "rgba(15,23,42,.65)" }}
+              aria-label="Ver imagen"
+            >
+              <ZoomIn size={9} color="white" />
+            </button>
+
             {/* Botón eliminar */}
             <button
               type="button"
@@ -182,6 +194,32 @@ export function MultiImageUpload({ images, onChange, maxImages = 6 }: Props) {
         onChange={onInputChange}
         aria-hidden
       />
+
+      {/* Modal de preview */}
+      {previewUrl && (
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center"
+          style={{ background: "rgba(0,0,0,.92)" }}
+          onClick={() => setPreviewUrl(null)}
+        >
+          <img
+            src={previewUrl}
+            alt="Vista previa"
+            className="max-w-full max-h-full object-contain"
+            style={{ maxHeight: "90dvh" }}
+            onClick={(e) => e.stopPropagation()}
+          />
+          <button
+            type="button"
+            onClick={() => setPreviewUrl(null)}
+            className="absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center"
+            style={{ background: "rgba(255,255,255,.15)" }}
+            aria-label="Cerrar"
+          >
+            <X size={20} color="white" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

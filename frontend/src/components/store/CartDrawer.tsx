@@ -249,6 +249,19 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                     El vendedor te contactará pronto por WhatsApp
                   </p>
 
+                  {/* Buyer account CTA */}
+                  <a
+                    href="/registro"
+                    className="w-full flex items-center justify-center gap-2 rounded-2xl py-3 px-4 mb-3 text-sm font-bold border-2 transition-colors"
+                    style={{
+                      color: store.primary_color,
+                      borderColor: store.primary_color,
+                      background: "transparent",
+                    }}
+                  >
+                    Crea tu cuenta para ver todos tus pedidos
+                  </a>
+
                   {orderResult.whatsapp_link && (
                     <a
                       href={orderResult.whatsapp_link}

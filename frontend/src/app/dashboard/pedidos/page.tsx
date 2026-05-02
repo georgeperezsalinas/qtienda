@@ -32,7 +32,7 @@ const TRANSITIONS: Record<string, { value: string; label: string }[]> = {
   preparing:  [{ value: "on_the_way", label: "En camino" }, { value: "cancelled", label: "Cancelar" }],
   on_the_way: [{ value: "delivered", label: "Entregado" }],
   delivered:  [],
-  cancelled:  [],
+  cancelled:  [{ value: "pending", label: "Reactivar" }],
 };
 
 interface Order {
@@ -97,6 +97,9 @@ export default function PedidosPage() {
   }
 
   async function changeStatus(orderId: string, newStatus: string) {
+    if (newStatus === "cancelled") {
+      if (!window.confirm("¿Seguro que deseas cancelar este pedido?\nPodrás reactivarlo después si fue un error.")) return;
+    }
     setUpdating(true);
     try {
       await apiClient.patch(`/orders/${orderId}/status`, { status: newStatus });
@@ -193,6 +196,8 @@ export default function PedidosPage() {
                         className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${
                           t.value === "cancelled"
                             ? "bg-red-50 text-red-600 hover:bg-red-100"
+                            : t.value === "pending"
+                            ? "bg-yellow-50 text-yellow-700 hover:bg-yellow-100"
                             : "bg-brand-50 text-brand-700 hover:bg-brand-100"
                         }`}
                       >
@@ -304,6 +309,8 @@ export default function PedidosPage() {
                       className={`flex-1 font-semibold py-3 rounded-xl text-sm transition-colors ${
                         t.value === "cancelled"
                           ? "bg-red-50 text-red-600"
+                          : t.value === "pending"
+                          ? "bg-yellow-50 text-yellow-700"
                           : "bg-brand-600 text-white"
                       }`}
                     >

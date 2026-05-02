@@ -44,7 +44,7 @@ STATUS_TRANSITIONS = {
     "preparing":  {"on_the_way", "cancelled"},
     "on_the_way": {"delivered", "cancelled"},
     "delivered":  set(),
-    "cancelled":  set(),
+    "cancelled":  {"pending"},
 }
 
 

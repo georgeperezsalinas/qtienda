@@ -1,6 +1,93 @@
 import Link from "next/link";
 import { ArrowRight, Store, MessageCircle, Zap, Star, ChevronRight } from "lucide-react";
 
+/* ── Types ── */
+interface StoreCard {
+  slug: string;
+  name: string;
+  description: string | null;
+  logo_url: string | null;
+  city: string | null;
+  primary_color: string;
+}
+
+/* ── Store directory section (server-side fetch) ── */
+async function getStores(): Promise<StoreCard[]> {
+  try {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://api:8000/api/v1";
+    const res = await fetch(`${apiUrl}/public/stores`, {
+      next: { revalidate: 60 },
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+async function StoresSection() {
+  const stores = await getStores();
+  if (!stores.length) return null;
+
+  return (
+    <div className="mt-10 animate-fade-up delay-500">
+      <div className="flex items-center justify-between mb-3">
+        <h2
+          className="font-display font-bold text-base"
+          style={{ color: "var(--ink)" }}
+        >
+          Descubre tiendas
+        </h2>
+        <span className="text-xs" style={{ color: "var(--ink-4)" }}>
+          {stores.length} tiendas
+        </span>
+      </div>
+      <div className="flex gap-3 overflow-x-auto pb-2 -mx-5 px-5 scrollbar-hide">
+        {stores.map((store) => (
+          <Link
+            key={store.slug}
+            href={`/tienda/${store.slug}`}
+            className="flex-shrink-0 card p-3 flex flex-col items-center text-center gap-2 w-28 active:scale-95 transition-transform"
+            style={{ minWidth: "7rem" }}
+          >
+            {store.logo_url ? (
+              <img
+                src={store.logo_url}
+                alt={store.name}
+                className="w-12 h-12 rounded-xl object-cover"
+              />
+            ) : (
+              <div
+                className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg"
+                style={{ background: store.primary_color }}
+              >
+                {store.name.charAt(0).toUpperCase()}
+              </div>
+            )}
+            <div>
+              <p
+                className="font-display font-bold text-xs leading-tight"
+                style={{ color: "var(--ink)" }}
+              >
+                {store.name}
+              </p>
+              {store.city && (
+                <p
+                  className="text-[10px] mt-0.5"
+                  style={{ color: "var(--ink-4)" }}
+                >
+                  {store.city}
+                </p>
+              )}
+            </div>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ── Static data ── */
 const FEATURES = [
   {
@@ -81,19 +168,45 @@ export default function LandingPage() {
           directo a tu WhatsApp. Sin complicaciones.
         </p>
 
-        {/* CTA buttons */}
-        <div className="flex flex-col gap-3 mb-10 animate-fade-up delay-200">
+        {/* CTA buttons — vendedor */}
+        <div className="flex flex-col gap-3 mb-5 animate-fade-up delay-200">
           <Link href="/auth/register" className="btn-primary text-base">
             Crear tienda gratis
             <ArrowRight size={18} />
           </Link>
           <Link href="/auth/login" className="btn-secondary text-base">
-            Ya tengo cuenta
+            Ya tengo cuenta (vendedor)
+          </Link>
+        </div>
+
+        {/* Divider comprador */}
+        <div className="flex items-center gap-3 mb-5 animate-fade-up delay-250">
+          <div className="flex-1 h-px" style={{ background: "#E2E8F0" }} />
+          <span className="text-xs font-medium" style={{ color: "var(--ink-4)" }}>
+            ¿Quieres comprar?
+          </span>
+          <div className="flex-1 h-px" style={{ background: "#E2E8F0" }} />
+        </div>
+
+        {/* CTA buttons — comprador */}
+        <div className="flex flex-col gap-3 mb-10 animate-fade-up delay-300">
+          <Link
+            href="/registro"
+            className="btn-secondary text-base flex items-center justify-center gap-2"
+          >
+            Crear cuenta de comprador
+          </Link>
+          <Link
+            href="/mis-pedidos"
+            className="text-sm font-semibold text-center transition-colors"
+            style={{ color: "var(--ink-3)" }}
+          >
+            Ver mis pedidos →
           </Link>
         </div>
 
         {/* Social proof avatars */}
-        <div className="flex items-center gap-3 mb-10 animate-fade-up delay-250">
+        <div className="flex items-center gap-3 mb-10 animate-fade-up delay-400">
           <div className="flex -space-x-2">
             {SOCIAL_PROOF.map((u) => (
               <div
@@ -166,6 +279,9 @@ export default function LandingPage() {
             <span className="text-white/60 text-xs ml-1">+25 productos</span>
           </div>
         </div>
+
+        {/* Live store directory */}
+        <StoresSection />
       </main>
 
       <footer className="px-5 py-4 text-center text-xs pb-safe" style={{ color: "var(--ink-4)" }}>

@@ -70,6 +70,7 @@ interface StoreData {
   status:        string;
   store_url:     string;
   primary_color: string;
+  logo_url?:     string;
 }
 
 /* ── Mini SVG Sparkline ── */
@@ -411,13 +412,21 @@ export default function DashboardPage() {
             boxShadow: "var(--shadow-sm)",
           }}
         >
-          <div
-            className="w-11 h-11 rounded-xl flex items-center justify-center
-                       text-white font-display font-bold text-lg flex-shrink-0"
-            style={{ background: store.primary_color || "var(--brand-600)" }}
-          >
-            {store.name[0]}
-          </div>
+          {store.logo_url ? (
+            <img
+              src={store.logo_url}
+              alt={store.name}
+              className="w-11 h-11 rounded-xl object-cover flex-shrink-0"
+            />
+          ) : (
+            <div
+              className="w-11 h-11 rounded-xl flex items-center justify-center
+                         text-white font-display font-bold text-lg flex-shrink-0"
+              style={{ background: store.primary_color || "var(--brand-600)" }}
+            >
+              {store.name[0]}
+            </div>
+          )}
 
           <div className="flex-1 min-w-0">
             <p

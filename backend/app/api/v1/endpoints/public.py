@@ -14,6 +14,34 @@ from app.schemas.orders import PublicOrderCreate, OrderResponse
 router = APIRouter()
 
 
+@router.get("/stores")
+async def list_stores(db: AsyncSession = Depends(get_db)):
+    """Public store directory — returns active stores for the landing page."""
+    result = await db.execute(
+        select(Store)
+        .where(
+            Store.status == "active",
+            Store.deleted_at.is_(None),
+        )
+        .order_by(Store.created_at.desc())
+        .limit(24)
+    )
+    stores = result.scalars().all()
+
+    return [
+        {
+            "slug": s.slug,
+            "name": s.name,
+            "description": s.description,
+            "logo_url": s.logo_url,
+            "banner_url": s.banner_url,
+            "city": s.city,
+            "primary_color": s.primary_color,
+        }
+        for s in stores
+    ]
+
+
 @router.get("/store/{slug}")
 async def get_store(slug: str, db: AsyncSession = Depends(get_db)):
     """Load store page data for buyers."""
