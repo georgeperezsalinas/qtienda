@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ProductCard from "./ProductCard";
-import ProductImageViewer from "./ProductImageViewer";
+import ProductDetailSheet from "./ProductDetailSheet";
 import CartDrawer from "./CartDrawer";
 import { useCartStore } from "@/store/cartStore";
 import { formatPrice } from "@/lib/utils";
@@ -299,7 +299,7 @@ export default function StorePage({ store, initialProducts }: Props) {
                     storeColor={color}
                     storeSlug={store.slug}
                     featured
-                    onViewImages={p.images?.length > 0 ? () => setViewProduct(p) : undefined}
+                    onTap={() => setViewProduct(p)}
                   />
                 </div>
               ))}
@@ -431,7 +431,7 @@ export default function StorePage({ store, initialProducts }: Props) {
                       product={product}
                       storeColor={color}
                       storeSlug={store.slug}
-                      onViewImages={product.images?.length > 0 ? () => setViewProduct(product) : undefined}
+                      onTap={() => setViewProduct(product)}
                     />
                   </motion.div>
                 ))}
@@ -510,15 +510,17 @@ export default function StorePage({ store, initialProducts }: Props) {
         store={store as any}
       />
 
-      {/* Visor de imágenes del producto */}
-      {viewProduct && viewProduct.images?.length > 0 && (
-        <ProductImageViewer
-          images={viewProduct.images}
-          productName={viewProduct.name}
-          onClose={() => setViewProduct(null)}
-          storeColor={color}
-        />
-      )}
+      {/* Ficha de detalle del producto */}
+      <AnimatePresence>
+        {viewProduct && (
+          <ProductDetailSheet
+            product={viewProduct}
+            storeColor={color}
+            storeSlug={store.slug}
+            onClose={() => setViewProduct(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

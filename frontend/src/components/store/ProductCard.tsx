@@ -21,17 +21,20 @@ interface Props {
   storeColor: string;
   storeSlug: string;
   featured?: boolean;
-  onViewImages?: () => void;
+  onTap?: () => void;
 }
 
-export default function ProductCard({ product, storeColor, storeSlug, featured, onViewImages }: Props) {
+export default function ProductCard({
+  product, storeColor, storeSlug, featured, onTap,
+}: Props) {
   const [added, setAdded] = useState(false);
   const addItem = useCartStore((s) => s.addItem);
 
   const primaryImage =
     product.images?.find((i) => i.is_primary)?.url || product.images?.[0]?.url;
 
-  const outOfStock = product.stock !== null && product.stock !== undefined && product.stock <= 0;
+  const outOfStock =
+    product.stock !== null && product.stock !== undefined && product.stock <= 0;
   const discount = product.compare_price
     ? Math.round((1 - product.price_cents / product.compare_price) * 100)
     : null;
@@ -48,7 +51,7 @@ export default function ProductCard({ product, storeColor, storeSlug, featured, 
         image_url: primaryImage || "",
         quantity: 1,
       },
-      storeSlug
+      storeSlug,
     );
     setAdded(true);
     toast.success("Agregado al carrito", { duration: 1500 });
@@ -57,13 +60,13 @@ export default function ProductCard({ product, storeColor, storeSlug, featured, 
 
   if (featured) {
     return (
-      <div className="flex-shrink-0 w-52 snap-start">
+      <div
+        className="flex-shrink-0 w-52 snap-start"
+        onClick={onTap}
+        style={{ cursor: onTap ? "pointer" : "default" }}
+      >
         <div className="card overflow-hidden">
-          <div
-            className="relative h-36 bg-gray-50"
-            onClick={primaryImage && onViewImages ? onViewImages : undefined}
-            style={{ cursor: primaryImage && onViewImages ? "pointer" : "default" }}
-          >
+          <div className="relative h-36 bg-gray-50">
             {primaryImage ? (
               <Image src={primaryImage} alt={product.name} fill className="object-cover" />
             ) : (
@@ -79,7 +82,8 @@ export default function ProductCard({ product, storeColor, storeSlug, featured, 
             )}
             {multipleImages && primaryImage && (
               <span
-                className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full px-1.5 py-0.5 text-white text-[10px] font-semibold"
+                className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full
+                           px-1.5 py-0.5 text-white text-[10px] font-semibold"
                 style={{ background: "rgba(0,0,0,.5)" }}
               >
                 <Images size={10} />
@@ -96,7 +100,8 @@ export default function ProductCard({ product, storeColor, storeSlug, featured, 
               <button
                 onClick={handleAdd}
                 disabled={outOfStock}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-white transition-all active:scale-90"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-white
+                           transition-all active:scale-90"
                 style={{ background: outOfStock ? "#d1d5db" : storeColor }}
               >
                 {added ? <Check size={14} /> : <Plus size={14} />}
@@ -109,12 +114,12 @@ export default function ProductCard({ product, storeColor, storeSlug, featured, 
   }
 
   return (
-    <div className="card overflow-hidden flex flex-col">
-      <div
-        className="relative bg-gray-50 aspect-square"
-        onClick={primaryImage && onViewImages ? onViewImages : undefined}
-        style={{ cursor: primaryImage && onViewImages ? "pointer" : "default" }}
-      >
+    <div
+      className="card overflow-hidden flex flex-col"
+      onClick={onTap}
+      style={{ cursor: onTap ? "pointer" : "default" }}
+    >
+      <div className="relative bg-gray-50 aspect-square">
         {primaryImage ? (
           <Image src={primaryImage} alt={product.name} fill className="object-cover" />
         ) : (
@@ -130,7 +135,8 @@ export default function ProductCard({ product, storeColor, storeSlug, featured, 
         )}
         {multipleImages && primaryImage && (
           <span
-            className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full px-2 py-0.5 text-white text-xs font-semibold"
+            className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full
+                       px-2 py-0.5 text-white text-xs font-semibold"
             style={{ background: "rgba(0,0,0,.5)" }}
           >
             <Images size={11} />
@@ -164,7 +170,8 @@ export default function ProductCard({ product, storeColor, storeSlug, featured, 
             whileTap={{ scale: 0.85 }}
             onClick={handleAdd}
             disabled={outOfStock}
-            className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-white shadow-sm transition-colors"
+            className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center
+                       text-white shadow-sm transition-colors"
             style={{ background: outOfStock ? "#d1d5db" : storeColor }}
           >
             {added ? <Check size={16} /> : <Plus size={16} />}

@@ -282,6 +282,68 @@
 .delay-300 { animation-delay: .30s; }
 .delay-400 { animation-delay: .40s; }
 
+/* ─── Descripción del producto (HTML de TipTap) ─── */
+.product-description {
+  font-size: 14px;
+  line-height: 1.7;
+  color: #475569;
+}
+.product-description p          { margin: 0 0 .6em; }
+.product-description p:last-child { margin-bottom: 0; }
+.product-description strong     { font-weight: 700; color: #0F172A; }
+.product-description em         { font-style: italic; }
+.product-description h2         { font-size: 15px; font-weight: 700; color: #0F172A; margin: .9em 0 .4em; }
+.product-description h3         { font-size: 14px; font-weight: 700; color: #0F172A; margin: .8em 0 .35em; }
+.product-description ul         { list-style: disc;    padding-left: 18px; margin: .5em 0; }
+.product-description ol         { list-style: decimal; padding-left: 18px; margin: .5em 0; }
+.product-description li         { margin: .2em 0; }
+.product-description blockquote {
+  border-left: 3px solid #E2E8F0;
+  padding-left: 12px;
+  color: #64748B;
+  margin: .6em 0;
+}
+.product-description code {
+  background: #F1F5F9;
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 12px;
+  font-family: monospace;
+}
+
+/* ─── Editor TipTap — área de escritura ─── */
+.rte-body {
+  position: relative;
+}
+.rte-body .tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--ink-3);
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+.rte-body .tiptap {
+  min-height: 96px;
+  padding: 12px 14px;
+  outline: none;
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--ink);
+}
+.rte-body .tiptap p          { margin: 0 0 .4em; }
+.rte-body .tiptap p:last-child { margin-bottom: 0; }
+.rte-body .tiptap strong     { font-weight: 700; }
+.rte-body .tiptap h2         { font-size: 15px; font-weight: 700; margin: .7em 0 .3em; }
+.rte-body .tiptap ul         { list-style: disc;    padding-left: 18px; margin: .4em 0; }
+.rte-body .tiptap ol         { list-style: decimal; padding-left: 18px; margin: .4em 0; }
+.rte-body .tiptap li         { margin: .15em 0; }
+.rte-body .tiptap blockquote {
+  border-left: 3px solid #E2E8F0;
+  padding-left: 12px;
+  color: #64748B;
+  margin: .5em 0;
+}
+
 /* ─── Password strength bar ─── */
 .strength-bar {
   height: 3px;

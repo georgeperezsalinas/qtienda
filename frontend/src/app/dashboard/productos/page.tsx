@@ -3,13 +3,14 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import {
   Plus, Pencil, Trash2, Package, X,
-  Check, Search, SlidersHorizontal,
-  Star, Eye, EyeOff, Tag,
+  Search,
+  Star, Eye, EyeOff, Tag, Images,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
-import { ImageUpload } from "@/components/ui/ImageUpload";
+import { MultiImageUpload, type FormImage } from "@/components/ui/MultiImageUpload";
+import { RichTextEditor } from "@/components/ui/RichTextEditor";
 
 /* ── Types ── */
 interface Category { id: string; name: string; icon?: string }
@@ -28,14 +29,13 @@ interface Product {
 }
 
 const EMPTY_FORM = {
-  name: "",
-  description: "",
-  price_cents: "",
+  name:          "",
+  description:   "",
+  price_cents:   "",
   compare_price: "",
-  stock: "",
-  category_id: "",
-  is_featured: false,
-  image_url: "",
+  stock:         "",
+  category_id:   "",
+  is_featured:   false,
 };
 
 type FilterStatus = "all" | "active" | "inactive";
@@ -70,9 +70,9 @@ function ProductCard({
       className="rounded-2xl flex items-center gap-3.5 p-3 transition-all"
       style={{
         background: "var(--surface-0)",
-        border: "1.5px solid #E2E8F0",
-        boxShadow: "var(--shadow-sm)",
-        opacity: active ? 1 : 0.65,
+        border:     "1.5px solid #E2E8F0",
+        boxShadow:  "var(--shadow-sm)",
+        opacity:    active ? 1 : 0.65,
       }}
     >
       {/* Thumbnail */}
@@ -99,6 +99,15 @@ function ProductCard({
             style={{ background: "#F59E0B" }}
           >
             <Star size={8} fill="white" color="white" />
+          </span>
+        )}
+        {product.images.length > 1 && (
+          <span
+            className="absolute bottom-1 left-1 flex items-center gap-0.5 rounded-full px-1 py-0.5 text-white text-[8px] font-bold"
+            style={{ background: "rgba(0,0,0,.5)" }}
+          >
+            <Images size={8} />
+            {product.images.length}
           </span>
         )}
       </div>
@@ -231,18 +240,20 @@ function Skel({ h = 80 }: { h?: number }) {
    PAGE
 ════════════════════════════ */
 export default function ProductosPage() {
-  const [products,   setProducts]   = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading,    setLoading]    = useState(true);
-  const [saving,     setSaving]     = useState(false);
-  const [showForm,   setShowForm]   = useState(false);
-  const [editId,     setEditId]     = useState<string | null>(null);
-  const [editImgId,  setEditImgId]  = useState<string | null>(null);
-  const [origImgUrl, setOrigImgUrl] = useState("");
-  const [search,     setSearch]     = useState("");
-  const [filter,     setFilter]     = useState<FilterStatus>("all");
-  const [form,       setForm]       = useState({ ...EMPTY_FORM });
-  const drawerRef = useRef<HTMLDivElement>(null);
+  const [products,    setProducts]    = useState<Product[]>([]);
+  const [categories,  setCategories]  = useState<Category[]>([]);
+  const [loading,     setLoading]     = useState(true);
+  const [saving,      setSaving]      = useState(false);
+  const [showForm,    setShowForm]    = useState(false);
+  const [editId,      setEditId]      = useState<string | null>(null);
+  const [search,      setSearch]      = useState("");
+  const [filter,      setFilter]      = useState<FilterStatus>("all");
+  const [form,        setForm]        = useState({ ...EMPTY_FORM });
+  const [formImages,  setFormImages]  = useState<FormImage[]>([]);
+
+  /* IDs de imágenes originales al abrir edición (para saber cuáles borrar) */
+  const origImagesRef = useRef<ProductImage[]>([]);
+  const drawerRef     = useRef<HTMLDivElement>(null);
 
   /* ── Data fetching ── */
   const fetchAll = useCallback(async () => {
@@ -266,24 +277,29 @@ export default function ProductosPage() {
     const q = search.toLowerCase();
     const matchSearch = !q || p.name.toLowerCase().includes(q);
     const matchFilter =
-      filter === "all"      ? true :
-      filter === "active"   ? p.status === "active" :
-                              p.status !== "active";
+      filter === "all"    ? true :
+      filter === "active" ? p.status === "active" :
+                            p.status !== "active";
     return matchSearch && matchFilter;
   });
 
   /* ── Open / close form ── */
   function openCreate() {
-    setEditId(null); setEditImgId(null); setOrigImgUrl("");
+    setEditId(null);
+    origImagesRef.current = [];
+    setFormImages([]);
     setForm({ ...EMPTY_FORM });
     setShowForm(true);
   }
 
   function openEdit(p: Product) {
-    const primary = p.images.find((i) => i.is_primary) ?? p.images[0];
     setEditId(p.id);
-    setEditImgId(primary?.id ?? null);
-    setOrigImgUrl(primary?.url ?? "");
+    origImagesRef.current = p.images;
+    /* Orden: primary first, luego por sort_order */
+    const sorted = [...p.images].sort((a, b) =>
+      a.is_primary === b.is_primary ? 0 : a.is_primary ? -1 : 1
+    );
+    setFormImages(sorted.map((img) => ({ id: img.id, url: img.url })));
     setForm({
       name:          p.name,
       description:   p.description ?? "",
@@ -292,7 +308,6 @@ export default function ProductosPage() {
       stock:         p.stock != null ? String(p.stock) : "",
       category_id:   p.category_id ?? "",
       is_featured:   p.is_featured,
-      image_url:     primary?.url ?? "",
     });
     setShowForm(true);
   }
@@ -300,15 +315,18 @@ export default function ProductosPage() {
   /* ── Save ── */
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.name.trim())          { toast.error("El nombre es requerido"); return; }
+    if (!form.name.trim())      { toast.error("El nombre es requerido"); return; }
     const price = parseFloat(form.price_cents);
-    if (!price || price <= 0)       { toast.error("Precio inválido"); return; }
+    if (!price || price <= 0)   { toast.error("Precio inválido"); return; }
 
     setSaving(true);
     try {
+      /* Eliminar HTML vacío que deja TipTap ("<p></p>") */
+      const cleanDesc = form.description.replace(/<p>\s*<\/p>/g, "").trim();
+
       const payload: Record<string, any> = {
         name:          form.name.trim(),
-        description:   form.description.trim() || undefined,
+        description:   cleanDesc || undefined,
         price_cents:   Math.round(price * 100),
         compare_price: form.compare_price ? Math.round(parseFloat(form.compare_price) * 100) : undefined,
         stock:         form.stock !== "" ? parseInt(form.stock) : undefined,
@@ -317,15 +335,34 @@ export default function ProductosPage() {
       };
 
       if (editId) {
+        /* ── Editar ── */
         await apiClient.patch(`/products/${editId}`, payload);
-        if (form.image_url !== origImgUrl) {
-          if (editImgId) await apiClient.delete(`/products/${editId}/images/${editImgId}`).catch(() => {});
-          if (form.image_url) await apiClient.post(`/products/${editId}/images`, { url: form.image_url, is_primary: true });
+
+        /* Borrar todas las imágenes originales del servidor */
+        await Promise.allSettled(
+          origImagesRef.current.map((img) =>
+            apiClient.delete(`/products/${editId}/images/${img.id}`)
+          )
+        );
+
+        /* Re-publicar todas las imágenes en el orden actual */
+        for (let i = 0; i < formImages.length; i++) {
+          await apiClient.post(`/products/${editId}/images`, {
+            url:        formImages[i].url,
+            is_primary: i === 0,
+          });
         }
+
         toast.success("Producto actualizado ✓");
       } else {
+        /* ── Crear ── */
         const { data } = await apiClient.post("/products/", payload);
-        if (form.image_url) await apiClient.post(`/products/${data.id}/images`, { url: form.image_url, is_primary: true });
+        for (let i = 0; i < formImages.length; i++) {
+          await apiClient.post(`/products/${data.id}/images`, {
+            url:        formImages[i].url,
+            is_primary: i === 0,
+          });
+        }
         toast.success("Producto creado ✓");
       }
 
@@ -478,11 +515,11 @@ export default function ProductosPage() {
             ref={drawerRef}
             className="fixed bottom-0 left-0 right-0 z-50 animate-fade-up"
             style={{
-              background:    "var(--surface-0)",
-              borderRadius:  "28px 28px 0 0",
-              boxShadow:     "0 -8px 40px rgba(15,23,42,.2)",
-              maxHeight:     "94dvh",
-              overflowY:     "auto",
+              background:   "var(--surface-0)",
+              borderRadius: "28px 28px 0 0",
+              boxShadow:    "0 -8px 40px rgba(15,23,42,.2)",
+              maxHeight:    "94dvh",
+              overflowY:    "auto",
             }}
           >
             {/* Handle */}
@@ -515,14 +552,18 @@ export default function ProductosPage() {
             {/* Form body */}
             <form onSubmit={handleSave} className="px-5 pt-5 pb-10 space-y-5">
 
-              {/* Image upload — prominent at top */}
+              {/* ── Fotos del producto ── */}
               <div>
-                <label className="field-label">Foto del producto</label>
-                <ImageUpload
-                  value={form.image_url}
-                  onChange={(url) => setForm((f) => ({ ...f, image_url: url }))}
-                  hint={"800×800 px · cuadrado\nJPEG, PNG o WebP · máx 5 MB"}
-                  className="h-44 w-full"
+                <label className="field-label">
+                  Fotos del producto
+                  <span className="ml-1 font-normal" style={{ color: "var(--ink-3)" }}>
+                    (hasta 6)
+                  </span>
+                </label>
+                <MultiImageUpload
+                  images={formImages}
+                  onChange={setFormImages}
+                  maxImages={6}
                 />
               </div>
 
@@ -536,17 +577,21 @@ export default function ProductosPage() {
                 />
               </Field>
 
-              {/* Description */}
-              <Field label="Descripción">
-                <textarea
-                  className="input resize-none"
-                  rows={3}
-                  placeholder="Talla, material, colores disponibles..."
+              {/* Description — editor de texto enriquecido */}
+              <div>
+                <label className="field-label">
+                  Descripción
+                  <span className="ml-1 font-normal normal-case tracking-normal" style={{ color: "var(--ink-3)" }}>
+                    — soporta copiar desde Word
+                  </span>
+                </label>
+                <RichTextEditor
+                  key={editId ?? "new"}
                   value={form.description}
-                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                  style={{ lineHeight: 1.6 }}
+                  onChange={(html) => setForm((f) => ({ ...f, description: html }))}
+                  placeholder="Talla, material, colores disponibles..."
                 />
-              </Field>
+              </div>
 
               {/* Prices */}
               <div>
@@ -601,9 +646,14 @@ export default function ProductosPage() {
                       />
                     </div>
                     <p className="text-[10px] mt-1" style={{ color: "var(--ink-3)" }}>
-                      Precio tachado {form.price_cents && form.compare_price && parseFloat(form.compare_price) > parseFloat(form.price_cents) ? (
+                      Precio tachado{" "}
+                      {form.price_cents && form.compare_price &&
+                       parseFloat(form.compare_price) > parseFloat(form.price_cents) ? (
                         <span style={{ color: "var(--danger)", fontWeight: 700 }}>
-                          (-{Math.round(((parseFloat(form.compare_price) - parseFloat(form.price_cents)) / parseFloat(form.compare_price)) * 100)}%)
+                          (-{Math.round(
+                            ((parseFloat(form.compare_price) - parseFloat(form.price_cents)) /
+                              parseFloat(form.compare_price)) * 100
+                          )}%)
                         </span>
                       ) : null}
                     </p>
@@ -641,7 +691,7 @@ export default function ProductosPage() {
               </div>
 
               {/* Toggles */}
-              <div style={{ borderTop: "1px solid #F1F5F9", borderRadius: 0 }}>
+              <div style={{ borderTop: "1px solid #F1F5F9" }}>
                 <Toggle
                   checked={form.is_featured}
                   onChange={() => setForm((f) => ({ ...f, is_featured: !f.is_featured }))}
