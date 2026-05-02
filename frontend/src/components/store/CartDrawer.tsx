@@ -282,7 +282,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                   </button>
                 ) : (
                   <div className="flex gap-3">
-                    <button onClick={() => setStep("cart")} className="btn-secondary flex-shrink-0 px-4">
+                    <button onClick={() => setStep("cart")} className="btn-secondary !w-auto flex-shrink-0 px-4">
                       Atrás
                     </button>
                     <button
@@ -291,7 +291,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                       className="btn-primary flex-1"
                       style={{ background: store.primary_color }}
                     >
-                      {loading ? "Enviando..." : `Pedir · ${formatPrice(total)}`}
+                      {loading ? "Enviando..." : `Realizar pedido · ${formatPrice(total)}`}
                     </button>
                   </div>
                 )}
