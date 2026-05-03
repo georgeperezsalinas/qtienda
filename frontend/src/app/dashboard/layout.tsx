@@ -6,7 +6,7 @@ import Link from "next/link";
 import {
   LayoutDashboard, ShoppingBag, Package,
   Settings, LogOut, ExternalLink,
-  ChevronRight, X, UserCircle,
+  ChevronRight, X, UserCircle, ShoppingCart,
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 
@@ -122,8 +122,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           })}
         </nav>
 
-        {/* Store link */}
-        <div className="px-3 py-3" style={{ borderTop: "1px solid #F1F5F9" }}>
+        {/* Links secundarios */}
+        <div className="px-3 py-3 space-y-1" style={{ borderTop: "1px solid #F1F5F9" }}>
           <a
             href="/tienda/mi-tienda"
             target="_blank"
@@ -135,6 +135,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <ExternalLink size={16} />
             Ver mi tienda
           </a>
+          <Link
+            href="/mis-pedidos"
+            className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm
+                       font-semibold transition-colors"
+            style={{ color: "var(--ink-3)" }}
+          >
+            <ShoppingCart size={16} />
+            Mis compras
+          </Link>
         </div>
 
         {/* User info + logout */}
@@ -286,6 +295,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </p>
               </div>
             </div>
+
+            {/* Mis compras */}
+            <Link
+              href="/mis-pedidos"
+              className="flex w-full items-center gap-3 px-4 py-3.5 rounded-2xl
+                         text-sm font-semibold transition-colors mb-2"
+              style={{ background: "var(--surface-2)", color: "var(--ink-2)" }}
+            >
+              <ShoppingCart size={18} />
+              Mis compras
+            </Link>
 
             {/* Logout */}
             <button

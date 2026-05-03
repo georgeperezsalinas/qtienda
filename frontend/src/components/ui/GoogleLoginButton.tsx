@@ -37,8 +37,7 @@ function Inner({ label, mode }: Required<Props>) {
   const { setTokens, setUser } = useAuthStore();
   const [loading, setLoading] = useState(false);
 
-  const endpoint  = mode === "buyer" ? "/auth/google-buyer" : "/auth/google";
-  const redirectTo = mode === "buyer" ? "/mis-pedidos"       : "/dashboard";
+  const endpoint = mode === "buyer" ? "/auth/google-buyer" : "/auth/google";
 
   const login = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
@@ -53,7 +52,9 @@ function Inner({ label, mode }: Required<Props>) {
         });
         setUser(me);
         toast.success("¡Bienvenido!");
-        router.push(redirectTo);
+        if (me.role === "admin")       router.push("/admin");
+        else if (me.role === "buyer")  router.push("/mis-pedidos");
+        else                           router.push("/dashboard");
       } catch (err: any) {
         toast.error(err.response?.data?.detail || "Error al iniciar con Google");
       } finally {

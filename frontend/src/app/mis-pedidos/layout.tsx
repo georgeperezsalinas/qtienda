@@ -26,10 +26,10 @@ export default function CompradorLayout({ children }: { children: React.ReactNod
         className="sticky top-0 z-10 flex items-center justify-between px-5 pt-safe py-4"
         style={{ background: "var(--surface-0)", borderBottom: "1px solid #F1F5F9" }}
       >
-        <span className="font-display font-extrabold text-lg">
+        <Link href="/" className="font-display font-extrabold text-lg">
           <span style={{ color: "var(--brand-600)" }}>q</span>
           <span style={{ color: "var(--ink)" }}>tienda</span>
-        </span>
+        </Link>
         <Link
           href="/"
           className="text-xs font-semibold px-3 py-1.5 rounded-xl"

@@ -275,7 +275,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
 
                   {/* Buyer account CTA */}
                   <a
-                    href="/registro"
+                    href="/auth/login?tab=register"
                     className="w-full flex items-center justify-center gap-2 rounded-2xl py-3 px-4 mb-3 text-sm font-bold border-2 transition-colors"
                     style={{
                       color: store.primary_color,

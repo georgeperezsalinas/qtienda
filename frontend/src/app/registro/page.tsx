@@ -87,23 +87,22 @@ export default function RegistroPage() {
       });
 
       setTokens(data.access_token, data.refresh_token);
-
-      const { data: me } = await apiClient.get("/auth/me", {
-        headers: { Authorization: `Bearer ${data.access_token}` },
-      });
+      const { data: me } = await apiClient.get("/auth/me");
       setUser(me);
 
       toast.success("¡Bienvenido/a!");
-      if (me.role === "admin")       router.push("/admin");
-      else if (me.role === "vendor") router.push("/dashboard");
-      else                           router.push("/mis-pedidos");
+      if (me.role === "admin") router.push("/admin");
+      else                     router.push("/mis-pedidos");
     } catch (err: any) {
-      const detail = err.response?.data?.detail;
-      if (detail === "Contraseña incorrecta para esa cuenta") {
+      const raw = err.response?.data?.detail;
+      const msg = Array.isArray(raw)
+        ? raw[0]?.msg ?? "Datos inválidos"
+        : typeof raw === "string" ? raw : "Error al crear la cuenta";
+      if (msg === "Contraseña incorrecta para esa cuenta") {
         setErrors({ password: "Ya tienes cuenta con ese email. La contraseña no coincide." });
         toast.error("Contraseña incorrecta");
       } else {
-        toast.error(detail || "Error al crear la cuenta");
+        toast.error(msg);
       }
     } finally {
       setLoading(false);
@@ -126,12 +125,12 @@ export default function RegistroPage() {
           <ChevronLeft size={18} />
           Inicio
         </Link>
-        <span
+        <Link href="/"
           className="font-display font-extrabold text-lg"
           style={{ color: "var(--brand-600)" }}
         >
           q<span style={{ color: "var(--ink)" }}>tienda</span>
-        </span>
+        </Link>
         <div className="w-16" aria-hidden />
       </nav>
 

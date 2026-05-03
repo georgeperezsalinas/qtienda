@@ -107,21 +107,21 @@ export default function RegisterPage() {
       });
 
       setTokens(data.access_token, data.refresh_token);
-
-      const { data: me } = await apiClient.get("/auth/me", {
-        headers: { Authorization: `Bearer ${data.access_token}` },
-      });
+      const { data: me } = await apiClient.get("/auth/me");
       setUser(me);
 
       toast.success("¡Bienvenido a qtienda! 🎉");
       router.push("/dashboard");
     } catch (err: any) {
-      const detail = err.response?.data?.detail;
+      const raw  = err.response?.data?.detail;
+      const detail = Array.isArray(raw)
+        ? raw[0]?.msg ?? "Datos inválidos"
+        : typeof raw === "string" ? raw : "Error al crear la cuenta";
       if (detail === "Email ya registrado") {
         setErrors({ email: "Este email ya tiene una cuenta" });
         toast.error("Ese email ya está registrado");
       } else {
-        toast.error(detail || "Error al crear la cuenta");
+        toast.error(detail);
       }
     } finally {
       setLoading(false);
@@ -144,12 +144,12 @@ export default function RegisterPage() {
           <ChevronLeft size={18} />
           Inicio
         </Link>
-        <span
+        <Link href="/"
           className="font-display font-extrabold text-lg"
           style={{ color: "var(--brand-600)" }}
         >
           q<span style={{ color: "var(--ink)" }}>tienda</span>
-        </span>
+        </Link>
         <div className="w-16" aria-hidden />
       </nav>
 
