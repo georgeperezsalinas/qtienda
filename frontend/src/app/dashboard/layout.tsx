@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
+import Logo from "@/components/ui/Logo";
 import {
   LayoutDashboard, ShoppingBag, Package,
   Settings, LogOut, ExternalLink,
-  ChevronRight, X, UserCircle, ShoppingCart,
+  ChevronRight, UserCircle, ShoppingCart,
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 
@@ -18,12 +19,10 @@ const NAV = [
   { href: "/dashboard/configuracion",  label: "Config.",   icon: Settings,        exact: false },
 ];
 
-/* ── Helpers ── */
 function isActive(pathname: string, href: string, exact?: boolean) {
   return exact ? pathname === href : pathname.startsWith(href);
 }
 
-/* ── User avatar initials ── */
 function getInitials(name?: string) {
   return (name ?? "U")
     .split(" ").slice(0, 2)
@@ -41,15 +40,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [hydrated,   setHydrated]   = useState(false);
 
-  /* Esperar a que Zustand rehidrate desde localStorage antes de verificar auth */
   useEffect(() => { setHydrated(true); }, []);
 
-  /* Redirigir si no autenticado — solo después de hidratación */
   useEffect(() => {
     if (hydrated && !accessToken) router.replace("/auth/login");
   }, [hydrated, accessToken, router]);
 
-  /* Close drawer on route change */
   useEffect(() => { setDrawerOpen(false); }, [pathname]);
 
   if (!hydrated || !accessToken) return null;
@@ -74,32 +70,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <aside
         className="hidden md:flex flex-col sticky top-0 h-screen"
         style={{
-          width: 232,
+          width: 240,
           background: "var(--surface-0)",
           borderRight: "1px solid #F1F5F9",
           flexShrink: 0,
         }}
       >
         {/* Logo */}
-        <div className="px-5 py-5" style={{ borderBottom: "1px solid #F1F5F9" }}>
-          <span
-            className="font-display font-extrabold text-xl"
-            style={{ color: "var(--brand-600)" }}
-          >
-            q<span style={{ color: "var(--ink)" }}>tienda</span>
-          </span>
+        <div className="px-5 py-4" style={{ borderBottom: "1px solid #F1F5F9" }}>
+          <Logo size="md" />
         </div>
 
         {/* Nav links */}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
           {NAV.map(({ href, label, icon: Icon, exact }) => {
             const active = isActive(pathname, href, exact);
             return (
               <Link
                 key={href}
                 href={href}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm
-                           font-semibold transition-all"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all"
                 style={{
                   background: active ? "var(--brand-50)" : "transparent",
                   color:      active ? "var(--brand-700)" : "var(--ink-2)",
@@ -108,12 +98,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     : "3px solid transparent",
                 }}
               >
-                <Icon size={18} />
+                <Icon size={17} />
                 {label}
                 {active && (
                   <ChevronRight
-                    size={14}
-                    className="ml-auto"
+                    size={13}
+                    className="ml-auto opacity-60"
                     style={{ color: "var(--brand-400)" }}
                   />
                 )}
@@ -123,32 +113,33 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
 
         {/* Links secundarios */}
-        <div className="px-3 py-3 space-y-1" style={{ borderTop: "1px solid #F1F5F9" }}>
+        <div className="px-3 py-3 space-y-0.5" style={{ borderTop: "1px solid #F1F5F9" }}>
           <a
             href="/tienda/mi-tienda"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm
-                       font-semibold transition-colors"
+            className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors hover:bg-slate-50"
             style={{ color: "var(--ink-3)" }}
           >
-            <ExternalLink size={16} />
+            <ExternalLink size={15} />
             Ver mi tienda
           </a>
           <Link
             href="/mis-pedidos"
-            className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm
-                       font-semibold transition-colors"
+            className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors hover:bg-slate-50"
             style={{ color: "var(--ink-3)" }}
           >
-            <ShoppingCart size={16} />
+            <ShoppingCart size={15} />
             Mis compras
           </Link>
         </div>
 
         {/* User info + logout */}
-        <div className="px-3 pb-5" style={{ borderTop: "1px solid #F1F5F9" }}>
-          <div className="flex items-center gap-3 px-3 py-3">
+        <div className="px-3 pb-5 pt-3" style={{ borderTop: "1px solid #F1F5F9" }}>
+          <div
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl mb-1"
+            style={{ background: "var(--surface-1)" }}
+          >
             <div
               className="w-8 h-8 rounded-xl flex items-center justify-center
                          font-display font-bold text-xs text-white flex-shrink-0"
@@ -157,13 +148,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               {initials}
             </div>
             <div className="flex-1 min-w-0">
-              <p
-                className="text-xs font-bold truncate"
-                style={{ color: "var(--ink)" }}
-              >
+              <p className="text-xs font-bold truncate" style={{ color: "var(--ink)" }}>
                 {user?.full_name}
               </p>
-              <p className="text-xs truncate" style={{ color: "var(--ink-3)" }}>
+              <p className="text-[11px] truncate" style={{ color: "var(--ink-3)" }}>
                 {user?.email}
               </p>
             </div>
@@ -172,10 +160,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <button
             onClick={handleLogout}
             className="flex w-full items-center gap-3 px-3 py-2.5 rounded-xl
-                       text-sm font-semibold transition-colors"
-            style={{ color: "var(--ink-3)" }}
+                       text-sm font-semibold transition-colors hover:bg-red-50"
+            style={{ color: "var(--danger)" }}
           >
-            <LogOut size={16} />
+            <LogOut size={15} />
             Cerrar sesión
           </button>
         </div>
@@ -197,9 +185,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <nav
         className="md:hidden fixed bottom-0 left-0 right-0 pb-safe z-40"
         style={{
-          background:  "var(--surface-0)",
-          borderTop:   "1px solid #F1F5F9",
-          boxShadow:   "0 -4px 16px rgba(15,23,42,.06)",
+          background:  "rgba(255,255,255,0.92)",
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
+          borderTop:   "1px solid rgba(241,245,249,0.8)",
+          boxShadow:   "0 -4px 24px rgba(15,23,42,.08)",
         }}
       >
         <div className="flex">
@@ -214,8 +204,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 style={{ color: active ? "var(--brand-600)" : "var(--ink-3)" }}
               >
                 <div
-                  className="flex items-center justify-center w-10 h-7 rounded-xl
-                             transition-all"
+                  className="flex items-center justify-center w-10 h-7 rounded-xl transition-all"
                   style={{
                     background: active ? "var(--brand-50)" : "transparent",
                   }}
@@ -225,7 +214,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 {label}
                 {active && (
                   <span
-                    className="w-1 h-1 rounded-full mt-0.5"
+                    className="w-1 h-1 rounded-full"
                     style={{ background: "var(--brand-600)" }}
                   />
                 )}
@@ -233,7 +222,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             );
           })}
 
-          {/* Botón de cuenta / cerrar sesión */}
           <button
             onClick={() => setDrawerOpen(true)}
             className="flex-1 flex flex-col items-center gap-0.5 pt-3 pb-2
@@ -249,39 +237,40 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </nav>
 
       {/* ══════════════════════════════
-          MOBILE DRAWER (hamburger)
-          — Optional, for overflow items
+          MOBILE DRAWER
       ══════════════════════════════ */}
       {drawerOpen && (
         <>
-          {/* Backdrop */}
           <div
             className="md:hidden fixed inset-0 z-50 bg-black/40"
             onClick={() => setDrawerOpen(false)}
             aria-hidden
+            style={{ backdropFilter: "blur(4px)" }}
           />
 
-          {/* Drawer panel */}
           <div
-            className="md:hidden fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl
+            className="md:hidden fixed bottom-0 left-0 right-0 z-50 rounded-t-[28px]
                        animate-scale-in"
             style={{
               background: "var(--surface-0)",
-              padding: "20px 20px 40px",
-              boxShadow: "0 -8px 40px rgba(15,23,42,.16)",
+              padding: "8px 20px 40px",
+              boxShadow: "0 -8px 48px rgba(15,23,42,.18)",
             }}
           >
             {/* Handle */}
             <div
-              className="w-10 h-1 rounded-full mx-auto mb-5"
+              className="w-10 h-1 rounded-full mx-auto mt-3 mb-6"
               style={{ background: "var(--ink-4)" }}
             />
 
             {/* User block */}
-            <div className="flex items-center gap-3 mb-5 px-1">
+            <div
+              className="flex items-center gap-4 mb-6 p-4 rounded-2xl"
+              style={{ background: "var(--surface-1)" }}
+            >
               <div
-                className="w-12 h-12 rounded-2xl flex items-center justify-center
-                           font-display font-bold text-white"
+                className="w-14 h-14 rounded-2xl flex items-center justify-center
+                           font-display font-bold text-lg text-white flex-shrink-0"
                 style={{ background: "linear-gradient(135deg, var(--brand-600), #7C3AED)" }}
               >
                 {initials}
@@ -290,22 +279,42 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <p className="font-display font-bold text-sm" style={{ color: "var(--ink)" }}>
                   {user?.full_name}
                 </p>
-                <p className="text-xs" style={{ color: "var(--ink-3)" }}>
+                <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
                   {user?.email}
                 </p>
+                <span
+                  className="inline-block mt-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full"
+                  style={{ background: "var(--brand-50)", color: "var(--brand-700)" }}
+                >
+                  Vendedor
+                </span>
               </div>
             </div>
 
-            {/* Mis compras */}
-            <Link
-              href="/mis-pedidos"
-              className="flex w-full items-center gap-3 px-4 py-3.5 rounded-2xl
-                         text-sm font-semibold transition-colors mb-2"
-              style={{ background: "var(--surface-2)", color: "var(--ink-2)" }}
-            >
-              <ShoppingCart size={18} />
-              Mis compras
-            </Link>
+            {/* Quick links */}
+            <div className="space-y-2 mb-3">
+              <Link
+                href="/mis-pedidos"
+                onClick={() => setDrawerOpen(false)}
+                className="flex items-center gap-3 px-4 py-3.5 rounded-2xl text-sm font-semibold transition-colors"
+                style={{ background: "var(--surface-1)", color: "var(--ink-2)" }}
+              >
+                <ShoppingCart size={18} />
+                Mis compras
+                <ChevronRight size={15} className="ml-auto opacity-40" />
+              </Link>
+              <a
+                href="/tienda/mi-tienda"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 px-4 py-3.5 rounded-2xl text-sm font-semibold transition-colors"
+                style={{ background: "var(--surface-1)", color: "var(--ink-2)" }}
+              >
+                <ExternalLink size={18} />
+                Ver mi tienda
+                <ChevronRight size={15} className="ml-auto opacity-40" />
+              </a>
+            </div>
 
             {/* Logout */}
             <button
@@ -313,8 +322,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               className="flex w-full items-center gap-3 px-4 py-3.5 rounded-2xl
                          text-sm font-semibold transition-colors"
               style={{
-                background: "#FEE2E2",
+                background: "#FEF2F2",
                 color: "var(--danger)",
+                border: "1.5px solid #FECACA",
               }}
             >
               <LogOut size={18} />

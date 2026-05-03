@@ -4,6 +4,7 @@ import { useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Logo from "@/components/ui/Logo";
 import { Eye, EyeOff, ChevronLeft, ArrowRight } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
@@ -33,16 +34,8 @@ function validate(form: FormData): FieldErrors {
 
 function LoadingSpinner() {
   return (
-    <svg
-      className="animate-spin"
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      aria-hidden
-    >
+    <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24"
+      fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
       <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
     </svg>
   );
@@ -52,14 +45,10 @@ export default function RegistroPage() {
   const router = useRouter();
   const { setTokens, setUser } = useAuthStore();
 
-  const [form, setForm] = useState<FormData>({
-    full_name: "",
-    email: "",
-    password: "",
-  });
-  const [errors, setErrors] = useState<FieldErrors>({});
+  const [form, setForm]         = useState<FormData>({ full_name: "", email: "", password: "" });
+  const [errors, setErrors]     = useState<FieldErrors>({});
   const [showPass, setShowPass] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading]   = useState(false);
 
   function update(key: keyof FormData) {
     return (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -115,22 +104,25 @@ export default function RegistroPage() {
       style={{ background: "var(--surface-2)" }}
     >
       {/* Top nav */}
-      <nav className="flex items-center justify-between px-5 pt-safe pt-4 pb-2 animate-fade-in">
+      <nav
+        className="flex items-center justify-between px-5 pt-safe py-3.5 animate-fade-in"
+        style={{
+          background: "rgba(255,255,255,0.88)",
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
+          borderBottom: "1px solid rgba(226,232,240,0.6)",
+        }}
+      >
         <Link
           href="/"
-          className="flex items-center gap-1 text-sm font-semibold transition-colors"
-          style={{ color: "var(--ink-2)" }}
+          className="flex items-center gap-1 text-sm font-semibold"
+          style={{ color: "var(--ink-3)" }}
           aria-label="Volver al inicio"
         >
           <ChevronLeft size={18} />
           Inicio
         </Link>
-        <Link href="/"
-          className="font-display font-extrabold text-lg"
-          style={{ color: "var(--brand-600)" }}
-        >
-          q<span style={{ color: "var(--ink)" }}>tienda</span>
-        </Link>
+        <Logo size="sm" />
         <div className="w-16" aria-hidden />
       </nav>
 
@@ -139,30 +131,19 @@ export default function RegistroPage() {
         <div
           className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
           style={{
-            background: "linear-gradient(135deg, var(--brand-600), #7C3AED)",
-            boxShadow: "0 4px 20px rgba(37,99,235,.3)",
+            background: "linear-gradient(135deg, #7C3AED, #5B21B6)",
+            boxShadow: "0 6px 24px rgba(124,58,237,.3)",
           }}
         >
-          <svg
-            width="28"
-            height="28"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="white"
-            strokeWidth="2"
-            strokeLinecap="round"
-            aria-hidden
-          >
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
+            stroke="white" strokeWidth="2" strokeLinecap="round" aria-hidden>
             <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
             <line x1="3" y1="6" x2="21" y2="6" />
             <path d="M16 10a4 4 0 01-8 0" />
           </svg>
         </div>
 
-        <h1
-          className="font-display font-extrabold text-2xl mb-1"
-          style={{ color: "var(--ink)" }}
-        >
+        <h1 className="font-display font-extrabold text-2xl mb-1" style={{ color: "var(--ink)" }}>
           Crear cuenta de comprador
         </h1>
         <p className="text-sm" style={{ color: "var(--ink-3)" }}>
@@ -174,9 +155,8 @@ export default function RegistroPage() {
       <form
         onSubmit={handleSubmit}
         noValidate
-        className="flex-1 px-5 max-w-sm mx-auto w-full space-y-4 pb-8"
+        className="flex-1 px-5 max-w-sm mx-auto w-full space-y-4 pb-10"
       >
-        {/* Google login */}
         <div className="animate-fade-up delay-50">
           <GoogleLoginButton label="Registrarse con Google" mode="buyer" />
         </div>
@@ -187,9 +167,7 @@ export default function RegistroPage() {
 
         {/* Full name */}
         <div className="animate-fade-up delay-100">
-          <label htmlFor="full_name" className="field-label">
-            Nombre completo
-          </label>
+          <label htmlFor="full_name" className="field-label">Nombre completo</label>
           <input
             id="full_name"
             className={`input ${errors.full_name ? "input-error" : ""}`}
@@ -199,10 +177,7 @@ export default function RegistroPage() {
             onChange={update("full_name")}
           />
           {errors.full_name && (
-            <p
-              className="text-xs mt-1.5 font-medium"
-              style={{ color: "var(--danger)" }}
-            >
+            <p className="text-xs mt-1.5 font-medium" style={{ color: "var(--danger)" }}>
               {errors.full_name}
             </p>
           )}
@@ -210,9 +185,7 @@ export default function RegistroPage() {
 
         {/* Email */}
         <div className="animate-fade-up delay-150">
-          <label htmlFor="reg-email" className="field-label">
-            Email
-          </label>
+          <label htmlFor="reg-email" className="field-label">Email</label>
           <input
             id="reg-email"
             className={`input ${errors.email ? "input-error" : ""}`}
@@ -224,10 +197,7 @@ export default function RegistroPage() {
             onChange={update("email")}
           />
           {errors.email && (
-            <p
-              className="text-xs mt-1.5 font-medium"
-              style={{ color: "var(--danger)" }}
-            >
+            <p className="text-xs mt-1.5 font-medium" style={{ color: "var(--danger)" }}>
               {errors.email}
             </p>
           )}
@@ -235,9 +205,7 @@ export default function RegistroPage() {
 
         {/* Password */}
         <div className="animate-fade-up delay-200">
-          <label htmlFor="reg-password" className="field-label">
-            Contraseña
-          </label>
+          <label htmlFor="reg-password" className="field-label">Contraseña</label>
           <div className="relative">
             <input
               id="reg-password"
@@ -259,10 +227,7 @@ export default function RegistroPage() {
             </button>
           </div>
           {errors.password && (
-            <p
-              className="text-xs mt-1.5 font-medium"
-              style={{ color: "var(--danger)" }}
-            >
+            <p className="text-xs mt-1.5 font-medium" style={{ color: "var(--danger)" }}>
               {errors.password}
             </p>
           )}
@@ -270,45 +235,32 @@ export default function RegistroPage() {
 
         {/* Submit */}
         <div className="pt-2 animate-fade-up delay-250">
-          <button type="submit" disabled={loading} className="btn-primary">
+          <button type="submit" disabled={loading} className="btn-primary"
+            style={{
+              background: "linear-gradient(135deg, #7C3AED, #5B21B6)",
+              boxShadow: "0 4px 16px rgba(124,58,237,.35)",
+            }}>
             {loading ? (
               <span className="flex items-center gap-2">
                 <LoadingSpinner />
                 Creando cuenta...
               </span>
             ) : (
-              <>
-                Crear cuenta gratis
-                <ArrowRight size={17} />
-              </>
+              <>Crear cuenta gratis <ArrowRight size={17} /></>
             )}
           </button>
         </div>
 
-        <p
-          className="text-center text-sm animate-fade-up delay-300"
-          style={{ color: "var(--ink-3)" }}
-        >
+        <p className="text-center text-sm animate-fade-up delay-300" style={{ color: "var(--ink-3)" }}>
           ¿Ya tienes cuenta?{" "}
-          <Link
-            href="/auth/login"
-            className="font-bold transition-colors"
-            style={{ color: "var(--brand-600)" }}
-          >
+          <Link href="/auth/login" className="font-bold transition-colors" style={{ color: "#7C3AED" }}>
             Iniciar sesión
           </Link>
         </p>
 
-        <p
-          className="text-center text-sm animate-fade-up delay-300"
-          style={{ color: "var(--ink-3)" }}
-        >
+        <p className="text-center text-sm animate-fade-up delay-300" style={{ color: "var(--ink-3)" }}>
           ¿Eres vendedor?{" "}
-          <Link
-            href="/auth/register"
-            className="font-bold transition-colors"
-            style={{ color: "var(--brand-600)" }}
-          >
+          <Link href="/auth/register" className="font-bold transition-colors" style={{ color: "var(--brand-600)" }}>
             Crear tienda
           </Link>
         </p>

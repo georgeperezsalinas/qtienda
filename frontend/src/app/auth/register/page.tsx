@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Logo from "@/components/ui/Logo";
 import { Eye, EyeOff, ChevronLeft, ArrowRight, CheckCircle2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
@@ -14,7 +15,6 @@ const GoogleLoginButton = dynamic(
   { ssr: false }
 );
 
-/* ── Types ── */
 interface FormData {
   full_name: string;
   email: string;
@@ -23,12 +23,7 @@ interface FormData {
 }
 type FieldErrors = Partial<Record<keyof FormData, string>>;
 
-/* ── Password strength ── */
-function getPasswordStrength(pwd: string): {
-  score: number;         // 0-4
-  label: string;
-  color: string;
-} {
+function getPasswordStrength(pwd: string): { score: number; label: string; color: string } {
   if (!pwd) return { score: 0, label: "", color: "" };
   let score = 0;
   if (pwd.length >= 8)  score++;
@@ -46,7 +41,6 @@ function getPasswordStrength(pwd: string): {
   return { score, ...map[score] };
 }
 
-/* ── Validation ── */
 function validate(form: FormData): FieldErrors {
   const errors: FieldErrors = {};
   if (!form.full_name.trim()) errors.full_name = "Tu nombre es requerido";
@@ -58,8 +52,16 @@ function validate(form: FormData): FieldErrors {
   return errors;
 }
 
-/* ── Steps metadata ── */
 const STEPS = ["Cuenta", "Acceso", "Listo"];
+
+function LoadingSpinner() {
+  return (
+    <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24"
+      fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
+      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+    </svg>
+  );
+}
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -69,7 +71,6 @@ export default function RegisterPage() {
   const [errors, setErrors]     = useState<FieldErrors>({});
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading]   = useState(false);
-  const [focused, setFocused]   = useState<string | null>(null);
 
   const strength = useMemo(() => getPasswordStrength(form.password), [form.password]);
 
@@ -80,7 +81,6 @@ export default function RegisterPage() {
     };
   }
 
-  /* Determine visual step based on form fill */
   const currentStep = useMemo(() => {
     if (!form.full_name && !form.email) return 0;
     if (!form.password) return 1;
@@ -110,10 +110,10 @@ export default function RegisterPage() {
       const { data: me } = await apiClient.get("/auth/me");
       setUser(me);
 
-      toast.success("¡Bienvenido a qtienda! 🎉");
+      toast.success("¡Bienvenido a qtienda!");
       router.push("/dashboard");
     } catch (err: any) {
-      const raw  = err.response?.data?.detail;
+      const raw    = err.response?.data?.detail;
       const detail = Array.isArray(raw)
         ? raw[0]?.msg ?? "Datos inválidos"
         : typeof raw === "string" ? raw : "Error al crear la cuenta";
@@ -134,33 +134,35 @@ export default function RegisterPage() {
       style={{ background: "var(--surface-2)" }}
     >
       {/* ── Top nav ── */}
-      <nav className="flex items-center justify-between px-5 pt-safe pt-4 pb-2 animate-fade-in">
+      <nav
+        className="flex items-center justify-between px-5 pt-safe py-3.5 animate-fade-in"
+        style={{
+          background: "rgba(255,255,255,0.88)",
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
+          borderBottom: "1px solid rgba(226,232,240,0.6)",
+        }}
+      >
         <Link
           href="/"
           className="flex items-center gap-1 text-sm font-semibold transition-colors"
-          style={{ color: "var(--ink-2)" }}
+          style={{ color: "var(--ink-3)" }}
           aria-label="Volver al inicio"
         >
           <ChevronLeft size={18} />
           Inicio
         </Link>
-        <Link href="/"
-          className="font-display font-extrabold text-lg"
-          style={{ color: "var(--brand-600)" }}
-        >
-          q<span style={{ color: "var(--ink)" }}>tienda</span>
-        </Link>
+        <Logo size="sm" />
         <div className="w-16" aria-hidden />
       </nav>
 
       {/* ── Header ── */}
       <div className="px-5 pt-8 pb-5 text-center animate-fade-up">
-        {/* Gradient avatar */}
         <div
           className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
           style={{
             background: "linear-gradient(135deg, var(--brand-600), #7C3AED)",
-            boxShadow: "0 4px 20px rgba(37,99,235,.3)",
+            boxShadow: "0 6px 24px rgba(37,99,235,.3)",
           }}
         >
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" aria-hidden>
@@ -169,10 +171,7 @@ export default function RegisterPage() {
           </svg>
         </div>
 
-        <h1
-          className="font-display font-extrabold text-2xl mb-1"
-          style={{ color: "var(--ink)" }}
-        >
+        <h1 className="font-display font-extrabold text-2xl mb-1" style={{ color: "var(--ink)" }}>
           Crea tu tienda
         </h1>
         <p className="text-sm" style={{ color: "var(--ink-3)" }}>
@@ -190,13 +189,10 @@ export default function RegisterPage() {
                     background: i <= currentStep ? "var(--brand-600)" : "var(--surface-0)",
                     color: i <= currentStep ? "white" : "var(--ink-3)",
                     border: i <= currentStep ? "none" : "1.5px solid #E2E8F0",
+                    boxShadow: i === currentStep ? "0 2px 8px rgba(37,99,235,.3)" : "none",
                   }}
                 >
-                  {i < currentStep ? (
-                    <CheckCircle2 size={14} />
-                  ) : (
-                    i + 1
-                  )}
+                  {i < currentStep ? <CheckCircle2 size={14} /> : i + 1}
                 </div>
                 <span
                   className="text-[10px] font-semibold"
@@ -207,7 +203,7 @@ export default function RegisterPage() {
               </div>
               {i < STEPS.length - 1 && (
                 <div
-                  className="w-8 h-0.5 rounded-full mb-4 transition-all duration-300"
+                  className="w-8 h-0.5 rounded-full mb-4 transition-all duration-500"
                   style={{ background: i < currentStep ? "var(--brand-600)" : "#E2E8F0" }}
                 />
               )}
@@ -220,10 +216,8 @@ export default function RegisterPage() {
       <form
         onSubmit={handleSubmit}
         noValidate
-        className="flex-1 px-5 max-w-sm mx-auto w-full space-y-4 pb-8"
+        className="flex-1 px-5 max-w-sm mx-auto w-full space-y-4 pb-10"
       >
-
-        {/* Social login */}
         <div className="animate-fade-up delay-50 mb-2">
           <GoogleLoginButton label="Registrarse con Google" />
         </div>
@@ -242,8 +236,6 @@ export default function RegisterPage() {
             autoComplete="name"
             value={form.full_name}
             onChange={update("full_name")}
-            onFocus={() => setFocused("full_name")}
-            onBlur={() => setFocused(null)}
           />
           {errors.full_name && (
             <p className="text-xs mt-1.5 font-medium" style={{ color: "var(--danger)" }}>
@@ -264,8 +256,6 @@ export default function RegisterPage() {
             inputMode="email"
             value={form.email}
             onChange={update("email")}
-            onFocus={() => setFocused("email")}
-            onBlur={() => setFocused(null)}
           />
           {errors.email && (
             <p className="text-xs mt-1.5 font-medium" style={{ color: "var(--danger)" }}>
@@ -286,8 +276,6 @@ export default function RegisterPage() {
               autoComplete="new-password"
               value={form.password}
               onChange={update("password")}
-              onFocus={() => setFocused("password")}
-              onBlur={() => setFocused(null)}
             />
             <button
               type="button"
@@ -300,17 +288,14 @@ export default function RegisterPage() {
             </button>
           </div>
 
-          {/* Strength meter */}
           {form.password.length > 0 && (
             <div className="mt-2">
               <div className="flex gap-1 mb-1">
                 {[1, 2, 3, 4].map((n) => (
                   <div
                     key={n}
-                    className="strength-bar flex-1"
-                    style={{
-                      background: n <= strength.score ? strength.color : "#E2E8F0",
-                    }}
+                    className="strength-bar flex-1 transition-colors duration-300"
+                    style={{ background: n <= strength.score ? strength.color : "#E2E8F0" }}
                   />
                 ))}
               </div>
@@ -327,14 +312,11 @@ export default function RegisterPage() {
           )}
         </div>
 
-        {/* Phone (optional) */}
+        {/* Phone */}
         <div className="animate-fade-up delay-250">
           <label htmlFor="phone" className="field-label">
             WhatsApp{" "}
-            <span
-              className="font-normal normal-case tracking-normal"
-              style={{ color: "var(--ink-4)" }}
-            >
+            <span className="font-normal normal-case tracking-normal" style={{ color: "var(--ink-4)" }}>
               (opcional)
             </span>
           </label>
@@ -347,8 +329,6 @@ export default function RegisterPage() {
             inputMode="tel"
             value={form.phone}
             onChange={update("phone")}
-            onFocus={() => setFocused("phone")}
-            onBlur={() => setFocused(null)}
           />
           {errors.phone && (
             <p className="text-xs mt-1.5 font-medium" style={{ color: "var(--danger)" }}>
@@ -357,45 +337,27 @@ export default function RegisterPage() {
           )}
         </div>
 
-        {/* Submit */}
         <div className="pt-2 animate-fade-up delay-300">
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn-primary"
-          >
+          <button type="submit" disabled={loading} className="btn-primary">
             {loading ? (
               <span className="flex items-center gap-2">
                 <LoadingSpinner />
                 Creando tu tienda...
               </span>
             ) : (
-              <>
-                Crear cuenta gratis
-                <ArrowRight size={17} />
-              </>
+              <>Crear cuenta gratis <ArrowRight size={17} /></>
             )}
           </button>
         </div>
 
-        <p
-          className="text-center text-sm animate-fade-up delay-300"
-          style={{ color: "var(--ink-3)" }}
-        >
+        <p className="text-center text-sm animate-fade-up delay-300" style={{ color: "var(--ink-3)" }}>
           ¿Ya tienes cuenta?{" "}
-          <Link
-            href="/auth/login"
-            className="font-bold transition-colors"
-            style={{ color: "var(--brand-600)" }}
-          >
+          <Link href="/auth/login" className="font-bold transition-colors" style={{ color: "var(--brand-600)" }}>
             Iniciar sesión
           </Link>
         </p>
 
-        <p
-          className="text-center text-xs px-4 animate-fade-up delay-400"
-          style={{ color: "var(--ink-4)" }}
-        >
+        <p className="text-center text-xs px-4 animate-fade-up delay-400" style={{ color: "var(--ink-4)" }}>
           Al registrarte aceptas nuestros{" "}
           <span style={{ color: "var(--ink-3)" }}>Términos de uso</span>
           {" "}y{" "}
@@ -403,22 +365,5 @@ export default function RegisterPage() {
         </p>
       </form>
     </div>
-  );
-}
-
-function LoadingSpinner() {
-  return (
-    <svg
-      className="animate-spin"
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      aria-hidden
-    >
-      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
-    </svg>
   );
 }

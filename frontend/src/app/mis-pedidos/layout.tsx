@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import Logo from "@/components/ui/Logo";
 import { ShoppingBag, UserCircle } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 
@@ -23,33 +24,42 @@ export default function CompradorLayout({ children }: { children: React.ReactNod
 
       {/* Top bar */}
       <header
-        className="sticky top-0 z-10 flex items-center justify-between px-5 pt-safe py-4"
-        style={{ background: "var(--surface-0)", borderBottom: "1px solid #F1F5F9" }}
+        className="sticky top-0 z-10 flex items-center justify-between px-5 pt-safe py-3.5"
+        style={{
+          background: "rgba(255,255,255,0.9)",
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
+          borderBottom: "1px solid rgba(241,245,249,0.8)",
+          boxShadow: "0 1px 12px rgba(15,23,42,.04)",
+        }}
       >
-        <Link href="/" className="font-display font-extrabold text-lg">
-          <span style={{ color: "var(--brand-600)" }}>q</span>
-          <span style={{ color: "var(--ink)" }}>tienda</span>
-        </Link>
+        <Logo size="sm" />
         <Link
           href="/"
-          className="text-xs font-semibold px-3 py-1.5 rounded-xl"
-          style={{ background: "var(--surface-1)", color: "var(--ink-3)" }}
+          className="text-xs font-semibold px-3 py-1.5 rounded-xl transition-all"
+          style={{
+            background: "var(--surface-1)",
+            color: "var(--ink-3)",
+            border: "1px solid #E2E8F0",
+          }}
         >
-          Ir a tiendas
+          Descubrir tiendas
         </Link>
       </header>
 
       {/* Content */}
-      <main className="flex-1 pb-20">{children}</main>
+      <main className="flex-1 pb-24">{children}</main>
 
       {/* Bottom nav — solo para usuarios logueados */}
       {accessToken && (
         <nav
           className="fixed bottom-0 left-0 right-0 pb-safe z-40 flex"
           style={{
-            background:  "var(--surface-0)",
-            borderTop:   "1px solid #F1F5F9",
-            boxShadow:   "0 -4px 16px rgba(15,23,42,.06)",
+            background:  "rgba(255,255,255,0.92)",
+            backdropFilter: "blur(16px)",
+            WebkitBackdropFilter: "blur(16px)",
+            borderTop:   "1px solid rgba(241,245,249,0.8)",
+            boxShadow:   "0 -4px 24px rgba(15,23,42,.08)",
           }}
         >
           {NAV.map(({ href, label, icon: Icon, exact }) => {
@@ -59,11 +69,11 @@ export default function CompradorLayout({ children }: { children: React.ReactNod
                 key={href}
                 href={href}
                 className="flex-1 flex flex-col items-center gap-0.5 pt-3 pb-2 text-[10px] font-bold transition-colors"
-                style={{ color: active ? "var(--brand-600)" : "var(--ink-3)" }}
+                style={{ color: active ? "#7C3AED" : "var(--ink-3)" }}
               >
                 <div
                   className="flex items-center justify-center w-10 h-7 rounded-xl transition-all"
-                  style={{ background: active ? "var(--brand-50)" : "transparent" }}
+                  style={{ background: active ? "#F5F3FF" : "transparent" }}
                 >
                   <Icon size={20} />
                 </div>
@@ -71,7 +81,7 @@ export default function CompradorLayout({ children }: { children: React.ReactNod
                 {active && (
                   <span
                     className="w-1 h-1 rounded-full"
-                    style={{ background: "var(--brand-600)" }}
+                    style={{ background: "#7C3AED" }}
                   />
                 )}
               </Link>
