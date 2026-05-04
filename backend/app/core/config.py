@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     EMAIL_FROM: str = "qtienda <ventas@qtienda.shop>"
     APP_URL: str = "https://qtienda.shop"
 
+    VAPID_PRIVATE_KEY: str = ""
+    VAPID_PUBLIC_KEY: str = ""
+    VAPID_CLAIMS_EMAIL: str = "mailto:ventas@qtienda.shop"
+
     class Config:
         env_file = ".env"
         case_sensitive = True

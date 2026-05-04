@@ -10,6 +10,7 @@ from app.api.v1.endpoints import (
     uploads,
     public,
     buyer,
+    push,
 )
 
 api_router = APIRouter()
@@ -29,6 +30,9 @@ api_router.include_router(uploads.router,   prefix="/uploads",   tags=["Uploads"
 
 # Buyer
 api_router.include_router(buyer.router,     prefix="/buyer",     tags=["Buyer"])
+
+# Push notifications
+api_router.include_router(push.router,      prefix="/push",      tags=["Push"])
 
 # Admin
 api_router.include_router(admin.router,     prefix="/admin",     tags=["Admin"])

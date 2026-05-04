@@ -7,7 +7,7 @@ import Logo from "@/components/ui/Logo";
 import {
   LayoutDashboard, ShoppingBag, Package,
   Settings, LogOut, ExternalLink,
-  ChevronRight, UserCircle, ShoppingCart,
+  ChevronRight, UserCircle, ShoppingCart, Bike,
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { apiClient } from "@/lib/api";
@@ -54,6 +54,7 @@ function VerifyBanner({ email }: { email: string }) {
 const NAV = [
   { href: "/dashboard",               label: "Inicio",    icon: LayoutDashboard, exact: true  },
   { href: "/dashboard/pedidos",        label: "Pedidos",   icon: ShoppingBag,     exact: false },
+  { href: "/dashboard/delivery",       label: "Delivery",  icon: Bike,            exact: false },
   { href: "/dashboard/productos",      label: "Productos", icon: Package,         exact: false },
   { href: "/dashboard/configuracion",  label: "Config.",   icon: Settings,        exact: false },
 ];

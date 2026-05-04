@@ -325,6 +325,19 @@ class Subscription(Base):
     plan: Mapped["Plan"]   = relationship()
 
 
+# ── Push Subscriptions ────────────────────────────────────────
+
+class PushSubscription(Base):
+    __tablename__ = "push_subscriptions"
+
+    id: Mapped[uuid.UUID]           = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    buyer_email: Mapped[str]        = mapped_column(String(255), nullable=False)
+    endpoint: Mapped[str]           = mapped_column(Text, unique=True)
+    p256dh: Mapped[str]             = mapped_column(Text)
+    auth: Mapped[str]               = mapped_column(Text)
+    created_at: Mapped[datetime]    = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 # ── Audit Logs ────────────────────────────────────────────────
 
 class AuditLog(Base):

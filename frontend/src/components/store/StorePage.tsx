@@ -14,6 +14,7 @@ import CartDrawer from "./CartDrawer";
 import { useCartStore } from "@/store/cartStore";
 import { useAuthStore } from "@/store/authStore";
 import { formatPrice } from "@/lib/utils";
+import { usePushSubscription } from "@/hooks/usePushSubscription";
 
 interface StoreData {
   slug:          string;
@@ -69,6 +70,8 @@ export default function StorePage({ store, initialProducts }: Props) {
   const isLoggedIn = useAuthStore((s) => s.isAuthenticated());
   const user       = useAuthStore((s) => s.user);
   const logout     = useAuthStore((s) => s.logout);
+
+  usePushSubscription(user?.email);
   const searchRef  = useRef<HTMLInputElement>(null);
 
   const color = store.primary_color || "#2563EB";
