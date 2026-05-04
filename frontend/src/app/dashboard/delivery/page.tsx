@@ -143,26 +143,37 @@ function OrderCard({
         )}
 
         {/* Assign repartidor — solo en pedidos preparando */}
-        {isPreparing && staff.length > 0 && (
-          <div className="flex items-center gap-2">
-            <UserCheck size={13} style={{ color: "#64748B", flexShrink: 0 }} />
-            <select
-              value={order.assigned_to_id ?? ""}
-              disabled={assigning}
-              onChange={(e) => onAssign(order.id, e.target.value || null)}
-              className="flex-1 text-xs rounded-lg px-2 py-1.5 font-medium outline-none"
-              style={{
-                border: order.assigned_to_id ? "1.5px solid #93C5FD" : "1.5px solid #E2E8F0",
-                background: order.assigned_to_id ? "#EFF6FF" : "#F8FAFC",
-                color: order.assigned_to_id ? "#1D4ED8" : "#94A3B8",
-              }}
+        {isPreparing && (
+          staff.length > 0 ? (
+            <div className="flex items-center gap-2">
+              <UserCheck size={13} style={{ color: "#64748B", flexShrink: 0 }} />
+              <select
+                value={order.assigned_to_id ?? ""}
+                disabled={assigning}
+                onChange={(e) => onAssign(order.id, e.target.value || null)}
+                className="flex-1 text-xs rounded-lg px-2 py-1.5 font-medium outline-none"
+                style={{
+                  border: order.assigned_to_id ? "1.5px solid #93C5FD" : "1.5px solid #E2E8F0",
+                  background: order.assigned_to_id ? "#EFF6FF" : "#F8FAFC",
+                  color: order.assigned_to_id ? "#1D4ED8" : "#94A3B8",
+                }}
+              >
+                <option value="">Sin asignar</option>
+                {staff.map((s) => (
+                  <option key={s.id} value={s.id}>{s.full_name}</option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <a
+              href="/dashboard/configuracion"
+              className="flex items-center gap-1.5 text-xs font-medium rounded-lg px-2 py-1.5"
+              style={{ background: "#FFF7ED", border: "1px solid #FED7AA", color: "#EA580C" }}
             >
-              <option value="">Sin asignar</option>
-              {staff.map((s) => (
-                <option key={s.id} value={s.id}>{s.full_name}</option>
-              ))}
-            </select>
-          </div>
+              <UserCheck size={13} />
+              Sin repartidores — Crear en Configuración
+            </a>
+          )
         )}
 
         {/* En camino: mostrar repartidor asignado (solo lectura) */}

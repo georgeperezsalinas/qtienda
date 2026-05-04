@@ -1,7 +1,7 @@
 import secrets
 import uuid
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -18,12 +18,14 @@ from app.schemas.auth import (
     RegisterRequest, LoginRequest, TokenResponse, RefreshRequest
 )
 from app.services.email import send_verification_email
+from app.core.limiter import limiter
 
 router = APIRouter()
 
 
 @router.post("/register", response_model=TokenResponse, status_code=201)
-async def register(payload: RegisterRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def register(request: Request, payload: RegisterRequest, db: AsyncSession = Depends(get_db)):
     # Check duplicate email
     existing = await db.execute(select(User).where(User.email == payload.email.lower()))
     if existing.scalar_one_or_none():
@@ -108,7 +110,8 @@ async def resend_verification(
 
 
 @router.post("/register-buyer", response_model=TokenResponse, status_code=201)
-async def register_buyer(payload: RegisterRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def register_buyer(request: Request, payload: RegisterRequest, db: AsyncSession = Depends(get_db)):
     # Si ya tiene cuenta con ese email → simplemente iniciar sesión
     # (un vendedor puede comprar con su misma cuenta)
     existing_q = await db.execute(
@@ -153,7 +156,8 @@ async def register_buyer(payload: RegisterRequest, db: AsyncSession = Depends(ge
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(payload: LoginRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("10/minute")
+async def login(request: Request, payload: LoginRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(User)
         .options(selectinload(User.role))
@@ -200,7 +204,8 @@ async def refresh(payload: RefreshRequest, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/google", response_model=TokenResponse)
-async def google_login(payload: dict, db: AsyncSession = Depends(get_db)):
+@limiter.limit("10/minute")
+async def google_login(request: Request, payload: dict, db: AsyncSession = Depends(get_db)):
     access_token = (payload.get("access_token") or "").strip()
     if not access_token:
         raise HTTPException(status_code=422, detail="Token requerido")
@@ -264,7 +269,8 @@ async def google_login(payload: dict, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/google-buyer", response_model=TokenResponse)
-async def google_buyer(payload: dict, db: AsyncSession = Depends(get_db)):
+@limiter.limit("10/minute")
+async def google_buyer(request: Request, payload: dict, db: AsyncSession = Depends(get_db)):
     access_token = (payload.get("access_token") or "").strip()
     if not access_token:
         raise HTTPException(status_code=422, detail="Token requerido")

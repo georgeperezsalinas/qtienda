@@ -465,7 +465,7 @@ export default function MisPedidosPage() {
             <p className="text-sm" style={{ color: "var(--ink-3)" }}>
               Cuando hagas un pedido en una tienda, aparecerá aquí.
             </p>
-            <Link href="/" className="btn-primary mt-4 inline-flex">
+            <Link href="/tiendas" className="btn-primary mt-4 inline-flex">
               Descubrir tiendas
             </Link>
           </div>

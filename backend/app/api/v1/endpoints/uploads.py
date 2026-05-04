@@ -46,7 +46,7 @@ def _save_local(content: bytes, filename: str) -> str:
     return f"{base}/{filename}"
 
 
-async def _upload_r2(content: bytes, filename: str, content_type: str) -> str:
+async def _upload_r2(content: bytes, filename: str, content_type: str, object_key: str | None = None) -> str:
     """
     Sube a Cloudflare R2.
     - boto3 genera la URL presignada localmente (sin red).
@@ -58,7 +58,7 @@ async def _upload_r2(content: bytes, filename: str, content_type: str) -> str:
         import boto3
         from botocore.config import Config
 
-        key = f"products/{filename}"
+        key = object_key or f"products/{filename}"
 
         s3 = boto3.client(
             "s3",

@@ -35,7 +35,7 @@ export default function CompradorLayout({ children }: { children: React.ReactNod
       >
         <Logo size="sm" />
         <Link
-          href="/"
+          href="/tiendas"
           className="text-xs font-semibold px-3 py-1.5 rounded-xl transition-all"
           style={{
             background: "var(--surface-1)",

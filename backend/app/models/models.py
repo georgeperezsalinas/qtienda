@@ -46,6 +46,8 @@ class User(Base):
     full_name: Mapped[str]       = mapped_column(String(150), nullable=False)
     avatar_url: Mapped[Optional[str]] = mapped_column(Text)
     delivery_store_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("stores.id", ondelete="SET NULL"), nullable=True)
+    vehicle_type: Mapped[Optional[str]]  = mapped_column(String(20))
+    vehicle_plate: Mapped[Optional[str]] = mapped_column(String(15))
     is_active: Mapped[bool]      = mapped_column(Boolean, default=True)
     is_verified: Mapped[bool]    = mapped_column(Boolean, default=False)
     email_verification_token: Mapped[Optional[str]]     = mapped_column(String(64))
@@ -130,6 +132,8 @@ class StoreSettings(Base):
     accept_yape: Mapped[bool]       = mapped_column(Boolean, default=False)
     accept_plin: Mapped[bool]       = mapped_column(Boolean, default=False)
     accept_transfer: Mapped[bool]   = mapped_column(Boolean, default=False)
+    accept_card: Mapped[bool]       = mapped_column(Boolean, default=False)
+    require_prepayment: Mapped[bool] = mapped_column(Boolean, default=False)
     yape_phone: Mapped[Optional[str]]    = mapped_column(String(20))
     plin_phone: Mapped[Optional[str]]    = mapped_column(String(20))
     bank_account: Mapped[Optional[str]]  = mapped_column(Text)
@@ -237,6 +241,7 @@ class Order(Base):
     utm_campaign: Mapped[Optional[str]] = mapped_column(String(80))
     ip_address: Mapped[Optional[str]] = mapped_column(INET)
     user_agent: Mapped[Optional[str]] = mapped_column(Text)
+    payment_method: Mapped[str]      = mapped_column(String(30), default="cash")
     assigned_to_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
@@ -301,7 +306,10 @@ class Delivery(Base):
     tracking_code: Mapped[Optional[str]] = mapped_column(String(80))
     estimated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     delivered_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    notes: Mapped[Optional[str]]    = mapped_column(Text)
+    proof_photo_url: Mapped[Optional[str]]   = mapped_column(Text)
+    delivered_lat: Mapped[Optional[float]]   = mapped_column(DECIMAL(10, 7))
+    delivered_lng: Mapped[Optional[float]]   = mapped_column(DECIMAL(10, 7))
+    notes: Mapped[Optional[str]]             = mapped_column(Text)
     created_at: Mapped[datetime]    = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime]    = mapped_column(DateTime(timezone=True), server_default=func.now())
 

@@ -15,7 +15,7 @@ interface Props {
   store: any;
 }
 
-type Step = "cart" | "info" | "success";
+type Step = "cart" | "info" | "payment" | "success";
 
 export default function CartDrawer({ open, onClose, store }: Props) {
   const { items, updateQty, removeItem, clearCart, totalCents } = useCartStore();
@@ -30,6 +30,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
     buyer_email: "",
     buyer_address: "",
     notes: "",
+    payment_method: "",
   });
 
   const deliveryFee = store.settings?.delivery_fee_cents || 0;
@@ -38,9 +39,22 @@ export default function CartDrawer({ open, onClose, store }: Props) {
     freeAbove && totalCents() >= freeAbove ? 0 : deliveryFee;
   const total = totalCents() + effectiveDelivery;
 
+  // Métodos de pago disponibles según configuración de la tienda
+  const paymentOptions = [
+    store.settings?.accept_cash     && { value: "cash",     label: "Efectivo",      icon: "💵", sub: "Contra entrega" },
+    store.settings?.accept_yape     && { value: "yape",     label: "Yape",          icon: "💜", sub: store.settings?.yape_phone || "" },
+    store.settings?.accept_plin     && { value: "plin",     label: "Plin",          icon: "💚", sub: store.settings?.plin_phone || "" },
+    store.settings?.accept_transfer && { value: "transfer", label: "Transferencia", icon: "🏦", sub: store.settings?.bank_account ? "Datos al confirmar" : "" },
+    store.settings?.accept_card     && { value: "card",     label: "Tarjeta",       icon: "💳", sub: "POS al entregar" },
+  ].filter(Boolean) as { value: string; label: string; icon: string; sub: string }[];
+
   async function placeOrder() {
     if (!form.buyer_name.trim() || !form.buyer_phone.trim()) {
       toast.error("Nombre y teléfono son requeridos");
+      return;
+    }
+    if (!form.payment_method) {
+      toast.error("Selecciona un método de pago");
       return;
     }
     setLoading(true);
@@ -51,6 +65,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
         buyer_email: form.buyer_email.trim() || undefined,
         buyer_address: form.buyer_address,
         notes: form.notes,
+        payment_method: form.payment_method,
         source: "tiktok",
         items: items.map((i) => ({ product_id: i.id, quantity: i.quantity })),
       };
@@ -102,8 +117,9 @@ export default function CartDrawer({ open, onClose, store }: Props) {
             {/* Header */}
             <div className="flex items-center justify-between px-5 pb-4 border-b border-gray-100">
               <h2 className="font-display font-bold text-lg text-gray-900">
-                {step === "cart" && "Tu carrito"}
-                {step === "info" && "Datos de entrega"}
+                {step === "cart"    && "Tu carrito"}
+                {step === "info"    && "Datos de entrega"}
+                {step === "payment" && "Método de pago"}
                 {step === "success" && "¡Pedido enviado!"}
               </h2>
               <button onClick={handleClose} className="p-2 rounded-xl hover:bg-gray-100 transition-colors">
@@ -255,6 +271,46 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                 </div>
               )}
 
+              {step === "payment" && (
+                <div className="px-5 py-4 space-y-3">
+                  {store.settings?.require_prepayment && (
+                    <div className="rounded-xl px-4 py-3 text-sm"
+                         style={{ background: "#FFF7ED", border: "1px solid #FED7AA", color: "#92400E" }}>
+                      Esta tienda requiere pago anticipado antes de preparar tu pedido.
+                    </div>
+                  )}
+                  {paymentOptions.map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setForm({ ...form, payment_method: opt.value })}
+                      className="w-full flex items-center gap-4 rounded-2xl px-4 py-3.5 text-left transition-all"
+                      style={{
+                        border: form.payment_method === opt.value
+                          ? `2px solid ${store.primary_color}`
+                          : "2px solid #E2E8F0",
+                        background: form.payment_method === opt.value ? `${store.primary_color}08` : "#fff",
+                      }}
+                    >
+                      <span className="text-2xl">{opt.icon}</span>
+                      <div className="flex-1">
+                        <p className="font-bold text-sm text-gray-900">{opt.label}</p>
+                        {opt.sub && <p className="text-xs text-gray-400 mt-0.5">{opt.sub}</p>}
+                      </div>
+                      {form.payment_method === opt.value && (
+                        <CheckCircle2 size={18} style={{ color: store.primary_color, flexShrink: 0 }} />
+                      )}
+                    </button>
+                  ))}
+                  {/* Resumen total */}
+                  <div className="rounded-2xl bg-gray-50 px-4 py-3 flex items-center justify-between">
+                    <span className="text-sm text-gray-600 font-medium">Total a pagar</span>
+                    <span className="font-display font-extrabold text-lg" style={{ color: store.primary_color }}>
+                      {formatPrice(total)}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {step === "success" && orderResult && (
                 <div className="px-5 py-8 flex flex-col items-center text-center">
                   <motion.div
@@ -308,7 +364,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
             {/* Footer CTA */}
             {step !== "success" && (
               <div className="px-5 py-4 pb-safe border-t border-gray-100">
-                {step === "cart" ? (
+                {step === "cart" && (
                   <button
                     onClick={() => {
                       if (user?.email && !form.buyer_email) {
@@ -322,14 +378,39 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                   >
                     Continuar · {formatPrice(totalCents())}
                   </button>
-                ) : (
+                )}
+                {step === "info" && (
                   <div className="flex gap-3">
                     <button onClick={() => setStep("cart")} className="btn-secondary !w-auto flex-shrink-0 px-4">
                       Atrás
                     </button>
                     <button
+                      onClick={() => {
+                        if (!form.buyer_name.trim() || !form.buyer_phone.trim()) {
+                          toast.error("Nombre y teléfono son requeridos");
+                          return;
+                        }
+                        // Auto-seleccionar si solo hay un método
+                        if (paymentOptions.length === 1 && !form.payment_method) {
+                          setForm((f) => ({ ...f, payment_method: paymentOptions[0].value }));
+                        }
+                        setStep("payment");
+                      }}
+                      className="btn-primary flex-1"
+                      style={{ background: store.primary_color }}
+                    >
+                      Elegir pago →
+                    </button>
+                  </div>
+                )}
+                {step === "payment" && (
+                  <div className="flex gap-3">
+                    <button onClick={() => setStep("info")} className="btn-secondary !w-auto flex-shrink-0 px-4">
+                      Atrás
+                    </button>
+                    <button
                       onClick={placeOrder}
-                      disabled={loading}
+                      disabled={loading || !form.payment_method}
                       className="btn-primary flex-1"
                       style={{ background: store.primary_color }}
                     >

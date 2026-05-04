@@ -131,6 +131,8 @@ async def my_store(
             "accept_yape": store.settings.accept_yape,
             "accept_plin": store.settings.accept_plin,
             "accept_transfer": store.settings.accept_transfer,
+            "accept_card": store.settings.accept_card,
+            "require_prepayment": store.settings.require_prepayment,
             "yape_phone": store.settings.yape_phone,
             "plin_phone": store.settings.plin_phone,
             "bank_account": store.settings.bank_account,

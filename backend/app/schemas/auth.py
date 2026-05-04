@@ -68,6 +68,8 @@ class StoreSettingsUpdate(BaseModel):
     accept_yape: Optional[bool] = None
     accept_plin: Optional[bool] = None
     accept_transfer: Optional[bool] = None
+    accept_card: Optional[bool] = None
+    require_prepayment: Optional[bool] = None
     yape_phone: Optional[str] = None
     plin_phone: Optional[str] = None
     bank_account: Optional[str] = None
@@ -132,6 +134,7 @@ class PublicOrderCreate(BaseModel):
     buyer_address: Optional[str] = None
     buyer_reference: Optional[str] = None
     items: List[OrderItemIn]
+    payment_method: Optional[str] = "cash"
     notes: Optional[str] = None
     source: Optional[str] = "tiktok"
     utm_source: Optional[str] = None

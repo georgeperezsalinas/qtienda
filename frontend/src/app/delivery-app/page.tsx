@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Phone, MapPin, MessageCircle, RefreshCw,
   Package, Bike, CheckCircle2, Clock, LogOut,
+  Camera, X, Upload, History,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
@@ -21,8 +22,19 @@ interface DeliveryOrder {
   buyer_address?: string;
   buyer_reference?: string;
   total_cents: number;
+  payment_method: string;
+  payment_status: string;
   notes?: string;
   created_at: string;
+}
+
+interface DeliveredOrder {
+  id: string;
+  order_number: string;
+  buyer_name: string;
+  buyer_address?: string;
+  total_cents: number;
+  updated_at: string;
 }
 
 function timeAgo(iso: string) {
@@ -35,14 +47,35 @@ function timeAgo(iso: string) {
 export default function DeliveryAppPage() {
   const router  = useRouter();
   const { user, accessToken, logout } = useAuthStore();
-  const [orders,   setOrders]   = useState<DeliveryOrder[]>([]);
-  const [loading,  setLoading]  = useState(true);
-  const [updating, setUpdating] = useState<string | null>(null);
+  const [tab,        setTab]        = useState<"active" | "history">("active");
+  const [storeName,  setStoreName]  = useState<string>("");
+  const [orders,     setOrders]     = useState<DeliveryOrder[]>([]);
+  const [history,    setHistory]    = useState<DeliveredOrder[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [updating,   setUpdating]   = useState<string | null>(null);
+
+  // Proof photo + GPS + payment modal state
+  const [confirmOrder,      setConfirmOrder]      = useState<DeliveryOrder | null>(null);
+  const [proofFile,         setProofFile]         = useState<File | null>(null);
+  const [proofPreview,      setProofPreview]      = useState<string | null>(null);
+  const [uploading,         setUploading]         = useState(false);
+  const [gpsCoords,         setGpsCoords]         = useState<{ lat: number; lng: number } | null>(null);
+  const [gpsStatus,         setGpsStatus]         = useState<"idle" | "loading" | "ok" | "denied">("idle");
+  const [paymentCollected,  setPaymentCollected]  = useState<boolean | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!accessToken) { router.replace("/auth/login"); return; }
     if (user?.role !== "delivery") { router.replace("/auth/login"); }
   }, [accessToken, user, router]);
+
+  useEffect(() => {
+    if (!accessToken) return;
+    apiClient.get("/delivery/store")
+      .then(({ data }) => setStoreName(data.name))
+      .catch(() => {});
+  }, [accessToken]);
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -56,41 +89,130 @@ export default function DeliveryAppPage() {
     }
   }, []);
 
+  const fetchHistory = useCallback(async () => {
+    setLoadingHistory(true);
+    try {
+      const { data } = await apiClient.get("/delivery/orders/history");
+      setHistory(data);
+    } catch {
+      toast.error("Error al cargar historial");
+    } finally {
+      setLoadingHistory(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchOrders();
     const t = setInterval(fetchOrders, 30_000);
     return () => clearInterval(t);
   }, [fetchOrders]);
 
+  useEffect(() => {
+    if (tab === "history") fetchHistory();
+  }, [tab, fetchHistory]);
+
+  function requestGps() {
+    if (!navigator.geolocation) { setGpsStatus("denied"); return; }
+    setGpsStatus("loading");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGpsCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setGpsStatus("ok");
+      },
+      () => setGpsStatus("denied"),
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 0 },
+    );
+  }
+
   async function handleAction(orderId: string, newStatus: string) {
+    if (newStatus === "delivered") {
+      const order = orders.find((o) => o.id === orderId);
+      if (order) {
+        setConfirmOrder(order);
+        setGpsCoords(null);
+        setGpsStatus("idle");
+        requestGps();
+      }
+      return;
+    }
     setUpdating(orderId);
     try {
       const res = await apiClient.patch(`/delivery/orders/${orderId}/status`, { status: newStatus });
-      toast.success(newStatus === "on_the_way" ? "¡Pedido despachado!" : "¡Entrega confirmada!");
+      toast.success("¡Pedido despachado!");
       await fetchOrders();
-      if (res.data?.buyer_wa_link) {
-        const waUrl = res.data.buyer_wa_link;
-        toast(
-          (t) => (
-            <span className="flex items-center gap-3">
-              <span className="text-sm font-medium">¿Notificar al cliente?</span>
-              <a href={waUrl} target="_blank" rel="noopener noreferrer"
-                 onClick={() => toast.dismiss(t.id)}
-                 className="text-xs font-bold px-3 py-1.5 rounded-lg text-white"
-                 style={{ background: "#16A34A" }}>
-                WhatsApp
-              </a>
-              <button onClick={() => toast.dismiss(t.id)}
-                      className="text-xs text-slate-400">Omitir</button>
-            </span>
-          ),
-          { duration: 8000, icon: "💬" }
-        );
-      }
+      if (res.data?.buyer_wa_link) showWaToast(res.data.buyer_wa_link);
     } catch (err: any) {
       toast.error(err.response?.data?.detail || "Error al actualizar");
     } finally {
       setUpdating(null);
+    }
+  }
+
+  function showWaToast(waUrl: string) {
+    toast(
+      (t) => (
+        <span className="flex items-center gap-3">
+          <span className="text-sm font-medium">¿Notificar al cliente?</span>
+          <a href={waUrl} target="_blank" rel="noopener noreferrer"
+             onClick={() => toast.dismiss(t.id)}
+             className="text-xs font-bold px-3 py-1.5 rounded-lg text-white"
+             style={{ background: "#16A34A" }}>
+            WhatsApp
+          </a>
+          <button onClick={() => toast.dismiss(t.id)}
+                  className="text-xs text-slate-400">Omitir</button>
+        </span>
+      ),
+      { duration: 8000, icon: "💬" }
+    );
+  }
+
+  function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setProofFile(file);
+    setProofPreview(URL.createObjectURL(file));
+  }
+
+  function cancelConfirm() {
+    setConfirmOrder(null);
+    setProofFile(null);
+    if (proofPreview) URL.revokeObjectURL(proofPreview);
+    setProofPreview(null);
+    setGpsCoords(null);
+    setGpsStatus("idle");
+    setPaymentCollected(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  async function confirmDelivery() {
+    if (!confirmOrder || !proofFile) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", proofFile);
+      const uploadRes = await apiClient.post(
+        `/delivery/orders/${confirmOrder.id}/proof-photo`,
+        formData,
+      );
+      const proofUrl: string = uploadRes.data.url;
+
+      const res = await apiClient.patch(`/delivery/orders/${confirmOrder.id}/status`, {
+        status: "delivered",
+        proof_photo_url: proofUrl,
+        lat: gpsCoords?.lat ?? null,
+        lng: gpsCoords?.lng ?? null,
+        payment_collected: paymentCollected,
+      });
+
+      toast.success("¡Entrega confirmada!");
+      cancelConfirm();
+      await fetchOrders();
+      if (res.data?.buyer_wa_link) showWaToast(res.data.buyer_wa_link);
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || "Error al confirmar entrega");
+    } finally {
+      setUploading(false);
     }
   }
 
@@ -109,7 +231,14 @@ export default function DeliveryAppPage() {
         className="sticky top-0 z-10 px-4 py-3 flex items-center justify-between"
         style={{ background: "#fff", borderBottom: "1px solid #F1F5F9", boxShadow: "0 1px 8px rgba(15,23,42,.06)" }}
       >
-        <Logo size="sm" href="/delivery-app" />
+        <div>
+          <Logo size="sm" href="/delivery-app" />
+          {storeName && (
+            <p className="text-[10px] font-bold mt-0.5 truncate max-w-[140px]" style={{ color: "#7C3AED" }}>
+              {storeName}
+            </p>
+          )}
+        </div>
         <div className="flex items-center gap-3">
           <div className="text-right">
             <p className="text-xs font-bold" style={{ color: "#0F172A" }}>{user?.full_name}</p>
@@ -127,8 +256,32 @@ export default function DeliveryAppPage() {
       </header>
 
       <div className="p-4 max-w-lg mx-auto">
-        {/* Stats strip */}
-        <div className="flex gap-3 mb-5">
+        {/* Tabs */}
+        <div className="flex gap-2 mb-5 rounded-2xl p-1" style={{ background: "#F1F5F9" }}>
+          <button
+            onClick={() => setTab("active")}
+            className="flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
+            style={tab === "active"
+              ? { background: "#fff", color: "#0F172A", boxShadow: "0 1px 6px rgba(15,23,42,.1)" }
+              : { color: "#94A3B8" }}
+          >
+            <Bike size={13} />
+            Activos {orders.length > 0 && `(${orders.length})`}
+          </button>
+          <button
+            onClick={() => setTab("history")}
+            className="flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
+            style={tab === "history"
+              ? { background: "#fff", color: "#0F172A", boxShadow: "0 1px 6px rgba(15,23,42,.1)" }
+              : { color: "#94A3B8" }}
+          >
+            <History size={13} />
+            Entregados
+          </button>
+        </div>
+
+        {/* Stats strip — solo en tab activos */}
+        {tab === "active" && <div className="flex gap-3 mb-5">
           <div className="flex-1 rounded-2xl p-3 text-center"
                style={{ background: "#EDE9FE", border: "1.5px solid #C4B5FD" }}>
             <p className="text-2xl font-extrabold" style={{ color: "#7C3AED" }}>{preparing.length}</p>
@@ -147,7 +300,10 @@ export default function DeliveryAppPage() {
           >
             <RefreshCw size={18} className={loading ? "animate-spin" : ""} style={{ color: "#64748B" }} />
           </button>
-        </div>
+        </div>}
+
+        {/* ── Tab Activos ── */}
+        {tab === "active" && <>
 
         {/* Empty state */}
         {!loading && orders.length === 0 && (
@@ -196,7 +352,246 @@ export default function DeliveryAppPage() {
             </div>
           </section>
         )}
+
+        </> /* fin tab activos */}
+
+        {/* ── Tab Historial ── */}
+        {tab === "history" && (
+          <section>
+            {loadingHistory ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-20 rounded-2xl animate-pulse" style={{ background: "#F1F5F9" }} />
+                ))}
+              </div>
+            ) : history.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
+                     style={{ background: "#F0FDF4" }}>
+                  <History size={28} style={{ color: "#16A34A" }} />
+                </div>
+                <p className="font-bold text-slate-700">Sin entregas aún</p>
+                <p className="text-sm text-slate-400 mt-1">Aquí aparecerán los pedidos que hayas entregado.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {history.map((o) => (
+                  <div key={o.id} className="rounded-2xl px-4 py-3 flex items-center justify-between"
+                       style={{ background: "#fff", border: "1.5px solid #E2E8F0" }}>
+                    <div>
+                      <p className="text-xs font-extrabold" style={{ color: "#16A34A" }}>
+                        #{o.order_number}
+                      </p>
+                      <p className="text-sm font-bold mt-0.5" style={{ color: "#0F172A" }}>
+                        {o.buyer_name}
+                      </p>
+                      {o.buyer_address && (
+                        <p className="text-xs mt-0.5" style={{ color: "#94A3B8" }}>{o.buyer_address}</p>
+                      )}
+                    </div>
+                    <div className="text-right flex-shrink-0 ml-3">
+                      <p className="font-display font-extrabold text-sm" style={{ color: "#0F172A" }}>
+                        {formatPrice(o.total_cents)}
+                      </p>
+                      <p className="text-[11px] mt-0.5" style={{ color: "#94A3B8" }}>
+                        {timeAgo(o.updated_at)}
+                      </p>
+                      <div className="flex items-center justify-end gap-1 mt-1">
+                        <CheckCircle2 size={11} style={{ color: "#16A34A" }} />
+                        <span className="text-[11px] font-bold" style={{ color: "#16A34A" }}>Entregado</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
       </div>
+
+      {/* Proof photo modal */}
+      {confirmOrder && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col justify-end"
+          style={{ background: "rgba(15,23,42,0.75)", backdropFilter: "blur(3px)" }}
+          onClick={(e) => { if (e.target === e.currentTarget) cancelConfirm(); }}
+        >
+          <div className="rounded-t-3xl p-5 space-y-4" style={{ background: "#fff" }}>
+            {/* Modal header */}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-bold text-sm" style={{ color: "#0F172A" }}>
+                  Confirmar entrega
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: "#64748B" }}>
+                  #{confirmOrder.order_number} · {confirmOrder.buyer_name}
+                </p>
+              </div>
+              <button
+                onClick={cancelConfirm}
+                className="w-8 h-8 rounded-xl flex items-center justify-center"
+                style={{ background: "#F1F5F9" }}
+              >
+                <X size={16} style={{ color: "#64748B" }} />
+              </button>
+            </div>
+
+            {/* Photo area */}
+            {proofPreview ? (
+              <div className="relative rounded-2xl overflow-hidden" style={{ height: 220 }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={proofPreview}
+                  alt="Foto de entrega"
+                  className="w-full h-full object-cover"
+                />
+                <button
+                  onClick={() => {
+                    setProofFile(null);
+                    URL.revokeObjectURL(proofPreview);
+                    setProofPreview(null);
+                    if (fileInputRef.current) fileInputRef.current.value = "";
+                  }}
+                  className="absolute top-2 right-2 w-8 h-8 rounded-xl flex items-center justify-center"
+                  style={{ background: "rgba(15,23,42,0.6)" }}
+                >
+                  <X size={14} style={{ color: "#fff" }} />
+                </button>
+              </div>
+            ) : (
+              <label
+                className="flex flex-col items-center justify-center gap-3 rounded-2xl cursor-pointer"
+                style={{
+                  height: 180,
+                  border: "2px dashed #CBD5E1",
+                  background: "#F8FAFC",
+                }}
+              >
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                     style={{ background: "#EDE9FE" }}>
+                  <Camera size={26} style={{ color: "#7C3AED" }} />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-bold" style={{ color: "#334155" }}>Tomar foto de la entrega</p>
+                  <p className="text-xs mt-0.5" style={{ color: "#94A3B8" }}>
+                    Foto obligatoria para confirmar
+                  </p>
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={handlePhotoSelect}
+                />
+              </label>
+            )}
+
+            {/* Payment confirmation */}
+            {confirmOrder && (() => {
+              const method = confirmOrder.payment_method;
+              const isPrepaid = method === "transfer";
+              const methodLabel: Record<string, string> = {
+                cash: "💵 Efectivo (contra entrega)",
+                yape: "💜 Yape",
+                plin: "💚 Plin",
+                transfer: "🏦 Transferencia (anticipado)",
+                card: "💳 Tarjeta",
+              };
+              return (
+                <div className="rounded-2xl p-3 space-y-2.5"
+                     style={{ background: "#F8FAFC", border: "1.5px solid #E2E8F0" }}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold" style={{ color: "#334155" }}>
+                      {methodLabel[method] ?? method}
+                    </span>
+                    <span className="font-display font-extrabold text-sm" style={{ color: "#0F172A" }}>
+                      {formatPrice(confirmOrder.total_cents)}
+                    </span>
+                  </div>
+                  {isPrepaid ? (
+                    <p className="text-xs" style={{ color: "#16A34A" }}>
+                      Pago anticipado — no necesitas cobrar en la entrega
+                    </p>
+                  ) : (
+                    <>
+                      <p className="text-xs font-medium" style={{ color: "#64748B" }}>
+                        ¿Cobró el pago?
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setPaymentCollected(true)}
+                          className="flex-1 py-2 rounded-xl text-xs font-bold transition-all"
+                          style={paymentCollected === true
+                            ? { background: "#DCFCE7", color: "#16A34A", border: "1.5px solid #86EFAC" }
+                            : { background: "#F1F5F9", color: "#64748B", border: "1.5px solid #E2E8F0" }}
+                        >
+                          ✓ Sí, cobré
+                        </button>
+                        <button
+                          onClick={() => setPaymentCollected(false)}
+                          className="flex-1 py-2 rounded-xl text-xs font-bold transition-all"
+                          style={paymentCollected === false
+                            ? { background: "#FEE2E2", color: "#DC2626", border: "1.5px solid #FECACA" }
+                            : { background: "#F1F5F9", color: "#64748B", border: "1.5px solid #E2E8F0" }}
+                        >
+                          ✗ No cobré
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* GPS status */}
+            <div className="flex items-center gap-2 px-1">
+              <MapPin size={13} style={{ color: gpsStatus === "ok" ? "#16A34A" : gpsStatus === "denied" ? "#94A3B8" : "#F59E0B", flexShrink: 0 }} />
+              <span className="text-xs" style={{ color: "#64748B" }}>
+                {gpsStatus === "loading" && "Obteniendo ubicación…"}
+                {gpsStatus === "ok"      && `Ubicación capturada (${gpsCoords!.lat.toFixed(5)}, ${gpsCoords!.lng.toFixed(5)})`}
+                {gpsStatus === "denied"  && "Ubicación no disponible"}
+                {gpsStatus === "idle"    && "Esperando GPS…"}
+              </span>
+              {gpsStatus === "denied" && (
+                <button onClick={requestGps} className="text-xs font-bold ml-auto" style={{ color: "#2563EB" }}>
+                  Reintentar
+                </button>
+              )}
+            </div>
+
+            {/* Actions */}
+            <button
+              onClick={confirmDelivery}
+              disabled={!proofFile || uploading}
+              className="w-full py-3.5 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2 transition-all active:scale-[.98] disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: "#16A34A", boxShadow: proofFile ? "0 4px 16px #16A34A44" : "none" }}
+            >
+              {uploading ? (
+                <>
+                  <Upload size={17} className="animate-bounce" />
+                  Subiendo foto…
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 size={17} />
+                  {proofFile ? "Confirmar entrega" : "Selecciona una foto primero"}
+                </>
+              )}
+            </button>
+
+            <button
+              onClick={cancelConfirm}
+              disabled={uploading}
+              className="w-full py-3 rounded-xl font-medium text-sm"
+              style={{ color: "#64748B" }}
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -274,7 +669,19 @@ function OrderCard({ order, onAction, updating }: {
         )}
 
         <div className="flex items-center justify-between">
-          <span className="text-xs" style={{ color: "#94A3B8" }}>Total del pedido</span>
+          <span className="text-[11px] font-bold px-2 py-1 rounded-lg"
+                style={{
+                  background: order.payment_method === "cash" ? "#FEF9C3" :
+                              order.payment_method === "transfer" ? "#F0FDF4" : "#EFF6FF",
+                  color: order.payment_method === "cash" ? "#854D0E" :
+                         order.payment_method === "transfer" ? "#15803D" : "#1D4ED8",
+                }}>
+            { order.payment_method === "cash"     ? "💵 Efectivo"
+            : order.payment_method === "yape"     ? "💜 Yape"
+            : order.payment_method === "plin"     ? "💚 Plin"
+            : order.payment_method === "card"     ? "💳 Tarjeta"
+            : "🏦 Transferencia" }
+          </span>
           <span className="font-display font-extrabold text-sm" style={{ color: "#0F172A" }}>
             {formatPrice(order.total_cents)}
           </span>

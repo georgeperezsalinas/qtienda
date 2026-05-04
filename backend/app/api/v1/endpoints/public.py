@@ -11,12 +11,14 @@ from sqlalchemy.orm import selectinload
 from app.db.session import get_db
 from app.models.models import Store, Product, Order, OrderItem, Payment, StoreSettings
 from app.schemas.orders import PublicOrderCreate, OrderResponse
+from app.core.limiter import limiter
 
 router = APIRouter()
 
 
 @router.get("/stores")
-async def list_stores(db: AsyncSession = Depends(get_db)):
+@limiter.limit("60/minute")
+async def list_stores(request: Request, db: AsyncSession = Depends(get_db)):
     """Public store directory — returns active stores for the landing page."""
     result = await db.execute(
         select(Store)
@@ -44,7 +46,8 @@ async def list_stores(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/store/{slug}")
-async def get_store(slug: str, db: AsyncSession = Depends(get_db)):
+@limiter.limit("60/minute")
+async def get_store(request: Request, slug: str, db: AsyncSession = Depends(get_db)):
     """Load store page data for buyers."""
     result = await db.execute(
         select(Store)
@@ -77,6 +80,12 @@ async def get_store(slug: str, db: AsyncSession = Depends(get_db)):
             "accept_cash": store.settings.accept_cash if store.settings else True,
             "accept_yape": store.settings.accept_yape if store.settings else False,
             "accept_plin": store.settings.accept_plin if store.settings else False,
+            "accept_transfer": store.settings.accept_transfer if store.settings else False,
+            "accept_card": store.settings.accept_card if store.settings else False,
+            "require_prepayment": store.settings.require_prepayment if store.settings else False,
+            "yape_phone": store.settings.yape_phone if store.settings else None,
+            "plin_phone": store.settings.plin_phone if store.settings else None,
+            "bank_account": store.settings.bank_account if store.settings else None,
             "delivery_fee_cents": store.settings.delivery_fee_cents if store.settings else 0,
             "min_order_cents": store.settings.min_order_cents if store.settings else 0,
             "free_delivery_above": store.settings.free_delivery_above if store.settings else None,
@@ -87,7 +96,9 @@ async def get_store(slug: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/store/{slug}/products")
+@limiter.limit("60/minute")
 async def get_store_products(
+    request: Request,
     slug: str,
     category: str = None,
     db: AsyncSession = Depends(get_db),
@@ -150,6 +161,7 @@ async def get_store_products(
 
 
 @router.post("/store/{slug}/orders", status_code=201)
+@limiter.limit("8/minute")
 async def create_order(
     slug: str,
     payload: PublicOrderCreate,
@@ -233,6 +245,17 @@ async def create_order(
             detail=f"Monto mínimo S/ {settings.min_order_cents / 100:.2f}",
         )
 
+    # Validate payment method
+    _method = (payload.payment_method or "cash").lower().strip()
+    _allowed: list[str] = []
+    if not settings or settings.accept_cash:     _allowed.append("cash")
+    if settings and settings.accept_yape:        _allowed.append("yape")
+    if settings and settings.accept_plin:        _allowed.append("plin")
+    if settings and settings.accept_transfer:    _allowed.append("transfer")
+    if settings and settings.accept_card:        _allowed.append("card")
+    if _method not in _allowed:
+        raise HTTPException(status_code=422, detail="Método de pago no disponible en esta tienda")
+
     # Generate order number
     from sqlalchemy import text
     num_result = await db.execute(
@@ -252,6 +275,7 @@ async def create_order(
         subtotal_cents=subtotal,
         delivery_cents=delivery_cents,
         total_cents=total,
+        payment_method=_method,
         notes=payload.notes,
         source=payload.source or "tiktok",
         utm_source=payload.utm_source,
@@ -269,6 +293,13 @@ async def create_order(
         # Decrement stock
         if products_map[oi.product_id].stock is not None:
             products_map[oi.product_id].stock -= oi.quantity
+
+    db.add(Payment(
+        order_id=order.id,
+        method=_method,
+        status="pending",
+        amount_cents=total,
+    ))
 
     await db.commit()
     await db.refresh(order)
@@ -292,7 +323,15 @@ async def create_order(
             lines.append(f"🏠 *Ref:* {payload.buyer_reference}")
         if payload.notes:
             lines.append(f"📝 *Nota:* {payload.notes}")
+        _method_label = {
+            "cash": "💵 Efectivo (contra entrega)",
+            "yape": "💜 Yape",
+            "plin": "💚 Plin",
+            "transfer": "🏦 Transferencia",
+            "card": "💳 Tarjeta",
+        }.get(_method, _method)
         lines += [
+            f"💳 *Pago:* {_method_label}",
             "",
             "🛒 *Productos:*",
             items_text,
@@ -327,7 +366,8 @@ async def create_order(
 
 
 @router.get("/store/{slug}/orders/{order_number}/track")
-async def track_order(slug: str, order_number: str, db: AsyncSession = Depends(get_db)):
+@limiter.limit("30/minute")
+async def track_order(request: Request, slug: str, order_number: str, db: AsyncSession = Depends(get_db)):
     """Buyer order tracking — public."""
     store_q = await db.execute(select(Store.id).where(Store.slug == slug))
     store_id = store_q.scalar_one_or_none()
