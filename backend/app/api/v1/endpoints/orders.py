@@ -337,12 +337,12 @@ async def update_order_status(
 
     await db.commit()
 
-    # Push notification to buyer (fire-and-forget)
+    # Push notification to buyer (fire-and-forget, uses its own DB session)
     if order.buyer_email:
         from app.services.push import send_push_to_buyer
         import asyncio
         asyncio.ensure_future(
-            send_push_to_buyer(order.buyer_email, new_status, order.order_number, store.slug, db)
+            send_push_to_buyer(order.buyer_email, new_status, order.order_number, store.slug)
         )
 
     buyer_wa_link = _buyer_wa_link(order, store)

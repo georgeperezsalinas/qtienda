@@ -60,7 +60,6 @@ async def send_push_to_buyer(
     new_status: str,
     order_number: str,
     store_slug: str,
-    db,
 ) -> None:
     if not settings.VAPID_PRIVATE_KEY:
         return
@@ -71,13 +70,7 @@ async def send_push_to_buyer(
 
     from sqlalchemy import select, delete
     from app.models.models import PushSubscription
-
-    result = await db.execute(
-        select(PushSubscription).where(PushSubscription.buyer_email == buyer_email)
-    )
-    subs = result.scalars().all()
-    if not subs:
-        return
+    from app.db.session import AsyncSessionLocal
 
     payload = {
         "title": msg["title"],
@@ -87,17 +80,24 @@ async def send_push_to_buyer(
         "badge": "/logo_qtienda.png",
     }
 
-    stale_ids = []
-    for sub in subs:
-        try:
-            await asyncio.to_thread(_send_push_sync, sub.endpoint, sub.p256dh, sub.auth, payload)
-        except Exception as ex:
-            # 410 Gone means the subscription is expired — mark for cleanup
-            if hasattr(ex, "response") and ex.response and ex.response.status_code == 410:
-                stale_ids.append(sub.id)
-
-    if stale_ids:
-        await db.execute(
-            delete(PushSubscription).where(PushSubscription.id.in_(stale_ids))
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(PushSubscription).where(PushSubscription.buyer_email == buyer_email)
         )
-        await db.commit()
+        subs = result.scalars().all()
+        if not subs:
+            return
+
+        stale_ids = []
+        for sub in subs:
+            try:
+                await asyncio.to_thread(_send_push_sync, sub.endpoint, sub.p256dh, sub.auth, payload)
+            except Exception as ex:
+                if hasattr(ex, "response") and ex.response and ex.response.status_code == 410:
+                    stale_ids.append(sub.id)
+
+        if stale_ids:
+            await db.execute(
+                delete(PushSubscription).where(PushSubscription.id.in_(stale_ids))
+            )
+            await db.commit()
