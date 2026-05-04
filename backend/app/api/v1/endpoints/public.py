@@ -238,8 +238,9 @@ async def create_order(
 
     total = subtotal + delivery_cents
 
-    # Min order check
-    if settings and subtotal < settings.min_order_cents:
+    # Min order check — validate against total (subtotal + delivery) so the buyer
+    # isn't confused by an order that meets the visible total but fails silently.
+    if settings and settings.min_order_cents and total < settings.min_order_cents:
         raise HTTPException(
             status_code=422,
             detail=f"Monto mínimo S/ {settings.min_order_cents / 100:.2f}",

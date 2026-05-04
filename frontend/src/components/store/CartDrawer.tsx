@@ -8,6 +8,7 @@ import { useAuthStore } from "@/store/authStore";
 import { formatPrice } from "@/lib/utils";
 import { apiClient } from "@/lib/api";
 import toast from "react-hot-toast";
+import PhoneInput from "@/components/ui/PhoneInput";
 
 interface Props {
   open: boolean;
@@ -38,6 +39,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
   const effectiveDelivery =
     freeAbove && totalCents() >= freeAbove ? 0 : deliveryFee;
   const total = totalCents() + effectiveDelivery;
+  const minOrderCents = store.settings?.min_order_cents || 0;
 
   // Métodos de pago disponibles según configuración de la tienda
   const paymentOptions = [
@@ -195,12 +197,9 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                     <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">
                       WhatsApp / Teléfono *
                     </label>
-                    <input
-                      className="input"
-                      type="tel"
-                      placeholder="987 654 321"
+                    <PhoneInput
                       value={form.buyer_phone}
-                      onChange={(e) => setForm({ ...form, buyer_phone: e.target.value })}
+                      onChange={(v) => setForm({ ...form, buyer_phone: v })}
                     />
                   </div>
                   <div>
@@ -365,19 +364,30 @@ export default function CartDrawer({ open, onClose, store }: Props) {
             {step !== "success" && (
               <div className="px-5 py-4 pb-safe border-t border-gray-100">
                 {step === "cart" && (
-                  <button
-                    onClick={() => {
-                      if (user?.email && !form.buyer_email) {
-                        setForm((f) => ({ ...f, buyer_email: user.email }));
-                      }
-                      setStep("info");
-                    }}
-                    disabled={items.length === 0}
-                    className="btn-primary w-full"
-                    style={{ background: store.primary_color }}
-                  >
-                    Continuar · {formatPrice(totalCents())}
-                  </button>
+                  <>
+                    {minOrderCents > 0 && total < minOrderCents && items.length > 0 && (
+                      <p className="text-xs text-amber-600 text-center mb-2 font-medium">
+                        Agrega{" "}
+                        <span className="font-bold">
+                          {formatPrice(minOrderCents - total)}
+                        </span>{" "}
+                        más para llegar al mínimo de pedido
+                      </p>
+                    )}
+                    <button
+                      onClick={() => {
+                        if (user?.email && !form.buyer_email) {
+                          setForm((f) => ({ ...f, buyer_email: user.email }));
+                        }
+                        setStep("info");
+                      }}
+                      disabled={items.length === 0 || (minOrderCents > 0 && total < minOrderCents)}
+                      className="btn-primary w-full"
+                      style={{ background: store.primary_color }}
+                    >
+                      Continuar · {formatPrice(total)}
+                    </button>
+                  </>
                 )}
                 {step === "info" && (
                   <div className="flex gap-3">

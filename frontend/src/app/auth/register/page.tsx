@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Logo from "@/components/ui/Logo";
+import PhoneInput from "@/components/ui/PhoneInput";
 import { Eye, EyeOff, ChevronLeft, ArrowRight, CheckCircle2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
@@ -357,15 +358,14 @@ export default function RegisterPage() {
               (opcional)
             </span>
           </label>
-          <input
+          <PhoneInput
             id="phone"
-            className={`input ${errors.phone ? "input-error" : ""}`}
-            type="tel"
-            placeholder="+51 987 654 321"
-            autoComplete="tel"
-            inputMode="tel"
             value={form.phone}
-            onChange={update("phone")}
+            onChange={(v) => {
+              setForm((f) => ({ ...f, phone: v }));
+              if (errors.phone) setErrors((er) => ({ ...er, phone: undefined }));
+            }}
+            hasError={!!errors.phone}
           />
           {errors.phone && (
             <p className="text-xs mt-1.5 font-medium" style={{ color: "var(--danger)" }}>
