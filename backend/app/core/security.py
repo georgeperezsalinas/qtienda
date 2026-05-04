@@ -87,5 +87,6 @@ def require_role(*roles: str):
     return dependency
 
 
-require_admin  = require_role("admin")
-require_vendor = require_role("admin", "vendor")
+require_admin    = require_role("admin")
+require_vendor   = require_role("admin", "vendor")
+require_delivery = require_role("delivery")

@@ -44,9 +44,10 @@ export default function LoginPage() {
       const { data: me } = await apiClient.get("/auth/me");
       setUser(me);
       toast.success("¡Bienvenido!");
-      if (me.role === "admin")       router.push("/admin");
-      else if (me.role === "buyer")  router.push("/mis-pedidos");
-      else                           router.push("/dashboard");
+      if (me.role === "admin")          router.push("/admin");
+      else if (me.role === "buyer")    router.push("/mis-pedidos");
+      else if (me.role === "delivery") router.push("/delivery-app");
+      else                             router.push("/dashboard");
     } catch (err: any) {
       const s      = err.response?.status;
       const detail = err.response?.data?.detail;

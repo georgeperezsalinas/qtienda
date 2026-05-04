@@ -108,9 +108,30 @@ export default function PedidosPage() {
       if (selected?.id === orderId) {
         await loadDetail(orderId);
       }
-      // Abrir WhatsApp al comprador si hay link disponible
       if (res.data?.buyer_wa_link) {
-        window.open(res.data.buyer_wa_link, "_blank");
+        const waUrl = res.data.buyer_wa_link;
+        toast(
+          (t) => (
+            <span className="flex items-center gap-3">
+              <span className="text-sm font-medium">¿Notificar al cliente?</span>
+              <a
+                href={waUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => toast.dismiss(t.id)}
+                className="text-xs font-bold px-3 py-1.5 rounded-lg text-white"
+                style={{ background: "#16A34A" }}
+              >
+                WhatsApp
+              </a>
+              <button onClick={() => toast.dismiss(t.id)}
+                      className="text-xs text-slate-400 hover:text-slate-600">
+                Omitir
+              </button>
+            </span>
+          ),
+          { duration: 8000, icon: "💬" }
+        );
       }
     } catch (err: any) {
       toast.error(err.response?.data?.detail || "Error al actualizar");

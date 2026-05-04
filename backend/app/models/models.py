@@ -25,7 +25,7 @@ class Role(Base):
 
     id: Mapped[int]        = mapped_column(SmallInteger, primary_key=True)
     name: Mapped[str]      = mapped_column(
-        Enum("admin", "vendor", "buyer", name="user_role", create_type=False), unique=True
+        Enum("admin", "vendor", "buyer", "delivery", name="user_role", create_type=False), unique=True
     )
     description: Mapped[Optional[str]] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -45,6 +45,7 @@ class User(Base):
     password_hash: Mapped[str]   = mapped_column(Text, nullable=False)
     full_name: Mapped[str]       = mapped_column(String(150), nullable=False)
     avatar_url: Mapped[Optional[str]] = mapped_column(Text)
+    delivery_store_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("stores.id", ondelete="SET NULL"), nullable=True)
     is_active: Mapped[bool]      = mapped_column(Boolean, default=True)
     is_verified: Mapped[bool]    = mapped_column(Boolean, default=False)
     email_verification_token: Mapped[Optional[str]]     = mapped_column(String(64))
