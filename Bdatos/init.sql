@@ -47,9 +47,11 @@ CREATE TABLE users (
   password_hash   TEXT NOT NULL,
   full_name       VARCHAR(150) NOT NULL,
   avatar_url      TEXT,
-  is_active       BOOLEAN DEFAULT TRUE,
-  is_verified     BOOLEAN DEFAULT FALSE,
-  last_login_at   TIMESTAMPTZ,
+  is_active                   BOOLEAN DEFAULT TRUE,
+  is_verified                 BOOLEAN DEFAULT FALSE,
+  email_verification_token    VARCHAR(64),
+  email_verification_sent_at  TIMESTAMPTZ,
+  last_login_at               TIMESTAMPTZ,
   deleted_at      TIMESTAMPTZ,                    -- soft delete
   created_at      TIMESTAMPTZ DEFAULT NOW(),
   updated_at      TIMESTAMPTZ DEFAULT NOW()

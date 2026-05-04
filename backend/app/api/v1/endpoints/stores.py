@@ -22,6 +22,13 @@ async def create_store(
     current_user=Depends(require_vendor),
     db: AsyncSession = Depends(get_db),
 ):
+    # Require verified email
+    if not current_user.is_verified:
+        raise HTTPException(
+            status_code=403,
+            detail="Debes verificar tu correo antes de crear una tienda. Revisa tu bandeja de entrada.",
+        )
+
     # Only one store per vendor
     existing = await db.execute(
         select(Store).where(Store.user_id == current_user.id, Store.deleted_at.is_(None))

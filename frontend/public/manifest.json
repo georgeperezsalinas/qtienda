@@ -10,16 +10,10 @@
   "categories": ["shopping", "business"],
   "icons": [
     {
-      "src": "/icon.svg",
+      "src": "/logo_pro_qtienda.ico",
       "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any"
-    },
-    {
-      "src": "/icon-maskable.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "maskable"
+      "type": "image/x-icon",
+      "purpose": "any maskable"
     }
   ],
   "screenshots": [],

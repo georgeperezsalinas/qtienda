@@ -6,20 +6,23 @@ interface Props {
   invertOnDark?: boolean;
 }
 
-const sizes = {
-  sm: "text-lg",
-  md: "text-xl",
-  lg: "text-2xl",
-};
+const heights = { sm: 24, md: 32, lg: 40 };
 
 export default function Logo({ size = "md", href = "/", invertOnDark = false }: Props) {
+  const h = heights[size];
+
   const inner = (
-    <span
-      className={`font-display font-extrabold tracking-tight ${sizes[size]}`}
-      style={{ color: invertOnDark ? "rgba(255,255,255,.9)" : "var(--brand-600)" }}
-    >
-      q<span style={{ color: invertOnDark ? "rgba(255,255,255,.5)" : "var(--ink)" }}>tienda</span>
-    </span>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/logo_qtienda.png"
+      alt="qtienda"
+      style={{
+        height: h,
+        width: "auto",
+        display: "block",
+        filter: invertOnDark ? "brightness(0) invert(1)" : "none",
+      }}
+    />
   );
 
   if (!href) return inner;

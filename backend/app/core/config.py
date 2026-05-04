@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     WA_BASE_URL: str = "https://wa.me/"
     FREE_PLAN_SLUG: str = "free"
 
+    RESEND_API_KEY: str = ""
+    EMAIL_FROM: str = "qtienda <ventas@qtienda.shop>"
+    APP_URL: str = "https://qtienda.shop"
+
     class Config:
         env_file = ".env"
         case_sensitive = True

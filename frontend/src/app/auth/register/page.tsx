@@ -71,6 +71,7 @@ export default function RegisterPage() {
   const [errors, setErrors]     = useState<FieldErrors>({});
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading]   = useState(false);
+  const [verifyScreen, setVerifyScreen] = useState(false);
 
   const strength = useMemo(() => getPasswordStrength(form.password), [form.password]);
 
@@ -110,8 +111,7 @@ export default function RegisterPage() {
       const { data: me } = await apiClient.get("/auth/me");
       setUser(me);
 
-      toast.success("¡Bienvenido a qtienda!");
-      router.push("/dashboard");
+      setVerifyScreen(true);
     } catch (err: any) {
       const raw    = err.response?.data?.detail;
       const detail = Array.isArray(raw)
@@ -126,6 +126,43 @@ export default function RegisterPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (verifyScreen) {
+    return (
+      <div className="min-h-dvh flex flex-col items-center justify-center px-6"
+           style={{ background: "var(--surface-2)" }}>
+        <div className="w-full max-w-sm bg-white rounded-3xl p-8 text-center shadow-lg border border-slate-100">
+          <div className="w-16 h-16 rounded-2xl bg-blue-50 flex items-center justify-center mx-auto mb-5">
+            <span className="text-3xl">📧</span>
+          </div>
+          <h1 className="font-display font-extrabold text-xl text-slate-900 mb-2">
+            Verifica tu correo
+          </h1>
+          <p className="text-sm text-slate-500 leading-relaxed mb-6">
+            Te enviamos un enlace de verificación a<br />
+            <strong className="text-slate-700">{form.email}</strong>
+          </p>
+          <p className="text-xs text-slate-400 mb-6">
+            Revisa tu bandeja de entrada y haz clic en el enlace para activar tu cuenta y crear tu tienda.
+          </p>
+          <button
+            onClick={() => router.push("/dashboard")}
+            className="w-full py-3 rounded-xl font-bold text-sm text-white transition-all active:scale-[.98]"
+            style={{ background: "var(--brand-600)" }}
+          >
+            Ir al dashboard
+          </button>
+          <p className="text-xs text-slate-400 mt-4">
+            ¿No llegó el correo? Revisa spam o{" "}
+            <button className="text-blue-600 font-semibold underline"
+                    onClick={() => router.push("/dashboard")}>
+              continúa y reenvía desde el dashboard
+            </button>
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (

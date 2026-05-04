@@ -47,6 +47,8 @@ class User(Base):
     avatar_url: Mapped[Optional[str]] = mapped_column(Text)
     is_active: Mapped[bool]      = mapped_column(Boolean, default=True)
     is_verified: Mapped[bool]    = mapped_column(Boolean, default=False)
+    email_verification_token: Mapped[Optional[str]]     = mapped_column(String(64))
+    email_verification_sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     deleted_at: Mapped[Optional[datetime]]    = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

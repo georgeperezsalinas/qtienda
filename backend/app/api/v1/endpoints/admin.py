@@ -4,13 +4,14 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select, and_
+from pydantic import BaseModel
+from sqlalchemy import delete as sql_delete, func, select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
 from app.core.security import require_admin
-from app.models.models import AuditLog, Order, Store, User
+from app.models.models import AuditLog, Order, Payment, Role, Store, User
 
 router = APIRouter()
 
@@ -253,4 +254,51 @@ async def global_metrics(
             "orders": monthly_orders,
             "revenue_cents": monthly_revenue,
         },
+    }
+
+
+class ResetConfirm(BaseModel):
+    confirm: str
+
+
+@router.post("/reset-test-data")
+async def reset_test_data(
+    body: ResetConfirm,
+    current_admin=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    if body.confirm != "RESET":
+        raise HTTPException(status_code=400, detail="Confirmación inválida. Envía { confirm: 'RESET' }")
+
+    # Contar antes de borrar
+    total_orders = (await db.execute(select(func.count()).select_from(Order))).scalar()
+    total_stores = (await db.execute(select(func.count()).select_from(Store))).scalar()
+
+    admin_role_id = (
+        await db.execute(select(Role.id).where(Role.name == "admin"))
+    ).scalar_one()
+    total_users = (
+        await db.execute(
+            select(func.count()).select_from(User).where(User.role_id != admin_role_id)
+        )
+    ).scalar()
+
+    # Borrar en orden correcto respetando FK constraints
+    # 1. Payments no tienen ondelete en orders.id → borrar primero
+    await db.execute(sql_delete(Payment))
+    # 2. Orders → cascada a order_items y deliveries (ondelete=CASCADE en DB)
+    await db.execute(sql_delete(Order))
+    # 3. Stores → cascada a store_settings, categories, products, product_images, subscriptions
+    await db.execute(sql_delete(Store))
+    # 4. Usuarios no-admin
+    await db.execute(sql_delete(User).where(User.role_id != admin_role_id))
+
+    await db.commit()
+
+    return {
+        "deleted": {
+            "orders": total_orders,
+            "stores": total_stores,
+            "users": total_users,
+        }
     }

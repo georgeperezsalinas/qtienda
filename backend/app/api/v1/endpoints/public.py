@@ -3,6 +3,7 @@ Public endpoints — accessed by buyers via /tienda/{slug}
 No authentication required.
 """
 from fastapi import APIRouter, Depends, HTTPException, Request
+from urllib.parse import quote
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 from sqlalchemy.orm import selectinload
@@ -275,14 +276,37 @@ async def create_order(
     # WhatsApp deep-link for vendor notification
     wa_link = None
     if store.whatsapp:
-        wa_msg = (
-            f"🛍️ Nuevo pedido {order_number}\n"
-            f"👤 {payload.buyer_name} - {payload.buyer_phone}\n"
-            f"💰 Total: S/ {total/100:.2f}\n"
-            f"📦 {len(order_items)} productos"
+        items_text = "\n".join(
+            f"  • {oi.quantity}x {oi.product_name} — S/ {oi.subtotal/100:.2f}"
+            for oi in order_items
         )
-        from urllib.parse import quote
-        wa_link = f"https://wa.me/{store.whatsapp}?text={quote(wa_msg)}"
+        lines = [
+            f"🛍️ *NUEVO PEDIDO #{order_number}*",
+            "━━━━━━━━━━━━━━━━━━━━━━",
+            f"👤 *Cliente:* {payload.buyer_name}",
+            f"📱 *Cel:* +{payload.buyer_phone}",
+        ]
+        if payload.buyer_address:
+            lines.append(f"📍 *Dirección:* {payload.buyer_address}")
+        if payload.buyer_reference:
+            lines.append(f"🏠 *Ref:* {payload.buyer_reference}")
+        if payload.notes:
+            lines.append(f"📝 *Nota:* {payload.notes}")
+        lines += [
+            "",
+            "🛒 *Productos:*",
+            items_text,
+            "",
+            f"💰 Subtotal: S/ {subtotal/100:.2f}",
+        ]
+        if delivery_cents > 0:
+            lines.append(f"🚚 Delivery: S/ {delivery_cents/100:.2f}")
+        lines += [
+            f"💵 *TOTAL: S/ {total/100:.2f}*",
+            "━━━━━━━━━━━━━━━━━━━━━━",
+            "📋 Ver pedido: qtienda.shop/dashboard/pedidos",
+        ]
+        wa_link = f"https://wa.me/{store.whatsapp}?text={quote(chr(10).join(lines))}"
 
     return {
         "order_id": order.id,

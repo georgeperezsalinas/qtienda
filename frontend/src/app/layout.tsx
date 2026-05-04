@@ -6,7 +6,7 @@ import { GoogleAuthProvider } from "@/components/ui/GoogleAuthProvider";
 import PWARegister from "@/components/ui/PWARegister";
 
 export const metadata: Metadata = {
-  title: { default: "qtienda.shop — Tu tienda en TikTok", template: "%s | qtienda.shop" },
+  title: { default: "qtienda.shop — Tu tienda en Redes Sociales", template: "%s | qtienda.shop" },
   description: "Crea tu tienda online en 2 minutos. Recibe pedidos directo a tu WhatsApp.",
   manifest: "/manifest.json",
   keywords: ["tienda online", "TikTok shop", "WhatsApp pedidos", "emprendimiento", "Peru"],
@@ -16,8 +16,8 @@ export const metadata: Metadata = {
     title: "qtienda",
   },
   icons: {
-    icon: "/icon.svg",
-    apple: "/icon.svg",
+    icon: "/logo_pro_qtienda.ico",
+    apple: "/logo_pro_qtienda.ico",
   },
   openGraph: {
     title: "qtienda.shop",

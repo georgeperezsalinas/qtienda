@@ -5,11 +5,12 @@ import Link from "next/link";
 import {
   ShoppingBag, TrendingUp, Clock, CheckCircle2,
   Store, ExternalLink, Plus, ArrowRight,
-  ArrowUpRight, Bell, Eye, Package,
+  ArrowUpRight, Bell, Eye, Package, Share2,
 } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
+import Logo from "@/components/ui/Logo";
 
 /* ── Types ── */
 interface Stats {
@@ -350,15 +351,7 @@ export default function DashboardPage() {
         style={{ background: "var(--surface-0)", borderBottom: "1px solid #F1F5F9" }}
       >
         <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs" style={{ color: "var(--ink-3)" }}>Buenos días 👋</p>
-            <h1
-              className="font-display font-extrabold text-lg leading-tight mt-0.5"
-              style={{ color: "var(--ink)" }}
-            >
-              {firstName}
-            </h1>
-          </div>
+          <Logo size="md" />
           <div className="flex items-center gap-2.5">
             <button
               className="relative w-10 h-10 rounded-xl flex items-center justify-center"
@@ -403,71 +396,91 @@ export default function DashboardPage() {
 
       <div className="px-5 pt-5 space-y-4">
 
-        {/* ── Store pill card ── */}
+        {/* ── Store card ── */}
         <div
-          className="rounded-2xl p-4 flex items-center gap-3 animate-fade-up"
+          className="rounded-2xl overflow-hidden animate-fade-up"
           style={{
-            background: "var(--surface-0)",
-            border: "1.5px solid #E2E8F0",
-            boxShadow: "var(--shadow-sm)",
+            background: store.primary_color || "var(--brand-600)",
+            boxShadow: `0 8px 32px ${store.primary_color || "#2563EB"}44`,
           }}
         >
-          {store.logo_url ? (
-            <img
-              src={store.logo_url}
-              alt={store.name}
-              className="w-11 h-11 rounded-xl object-cover flex-shrink-0"
-            />
-          ) : (
-            <div
-              className="w-11 h-11 rounded-xl flex items-center justify-center
-                         text-white font-display font-bold text-lg flex-shrink-0"
-              style={{ background: store.primary_color || "var(--brand-600)" }}
-            >
-              {store.name[0]}
-            </div>
-          )}
-
-          <div className="flex-1 min-w-0">
-            <p
-              className="font-display font-bold text-sm truncate"
-              style={{ color: "var(--ink)" }}
-            >
-              {store.name}
-            </p>
-            <p className="text-xs truncate mt-0.5" style={{ color: "var(--ink-3)" }}>
-              qtienda.shop/tienda/{store.slug}
-            </p>
-            <span
-              className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold
-                         px-2 py-0.5 rounded-full"
-              style={
-                store.status === "active"
-                  ? { background: "#D1FAE5", color: "#065F46" }
-                  : { background: "#FEF3C7", color: "#92400E" }
-              }
-            >
+          {/* Top row: logo + actions */}
+          <div className="flex items-center justify-between px-4 pt-4 pb-3">
+            <div className="flex items-center gap-3">
+              {store.logo_url ? (
+                <img
+                  src={store.logo_url}
+                  alt={store.name}
+                  className="w-12 h-12 rounded-xl object-cover flex-shrink-0 border-2 border-white/30"
+                />
+              ) : (
+                <div
+                  className="w-12 h-12 rounded-xl flex items-center justify-center
+                             text-white font-display font-bold text-xl flex-shrink-0
+                             border-2 border-white/30"
+                  style={{ background: "rgba(255,255,255,0.2)" }}
+                >
+                  {store.name[0]}
+                </div>
+              )}
               <span
-                className="w-1.5 h-1.5 rounded-full"
-                style={{
-                  background: store.status === "active" ? "#10B981" : "#F59E0B",
-                }}
-              />
-              {store.status === "active" ? "Activa" : "Inactiva"}
-            </span>
+                className="inline-flex items-center gap-1 text-[11px] font-bold
+                           px-2.5 py-1 rounded-full"
+                style={
+                  store.status === "active"
+                    ? { background: "rgba(255,255,255,0.25)", color: "#fff" }
+                    : { background: "#FEF3C7", color: "#92400E" }
+                }
+              >
+                <span
+                  className="w-1.5 h-1.5 rounded-full"
+                  style={{
+                    background: store.status === "active" ? "#6EE7B7" : "#F59E0B",
+                  }}
+                />
+                {store.status === "active" ? "Activa" : "Inactiva"}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() =>
+                  navigator.share?.({
+                    title: store.name,
+                    text: `Visita mi tienda: ${store.name}`,
+                    url: `${window.location.origin}/tienda/${store.slug}`,
+                  })
+                }
+                className="w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-90"
+                style={{ background: "rgba(255,255,255,0.2)" }}
+                aria-label="Compartir tienda"
+              >
+                <Share2 size={17} color="white" />
+              </button>
+              <a
+                href={`/tienda/${store.slug}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-90"
+                style={{ background: "rgba(255,255,255,0.2)" }}
+                aria-label="Ver tienda pública"
+              >
+                <ExternalLink size={17} color="white" />
+              </a>
+            </div>
           </div>
 
-          <a
-            href={`/tienda/${store.slug}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-10 h-10 rounded-xl flex items-center justify-center
-                       flex-shrink-0 transition-colors"
-            style={{ background: "var(--surface-1)", border: "1.5px solid #E2E8F0" }}
-            aria-label="Ver tienda pública"
-          >
-            <ExternalLink size={16} style={{ color: "var(--ink-3)" }} />
-          </a>
+          {/* Store name */}
+          <div className="px-4 pb-4">
+            <h2
+              className="font-display font-extrabold text-2xl leading-tight text-white"
+            >
+              {store.name}
+            </h2>
+            <p className="text-sm mt-1 font-medium" style={{ color: "rgba(255,255,255,0.7)" }}>
+              qtienda.shop/tienda/{store.slug}
+            </p>
+          </div>
         </div>
 
         {/* ── Period selector ── */}

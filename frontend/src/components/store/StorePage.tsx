@@ -501,6 +501,17 @@ export default function StorePage({ store, initialProducts }: Props) {
           </AnimatePresence>
         </main>
 
+        {/* Footer qtienda */}
+        <footer className="flex justify-center items-center gap-2 py-6 mt-2">
+          <span className="text-[11px] font-medium" style={{ color: "#94A3B8" }}>
+            Powered by
+          </span>
+          <a href="https://qtienda.shop" target="_blank" rel="noopener noreferrer">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo_qtienda.png" alt="qtienda" style={{ height: 20, width: "auto" }} />
+          </a>
+        </footer>
+
       </div>{/* /max-w-xl */}
 
       {/* ══════════════════════════════════

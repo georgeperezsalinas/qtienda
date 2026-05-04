@@ -10,6 +10,45 @@ import {
   ChevronRight, UserCircle, ShoppingCart,
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
+import { apiClient } from "@/lib/api";
+import toast from "react-hot-toast";
+
+/* ── Email verification banner ── */
+function VerifyBanner({ email }: { email: string }) {
+  const [sending, setSending] = useState(false);
+
+  async function resend() {
+    setSending(true);
+    try {
+      await apiClient.post("/auth/resend-verification");
+      toast.success("Correo reenviado. Revisa tu bandeja.");
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || "Error al reenviar");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div
+      className="flex items-center gap-3 px-4 py-3 text-sm"
+      style={{ background: "#FEF9C3", borderBottom: "1px solid #FDE68A", color: "#92400E" }}
+    >
+      <span className="text-base flex-shrink-0">📧</span>
+      <span className="flex-1 font-medium">
+        Verifica <strong>{email}</strong> para crear tu tienda.
+      </span>
+      <button
+        onClick={resend}
+        disabled={sending}
+        className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg transition-all"
+        style={{ background: "#FDE68A", color: "#92400E" }}
+      >
+        {sending ? "Enviando…" : "Reenviar"}
+      </button>
+    </div>
+  );
+}
 
 /* ── Nav items ── */
 const NAV = [
@@ -176,6 +215,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         className="flex-1 min-w-0 pb-20 md:pb-0"
         style={{ minHeight: "100dvh" }}
       >
+        {/* Email verification banner */}
+        {user && user.is_verified === false && (
+          <VerifyBanner email={user.email} />
+        )}
         {children}
       </main>
 

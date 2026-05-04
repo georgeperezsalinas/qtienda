@@ -1,6 +1,7 @@
+import secrets
 import uuid
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -16,6 +17,7 @@ from app.core.security import (
 from app.schemas.auth import (
     RegisterRequest, LoginRequest, TokenResponse, RefreshRequest
 )
+from app.services.email import send_verification_email
 
 router = APIRouter()
 
@@ -32,22 +34,77 @@ async def register(payload: RegisterRequest, db: AsyncSession = Depends(get_db))
     if not vendor_role:
         raise HTTPException(status_code=500, detail="Error de configuración del sistema")
 
+    verification_token = secrets.token_hex(32)
     user = User(
         role_id=vendor_role.id,
         email=payload.email.lower().strip(),
         full_name=payload.full_name.strip(),
         phone=payload.phone,
         password_hash=hash_password(payload.password),
+        is_verified=False,
+        email_verification_token=verification_token,
+        email_verification_sent_at=datetime.now(timezone.utc),
     )
     db.add(user)
     await db.commit()
     await db.refresh(user)
+
+    await send_verification_email(user.email, user.full_name, verification_token)
 
     return TokenResponse(
         access_token=create_access_token(user.id, "vendor"),
         refresh_token=create_refresh_token(user.id),
         token_type="bearer",
     )
+
+
+@router.get("/verify-email")
+async def verify_email(token: str = Query(...), db: AsyncSession = Depends(get_db)):
+    from datetime import timedelta
+    result = await db.execute(
+        select(User).where(User.email_verification_token == token)
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=400, detail="Enlace inválido o ya utilizado")
+    if user.is_verified:
+        return {"message": "Correo ya verificado"}
+
+    # Check 24h expiry
+    if user.email_verification_sent_at:
+        age = datetime.now(timezone.utc) - user.email_verification_sent_at.replace(tzinfo=timezone.utc)
+        if age > timedelta(hours=24):
+            raise HTTPException(status_code=400, detail="El enlace expiró. Solicita uno nuevo desde tu dashboard.")
+
+    user.is_verified = True
+    user.email_verification_token = None
+    user.email_verification_sent_at = None
+    await db.commit()
+    return {"message": "Correo verificado correctamente"}
+
+
+@router.post("/resend-verification")
+async def resend_verification(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from datetime import timedelta
+    if current_user.is_verified:
+        return {"message": "Correo ya verificado"}
+
+    # Rate limit: 1 reenvío cada 2 minutos
+    if current_user.email_verification_sent_at:
+        age = datetime.now(timezone.utc) - current_user.email_verification_sent_at.replace(tzinfo=timezone.utc)
+        if age < timedelta(minutes=2):
+            raise HTTPException(status_code=429, detail="Espera 2 minutos antes de reenviar")
+
+    token = secrets.token_hex(32)
+    current_user.email_verification_token = token
+    current_user.email_verification_sent_at = datetime.now(timezone.utc)
+    await db.commit()
+
+    await send_verification_email(current_user.email, current_user.full_name, token)
+    return {"message": "Correo de verificación reenviado"}
 
 
 @router.post("/register-buyer", response_model=TokenResponse, status_code=201)
@@ -275,4 +332,5 @@ async def me(current_user: User = Depends(get_current_user)):
         "full_name": current_user.full_name,
         "role": current_user.role.name,
         "avatar_url": current_user.avatar_url,
+        "is_verified": current_user.is_verified,
     }

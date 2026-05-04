@@ -102,11 +102,15 @@ export default function PedidosPage() {
     }
     setUpdating(true);
     try {
-      await apiClient.patch(`/orders/${orderId}/status`, { status: newStatus });
+      const res = await apiClient.patch(`/orders/${orderId}/status`, { status: newStatus });
       toast.success("Estado actualizado");
       await fetchOrders();
       if (selected?.id === orderId) {
         await loadDetail(orderId);
+      }
+      // Abrir WhatsApp al comprador si hay link disponible
+      if (res.data?.buyer_wa_link) {
+        window.open(res.data.buyer_wa_link, "_blank");
       }
     } catch (err: any) {
       toast.error(err.response?.data?.detail || "Error al actualizar");

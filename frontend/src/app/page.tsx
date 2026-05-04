@@ -192,7 +192,7 @@ export default function LandingPage() {
                 letterSpacing: "-0.02em",
               }}
             >
-              Tu tienda en TikTok{" "}
+              Tu tienda en Redes Sociales{" "}
               <span
                 style={{
                   background: "linear-gradient(135deg, #93C5FD, #C4B5FD)",

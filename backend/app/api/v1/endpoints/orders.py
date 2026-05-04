@@ -4,6 +4,7 @@ Multi-tenant: vendors only see their own orders.
 """
 from datetime import datetime, timezone, date, timedelta
 from typing import Optional
+from urllib.parse import quote
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -21,6 +22,73 @@ class OrderStatusUpdate(BaseModel):
     status: str
 
 router = APIRouter()
+
+
+_BUYER_MESSAGES = {
+    "confirmed": (
+        "✅ *¡Tu pedido fue confirmado!*\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "📋 Pedido: *#{num}*\n"
+        "🏪 Tienda: {store}\n\n"
+        "Ya recibimos tu pedido y lo estamos alistando 🙌\n\n"
+        "📍 Sigue tu pedido aquí:\n"
+        "qtienda.shop/tienda/{slug}/pedido/{num}\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "Gracias por tu compra 🙏"
+    ),
+    "preparing": (
+        "🛠️ *¡Estamos preparando tu pedido!*\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "📋 Pedido: *#{num}*\n"
+        "🏪 Tienda: {store}\n\n"
+        "Tu pedido está en preparación. ¡Pronto estará listo! 🚀\n\n"
+        "📍 Sigue tu pedido aquí:\n"
+        "qtienda.shop/tienda/{slug}/pedido/{num}"
+    ),
+    "on_the_way": (
+        "🚀 *¡Tu pedido está en camino!*\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "📋 Pedido: *#{num}*\n"
+        "🏪 Tienda: {store}\n\n"
+        "Nuestro repartidor ya lleva tu pedido.\n"
+        "¡Prepárate para recibirlo! 📦\n\n"
+        "📍 Rastrea tu pedido aquí:\n"
+        "qtienda.shop/tienda/{slug}/pedido/{num}\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "¿Alguna consulta? Responde este mensaje 💬"
+    ),
+    "delivered": (
+        "📦 *¡Tu pedido llegó!*\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "📋 Pedido: *#{num}*\n"
+        "🏪 Tienda: {store}\n\n"
+        "Esperamos que todo haya llegado perfecto 😊\n"
+        "¡Gracias por elegirnos! 🙏\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "¿Todo bien con tu pedido? Cuéntanos aquí 💬"
+    ),
+    "cancelled": (
+        "❌ *Tu pedido fue cancelado*\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "📋 Pedido: *#{num}*\n"
+        "🏪 Tienda: {store}\n\n"
+        "Lamentamos el inconveniente.\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "¿Tienes preguntas? Responde este mensaje y te ayudamos 💬"
+    ),
+}
+
+
+def _buyer_wa_link(order, store) -> Optional[str]:
+    """WhatsApp deep-link to notify buyer of a status change."""
+    template = _BUYER_MESSAGES.get(order.status)
+    if not template or not order.buyer_phone:
+        return None
+    msg = template.format(num=order.order_number, store=store.name, slug=store.slug)
+    phone = order.buyer_phone.lstrip("+").replace(" ", "").replace("-", "")
+    if len(phone) == 9:
+        phone = f"51{phone}"
+    return f"https://wa.me/{phone}?text={quote(msg)}"
 
 
 async def get_vendor_store(user, db: AsyncSession) -> Store:
@@ -268,4 +336,6 @@ async def update_order_status(
     ))
 
     await db.commit()
-    return {"order_id": order.id, "status": order.status}
+
+    buyer_wa_link = _buyer_wa_link(order, store)
+    return {"order_id": order.id, "status": order.status, "buyer_wa_link": buyer_wa_link}

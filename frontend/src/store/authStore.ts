@@ -8,6 +8,7 @@ interface AuthUser {
   full_name: string;
   role: string;
   avatar_url?: string | null;
+  is_verified?: boolean;
 }
 
 interface AuthStore {
