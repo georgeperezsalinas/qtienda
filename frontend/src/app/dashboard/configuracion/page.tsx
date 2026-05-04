@@ -469,39 +469,82 @@ export default function ConfiguracionPage() {
       {/* Tab: Categorías */}
       {activeTab === "categorias" && (
         <section className="card p-5">
-          <h2 className="font-semibold text-gray-900 mb-4">Categorías de productos</h2>
-          <div className="space-y-2 mb-4">
+          <h2 className="font-semibold text-gray-900 mb-1">Categorías de productos</h2>
+          <p className="text-xs text-gray-400 mb-4">
+            Agrupa tus productos por categoría para que los clientes encuentren más fácil lo que buscan.
+          </p>
+
+          {/* Lista existente */}
+          <div className="space-y-2 mb-5">
             {categories.map((c) => (
-              <div key={c.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+              <div
+                key={c.id}
+                className="flex items-center justify-between rounded-xl px-3 py-2.5"
+                style={{ background: "#F8FAFC", border: "1px solid #E2E8F0" }}
+              >
                 <span className="text-sm font-medium text-gray-700">
-                  {c.icon && <span className="mr-1.5">{c.icon}</span>}
+                  {c.icon && <span className="mr-2">{c.icon}</span>}
                   {c.name}
                 </span>
-                <button onClick={() => deleteCategory(c.id)} className="text-red-400 hover:text-red-600 p-1">
-                  <Trash2 size={14} />
+                <button
+                  onClick={() => deleteCategory(c.id)}
+                  className="ml-3 flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
+                  style={{ background: "#FEF2F2", border: "1.5px solid #FECACA" }}
+                  title="Eliminar categoría"
+                >
+                  <Trash2 size={13} style={{ color: "#DC2626" }} />
                 </button>
               </div>
             ))}
-            {categories.length === 0 && <p className="text-sm text-gray-400">Sin categorías aún</p>}
+            {categories.length === 0 && (
+              <p className="text-sm text-gray-400 py-1">Sin categorías aún</p>
+            )}
           </div>
-          <form onSubmit={addCategory} className="flex gap-2">
-            <input
-              className="input py-2"
-              placeholder="Emoji"
-              value={catForm.icon}
-              onChange={(e) => setCatForm({ ...catForm, icon: e.target.value })}
-              style={{ width: 70 }}
-            />
-            <input
-              className="input py-2 flex-1"
-              placeholder="Nombre de categoría"
-              value={catForm.name}
-              onChange={(e) => setCatForm({ ...catForm, name: e.target.value })}
-            />
-            <button type="submit" disabled={addingCat} className="btn-primary py-2 px-3 bg-brand-600">
-              <Plus size={16} />
-            </button>
-          </form>
+
+          {/* Formulario nueva categoría */}
+          <div
+            className="rounded-xl p-4 space-y-3"
+            style={{ background: "#F8FAFC", border: "1px solid #E2E8F0" }}
+          >
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Nueva categoría</p>
+            <form onSubmit={addCategory} className="space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
+                  Nombre <span className="text-red-400">*</span>
+                </label>
+                <input
+                  className="input"
+                  placeholder="Ej: Postres, Bebidas, Combos…"
+                  value={catForm.name}
+                  onChange={(e) => setCatForm({ ...catForm, name: e.target.value })}
+                  autoComplete="off"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
+                  Emoji (opcional)
+                </label>
+                <input
+                  className="input"
+                  placeholder="🍰"
+                  value={catForm.icon}
+                  onChange={(e) => setCatForm({ ...catForm, icon: e.target.value })}
+                  autoComplete="off"
+                />
+                <p className="text-[11px] text-gray-400 mt-1">
+                  Copia y pega un emoji para identificar la categoría visualmente.
+                </p>
+              </div>
+              <button
+                type="submit"
+                disabled={addingCat || !catForm.name.trim()}
+                className="btn-primary w-full bg-brand-600"
+              >
+                <Plus size={15} />
+                {addingCat ? "Creando..." : "Agregar categoría"}
+              </button>
+            </form>
+          </div>
         </section>
       )}
 

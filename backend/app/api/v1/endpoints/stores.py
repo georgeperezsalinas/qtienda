@@ -94,7 +94,7 @@ async def my_store(
 ):
     result = await db.execute(
         select(Store)
-        .options(selectinload(Store.settings), selectinload(Store.categories))
+        .options(selectinload(Store.settings), selectinload(Store.categories), selectinload(Store.plan))
         .where(Store.user_id == current_user.id, Store.deleted_at.is_(None))
     )
     store = result.scalar_one_or_none()
@@ -116,6 +116,7 @@ async def my_store(
         "meta_title": store.meta_title,
         "meta_desc": store.meta_desc,
         "store_url": f"https://qtienda.shop/tienda/{store.slug}",
+        "plan_slug": store.plan.slug if store.plan else "free",
         "categories": [
             {
                 "id": c.id,
