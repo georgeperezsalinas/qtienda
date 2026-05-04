@@ -107,7 +107,13 @@ async def create_delivery_staff(
     db.add(user)
     await db.commit()
     await db.refresh(user)
-    return {"id": user.id, "email": user.email, "full_name": user.full_name}
+    return {
+        "id": user.id,
+        "email": user.email,
+        "full_name": user.full_name,
+        "phone": user.phone,
+        "is_active": user.is_active,
+    }
 
 
 @router.delete("/staff/{staff_id}", status_code=204, summary="Desactivar repartidor")
@@ -149,6 +155,7 @@ async def delivery_orders(
         .where(
             Order.store_id == current_user.delivery_store_id,
             Order.status.in_(["preparing", "on_the_way"]),
+            Order.assigned_to_id == current_user.id,
         )
         .order_by(Order.created_at.asc())
     )

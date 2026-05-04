@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ExternalLink, Save, Plus, Trash2 } from "lucide-react";
+import { ExternalLink, Save, Plus, Trash2, Bike, Eye, EyeOff, UserX } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
 import { ImageUpload } from "@/components/ui/ImageUpload";
@@ -66,39 +66,55 @@ export default function ConfiguracionPage() {
   const [catForm, setCatForm] = useState<CategoryForm>({ name: "", icon: "" });
   const [addingCat, setAddingCat] = useState(false);
 
+  // Delivery staff
+  interface StaffMember { id: string; full_name: string; email: string; phone?: string; is_active: boolean }
+  const [staff,       setStaff]       = useState<StaffMember[]>([]);
+  const [staffForm,   setStaffForm]   = useState({ full_name: "", email: "", password: "", phone: "" });
+  const [showPass,    setShowPass]    = useState(false);
+  const [addingStaff, setAddingStaff] = useState(false);
+
   useEffect(() => {
-    apiClient.get("/stores/me")
-      .then(({ data }) => {
-        setStore(data);
+    async function load() {
+      try {
+        const { data: storeData } = await apiClient.get("/stores/me");
+        setStore(storeData);
         setInfo({
-          name: data.name || "",
-          description: data.description || "",
-          whatsapp: data.whatsapp || "",
-          primary_color: data.primary_color || "#6366f1",
-          logo_url: data.logo_url || "",
-          banner_url: data.banner_url || "",
-          city: data.city || "",
+          name: storeData.name || "",
+          description: storeData.description || "",
+          whatsapp: storeData.whatsapp || "",
+          primary_color: storeData.primary_color || "#6366f1",
+          logo_url: storeData.logo_url || "",
+          banner_url: storeData.banner_url || "",
+          city: storeData.city || "",
         });
-        if (data.settings) {
+        if (storeData.settings) {
           setSettings({
-            accept_cash: data.settings.accept_cash,
-            accept_yape: data.settings.accept_yape,
-            accept_plin: data.settings.accept_plin,
-            yape_phone: data.settings.yape_phone || "",
-            plin_phone: data.settings.plin_phone || "",
-            bank_account: data.settings.bank_account || "",
-            delivery_fee_cents: String(data.settings.delivery_fee_cents / 100),
-            min_order_cents: String(data.settings.min_order_cents / 100),
-            free_delivery_above: data.settings.free_delivery_above
-              ? String(data.settings.free_delivery_above / 100)
+            accept_cash: storeData.settings.accept_cash,
+            accept_yape: storeData.settings.accept_yape,
+            accept_plin: storeData.settings.accept_plin,
+            yape_phone: storeData.settings.yape_phone || "",
+            plin_phone: storeData.settings.plin_phone || "",
+            bank_account: storeData.settings.bank_account || "",
+            delivery_fee_cents: String(storeData.settings.delivery_fee_cents / 100),
+            min_order_cents: String(storeData.settings.min_order_cents / 100),
+            free_delivery_above: storeData.settings.free_delivery_above
+              ? String(storeData.settings.free_delivery_above / 100)
               : "",
           });
         }
-        return apiClient.get("/categories/");
-      })
-      .then(({ data }) => setCategories(data))
-      .catch(() => setNoStore(true))
-      .finally(() => setLoading(false));
+        const [{ data: cats }, { data: staffData }] = await Promise.all([
+          apiClient.get("/categories/"),
+          apiClient.get("/delivery/staff"),
+        ]);
+        setCategories(cats);
+        setStaff(staffData);
+      } catch {
+        setNoStore(true);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
   }, []);
 
   async function createStore(e: React.FormEvent) {
@@ -178,6 +194,41 @@ export default function ConfiguracionPage() {
       toast.error(err.response?.data?.detail || "Error");
     } finally {
       setAddingCat(false);
+    }
+  }
+
+  async function addStaff(e: React.FormEvent) {
+    e.preventDefault();
+    if (!staffForm.full_name.trim() || !staffForm.email.trim() || !staffForm.password) {
+      toast.error("Nombre, email y contraseña son requeridos");
+      return;
+    }
+    setAddingStaff(true);
+    try {
+      const { data } = await apiClient.post("/delivery/staff", {
+        full_name: staffForm.full_name.trim(),
+        email: staffForm.email.trim().toLowerCase(),
+        password: staffForm.password,
+        phone: staffForm.phone.trim() || undefined,
+      });
+      setStaff((prev) => [...prev, data]);
+      setStaffForm({ full_name: "", email: "", password: "", phone: "" });
+      toast.success("Repartidor creado");
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || "Error al crear repartidor");
+    } finally {
+      setAddingStaff(false);
+    }
+  }
+
+  async function removeStaff(id: string) {
+    if (!confirm("¿Desactivar este repartidor?")) return;
+    try {
+      await apiClient.delete(`/delivery/staff/${id}`);
+      setStaff((prev) => prev.filter((s) => s.id !== id));
+      toast.success("Repartidor desactivado");
+    } catch {
+      toast.error("Error al desactivar");
     }
   }
 
@@ -400,6 +451,90 @@ export default function ConfiguracionPage() {
           />
           <button type="submit" disabled={addingCat} className="btn-primary py-2 px-3 bg-brand-600">
             <Plus size={16} />
+          </button>
+        </form>
+      </section>
+
+      {/* Delivery staff */}
+      <section className="card p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Bike size={18} className="text-blue-600" />
+          <h2 className="font-semibold text-gray-900">Repartidores</h2>
+        </div>
+
+        {/* Staff list */}
+        <div className="space-y-2 mb-5">
+          {staff.map((s) => (
+            <div
+              key={s.id}
+              className="flex items-center justify-between rounded-xl px-3 py-2.5"
+              style={{ background: "#F8FAFC", border: "1px solid #E2E8F0" }}
+            >
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-gray-800 truncate">{s.full_name}</p>
+                <p className="text-xs text-gray-400 truncate">{s.email}{s.phone ? ` · ${s.phone}` : ""}</p>
+              </div>
+              <button
+                onClick={() => removeStaff(s.id)}
+                className="ml-3 flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
+                style={{ background: "#FEF2F2", border: "1.5px solid #FECACA" }}
+                title="Desactivar repartidor"
+              >
+                <UserX size={14} style={{ color: "#DC2626" }} />
+              </button>
+            </div>
+          ))}
+          {staff.length === 0 && (
+            <p className="text-sm text-gray-400 py-1">Sin repartidores aún</p>
+          )}
+        </div>
+
+        {/* Add staff form */}
+        <form onSubmit={addStaff} className="space-y-3">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Agregar repartidor</p>
+          <div className="grid grid-cols-2 gap-3">
+            <input
+              className="input"
+              placeholder="Nombre completo"
+              value={staffForm.full_name}
+              onChange={(e) => setStaffForm({ ...staffForm, full_name: e.target.value })}
+            />
+            <input
+              className="input"
+              type="tel"
+              placeholder="Teléfono (opcional)"
+              value={staffForm.phone}
+              onChange={(e) => setStaffForm({ ...staffForm, phone: e.target.value })}
+            />
+          </div>
+          <input
+            className="input"
+            type="email"
+            inputMode="email"
+            placeholder="Email"
+            value={staffForm.email}
+            onChange={(e) => setStaffForm({ ...staffForm, email: e.target.value })}
+          />
+          <div className="relative">
+            <input
+              className="input pr-11"
+              type={showPass ? "text" : "password"}
+              placeholder="Contraseña"
+              value={staffForm.password}
+              onChange={(e) => setStaffForm({ ...staffForm, password: e.target.value })}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPass((v) => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+              aria-label="Mostrar contraseña"
+            >
+              {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+          <button type="submit" disabled={addingStaff} className="btn-primary w-full bg-brand-600">
+            <Plus size={15} />
+            {addingStaff ? "Creando..." : "Agregar repartidor"}
           </button>
         </form>
       </section>

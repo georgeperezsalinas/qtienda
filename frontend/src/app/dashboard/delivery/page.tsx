@@ -1,10 +1,15 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Phone, MapPin, MessageCircle, RefreshCw, Package, Bike, CheckCircle2, Clock } from "lucide-react";
+import { Phone, MapPin, MessageCircle, RefreshCw, Package, Bike, CheckCircle2, Clock, UserCheck } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
+
+interface StaffMember {
+  id: string;
+  full_name: string;
+}
 
 interface DeliveryOrder {
   id: string;
@@ -18,6 +23,8 @@ interface DeliveryOrder {
   items_count: number;
   created_at: string;
   notes?: string;
+  assigned_to_id?: string | null;
+  assigned_to_name?: string | null;
 }
 
 function timeAgo(iso: string) {
@@ -30,12 +37,18 @@ function timeAgo(iso: string) {
 
 function OrderCard({
   order,
+  staff,
   onAction,
+  onAssign,
   updating,
+  assigning,
 }: {
   order: DeliveryOrder;
+  staff: StaffMember[];
   onAction: (id: string, status: string) => void;
+  onAssign: (orderId: string, staffId: string | null) => void;
   updating: boolean;
+  assigning: boolean;
 }) {
   const isPreparing = order.status === "preparing";
   const accentColor = isPreparing ? "#7C3AED" : "#2563EB";
@@ -129,6 +142,39 @@ function OrderCard({
           </p>
         )}
 
+        {/* Assign repartidor — solo en pedidos preparando */}
+        {isPreparing && staff.length > 0 && (
+          <div className="flex items-center gap-2">
+            <UserCheck size={13} style={{ color: "#64748B", flexShrink: 0 }} />
+            <select
+              value={order.assigned_to_id ?? ""}
+              disabled={assigning}
+              onChange={(e) => onAssign(order.id, e.target.value || null)}
+              className="flex-1 text-xs rounded-lg px-2 py-1.5 font-medium outline-none"
+              style={{
+                border: order.assigned_to_id ? "1.5px solid #93C5FD" : "1.5px solid #E2E8F0",
+                background: order.assigned_to_id ? "#EFF6FF" : "#F8FAFC",
+                color: order.assigned_to_id ? "#1D4ED8" : "#94A3B8",
+              }}
+            >
+              <option value="">Sin asignar</option>
+              {staff.map((s) => (
+                <option key={s.id} value={s.id}>{s.full_name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* En camino: mostrar repartidor asignado (solo lectura) */}
+        {!isPreparing && order.assigned_to_name && (
+          <div className="flex items-center gap-1.5">
+            <UserCheck size={13} style={{ color: "#2563EB" }} />
+            <span className="text-xs font-medium" style={{ color: "#2563EB" }}>
+              {order.assigned_to_name}
+            </span>
+          </div>
+        )}
+
         {/* Total + items */}
         <div className="flex items-center justify-between">
           <span className="text-xs" style={{ color: "#94A3B8" }}>
@@ -169,9 +215,11 @@ function OrderCard({
 }
 
 export default function DeliveryPage() {
-  const [orders, setOrders] = useState<DeliveryOrder[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState(false);
+  const [orders,    setOrders]    = useState<DeliveryOrder[]>([]);
+  const [staff,     setStaff]     = useState<StaffMember[]>([]);
+  const [loading,   setLoading]   = useState(true);
+  const [updating,  setUpdating]  = useState(false);
+  const [assigning, setAssigning] = useState<string | null>(null);
 
   const preparing  = orders.filter((o) => o.status === "preparing");
   const on_the_way = orders.filter((o) => o.status === "on_the_way");
@@ -193,7 +241,7 @@ export default function DeliveryPage() {
 
   useEffect(() => {
     fetchOrders();
-    // Auto-refresh each 60s
+    apiClient.get("/delivery/staff").then(({ data }) => setStaff(data)).catch(() => {});
     const t = setInterval(fetchOrders, 60_000);
     return () => clearInterval(t);
   }, [fetchOrders]);
@@ -233,6 +281,29 @@ export default function DeliveryPage() {
       toast.error(err.response?.data?.detail || "Error al actualizar");
     } finally {
       setUpdating(false);
+    }
+  }
+
+  async function handleAssign(orderId: string, staffId: string | null) {
+    setAssigning(orderId);
+    try {
+      await apiClient.patch(`/orders/${orderId}/assign`, { staff_id: staffId });
+      setOrders((prev) =>
+        prev.map((o) => {
+          if (o.id !== orderId) return o;
+          const member = staff.find((s) => s.id === staffId);
+          return {
+            ...o,
+            assigned_to_id: staffId,
+            assigned_to_name: member?.full_name ?? null,
+          };
+        })
+      );
+      toast.success(staffId ? "Repartidor asignado" : "Asignación eliminada");
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || "Error al asignar");
+    } finally {
+      setAssigning(null);
     }
   }
 
@@ -277,7 +348,6 @@ export default function DeliveryPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          {/* Preparing section */}
           {preparing.length > 0 && (
             <section>
               <div className="flex items-center gap-2 mb-3">
@@ -288,13 +358,20 @@ export default function DeliveryPage() {
               </div>
               <div className="space-y-3">
                 {preparing.map((o) => (
-                  <OrderCard key={o.id} order={o} onAction={handleAction} updating={updating} />
+                  <OrderCard
+                    key={o.id}
+                    order={o}
+                    staff={staff}
+                    onAction={handleAction}
+                    onAssign={handleAssign}
+                    updating={updating}
+                    assigning={assigning === o.id}
+                  />
                 ))}
               </div>
             </section>
           )}
 
-          {/* On the way section */}
           {on_the_way.length > 0 && (
             <section>
               <div className="flex items-center gap-2 mb-3">
@@ -305,7 +382,15 @@ export default function DeliveryPage() {
               </div>
               <div className="space-y-3">
                 {on_the_way.map((o) => (
-                  <OrderCard key={o.id} order={o} onAction={handleAction} updating={updating} />
+                  <OrderCard
+                    key={o.id}
+                    order={o}
+                    staff={staff}
+                    onAction={handleAction}
+                    onAssign={handleAssign}
+                    updating={updating}
+                    assigning={assigning === o.id}
+                  />
                 ))}
               </div>
             </section>

@@ -195,9 +195,10 @@ async def list_orders(
     total_q = await db.execute(select(func.count()).select_from(Order).where(and_(*filters)))
     total = total_q.scalar()
 
+    from app.models.models import User
     result = await db.execute(
         select(Order)
-        .options(selectinload(Order.items))
+        .options(selectinload(Order.items), selectinload(Order.assigned_to))
         .where(and_(*filters))
         .order_by(Order.created_at.desc())
         .offset((page - 1) * limit)
@@ -220,6 +221,8 @@ async def list_orders(
                 "total_cents": o.total_cents,
                 "items_count": len(o.items),
                 "created_at": o.created_at,
+                "assigned_to_id": o.assigned_to_id,
+                "assigned_to_name": o.assigned_to.full_name if o.assigned_to else None,
             }
             for o in orders
         ],
@@ -347,3 +350,46 @@ async def update_order_status(
 
     buyer_wa_link = _buyer_wa_link(order, store)
     return {"order_id": order.id, "status": order.status, "buyer_wa_link": buyer_wa_link}
+
+
+class OrderAssign(BaseModel):
+    staff_id: Optional[str] = None  # None = desasignar
+
+
+@router.patch("/{order_id}/assign")
+async def assign_order(
+    order_id: UUID,
+    body: OrderAssign,
+    current_user=Depends(require_vendor),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.models.models import User, Role
+    store = await get_vendor_store(current_user, db)
+
+    result = await db.execute(
+        select(Order).where(Order.id == order_id, Order.store_id == store.id)
+    )
+    order = result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="Pedido no encontrado")
+
+    if body.staff_id:
+        role_q = await db.execute(select(Role).where(Role.name == "delivery"))
+        delivery_role = role_q.scalar_one_or_none()
+        staff_q = await db.execute(
+            select(User).where(
+                User.id == UUID(body.staff_id),
+                User.delivery_store_id == store.id,
+                User.role_id == delivery_role.id if delivery_role else False,
+            )
+        )
+        staff = staff_q.scalar_one_or_none()
+        if not staff:
+            raise HTTPException(status_code=404, detail="Repartidor no encontrado")
+        order.assigned_to_id = staff.id
+    else:
+        order.assigned_to_id = None
+
+    await db.commit()
+    return {"order_id": order.id, "assigned_to_id": order.assigned_to_id}
+

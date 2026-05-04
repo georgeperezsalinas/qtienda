@@ -56,7 +56,9 @@ class User(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     role: Mapped["Role"] = relationship(back_populates="users")
-    store: Mapped[Optional["Store"]] = relationship(back_populates="user", uselist=False)
+    store: Mapped[Optional["Store"]] = relationship(
+        back_populates="user", uselist=False, foreign_keys="[Store.user_id]"
+    )
 
 
 # ── Plans ─────────────────────────────────────────────────────
@@ -111,7 +113,7 @@ class Store(Base):
     created_at: Mapped[datetime]    = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime]    = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    user: Mapped["User"]            = relationship(back_populates="store")
+    user: Mapped["User"]            = relationship(back_populates="store", foreign_keys="[Store.user_id]")
     plan: Mapped[Optional["Plan"]]  = relationship(back_populates="stores")
     settings: Mapped[Optional["StoreSettings"]] = relationship(back_populates="store", uselist=False, cascade="all, delete-orphan")
     categories: Mapped[List["Category"]] = relationship(back_populates="store", cascade="all, delete-orphan")
@@ -235,6 +237,9 @@ class Order(Base):
     utm_campaign: Mapped[Optional[str]] = mapped_column(String(80))
     ip_address: Mapped[Optional[str]] = mapped_column(INET)
     user_agent: Mapped[Optional[str]] = mapped_column(Text)
+    assigned_to_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime]    = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime]    = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -242,6 +247,7 @@ class Order(Base):
     items: Mapped[List["OrderItem"]]        = relationship(back_populates="order", cascade="all, delete-orphan")
     payment: Mapped[Optional["Payment"]]    = relationship(back_populates="order", uselist=False)
     delivery: Mapped[Optional["Delivery"]]  = relationship(back_populates="order", uselist=False)
+    assigned_to: Mapped[Optional["User"]]   = relationship(foreign_keys="Order.assigned_to_id")
 
 
 class OrderItem(Base):
