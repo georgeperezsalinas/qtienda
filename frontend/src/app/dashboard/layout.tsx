@@ -7,7 +7,7 @@ import Logo from "@/components/ui/Logo";
 import {
   LayoutDashboard, ShoppingBag, Package,
   Settings, LogOut, ExternalLink,
-  ChevronRight, UserCircle, ShoppingCart, Bike,
+  ChevronRight, UserCircle, ShoppingCart, Bike, BarChart2,
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { apiClient } from "@/lib/api";
@@ -57,6 +57,11 @@ const NAV = [
   { href: "/dashboard/delivery",       label: "Delivery",  icon: Bike,            exact: false },
   { href: "/dashboard/productos",      label: "Productos", icon: Package,         exact: false },
   { href: "/dashboard/configuracion",  label: "Config.",   icon: Settings,        exact: false },
+];
+
+/* Solo visible en sidebar desktop — no en bottom nav móvil */
+const NAV_DESKTOP_EXTRA = [
+  { href: "/dashboard/finanzas", label: "Finanzas", icon: BarChart2, exact: false },
 ];
 
 function isActive(pathname: string, href: string, exact?: boolean) {
@@ -152,6 +157,33 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           })}
         </nav>
 
+        {/* Finanzas — solo desktop */}
+        <div className="px-3 pb-1 space-y-0.5" style={{ borderTop: "1px solid #F1F5F9", paddingTop: 10 }}>
+          {NAV_DESKTOP_EXTRA.map(({ href, label, icon: Icon, exact }) => {
+            const active = isActive(pathname, href, exact);
+            return (
+              <Link
+                key={href}
+                href={href}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all"
+                style={{
+                  background: active ? "var(--brand-50)" : "transparent",
+                  color:      active ? "var(--brand-700)" : "var(--ink-2)",
+                  borderLeft: active
+                    ? "3px solid var(--brand-600)"
+                    : "3px solid transparent",
+                }}
+              >
+                <Icon size={17} />
+                {label}
+                {active && (
+                  <ChevronRight size={13} className="ml-auto opacity-60" style={{ color: "var(--brand-400)" }} />
+                )}
+              </Link>
+            );
+          })}
+        </div>
+
         {/* Links secundarios */}
         <div className="px-3 py-3 space-y-0.5" style={{ borderTop: "1px solid #F1F5F9" }}>
           <a
@@ -213,7 +245,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           MAIN CONTENT
       ══════════════════════════════ */}
       <main
-        className="flex-1 min-w-0 pb-20 md:pb-0"
+        className="flex-1 min-w-0 pb-28 md:pb-0"
         style={{ minHeight: "100dvh" }}
       >
         {/* Email verification banner */}
@@ -226,59 +258,73 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* ══════════════════════════════
           MOBILE BOTTOM NAV
       ══════════════════════════════ */}
-      <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 pb-safe z-40"
-        style={{
-          background:  "rgba(255,255,255,0.92)",
-          backdropFilter: "blur(16px)",
-          WebkitBackdropFilter: "blur(16px)",
-          borderTop:   "1px solid rgba(241,245,249,0.8)",
-          boxShadow:   "0 -4px 24px rgba(15,23,42,.08)",
-        }}
-      >
-        <div className="flex">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 px-3 pb-safe"
+           style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}>
+        <nav
+          className="flex items-center rounded-[26px] px-1.5 py-1.5"
+          style={{
+            background:           "rgba(255,255,255,0.97)",
+            backdropFilter:       "blur(24px)",
+            WebkitBackdropFilter: "blur(24px)",
+            boxShadow:
+              "0 0 0 1px rgba(15,23,42,.06), 0 8px 32px rgba(15,23,42,.14), 0 2px 8px rgba(15,23,42,.07)",
+          }}
+        >
           {NAV.map(({ href, label, icon: Icon, exact }) => {
             const active = isActive(pathname, href, exact);
             return (
               <Link
                 key={href}
                 href={href}
-                className="flex-1 flex flex-col items-center gap-0.5 pt-3 pb-2
-                           text-[10px] font-bold transition-colors"
-                style={{ color: active ? "var(--brand-600)" : "var(--ink-3)" }}
+                className="flex-1 flex flex-col items-center gap-0.5 py-1 transition-all"
               >
+                {/* Icon pill */}
                 <div
-                  className="flex items-center justify-center w-10 h-7 rounded-xl transition-all"
+                  className="flex items-center justify-center w-11 h-9 rounded-[18px] transition-all duration-200"
                   style={{
-                    background: active ? "var(--brand-50)" : "transparent",
+                    background: active
+                      ? "linear-gradient(135deg, var(--brand-600), #7C3AED)"
+                      : "transparent",
+                    boxShadow: active
+                      ? "0 4px 12px rgba(37,99,235,.35)"
+                      : "none",
+                    transform: active ? "scale(1.05)" : "scale(1)",
                   }}
                 >
-                  <Icon size={20} />
-                </div>
-                {label}
-                {active && (
-                  <span
-                    className="w-1 h-1 rounded-full"
-                    style={{ background: "var(--brand-600)" }}
+                  <Icon
+                    size={19}
+                    strokeWidth={active ? 2.4 : 1.7}
+                    style={{ color: active ? "#fff" : "var(--ink-3)" }}
                   />
-                )}
+                </div>
+                {/* Label */}
+                <span
+                  className="text-[9.5px] font-bold leading-none tracking-tight transition-colors"
+                  style={{ color: active ? "var(--brand-600)" : "var(--ink-4)" }}
+                >
+                  {label}
+                </span>
               </Link>
             );
           })}
 
+          {/* Cuenta */}
           <button
             onClick={() => setDrawerOpen(true)}
-            className="flex-1 flex flex-col items-center gap-0.5 pt-3 pb-2
-                       text-[10px] font-bold transition-colors"
-            style={{ color: "var(--ink-3)" }}
+            className="flex-1 flex flex-col items-center gap-0.5 py-1 transition-all"
           >
-            <div className="flex items-center justify-center w-10 h-7 rounded-xl">
-              <UserCircle size={20} />
+            <div className="flex items-center justify-center w-11 h-9 rounded-[18px]">
+              <UserCircle size={19} strokeWidth={1.7} style={{ color: "var(--ink-3)" }} />
             </div>
-            Cuenta
+            <span
+              className="text-[9.5px] font-bold leading-none tracking-tight"
+              style={{ color: "var(--ink-4)" }}
+            >
+              Cuenta
+            </span>
           </button>
-        </div>
-      </nav>
+        </nav>
+      </div>
 
       {/* ══════════════════════════════
           MOBILE DRAWER
@@ -337,6 +383,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
             {/* Quick links */}
             <div className="space-y-2 mb-3">
+              <Link
+                href="/dashboard/finanzas"
+                onClick={() => setDrawerOpen(false)}
+                className="flex items-center gap-3 px-4 py-3.5 rounded-2xl text-sm font-semibold transition-colors"
+                style={{ background: "var(--surface-1)", color: "var(--ink-2)" }}
+              >
+                <BarChart2 size={18} />
+                Finanzas
+                <ChevronRight size={15} className="ml-auto opacity-40" />
+              </Link>
               <Link
                 href="/mis-pedidos"
                 onClick={() => setDrawerOpen(false)}

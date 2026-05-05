@@ -3,12 +3,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  ShoppingBag, TrendingUp, Clock, CheckCircle2,
-  Store, ExternalLink, Plus, ArrowRight,
-  ArrowUpRight, Bell, Eye, Package, Share2,
+  ShoppingBag, Clock, CheckCircle2,
+  Store, ExternalLink, Plus, Bell,
+  Eye, Share2, ChevronRight, AlertCircle, Package,
 } from "lucide-react";
 import { apiClient } from "@/lib/api";
-import { formatPrice } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
 import Logo from "@/components/ui/Logo";
 
@@ -21,219 +20,128 @@ interface Stats {
   revenue_cents: number;
 }
 
-/* ── Period helpers ── */
-type PeriodKey = "today" | "7d" | "30d" | "this_month" | "last_month" | "3m" | "all";
-
-interface Period { label: string; key: PeriodKey }
-
-const PERIODS: Period[] = [
-  { key: "today",      label: "Hoy"         },
-  { key: "7d",         label: "7 días"      },
-  { key: "this_month", label: "Este mes"    },
-  { key: "last_month", label: "Mes anterior"},
-  { key: "3m",         label: "3 meses"     },
-  { key: "all",        label: "Todo"        },
-];
-
-function toISO(d: Date) {
-  return d.toISOString().slice(0, 10);
-}
-
-function periodDates(key: PeriodKey): { from: string; to: string } | null {
-  const now  = new Date();
-  const y = now.getFullYear(), m = now.getMonth(), d = now.getDate();
-
-  switch (key) {
-    case "today":
-      return { from: toISO(new Date(y, m, d)), to: toISO(now) };
-    case "7d":
-      return { from: toISO(new Date(y, m, d - 6)), to: toISO(now) };
-    case "30d":
-      return { from: toISO(new Date(y, m, d - 29)), to: toISO(now) };
-    case "this_month":
-      return { from: toISO(new Date(y, m, 1)), to: toISO(now) };
-    case "last_month": {
-      const first = new Date(y, m - 1, 1);
-      const last  = new Date(y, m, 0);
-      return { from: toISO(first), to: toISO(last) };
-    }
-    case "3m":
-      return { from: toISO(new Date(y, m - 2, 1)), to: toISO(now) };
-    case "all":
-      return null; // no date filter
-  }
-}
-
 interface StoreData {
   id:            string;
   slug:          string;
   name:          string;
   status:        string;
-  store_url:     string;
   primary_color: string;
   logo_url?:     string;
+  plan_slug?:    string;
 }
 
-/* ── Mini SVG Sparkline ── */
-const MOCK_WEEK = [38, 52, 44, 68, 55, 72, 90];
-const WEEK_DAYS = ["L", "M", "M", "J", "V", "S", "H"];
-
-function Sparkline({ data = MOCK_WEEK }: { data?: number[] }) {
-  const W = 240, H = 48, pad = 4;
-  const max = Math.max(...data);
-  const pts = data.map((v, i) => {
-    const x = pad + (i / (data.length - 1)) * (W - pad * 2);
-    const y = pad + ((max - v) / (max || 1)) * (H - pad * 2);
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  });
-  const line = "M " + pts.join(" L ");
-  const area = `${line} L ${(W - pad).toFixed(1)},${H} L ${pad},${H} Z`;
-  const [lx, ly] = pts[pts.length - 1].split(",");
-
-  return (
-    <svg
-      width="100%"
-      height={H}
-      viewBox={`0 0 ${W} ${H}`}
-      preserveAspectRatio="none"
-      aria-hidden
-    >
-      <defs>
-        <linearGradient id="sk-g" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stopColor="#2563EB" stopOpacity=".2" />
-          <stop offset="100%" stopColor="#2563EB" stopOpacity="0"  />
-        </linearGradient>
-      </defs>
-      <path d={area} fill="url(#sk-g)" />
-      <path
-        d={line}
-        fill="none"
-        stroke="#2563EB"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx={lx} cy={ly} r="3.5" fill="#2563EB" />
-    </svg>
-  );
+interface RecentOrder {
+  id:           string;
+  order_number: string;
+  status:       string;
+  buyer_name:   string;
+  items_count:  number;
+  created_at:   string;
 }
 
-/* ── Stat card ── */
-interface StatProps {
-  label:     string;
-  value:     string;
-  change?:   string;
-  positive?: boolean;
-  accent?:   boolean;
-  icon:      React.ReactNode;
-  iconBg:    string;
+/* ── Helpers ── */
+function getGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return "Buenos días";
+  if (h < 19) return "Buenas tardes";
+  return "Buenas noches";
 }
 
-function StatCard({ label, value, change, positive, accent, icon, iconBg }: StatProps) {
+function timeAgo(iso: string): string {
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60_000);
+  if (mins < 1)  return "justo ahora";
+  if (mins < 60) return `hace ${mins} min`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24)  return `hace ${hrs}h`;
+  return `hace ${Math.floor(hrs / 24)}d`;
+}
+
+function toISO(d: Date) { return d.toISOString().slice(0, 10); }
+
+/* ── Status config ── */
+const STATUS_CFG: Record<string, { label: string; bg: string; color: string }> = {
+  pending:    { label: "Pendiente",  bg: "#FEF3C7", color: "#D97706" },
+  confirmed:  { label: "Confirmado", bg: "#DBEAFE", color: "#1D4ED8" },
+  preparing:  { label: "Preparando", bg: "#EDE9FE", color: "#7C3AED" },
+  on_the_way: { label: "En camino",  bg: "#E0F2FE", color: "#0369A1" },
+  delivered:  { label: "Entregado",  bg: "#D1FAE5", color: "#059669" },
+  cancelled:  { label: "Cancelado",  bg: "#FEE2E2", color: "#DC2626" },
+};
+
+/* ── Skeleton ── */
+function Skel({ h = 24, className = "" }: { h?: number; className?: string }) {
+  return <div className={`skeleton ${className}`} style={{ height: h, borderRadius: 16 }} />;
+}
+
+/* ── Stat tile ── */
+function StatTile({ value, label, icon, color, bg }: {
+  value: number; label: string;
+  icon: React.ReactNode; color: string; bg: string;
+}) {
   return (
     <div
-      className="rounded-2xl p-4 flex flex-col gap-3"
-      style={{
-        background: accent ? "var(--brand-600)" : "var(--surface-0)",
-        border:     accent ? "none"              : "1.5px solid #E2E8F0",
-        boxShadow:  accent ? "var(--shadow-brand)" : "var(--shadow-sm)",
-      }}
+      className="flex-1 rounded-2xl p-3.5 flex flex-col gap-2.5"
+      style={{ background: "var(--surface-0)", border: "1.5px solid #E2E8F0" }}
     >
-      <div className="flex items-center justify-between">
-        <div
-          className="w-8 h-8 rounded-xl flex items-center justify-center"
-          style={{ background: accent ? "rgba(255,255,255,.2)" : iconBg }}
-        >
-          {icon}
-        </div>
-        <span
-          className="text-xs font-semibold"
-          style={{ color: accent ? "rgba(255,255,255,.75)" : "var(--ink-3)" }}
-        >
-          {label}
-        </span>
+      <div
+        className="w-8 h-8 rounded-xl flex items-center justify-center"
+        style={{ background: bg }}
+      >
+        <span style={{ color }}>{icon}</span>
       </div>
       <div>
         <p
           className="font-display font-extrabold text-2xl leading-none"
-          style={{ color: accent ? "#fff" : "var(--ink)" }}
+          style={{ color: "var(--ink)" }}
         >
           {value}
         </p>
-        {change && (
-          <p
-            className="text-xs font-semibold mt-1"
-            style={{
-              color: accent
-                ? "rgba(255,255,255,.7)"
-                : positive ? "var(--success)" : "var(--ink-3)",
-            }}
-          >
-            {change}
-          </p>
-        )}
+        <p className="text-[11px] font-semibold mt-1" style={{ color: "var(--ink-3)" }}>
+          {label}
+        </p>
       </div>
     </div>
   );
 }
 
-/* ── Quick link row ── */
-function QuickLink({
-  href, icon, label, sub, iconBg, iconColor, badge,
+/* ── Action button (grid 2×2) ── */
+function ActionBtn({
+  href, onClick, icon, label, badge, color, bg,
 }: {
-  href:       string;
-  icon:       React.ReactNode;
-  label:      string;
-  sub?:       string;
-  iconBg:     string;
-  iconColor:  string;
-  badge?:     number;
+  href?: string; onClick?: () => void;
+  icon: React.ReactNode; label: string;
+  badge?: number; color: string; bg: string;
 }) {
-  return (
-    <Link
-      href={href}
-      className="flex items-center gap-3 p-4 rounded-2xl transition-all active:scale-[.98]"
-      style={{
-        background: "var(--surface-0)",
-        border:     "1.5px solid #E2E8F0",
-        boxShadow:  "var(--shadow-sm)",
-      }}
-    >
-      <div
-        className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 relative"
-        style={{ background: iconBg }}
-      >
-        <span style={{ color: iconColor }}>{icon}</span>
-        {badge != null && badge > 0 && (
-          <span
-            className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center
-                       justify-center text-[9px] font-bold text-white"
-            style={{ background: "var(--danger)" }}
-          >
-            {badge > 9 ? "9+" : badge}
-          </span>
-        )}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>
-          {label}
-        </p>
-        {sub && (
-          <p className="text-xs mt-0.5 truncate" style={{ color: "var(--ink-3)" }}>
-            {sub}
-          </p>
-        )}
-      </div>
-      <ArrowRight size={16} style={{ color: "var(--ink-4)", flexShrink: 0 }} />
-    </Link>
-  );
-}
+  const cls = "flex flex-col items-start gap-3 p-4 rounded-2xl transition-all active:scale-[.97] relative";
+  const sty = { background: "var(--surface-0)", border: "1.5px solid #E2E8F0", boxShadow: "var(--shadow-sm)" };
 
-/* ── Skeleton block ── */
-function Skel({ h = 24, className = "" }: { h?: number; className?: string }) {
-  return (
-    <div className={`skeleton ${className}`} style={{ height: h, borderRadius: 16 }} />
+  const inner = (
+    <>
+      {(badge ?? 0) > 0 && (
+        <span
+          className="absolute top-3 right-3 min-w-[20px] h-5 px-1.5 rounded-full
+                     flex items-center justify-center text-[10px] font-bold text-white"
+          style={{ background: "var(--danger)" }}
+        >
+          {badge! > 99 ? "99+" : badge}
+        </span>
+      )}
+      <div
+        className="w-10 h-10 rounded-xl flex items-center justify-center"
+        style={{ background: bg }}
+      >
+        <span style={{ color }}>{icon}</span>
+      </div>
+      <span className="text-sm font-bold leading-tight" style={{ color: "var(--ink)" }}>
+        {label}
+      </span>
+    </>
   );
+
+  if (onClick) {
+    return <button onClick={onClick} className={cls} style={sty}>{inner}</button>;
+  }
+  return <Link href={href!} className={cls} style={sty}>{inner}</Link>;
 }
 
 /* ══════════════════════════════════════
@@ -244,9 +152,14 @@ export default function DashboardPage() {
 
   const [store,        setStore]        = useState<StoreData | null>(null);
   const [stats,        setStats]        = useState<Stats | null>(null);
+  const [recent,       setRecent]       = useState<RecentOrder[]>([]);
   const [loadingStore, setLoadingStore] = useState(true);
   const [loadingStats, setLoadingStats] = useState(true);
-  const [period,       setPeriod]       = useState<PeriodKey>("this_month");
+
+  const firstName = user?.full_name?.split(" ")[0] ?? "vendedor";
+  const initials  = (user?.full_name ?? "U")
+    .split(" ").slice(0, 2)
+    .map((w: string) => w[0]).join("").toUpperCase();
 
   useEffect(() => {
     apiClient
@@ -259,33 +172,39 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!store) return;
     setLoadingStats(true);
-    const dates = periodDates(period);
-    const params = dates
-      ? { from_date: dates.from, to_date: dates.to }
-      : {};
-    apiClient
-      .get("/orders/stats/summary", { params })
-      .then(({ data }) => setStats(data.this_month))
+    const today = toISO(new Date());
+    Promise.all([
+      apiClient.get("/orders/stats/summary", { params: { from_date: today, to_date: today } }),
+      apiClient.get("/orders/", { params: { limit: 4, page: 1 } }),
+    ])
+      .then(([statsRes, ordersRes]) => {
+        setStats(statsRes.data.this_month);
+        setRecent(ordersRes.data.items ?? []);
+      })
+      .catch(() => {})
       .finally(() => setLoadingStats(false));
-  }, [store, period]);
+  }, [store]);
 
-  const firstName = user?.full_name?.split(" ")[0] ?? "vendedor";
-  const initials  = (user?.full_name ?? "U")
-    .split(" ").slice(0, 2)
-    .map((w: string) => w[0]).join("").toUpperCase();
+  /* ── Derived ── */
+  const pending    = stats?.pending    ?? 0;
+  const delivered  = stats?.delivered  ?? 0;
+  const cancelled  = stats?.cancelled  ?? 0;
+  const total      = stats?.total_orders ?? 0;
+  const inProgress = Math.max(0, total - pending - delivered - cancelled);
 
-  /* ── Full-page skeleton ── */
+  /* ── Skeleton ── */
   if (loadingStore) {
     return (
       <div className="p-5 max-w-lg mx-auto space-y-4 animate-fade-in">
         <Skel h={28} className="w-48" />
         <Skel h={80} />
-        <div className="grid grid-cols-2 gap-3">
-          {[...Array(4)].map((_, i) => <Skel key={i} h={108} />)}
+        <div className="flex gap-3">
+          {[...Array(3)].map((_, i) => <Skel key={i} h={96} className="flex-1" />)}
         </div>
-        <Skel h={96} />
-        <Skel h={64} />
-        <Skel h={64} />
+        <div className="grid grid-cols-2 gap-3">
+          {[...Array(4)].map((_, i) => <Skel key={i} h={104} />)}
+        </div>
+        <Skel h={160} />
       </div>
     );
   }
@@ -296,16 +215,12 @@ export default function DashboardPage() {
       <div className="p-5 max-w-lg mx-auto animate-fade-up">
         <div className="mb-6">
           <p className="text-xs font-semibold" style={{ color: "var(--ink-3)" }}>
-            Buenos días 👋
+            {getGreeting()} 👋
           </p>
-          <h1
-            className="font-display font-extrabold text-xl mt-0.5"
-            style={{ color: "var(--ink)" }}
-          >
+          <h1 className="font-display font-extrabold text-xl mt-0.5" style={{ color: "var(--ink)" }}>
             Hola, {firstName}
           </h1>
         </div>
-
         <div
           className="rounded-2xl p-8 text-center space-y-5"
           style={{ background: "var(--brand-50)", border: "2px dashed var(--brand-200)" }}
@@ -317,17 +232,11 @@ export default function DashboardPage() {
             <Store size={30} style={{ color: "var(--brand-600)" }} />
           </div>
           <div>
-            <h2
-              className="font-display font-bold text-lg"
-              style={{ color: "var(--ink)" }}
-            >
+            <h2 className="font-display font-bold text-lg" style={{ color: "var(--ink)" }}>
               Crea tu tienda
             </h2>
-            <p
-              className="text-sm mt-1.5 leading-relaxed"
-              style={{ color: "var(--ink-2)" }}
-            >
-              Configura tu tienda online y empieza a recibir pedidos desde TikTok en minutos.
+            <p className="text-sm mt-1.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>
+              Configura tu tienda online y empieza a recibir pedidos en minutos.
             </p>
           </div>
           <Link href="/dashboard/configuracion" className="btn-primary">
@@ -341,11 +250,11 @@ export default function DashboardPage() {
   /* ── Main dashboard ── */
   return (
     <div
-      className="max-w-lg mx-auto pb-6"
+      className="max-w-lg mx-auto pb-8"
       style={{ background: "var(--surface-2)", minHeight: "100%" }}
     >
 
-      {/* Mobile sticky header */}
+      {/* ── Mobile sticky header ── */}
       <div
         className="md:hidden sticky top-0 z-10 px-5 pt-safe pt-4 pb-4"
         style={{ background: "var(--surface-0)", borderBottom: "1px solid #F1F5F9" }}
@@ -353,22 +262,20 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between">
           <Logo size="md" />
           <div className="flex items-center gap-2.5">
-            <button
+            <Link
+              href={pending > 0 ? "/dashboard/pedidos?status=pending" : "/dashboard/pedidos"}
               className="relative w-10 h-10 rounded-xl flex items-center justify-center"
               style={{ background: "var(--surface-1)", border: "1.5px solid #E2E8F0" }}
-              aria-label="Notificaciones"
+              aria-label="Pedidos pendientes"
             >
               <Bell size={18} style={{ color: "var(--ink-2)" }} />
-              {(stats?.pending ?? 0) > 0 && (
+              {pending > 0 && (
                 <span
-                  className="absolute top-2 right-2 w-2 h-2 rounded-full border-2"
-                  style={{
-                    background: "var(--danger)",
-                    borderColor: "var(--surface-0)",
-                  }}
+                  className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full border-2 flex items-center justify-center"
+                  style={{ background: "var(--danger)", borderColor: "var(--surface-0)" }}
                 />
               )}
-            </button>
+            </Link>
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center
                          font-display font-bold text-sm text-white"
@@ -380,283 +287,274 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Desktop greeting */}
-      <div className="hidden md:block px-6 pt-6 pb-2">
-        <p className="text-sm" style={{ color: "var(--ink-3)" }}>Buenos días 👋</p>
-        <h1
-          className="font-display font-extrabold text-2xl mt-0.5"
-          style={{ color: "var(--ink)" }}
-        >
-          Hola, {firstName}
-        </h1>
-        <p className="text-sm mt-1" style={{ color: "var(--ink-3)" }}>
-          Resumen de tu negocio este mes
-        </p>
-      </div>
-
       <div className="px-5 pt-5 space-y-4">
 
-        {/* ── Store card ── */}
+        {/* ── Greeting ── */}
+        <div className="animate-fade-up">
+          <p className="text-xs font-semibold" style={{ color: "var(--ink-3)" }}>
+            {getGreeting()} 👋
+          </p>
+          <h1
+            className="font-display font-extrabold text-xl mt-0.5"
+            style={{ color: "var(--ink)" }}
+          >
+            Hola, {firstName}
+          </h1>
+        </div>
+
+        {/* ── Store card (compact) ── */}
         <div
-          className="rounded-2xl overflow-hidden animate-fade-up"
+          className="rounded-2xl p-4 flex items-center gap-3 animate-fade-up"
           style={{
             background: store.primary_color || "var(--brand-600)",
-            boxShadow: `0 8px 32px ${store.primary_color || "#2563EB"}44`,
+            boxShadow: `0 6px 24px ${store.primary_color || "#2563EB"}44`,
           }}
         >
-          {/* Top row: logo + actions */}
-          <div className="flex items-center justify-between px-4 pt-4 pb-3">
-            <div className="flex items-center gap-3">
-              {store.logo_url ? (
-                <img
-                  src={store.logo_url}
-                  alt={store.name}
-                  className="w-12 h-12 rounded-xl object-cover flex-shrink-0 border-2 border-white/30"
-                />
-              ) : (
-                <div
-                  className="w-12 h-12 rounded-xl flex items-center justify-center
-                             text-white font-display font-bold text-xl flex-shrink-0
-                             border-2 border-white/30"
-                  style={{ background: "rgba(255,255,255,0.2)" }}
-                >
-                  {store.name[0]}
-                </div>
-              )}
-              <span
-                className="inline-flex items-center gap-1 text-[11px] font-bold
-                           px-2.5 py-1 rounded-full"
-                style={
-                  store.status === "active"
-                    ? { background: "rgba(255,255,255,0.25)", color: "#fff" }
-                    : { background: "#FEF3C7", color: "#92400E" }
-                }
-              >
-                <span
-                  className="w-1.5 h-1.5 rounded-full"
-                  style={{
-                    background: store.status === "active" ? "#6EE7B7" : "#F59E0B",
-                  }}
-                />
-                {store.status === "active" ? "Activa" : "Inactiva"}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() =>
-                  navigator.share?.({
-                    title: store.name,
-                    text: `Visita mi tienda: ${store.name}`,
-                    url: `${window.location.origin}/tienda/${store.slug}`,
-                  })
-                }
-                className="w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-90"
-                style={{ background: "rgba(255,255,255,0.2)" }}
-                aria-label="Compartir tienda"
-              >
-                <Share2 size={17} color="white" />
-              </button>
-              <a
-                href={`/tienda/${store.slug}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-90"
-                style={{ background: "rgba(255,255,255,0.2)" }}
-                aria-label="Ver tienda pública"
-              >
-                <ExternalLink size={17} color="white" />
-              </a>
-            </div>
-          </div>
-
-          {/* Store name */}
-          <div className="px-4 pb-4">
-            <h2
-              className="font-display font-extrabold text-2xl leading-tight text-white"
+          {store.logo_url ? (
+            <img
+              src={store.logo_url}
+              alt={store.name}
+              className="w-12 h-12 rounded-xl object-cover flex-shrink-0 border-2 border-white/30"
+            />
+          ) : (
+            <div
+              className="w-12 h-12 rounded-xl flex items-center justify-center
+                         text-white font-display font-bold text-xl flex-shrink-0 border-2 border-white/30"
+              style={{ background: "rgba(255,255,255,0.2)" }}
             >
+              {store.name[0]}
+            </div>
+          )}
+
+          <div className="flex-1 min-w-0">
+            <h2 className="font-display font-bold text-base text-white leading-tight truncate">
               {store.name}
             </h2>
-            <p className="text-sm mt-1 font-medium" style={{ color: "rgba(255,255,255,0.7)" }}>
-              qtienda.shop/tienda/{store.slug}
-            </p>
-          </div>
-        </div>
-
-        {/* ── Period selector ── */}
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide animate-fade-up delay-75 -mx-1 px-1">
-          {PERIODS.map((p) => (
-            <button
-              key={p.key}
-              onClick={() => setPeriod(p.key)}
-              className="flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all"
+            <span
+              className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full mt-0.5"
               style={
-                period === p.key
-                  ? { background: "var(--brand-600)", color: "#fff" }
-                  : { background: "var(--surface-0)", color: "var(--ink-3)", border: "1.5px solid #E2E8F0" }
+                store.status === "active"
+                  ? { background: "rgba(255,255,255,0.22)", color: "#fff" }
+                  : { background: "#FEF3C7", color: "#92400E" }
               }
             >
-              {p.label}
+              <span
+                className="w-1.5 h-1.5 rounded-full"
+                style={{ background: store.status === "active" ? "#6EE7B7" : "#F59E0B" }}
+              />
+              {store.status === "active" ? "Activa" : "Inactiva"}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={() =>
+                navigator.share?.({
+                  title: store.name,
+                  text: `Visita mi tienda: ${store.name}`,
+                  url: `${window.location.origin}/tienda/${store.slug}`,
+                })
+              }
+              className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-90"
+              style={{ background: "rgba(255,255,255,0.2)" }}
+              aria-label="Compartir tienda"
+            >
+              <Share2 size={16} color="white" />
             </button>
-          ))}
+            <a
+              href={`/tienda/${store.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-90"
+              style={{ background: "rgba(255,255,255,0.2)" }}
+              aria-label="Ver tienda"
+            >
+              <ExternalLink size={16} color="white" />
+            </a>
+          </div>
         </div>
 
-        {/* ── KPI grid ── */}
+        {/* ── Pending alert ── */}
+        {!loadingStats && pending > 0 && (
+          <Link
+            href="/dashboard/pedidos?status=pending"
+            className="flex items-center gap-3 p-4 rounded-2xl animate-fade-up transition-all active:scale-[.98]"
+            style={{ background: "#FFFBEB", border: "2px solid #FCD34D" }}
+          >
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: "#FEF3C7" }}
+            >
+              <AlertCircle size={20} style={{ color: "#D97706" }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold" style={{ color: "#92400E" }}>
+                {pending} pedido{pending !== 1 ? "s" : ""} esperan tu respuesta
+              </p>
+              <p className="text-xs mt-0.5" style={{ color: "#B45309" }}>
+                Confirma para avisar al cliente por WhatsApp
+              </p>
+            </div>
+            <ChevronRight size={18} style={{ color: "#D97706", flexShrink: 0 }} />
+          </Link>
+        )}
+
+        {/* ── Pulso de hoy ── */}
         {loadingStats ? (
-          <div className="grid grid-cols-2 gap-3">
-            {[...Array(4)].map((_, i) => <Skel key={i} h={108} />)}
+          <div className="flex gap-3">
+            {[...Array(3)].map((_, i) => <Skel key={i} h={100} className="flex-1" />)}
           </div>
-        ) : stats && (
-          <div className="grid grid-cols-2 gap-3 animate-fade-up delay-100">
-            <StatCard
-              label="Ingresos"
-              value={formatPrice(stats.revenue_cents)}
-              change={`↑ ${PERIODS.find(p => p.key === period)?.label.toLowerCase()}`}
-              positive
-              accent
-              icon={<TrendingUp size={16} color="white" />}
-              iconBg="transparent"
-            />
-            <StatCard
-              label="Pedidos"
-              value={String(stats.total_orders)}
-              change={`${stats.pending} pendiente${stats.pending !== 1 ? "s" : ""}`}
-              positive={stats.pending === 0}
-              icon={<ShoppingBag size={15} color="#2563EB" />}
-              iconBg="var(--brand-50)"
-            />
-            <StatCard
-              label="Pendientes"
-              value={String(stats.pending)}
-              change={stats.pending > 0 ? "Requieren acción" : "¡Al día!"}
-              positive={stats.pending === 0}
-              icon={<Clock size={15} color="#D97706" />}
-              iconBg="#FEF3C7"
-            />
-            <StatCard
-              label="Entregados"
-              value={String(stats.delivered)}
-              change={
-                stats.total_orders > 0
-                  ? `${Math.round((stats.delivered / stats.total_orders) * 100)}% del total`
-                  : "—"
-              }
-              positive
-              icon={<CheckCircle2 size={15} color="#059669" />}
-              iconBg="#D1FAE5"
-            />
+        ) : (
+          <div className="animate-fade-up">
+            <p className="text-xs font-semibold mb-2 px-0.5" style={{ color: "var(--ink-3)" }}>
+              Hoy
+            </p>
+            <div className="flex gap-3">
+              <StatTile
+                value={total}
+                label="Pedidos"
+                icon={<ShoppingBag size={16} />}
+                color="#2563EB"
+                bg="#DBEAFE"
+              />
+              <StatTile
+                value={inProgress}
+                label="En proceso"
+                icon={<Clock size={16} />}
+                color="#D97706"
+                bg="#FEF3C7"
+              />
+              <StatTile
+                value={delivered}
+                label="Completados"
+                icon={<CheckCircle2 size={16} />}
+                color="#059669"
+                bg="#D1FAE5"
+              />
+            </div>
           </div>
         )}
 
-        {/* ── Sparkline chart ── */}
-        <div
-          className="rounded-2xl p-4 animate-fade-up delay-150"
-          style={{ background: "var(--surface-0)", border: "1.5px solid #E2E8F0" }}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <TrendingUp size={15} style={{ color: "var(--brand-600)" }} />
-              <span
-                className="font-display font-bold text-sm"
-                style={{ color: "var(--ink)" }}
-              >
-                Ingresos esta semana
-              </span>
-            </div>
-            <Link
-              href="/dashboard/pedidos"
-              className="flex items-center gap-1 text-xs font-bold"
-              style={{ color: "var(--brand-600)" }}
-            >
-              Ver todo <ArrowUpRight size={12} />
-            </Link>
-          </div>
-
-          <Sparkline />
-
-          <div className="flex justify-between mt-2">
-            {WEEK_DAYS.map((d, i) => (
-              <span
-                key={i}
-                className="text-[10px] font-medium"
-                style={{
-                  color: i === WEEK_DAYS.length - 1 ? "var(--ink)" : "var(--ink-3)",
-                }}
-              >
-                {d}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        {/* ── Quick actions ── */}
-        <div className="space-y-2.5 animate-fade-up delay-200">
-          <h2
-            className="font-display font-bold text-sm px-0.5"
-            style={{ color: "var(--ink)" }}
-          >
+        {/* ── Acciones rápidas ── */}
+        <div className="animate-fade-up">
+          <p className="text-xs font-semibold mb-2 px-0.5" style={{ color: "var(--ink-3)" }}>
             Acciones rápidas
-          </h2>
-
-          {(stats?.pending ?? 0) > 0 && (
-            <QuickLink
-              href="/dashboard/pedidos?status=pending"
-              icon={<Clock size={18} />}
-              label={`${stats!.pending} pedido${stats!.pending !== 1 ? "s" : ""} pendiente${stats!.pending !== 1 ? "s" : ""}`}
-              sub="Confirma para notificar por WhatsApp"
-              iconBg="#FEF3C7"
-              iconColor="#D97706"
-              badge={stats!.pending}
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <ActionBtn
+              href="/dashboard/productos"
+              icon={<Plus size={20} />}
+              label="Nuevo producto"
+              color="var(--brand-600)"
+              bg="var(--brand-50)"
             />
-          )}
-
-          <QuickLink
-            href="/dashboard/productos"
-            icon={<Plus size={18} />}
-            label="Agregar producto"
-            sub="Sube fotos, precio y descripción"
-            iconBg="var(--brand-50)"
-            iconColor="var(--brand-600)"
-          />
-
-          <QuickLink
-            href="/dashboard/pedidos"
-            icon={<Package size={18} />}
-            label="Todos los pedidos"
-            sub={`${stats?.total_orders ?? 0} pedidos este mes`}
-            iconBg="#EDE9FE"
-            iconColor="#7C3AED"
-          />
-
-          <QuickLink
-            href={`/tienda/${store.slug}`}
-            icon={<Eye size={18} />}
-            label="Vista de mi tienda"
-            sub={`qtienda.shop/tienda/${store.slug}`}
-            iconBg="#D1FAE5"
-            iconColor="#059669"
-          />
+            <ActionBtn
+              href="/dashboard/pedidos"
+              icon={<Package size={20} />}
+              label="Ver pedidos"
+              badge={pending}
+              color="#7C3AED"
+              bg="#EDE9FE"
+            />
+            <ActionBtn
+              href={`/tienda/${store.slug}`}
+              icon={<Eye size={20} />}
+              label="Ver mi tienda"
+              color="#059669"
+              bg="#D1FAE5"
+            />
+            <ActionBtn
+              onClick={() =>
+                navigator.share?.({
+                  title: store.name,
+                  text: `Visita mi tienda: ${store.name}`,
+                  url: `${window.location.origin}/tienda/${store.slug}`,
+                })
+              }
+              icon={<Share2 size={20} />}
+              label="Compartir tienda"
+              color="#0369A1"
+              bg="#E0F2FE"
+            />
+          </div>
         </div>
+
+        {/* ── Últimos pedidos ── */}
+        {recent.length > 0 && (
+          <div className="animate-fade-up">
+            <div className="flex items-center justify-between px-0.5 mb-2">
+              <p className="text-xs font-semibold" style={{ color: "var(--ink-3)" }}>
+                Últimos pedidos
+              </p>
+              <Link
+                href="/dashboard/pedidos"
+                className="text-xs font-bold"
+                style={{ color: "var(--brand-600)" }}
+              >
+                Ver todos
+              </Link>
+            </div>
+            <div
+              className="rounded-2xl overflow-hidden"
+              style={{ background: "var(--surface-0)", border: "1.5px solid #E2E8F0" }}
+            >
+              {recent.map((order, idx) => {
+                const cfg = STATUS_CFG[order.status] ?? STATUS_CFG.pending;
+                return (
+                  <Link
+                    href="/dashboard/pedidos"
+                    key={order.id}
+                    className="flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-slate-50 active:bg-slate-100"
+                    style={{ borderTop: idx > 0 ? "1px solid #F1F5F9" : "none" }}
+                  >
+                    <div
+                      className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ background: cfg.bg }}
+                    >
+                      <ShoppingBag size={15} style={{ color: cfg.color }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>
+                        {order.buyer_name}
+                      </p>
+                      <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
+                        #{order.order_number} · {order.items_count} ítem{order.items_count !== 1 ? "s" : ""} · {timeAgo(order.created_at)}
+                      </p>
+                    </div>
+                    <span
+                      className="flex-shrink-0 text-[11px] font-bold px-2.5 py-1 rounded-full"
+                      style={{ background: cfg.bg, color: cfg.color }}
+                    >
+                      {cfg.label}
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* ── Upgrade banner ── */}
-        <div
-          className="rounded-2xl p-4 flex items-center justify-between animate-fade-up delay-250"
-          style={{ background: "linear-gradient(135deg, var(--brand-800), #4C1D95)" }}
-        >
-          <div>
-            <p className="font-display font-bold text-sm text-white">Sube a Pro 🚀</p>
-            <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,.65)" }}>
-              Analytics, dominio propio y más
-            </p>
-          </div>
-          <Link
-            href="/dashboard/planes"
-            className="flex-shrink-0 text-xs font-bold px-4 py-2 rounded-xl"
-            style={{ background: "rgba(255,255,255,.18)", color: "#fff" }}
+        {(!store.plan_slug || store.plan_slug === "free") && (
+          <div
+            className="rounded-2xl p-4 flex items-center justify-between animate-fade-up"
+            style={{ background: "linear-gradient(135deg, var(--brand-800), #4C1D95)" }}
           >
-            Ver planes
-          </Link>
-        </div>
+            <div>
+              <p className="font-display font-bold text-sm text-white">Sube a Pro 🚀</p>
+              <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,.65)" }}>
+                Analytics, dominio propio y más
+              </p>
+            </div>
+            <Link
+              href="/dashboard/planes"
+              className="flex-shrink-0 text-xs font-bold px-4 py-2 rounded-xl"
+              style={{ background: "rgba(255,255,255,.18)", color: "#fff" }}
+            >
+              Ver planes
+            </Link>
+          </div>
+        )}
 
       </div>
     </div>
