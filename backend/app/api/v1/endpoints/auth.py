@@ -15,7 +15,8 @@ from app.core.security import (
     get_current_user,
 )
 from app.schemas.auth import (
-    RegisterRequest, LoginRequest, TokenResponse, RefreshRequest
+    RegisterRequest, LoginRequest, TokenResponse, RefreshRequest,
+    UpdateProfileRequest,
 )
 from app.services.email import send_verification_email
 from app.core.limiter import limiter
@@ -333,9 +334,32 @@ async def google_buyer(request: Request, payload: dict, db: AsyncSession = Depen
 @router.get("/me")
 async def me(current_user: User = Depends(get_current_user)):
     return {
-        "id": current_user.id,
+        "id": str(current_user.id),
         "email": current_user.email,
         "full_name": current_user.full_name,
+        "phone": current_user.phone,
+        "role": current_user.role.name,
+        "avatar_url": current_user.avatar_url,
+        "is_verified": current_user.is_verified,
+    }
+
+
+@router.patch("/me")
+async def update_me(
+    payload: UpdateProfileRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if payload.full_name is not None:
+        current_user.full_name = payload.full_name
+    if payload.phone is not None:
+        current_user.phone = payload.phone.strip() or None
+    await db.commit()
+    return {
+        "id": str(current_user.id),
+        "email": current_user.email,
+        "full_name": current_user.full_name,
+        "phone": current_user.phone,
         "role": current_user.role.name,
         "avatar_url": current_user.avatar_url,
         "is_verified": current_user.is_verified,

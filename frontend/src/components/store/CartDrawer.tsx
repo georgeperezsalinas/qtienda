@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Minus, Plus, ShoppingBag, MessageCircle, CheckCircle2 } from "lucide-react";
+import {
+  X, Minus, Plus, ShoppingBag, MessageCircle,
+  CheckCircle2, ChevronRight, MapPin, User, Phone,
+  Mail, FileText, ArrowLeft,
+} from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
 import { useAuthStore } from "@/store/authStore";
 import { formatPrice } from "@/lib/utils";
@@ -18,37 +22,112 @@ interface Props {
 
 type Step = "cart" | "info" | "payment" | "success";
 
+const STEPS: { key: Step; label: string }[] = [
+  { key: "cart",    label: "Carrito" },
+  { key: "info",    label: "Datos"   },
+  { key: "payment", label: "Pago"    },
+];
+
+const STEP_IDX: Record<Step, number> = { cart: 0, info: 1, payment: 2, success: 3 };
+
+/* ── Step indicator ── */
+function Stepper({ step, color }: { step: Step; color: string }) {
+  const current = STEP_IDX[step];
+  if (step === "success") return null;
+  return (
+    <div className="flex items-center justify-center gap-0 px-6 pt-1 pb-3">
+      {STEPS.map((s, i) => {
+        const done   = i < current;
+        const active = i === current;
+        return (
+          <div key={s.key} className="flex items-center">
+            {/* Circle */}
+            <div className="flex flex-col items-center gap-1">
+              <div
+                className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300"
+                style={{
+                  background: done || active ? color : "#E2E8F0",
+                  color:      done || active ? "#fff"  : "#94A3B8",
+                  transform:  active ? "scale(1.1)" : "scale(1)",
+                }}
+              >
+                {done ? <CheckCircle2 size={14} /> : i + 1}
+              </div>
+              <span
+                className="text-[10px] font-semibold transition-colors"
+                style={{ color: active ? color : done ? "#94A3B8" : "#CBD5E1" }}
+              >
+                {s.label}
+              </span>
+            </div>
+            {/* Connector */}
+            {i < STEPS.length - 1 && (
+              <div
+                className="w-16 h-0.5 mb-4 mx-1 transition-all duration-300"
+                style={{ background: done ? color : "#E2E8F0" }}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── Field wrapper ── */
+function Field({ label, icon, children }: { label: string; icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#94A3B8" }}>
+        {icon}
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════
+   CART DRAWER
+════════════════════════════════════════ */
 export default function CartDrawer({ open, onClose, store }: Props) {
   const { items, updateQty, removeItem, clearCart, totalCents } = useCartStore();
   const { user } = useAuthStore();
-  const [step, setStep] = useState<Step>("cart");
-  const [loading, setLoading] = useState(false);
+  const [step,        setStep]        = useState<Step>("cart");
+  const [loading,     setLoading]     = useState(false);
   const [orderResult, setOrderResult] = useState<any>(null);
+  const [direction,   setDirection]   = useState(1); // 1 = forward, -1 = back
 
   const [form, setForm] = useState({
-    buyer_name: "",
-    buyer_phone: "",
-    buyer_email: "",
-    buyer_address: "",
-    notes: "",
+    buyer_name:     user?.full_name || "",
+    buyer_phone:    "",
+    buyer_email:    user?.email || "",
+    buyer_address:  "",
+    notes:          "",
     payment_method: "",
   });
 
-  const deliveryFee = store.settings?.delivery_fee_cents || 0;
-  const freeAbove = store.settings?.free_delivery_above;
-  const effectiveDelivery =
-    freeAbove && totalCents() >= freeAbove ? 0 : deliveryFee;
-  const total = totalCents() + effectiveDelivery;
-  const minOrderCents = store.settings?.min_order_cents || 0;
+  const color         = store.primary_color || "#2563EB";
+  const deliveryFee   = store.settings?.delivery_fee_cents  || 0;
+  const freeAbove     = store.settings?.free_delivery_above;
+  const subtotal      = totalCents();
+  const effectiveDel  = freeAbove && subtotal >= freeAbove ? 0 : deliveryFee;
+  const total         = subtotal + effectiveDel;
+  const minOrder      = store.settings?.min_order_cents || 0;
+  const belowMin      = minOrder > 0 && total < minOrder;
 
-  // Métodos de pago disponibles según configuración de la tienda
   const paymentOptions = [
-    store.settings?.accept_cash     && { value: "cash",     label: "Efectivo",      icon: "💵", sub: "Contra entrega" },
-    store.settings?.accept_yape     && { value: "yape",     label: "Yape",          icon: "💜", sub: store.settings?.yape_phone || "" },
-    store.settings?.accept_plin     && { value: "plin",     label: "Plin",          icon: "💚", sub: store.settings?.plin_phone || "" },
-    store.settings?.accept_transfer && { value: "transfer", label: "Transferencia", icon: "🏦", sub: store.settings?.bank_account ? "Datos al confirmar" : "" },
-    store.settings?.accept_card     && { value: "card",     label: "Tarjeta",       icon: "💳", sub: "POS al entregar" },
+    store.settings?.accept_cash     && { value: "cash",     label: "Efectivo",      icon: "💵", sub: "Pago contra entrega" },
+    store.settings?.accept_yape     && { value: "yape",     label: "Yape",          icon: "💜", sub: store.settings?.yape_phone ? `Yape: ${store.settings.yape_phone}` : "Te enviamos el número" },
+    store.settings?.accept_plin     && { value: "plin",     label: "Plin",          icon: "💚", sub: store.settings?.plin_phone ? `Plin: ${store.settings.plin_phone}` : "Te enviamos el número" },
+    store.settings?.accept_transfer && { value: "transfer", label: "Transferencia", icon: "🏦", sub: "Datos bancarios al confirmar" },
+    store.settings?.accept_card     && { value: "card",     label: "Tarjeta",       icon: "💳", sub: "POS al momento de la entrega" },
   ].filter(Boolean) as { value: string; label: string; icon: string; sub: string }[];
+
+  function go(next: Step, dir = 1) {
+    setDirection(dir);
+    setStep(next);
+  }
 
   async function placeOrder() {
     if (!form.buyer_name.trim() || !form.buyer_phone.trim()) {
@@ -61,20 +140,19 @@ export default function CartDrawer({ open, onClose, store }: Props) {
     }
     setLoading(true);
     try {
-      const payload = {
-        buyer_name: form.buyer_name,
-        buyer_phone: form.buyer_phone,
-        buyer_email: form.buyer_email.trim() || undefined,
-        buyer_address: form.buyer_address,
-        notes: form.notes,
+      const result = await apiClient.post(`/public/store/${store.slug}/orders`, {
+        buyer_name:     form.buyer_name.trim(),
+        buyer_phone:    form.buyer_phone.trim(),
+        buyer_email:    form.buyer_email.trim() || undefined,
+        buyer_address:  form.buyer_address.trim() || undefined,
+        notes:          form.notes.trim() || undefined,
         payment_method: form.payment_method,
-        source: "tiktok",
-        items: items.map((i) => ({ product_id: i.id, quantity: i.quantity })),
-      };
-      const result = await apiClient.post(`/public/store/${store.slug}/orders`, payload);
+        source:         "tiktok",
+        items:          items.map((i) => ({ product_id: i.id, quantity: i.quantity })),
+      });
       setOrderResult(result.data);
       clearCart();
-      setStep("success");
+      go("success");
     } catch (err: any) {
       toast.error(err.response?.data?.detail || "Error al procesar pedido");
     } finally {
@@ -84,11 +162,14 @@ export default function CartDrawer({ open, onClose, store }: Props) {
 
   function handleClose() {
     onClose();
-    setTimeout(() => {
-      setStep("cart");
-      setOrderResult(null);
-    }, 300);
+    setTimeout(() => { setStep("cart"); setOrderResult(null); }, 350);
   }
+
+  const slideVariants = {
+    enter:  (d: number) => ({ x: d * 40, opacity: 0 }),
+    center: { x: 0, opacity: 1 },
+    exit:   (d: number) => ({ x: d * -40, opacity: 0 }),
+  };
 
   return (
     <AnimatePresence>
@@ -96,337 +177,486 @@ export default function CartDrawer({ open, onClose, store }: Props) {
         <>
           {/* Backdrop */}
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             onClick={handleClose}
-            className="fixed inset-0 bg-black/40 z-40 backdrop-blur-sm"
+            className="fixed inset-0 z-40"
+            style={{ background: "rgba(15,23,42,.5)", backdropFilter: "blur(4px)" }}
           />
 
-          {/* Drawer */}
+          {/* Sheet */}
           <motion.div
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
-            transition={{ type: "spring", damping: 28, stiffness: 300 }}
-            className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl max-h-[92vh] flex flex-col shadow-float"
+            transition={{ type: "spring", damping: 30, stiffness: 320 }}
+            className="fixed bottom-0 left-0 right-0 z-50 flex flex-col"
+            style={{
+              background:   "#fff",
+              borderRadius: "28px 28px 0 0",
+              maxHeight:    "94dvh",
+              boxShadow:    "0 -8px 48px rgba(15,23,42,.2)",
+            }}
           >
             {/* Handle */}
-            <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 rounded-full bg-gray-200" />
+            <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+              <div className="w-10 h-1 rounded-full" style={{ background: "#E2E8F0" }} />
             </div>
 
             {/* Header */}
-            <div className="flex items-center justify-between px-5 pb-4 border-b border-gray-100">
-              <h2 className="font-display font-bold text-lg text-gray-900">
-                {step === "cart"    && "Tu carrito"}
-                {step === "info"    && "Datos de entrega"}
-                {step === "payment" && "Método de pago"}
+            <div className="flex items-center gap-3 px-5 pb-3 flex-shrink-0">
+              {step !== "cart" && step !== "success" && (
+                <button
+                  onClick={() => go(step === "payment" ? "info" : "cart", -1)}
+                  className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors"
+                  style={{ background: "#F1F5F9" }}
+                >
+                  <ArrowLeft size={18} style={{ color: "#475569" }} />
+                </button>
+              )}
+              <h2 className="font-extrabold text-lg flex-1" style={{ color: "#0F172A", fontFamily: "var(--font-display)" }}>
+                {step === "cart"    && `Mi pedido (${items.length})`}
+                {step === "info"    && "¿A dónde enviamos?"}
+                {step === "payment" && "¿Cómo pagas?"}
                 {step === "success" && "¡Pedido enviado!"}
               </h2>
-              <button onClick={handleClose} className="p-2 rounded-xl hover:bg-gray-100 transition-colors">
-                <X size={18} />
+              <button
+                onClick={handleClose}
+                className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: "#F1F5F9" }}
+              >
+                <X size={17} style={{ color: "#475569" }} />
               </button>
             </div>
 
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto">
-              {step === "cart" && (
-                <div className="px-5 py-4 space-y-3">
-                  {items.length === 0 ? (
-                    <div className="py-12 flex flex-col items-center text-center">
-                      <ShoppingBag size={48} className="text-gray-200 mb-3" />
-                      <p className="text-gray-400 text-sm">Tu carrito está vacío</p>
-                    </div>
-                  ) : (
-                    items.map((item) => (
-                      <div key={item.id} className="flex items-center gap-3">
-                        {item.image_url && (
-                          <img
-                            src={item.image_url}
-                            alt={item.name}
-                            className="w-14 h-14 rounded-xl object-cover flex-shrink-0 bg-gray-50"
-                          />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-gray-900 truncate">{item.name}</p>
-                          <p className="text-sm font-bold mt-0.5" style={{ color: store.primary_color }}>
-                            {formatPrice(item.price_cents * item.quantity)}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <button
-                            onClick={() =>
-                              item.quantity === 1
-                                ? removeItem(item.id)
-                                : updateQty(item.id, item.quantity - 1)
-                            }
-                            className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center active:scale-90 transition-transform"
-                          >
-                            <Minus size={12} />
-                          </button>
-                          <span className="text-sm font-bold w-4 text-center">{item.quantity}</span>
-                          <button
-                            onClick={() => updateQty(item.id, item.quantity + 1)}
-                            className="w-7 h-7 rounded-full text-white flex items-center justify-center active:scale-90 transition-transform"
-                            style={{ background: store.primary_color }}
-                          >
-                            <Plus size={12} />
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-
-              {step === "info" && (
-                <div className="px-5 py-4 space-y-4">
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">
-                      Nombre completo *
-                    </label>
-                    <input
-                      className="input"
-                      placeholder="¿A quién enviamos?"
-                      value={form.buyer_name}
-                      onChange={(e) => setForm({ ...form, buyer_name: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">
-                      WhatsApp / Teléfono *
-                    </label>
-                    <PhoneInput
-                      value={form.buyer_phone}
-                      onChange={(v) => setForm({ ...form, buyer_phone: v })}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">
-                      Email {user ? "(para tus pedidos)" : "(opcional)"}
-                    </label>
-                    <input
-                      className="input"
-                      type="email"
-                      inputMode="email"
-                      placeholder="tu@email.com"
-                      value={form.buyer_email}
-                      readOnly={!!user?.email}
-                      onChange={(e) => setForm({ ...form, buyer_email: e.target.value })}
-                      style={user?.email ? { background: "var(--surface-1)", color: "var(--ink-3)" } : {}}
-                    />
-                    {user?.email && (
-                      <p className="text-xs mt-1" style={{ color: "var(--ink-4)" }}>
-                        El pedido se vinculará a tu cuenta
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">
-                      Dirección de entrega
-                    </label>
-                    <input
-                      className="input"
-                      placeholder="Calle, número, distrito..."
-                      value={form.buyer_address}
-                      onChange={(e) => setForm({ ...form, buyer_address: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">
-                      Notas adicionales
-                    </label>
-                    <textarea
-                      className="input resize-none"
-                      rows={2}
-                      placeholder="Indicaciones especiales..."
-                      value={form.notes}
-                      onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                    />
-                  </div>
-
-                  {/* Order Summary */}
-                  <div className="rounded-2xl bg-surface-50 p-4 space-y-2 text-sm">
-                    <div className="flex justify-between text-gray-600">
-                      <span>Subtotal</span>
-                      <span>{formatPrice(totalCents())}</span>
-                    </div>
-                    <div className="flex justify-between text-gray-600">
-                      <span>Delivery</span>
-                      <span>
-                        {effectiveDelivery === 0 && deliveryFee > 0 ? (
-                          <span className="text-green-600 font-semibold">Gratis 🎉</span>
-                        ) : (
-                          formatPrice(effectiveDelivery)
-                        )}
-                      </span>
-                    </div>
-                    <div className="flex justify-between font-bold text-gray-900 border-t border-gray-200 pt-2">
-                      <span>Total</span>
-                      <span style={{ color: store.primary_color }}>{formatPrice(total)}</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {step === "payment" && (
-                <div className="px-5 py-4 space-y-3">
-                  {store.settings?.require_prepayment && (
-                    <div className="rounded-xl px-4 py-3 text-sm"
-                         style={{ background: "#FFF7ED", border: "1px solid #FED7AA", color: "#92400E" }}>
-                      Esta tienda requiere pago anticipado antes de preparar tu pedido.
-                    </div>
-                  )}
-                  {paymentOptions.map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => setForm({ ...form, payment_method: opt.value })}
-                      className="w-full flex items-center gap-4 rounded-2xl px-4 py-3.5 text-left transition-all"
-                      style={{
-                        border: form.payment_method === opt.value
-                          ? `2px solid ${store.primary_color}`
-                          : "2px solid #E2E8F0",
-                        background: form.payment_method === opt.value ? `${store.primary_color}08` : "#fff",
-                      }}
-                    >
-                      <span className="text-2xl">{opt.icon}</span>
-                      <div className="flex-1">
-                        <p className="font-bold text-sm text-gray-900">{opt.label}</p>
-                        {opt.sub && <p className="text-xs text-gray-400 mt-0.5">{opt.sub}</p>}
-                      </div>
-                      {form.payment_method === opt.value && (
-                        <CheckCircle2 size={18} style={{ color: store.primary_color, flexShrink: 0 }} />
-                      )}
-                    </button>
-                  ))}
-                  {/* Resumen total */}
-                  <div className="rounded-2xl bg-gray-50 px-4 py-3 flex items-center justify-between">
-                    <span className="text-sm text-gray-600 font-medium">Total a pagar</span>
-                    <span className="font-display font-extrabold text-lg" style={{ color: store.primary_color }}>
-                      {formatPrice(total)}
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {step === "success" && orderResult && (
-                <div className="px-5 py-8 flex flex-col items-center text-center">
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: "spring", damping: 15 }}
-                  >
-                    <CheckCircle2 size={72} style={{ color: store.primary_color }} />
-                  </motion.div>
-                  <h3 className="font-display font-bold text-xl mt-4 mb-1">¡Pedido recibido!</h3>
-                  <p className="text-gray-500 text-sm mb-1">
-                    Número de pedido:{" "}
-                    <span className="font-bold text-gray-900">{orderResult.order_number}</span>
-                  </p>
-                  <p className="text-gray-500 text-sm mb-6">
-                    El vendedor te contactará pronto por WhatsApp
-                  </p>
-
-                  {/* Buyer account CTA */}
-                  <a
-                    href="/auth/login?tab=register"
-                    className="w-full flex items-center justify-center gap-2 rounded-2xl py-3 px-4 mb-3 text-sm font-bold border-2 transition-colors"
-                    style={{
-                      color: store.primary_color,
-                      borderColor: store.primary_color,
-                      background: "transparent",
-                    }}
-                  >
-                    Crea tu cuenta para ver todos tus pedidos
-                  </a>
-
-                  {orderResult.whatsapp_link && (
-                    <a
-                      href={orderResult.whatsapp_link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn-primary w-full mb-3"
-                      style={{ background: "#25D366" }}
-                    >
-                      <MessageCircle size={18} />
-                      Abrir WhatsApp
-                    </a>
-                  )}
-                  <button onClick={handleClose} className="btn-secondary w-full">
-                    Seguir comprando
-                  </button>
-                </div>
-              )}
+            {/* Stepper */}
+            <div className="flex-shrink-0">
+              <Stepper step={step} color={color} />
             </div>
 
-            {/* Footer CTA */}
+            {/* Divider */}
+            <div className="flex-shrink-0" style={{ borderTop: "1px solid #F1F5F9" }} />
+
+            {/* Scrollable content */}
+            <div className="flex-1 overflow-y-auto overscroll-contain">
+              <AnimatePresence mode="wait" custom={direction}>
+                <motion.div
+                  key={step}
+                  custom={direction}
+                  variants={slideVariants}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={{ duration: 0.2, ease: "easeInOut" }}
+                >
+
+                  {/* ── STEP: CART ── */}
+                  {step === "cart" && (
+                    <div className="px-4 py-4">
+                      {items.length === 0 ? (
+                        <div className="py-16 flex flex-col items-center text-center">
+                          <div
+                            className="w-20 h-20 rounded-3xl flex items-center justify-center mb-4"
+                            style={{ background: "#F1F5F9" }}
+                          >
+                            <ShoppingBag size={36} style={{ color: "#CBD5E1" }} />
+                          </div>
+                          <p className="font-bold text-base" style={{ color: "#0F172A" }}>Tu carrito está vacío</p>
+                          <p className="text-sm mt-1" style={{ color: "#94A3B8" }}>
+                            Agrega productos para continuar
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {items.map((item) => (
+                            <div
+                              key={item.id}
+                              className="flex items-center gap-3 p-3 rounded-2xl"
+                              style={{ background: "#F8FAFC", border: "1px solid #F1F5F9" }}
+                            >
+                              {/* Image */}
+                              {item.image_url ? (
+                                <img
+                                  src={item.image_url}
+                                  alt={item.name}
+                                  className="w-16 h-16 rounded-xl object-cover flex-shrink-0"
+                                />
+                              ) : (
+                                <div
+                                  className="w-16 h-16 rounded-xl flex items-center justify-center flex-shrink-0 text-2xl"
+                                  style={{ background: "#E2E8F0" }}
+                                >
+                                  🛍️
+                                </div>
+                              )}
+
+                              {/* Info */}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-bold leading-tight line-clamp-2" style={{ color: "#0F172A" }}>
+                                  {item.name}
+                                </p>
+                                <p className="text-xs mt-0.5" style={{ color: "#94A3B8" }}>
+                                  {formatPrice(item.price_cents)} c/u
+                                </p>
+                                <p className="text-sm font-extrabold mt-1" style={{ color }}>
+                                  {formatPrice(item.price_cents * item.quantity)}
+                                </p>
+                              </div>
+
+                              {/* Qty controls */}
+                              <div
+                                className="flex items-center gap-2 rounded-xl p-1 flex-shrink-0"
+                                style={{ background: "#fff", border: "1.5px solid #E2E8F0" }}
+                              >
+                                <button
+                                  onClick={() => item.quantity === 1 ? removeItem(item.id) : updateQty(item.id, item.quantity - 1)}
+                                  className="w-7 h-7 rounded-lg flex items-center justify-center transition-all active:scale-90"
+                                  style={{ background: item.quantity === 1 ? "#FEE2E2" : "#F1F5F9" }}
+                                >
+                                  <Minus size={12} style={{ color: item.quantity === 1 ? "#EF4444" : "#475569" }} />
+                                </button>
+                                <span className="text-sm font-extrabold w-5 text-center" style={{ color: "#0F172A" }}>
+                                  {item.quantity}
+                                </span>
+                                <button
+                                  onClick={() => updateQty(item.id, item.quantity + 1)}
+                                  className="w-7 h-7 rounded-lg flex items-center justify-center transition-all active:scale-90 text-white"
+                                  style={{ background: color }}
+                                >
+                                  <Plus size={12} />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+
+                          {/* Order summary */}
+                          <div
+                            className="rounded-2xl p-4 mt-3 space-y-2"
+                            style={{ background: "#F8FAFC", border: "1px solid #F1F5F9" }}
+                          >
+                            <div className="flex justify-between text-sm" style={{ color: "#64748B" }}>
+                              <span>Subtotal</span>
+                              <span className="font-semibold">{formatPrice(subtotal)}</span>
+                            </div>
+                            {deliveryFee > 0 && (
+                              <div className="flex justify-between text-sm" style={{ color: "#64748B" }}>
+                                <span>Delivery</span>
+                                <span className="font-semibold">
+                                  {effectiveDel === 0 ? (
+                                    <span style={{ color: "#059669" }}>Gratis 🎉</span>
+                                  ) : formatPrice(effectiveDel)}
+                                </span>
+                              </div>
+                            )}
+                            {freeAbove && effectiveDel > 0 && (
+                              <p className="text-xs" style={{ color: "#94A3B8" }}>
+                                Delivery gratis desde {formatPrice(freeAbove)}
+                              </p>
+                            )}
+                            <div
+                              className="flex justify-between font-extrabold text-base pt-2"
+                              style={{ borderTop: "1px solid #E2E8F0", color: "#0F172A" }}
+                            >
+                              <span>Total</span>
+                              <span style={{ color }}>{formatPrice(total)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── STEP: INFO ── */}
+                  {step === "info" && (
+                    <div className="px-4 py-4 space-y-4">
+                      <Field label="Nombre completo *" icon={<User size={11} />}>
+                        <input
+                          className="input"
+                          placeholder="¿A nombre de quién?"
+                          autoComplete="name"
+                          value={form.buyer_name}
+                          onChange={(e) => setForm({ ...form, buyer_name: e.target.value })}
+                        />
+                      </Field>
+
+                      <Field label="WhatsApp / Teléfono *" icon={<Phone size={11} />}>
+                        <PhoneInput
+                          value={form.buyer_phone}
+                          onChange={(v) => setForm({ ...form, buyer_phone: v })}
+                        />
+                      </Field>
+
+                      <Field label={user ? "Email (tu cuenta)" : "Email (opcional)"} icon={<Mail size={11} />}>
+                        <input
+                          className="input"
+                          type="email"
+                          inputMode="email"
+                          autoComplete="email"
+                          placeholder="tu@email.com"
+                          value={form.buyer_email}
+                          readOnly={!!user?.email}
+                          onChange={(e) => setForm({ ...form, buyer_email: e.target.value })}
+                          style={user?.email ? { background: "#F8FAFC", color: "#94A3B8" } : {}}
+                        />
+                        {user?.email && (
+                          <p className="text-[11px] mt-1" style={{ color: "#CBD5E1" }}>
+                            Tu pedido se vinculará a tu cuenta automáticamente
+                          </p>
+                        )}
+                      </Field>
+
+                      <Field label="Dirección de entrega" icon={<MapPin size={11} />}>
+                        <input
+                          className="input"
+                          placeholder="Calle, número, distrito…"
+                          autoComplete="street-address"
+                          value={form.buyer_address}
+                          onChange={(e) => setForm({ ...form, buyer_address: e.target.value })}
+                        />
+                      </Field>
+
+                      <Field label="Nota para el vendedor" icon={<FileText size={11} />}>
+                        <textarea
+                          className="input resize-none"
+                          rows={2}
+                          placeholder="Indicaciones especiales, referencias…"
+                          value={form.notes}
+                          onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                        />
+                      </Field>
+                    </div>
+                  )}
+
+                  {/* ── STEP: PAYMENT ── */}
+                  {step === "payment" && (
+                    <div className="px-4 py-4 space-y-3">
+                      {/* Total destacado */}
+                      <div
+                        className="rounded-2xl p-4 flex items-center justify-between"
+                        style={{ background: `${color}0d`, border: `1.5px solid ${color}22` }}
+                      >
+                        <div>
+                          <p className="text-xs font-semibold" style={{ color: "#64748B" }}>Total a pagar</p>
+                          <p className="font-extrabold text-2xl mt-0.5" style={{ color, fontFamily: "var(--font-display)" }}>
+                            {formatPrice(total)}
+                          </p>
+                        </div>
+                        {deliveryFee > 0 && effectiveDel === 0 && (
+                          <span
+                            className="text-xs font-bold px-3 py-1.5 rounded-full"
+                            style={{ background: "#D1FAE5", color: "#059669" }}
+                          >
+                            Delivery gratis 🎉
+                          </span>
+                        )}
+                      </div>
+
+                      {store.settings?.require_prepayment && (
+                        <div
+                          className="rounded-xl px-4 py-3 text-xs font-medium"
+                          style={{ background: "#FFF7ED", border: "1px solid #FED7AA", color: "#92400E" }}
+                        >
+                          ⚠️ Esta tienda requiere pago anticipado antes de preparar tu pedido.
+                        </div>
+                      )}
+
+                      <p className="text-xs font-bold uppercase tracking-wider px-0.5" style={{ color: "#94A3B8" }}>
+                        Elige cómo pagar
+                      </p>
+
+                      {paymentOptions.length === 0 ? (
+                        <div
+                          className="rounded-2xl p-4 text-center text-sm"
+                          style={{ background: "#F8FAFC", color: "#94A3B8" }}
+                        >
+                          La tienda no tiene métodos de pago configurados
+                        </div>
+                      ) : (
+                        paymentOptions.map((opt) => {
+                          const selected = form.payment_method === opt.value;
+                          return (
+                            <button
+                              key={opt.value}
+                              onClick={() => setForm({ ...form, payment_method: opt.value })}
+                              className="w-full flex items-center gap-4 rounded-2xl px-4 py-3.5 text-left transition-all active:scale-[.98]"
+                              style={{
+                                border:     `2px solid ${selected ? color : "#E2E8F0"}`,
+                                background: selected ? `${color}09` : "#fff",
+                                boxShadow:  selected ? `0 0 0 3px ${color}18` : "none",
+                              }}
+                            >
+                              <span className="text-2xl flex-shrink-0">{opt.icon}</span>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-bold text-sm" style={{ color: "#0F172A" }}>{opt.label}</p>
+                                {opt.sub && (
+                                  <p className="text-xs mt-0.5 truncate" style={{ color: "#94A3B8" }}>{opt.sub}</p>
+                                )}
+                              </div>
+                              <div
+                                className="w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all"
+                                style={{
+                                  borderColor: selected ? color : "#CBD5E1",
+                                  background:  selected ? color : "transparent",
+                                }}
+                              >
+                                {selected && <CheckCircle2 size={12} color="white" />}
+                              </div>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── STEP: SUCCESS ── */}
+                  {step === "success" && orderResult && (
+                    <div className="px-5 py-8 flex flex-col items-center text-center">
+                      {/* Animated checkmark */}
+                      <motion.div
+                        initial={{ scale: 0, rotate: -10 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        transition={{ type: "spring", damping: 12, stiffness: 200, delay: 0.1 }}
+                        className="w-24 h-24 rounded-[32px] flex items-center justify-center mb-5"
+                        style={{ background: `${color}15` }}
+                      >
+                        <CheckCircle2 size={52} style={{ color }} />
+                      </motion.div>
+
+                      <motion.div
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.25 }}
+                      >
+                        <h3 className="font-extrabold text-2xl" style={{ color: "#0F172A", fontFamily: "var(--font-display)" }}>
+                          ¡Pedido enviado!
+                        </h3>
+                        <p className="text-sm mt-1.5" style={{ color: "#64748B" }}>
+                          El vendedor está revisando tu pedido
+                        </p>
+
+                        {/* Order number badge */}
+                        <div
+                          className="inline-flex items-center gap-2 rounded-2xl px-5 py-3 mt-4"
+                          style={{ background: "#F8FAFC", border: "1.5px solid #E2E8F0" }}
+                        >
+                          <span className="text-xs font-semibold" style={{ color: "#94A3B8" }}>Pedido</span>
+                          <span className="font-extrabold text-lg" style={{ color: "#0F172A" }}>
+                            #{orderResult.order_number}
+                          </span>
+                        </div>
+
+                        <p className="text-xs mt-3 leading-relaxed" style={{ color: "#94A3B8" }}>
+                          Te contactarán al {form.buyer_phone} para coordinar la entrega
+                        </p>
+                      </motion.div>
+
+                      <motion.div
+                        initial={{ opacity: 0, y: 16 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.4 }}
+                        className="w-full mt-8 space-y-3"
+                      >
+                        {orderResult.whatsapp_link && (
+                          <a
+                            href={orderResult.whatsapp_link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center gap-2 w-full rounded-2xl py-4 font-bold text-sm text-white transition-all active:scale-[.98]"
+                            style={{ background: "#25D366", boxShadow: "0 4px 16px rgba(37,211,102,.35)" }}
+                          >
+                            <MessageCircle size={18} />
+                            Ver en WhatsApp
+                          </a>
+                        )}
+                        <a
+                          href="/mis-pedidos"
+                          className="flex items-center justify-center gap-2 w-full rounded-2xl py-3.5 font-bold text-sm transition-all active:scale-[.98]"
+                          style={{ background: `${color}12`, color, border: `1.5px solid ${color}25` }}
+                        >
+                          Ver mis pedidos
+                          <ChevronRight size={15} />
+                        </a>
+                        <button
+                          onClick={handleClose}
+                          className="w-full rounded-2xl py-3.5 font-semibold text-sm transition-all"
+                          style={{ background: "#F1F5F9", color: "#64748B" }}
+                        >
+                          Seguir comprando
+                        </button>
+                      </motion.div>
+                    </div>
+                  )}
+
+                </motion.div>
+              </AnimatePresence>
+            </div>
+
+            {/* ── Footer CTA ── */}
             {step !== "success" && (
-              <div className="px-5 py-4 pb-safe border-t border-gray-100">
+              <div
+                className="flex-shrink-0 px-4 pt-3 pb-safe"
+                style={{
+                  borderTop:      "1px solid #F1F5F9",
+                  paddingBottom:  "max(16px, env(safe-area-inset-bottom))",
+                }}
+              >
                 {step === "cart" && (
                   <>
-                    {minOrderCents > 0 && total < minOrderCents && items.length > 0 && (
-                      <p className="text-xs text-amber-600 text-center mb-2 font-medium">
-                        Agrega{" "}
-                        <span className="font-bold">
-                          {formatPrice(minOrderCents - total)}
-                        </span>{" "}
-                        más para llegar al mínimo de pedido
+                    {belowMin && items.length > 0 && (
+                      <p className="text-xs text-center mb-2 font-medium" style={{ color: "#D97706" }}>
+                        Agrega <strong>{formatPrice(minOrder - total)}</strong> más para el pedido mínimo
                       </p>
                     )}
                     <button
                       onClick={() => {
-                        if (user?.email && !form.buyer_email) {
-                          setForm((f) => ({ ...f, buyer_email: user.email }));
-                        }
-                        setStep("info");
+                        if (user?.email && !form.buyer_email) setForm((f) => ({ ...f, buyer_email: user.email }));
+                        go("info");
                       }}
-                      disabled={items.length === 0 || (minOrderCents > 0 && total < minOrderCents)}
-                      className="btn-primary w-full"
-                      style={{ background: store.primary_color }}
+                      disabled={items.length === 0 || belowMin}
+                      className="w-full flex items-center justify-between rounded-2xl px-5 py-4 font-bold text-white text-sm transition-all active:scale-[.98] disabled:opacity-40"
+                      style={{ background: color, boxShadow: items.length > 0 ? `0 4px 16px ${color}40` : "none" }}
                     >
-                      Continuar · {formatPrice(total)}
+                      <span>Continuar</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-extrabold">{formatPrice(total)}</span>
+                        <ChevronRight size={18} />
+                      </div>
                     </button>
                   </>
                 )}
+
                 {step === "info" && (
-                  <div className="flex gap-3">
-                    <button onClick={() => setStep("cart")} className="btn-secondary !w-auto flex-shrink-0 px-4">
-                      Atrás
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (!form.buyer_name.trim() || !form.buyer_phone.trim()) {
-                          toast.error("Nombre y teléfono son requeridos");
-                          return;
-                        }
-                        // Auto-seleccionar si solo hay un método
-                        if (paymentOptions.length === 1 && !form.payment_method) {
-                          setForm((f) => ({ ...f, payment_method: paymentOptions[0].value }));
-                        }
-                        setStep("payment");
-                      }}
-                      className="btn-primary flex-1"
-                      style={{ background: store.primary_color }}
-                    >
-                      Elegir pago →
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => {
+                      if (!form.buyer_name.trim() || !form.buyer_phone.trim()) {
+                        toast.error("Nombre y teléfono son requeridos");
+                        return;
+                      }
+                      if (paymentOptions.length === 1 && !form.payment_method) {
+                        setForm((f) => ({ ...f, payment_method: paymentOptions[0].value }));
+                      }
+                      go("payment");
+                    }}
+                    className="w-full flex items-center justify-between rounded-2xl px-5 py-4 font-bold text-white text-sm transition-all active:scale-[.98]"
+                    style={{ background: color, boxShadow: `0 4px 16px ${color}40` }}
+                  >
+                    <span>Elegir método de pago</span>
+                    <ChevronRight size={18} />
+                  </button>
                 )}
+
                 {step === "payment" && (
-                  <div className="flex gap-3">
-                    <button onClick={() => setStep("info")} className="btn-secondary !w-auto flex-shrink-0 px-4">
-                      Atrás
-                    </button>
-                    <button
-                      onClick={placeOrder}
-                      disabled={loading || !form.payment_method}
-                      className="btn-primary flex-1"
-                      style={{ background: store.primary_color }}
-                    >
-                      {loading ? "Enviando..." : `Realizar pedido · ${formatPrice(total)}`}
-                    </button>
-                  </div>
+                  <button
+                    onClick={placeOrder}
+                    disabled={loading || !form.payment_method}
+                    className="w-full flex items-center justify-between rounded-2xl px-5 py-4 font-bold text-white text-sm transition-all active:scale-[.98] disabled:opacity-50"
+                    style={{ background: color, boxShadow: form.payment_method ? `0 4px 16px ${color}40` : "none" }}
+                  >
+                    <span>{loading ? "Procesando…" : "Confirmar pedido"}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-extrabold">{formatPrice(total)}</span>
+                      <ChevronRight size={18} />
+                    </div>
+                  </button>
                 )}
               </div>
             )}

@@ -21,11 +21,12 @@ interface Props {
   storeColor: string;
   storeSlug: string;
   featured?: boolean;
+  compact?: boolean;   // list-view mode
   onTap?: () => void;
 }
 
 export default function ProductCard({
-  product, storeColor, storeSlug, featured, onTap,
+  product, storeColor, storeSlug, featured, compact, onTap,
 }: Props) {
   const [added, setAdded] = useState(false);
   const addItem = useCartStore((s) => s.addItem);
@@ -44,13 +45,8 @@ export default function ProductCard({
     e.stopPropagation();
     if (outOfStock) return;
     addItem(
-      {
-        id: product.id,
-        name: product.name,
-        price_cents: product.price_cents,
-        image_url: primaryImage || "",
-        quantity: 1,
-      },
+      { id: product.id, name: product.name, price_cents: product.price_cents,
+        image_url: primaryImage || "", quantity: 1 },
       storeSlug,
     );
     setAdded(true);
@@ -58,15 +54,18 @@ export default function ProductCard({
     setTimeout(() => setAdded(false), 2000);
   }
 
+  /* ── Featured card (horizontal carousel) ── */
   if (featured) {
     return (
       <div
-        className="flex-shrink-0 w-52 snap-start"
+        className="flex-shrink-0 w-48 snap-start cursor-pointer"
         onClick={onTap}
-        style={{ cursor: onTap ? "pointer" : "default" }}
       >
-        <div className="card overflow-hidden">
-          <div className="relative h-36 bg-gray-50">
+        <div
+          className="rounded-2xl overflow-hidden"
+          style={{ background: "#fff", boxShadow: "0 2px 12px rgba(15,23,42,.08), 0 0 0 1px rgba(15,23,42,.05)" }}
+        >
+          <div className="relative h-40 bg-gray-50">
             {primaryImage ? (
               <Image src={primaryImage} alt={product.name} fill className="object-cover" />
             ) : (
@@ -74,8 +73,8 @@ export default function ProductCard({
             )}
             {discount && (
               <span
-                className="absolute top-2 left-2 badge text-white text-xs"
-                style={{ background: storeColor }}
+                className="absolute top-2 left-2 text-[10px] font-extrabold text-white px-2 py-0.5 rounded-full"
+                style={{ background: "#EF4444" }}
               >
                 -{discount}%
               </span>
@@ -90,22 +89,38 @@ export default function ProductCard({
                 {product.images.length}
               </span>
             )}
+            {outOfStock && (
+              <div className="absolute inset-0 bg-white/75 flex items-center justify-center">
+                <span className="text-xs font-semibold text-gray-500 bg-white rounded-full px-3 py-1 shadow-sm">
+                  Agotado
+                </span>
+              </div>
+            )}
           </div>
           <div className="p-3">
-            <p className="font-semibold text-gray-900 text-sm truncate">{product.name}</p>
-            <div className="flex items-center justify-between mt-1.5">
-              <span className="font-bold text-sm" style={{ color: storeColor }}>
-                {formatPrice(product.price_cents)}
-              </span>
-              <button
+            <p className="font-semibold text-sm leading-tight line-clamp-2" style={{ color: "#0F172A" }}>
+              {product.name}
+            </p>
+            <div className="flex items-center justify-between mt-2">
+              <div>
+                <span className="font-extrabold text-sm" style={{ color: storeColor }}>
+                  {formatPrice(product.price_cents)}
+                </span>
+                {product.compare_price && (
+                  <span className="block text-[11px] line-through" style={{ color: "#CBD5E1" }}>
+                    {formatPrice(product.compare_price)}
+                  </span>
+                )}
+              </div>
+              <motion.button
+                whileTap={{ scale: 0.85 }}
                 onClick={handleAdd}
                 disabled={outOfStock}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-white
-                           transition-all active:scale-90"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-white"
                 style={{ background: outOfStock ? "#d1d5db" : storeColor }}
               >
                 {added ? <Check size={14} /> : <Plus size={14} />}
-              </button>
+              </motion.button>
             </div>
           </div>
         </div>
@@ -113,11 +128,95 @@ export default function ProductCard({
     );
   }
 
+  /* ── Compact / list-view card ── */
+  if (compact) {
+    return (
+      <div
+        className="flex items-center gap-3 p-3 rounded-2xl transition-all active:scale-[.99] cursor-pointer"
+        style={{
+          background: "#fff",
+          border: "1px solid #F1F5F9",
+          boxShadow: "0 1px 4px rgba(15,23,42,.05)",
+        }}
+        onClick={onTap}
+      >
+        {/* Image */}
+        <div className="relative w-[76px] h-[76px] rounded-xl overflow-hidden flex-shrink-0 bg-gray-50">
+          {primaryImage ? (
+            <Image src={primaryImage} alt={product.name} fill className="object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-2xl">🛍️</div>
+          )}
+          {outOfStock && (
+            <div className="absolute inset-0 bg-white/75 flex items-center justify-center">
+              <span className="text-[9px] font-bold text-gray-400">Agotado</span>
+            </div>
+          )}
+          {multipleImages && primaryImage && (
+            <span
+              className="absolute bottom-1 right-1 flex items-center gap-0.5 rounded-full
+                         px-1 py-0.5 text-white text-[9px] font-semibold"
+              style={{ background: "rgba(0,0,0,.45)" }}
+            >
+              <Images size={8} />
+              {product.images.length}
+            </span>
+          )}
+        </div>
+
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold leading-snug line-clamp-2" style={{ color: "#0F172A" }}>
+            {product.name}
+          </p>
+          {product.description && (
+            <p className="text-xs mt-0.5 line-clamp-1" style={{ color: "#94A3B8" }}>
+              {product.description}
+            </p>
+          )}
+          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+            <span className="font-extrabold text-sm" style={{ color: storeColor }}>
+              {formatPrice(product.price_cents)}
+            </span>
+            {discount && (
+              <span
+                className="text-[10px] font-bold text-white px-1.5 py-0.5 rounded-full"
+                style={{ background: "#EF4444" }}
+              >
+                -{discount}%
+              </span>
+            )}
+            {product.compare_price && (
+              <span className="text-xs line-through" style={{ color: "#CBD5E1" }}>
+                {formatPrice(product.compare_price)}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Add to cart */}
+        <motion.button
+          whileTap={{ scale: 0.85 }}
+          onClick={handleAdd}
+          disabled={outOfStock}
+          className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-white transition-colors"
+          style={{ background: outOfStock ? "#d1d5db" : storeColor }}
+        >
+          {added ? <Check size={16} /> : <Plus size={16} />}
+        </motion.button>
+      </div>
+    );
+  }
+
+  /* ── Grid card (default, 2-col) ── */
   return (
     <div
-      className="card overflow-hidden flex flex-col"
+      className="rounded-2xl overflow-hidden flex flex-col cursor-pointer transition-all active:scale-[.98]"
+      style={{
+        background: "#fff",
+        boxShadow: "0 2px 12px rgba(15,23,42,.07), 0 0 0 1px rgba(15,23,42,.04)",
+      }}
       onClick={onTap}
-      style={{ cursor: onTap ? "pointer" : "default" }}
     >
       <div className="relative bg-gray-50 aspect-square">
         {primaryImage ? (
@@ -127,8 +226,8 @@ export default function ProductCard({
         )}
         {discount && (
           <span
-            className="absolute top-2 left-2 badge text-white font-bold"
-            style={{ background: "#ef4444" }}
+            className="absolute top-2 left-2 text-[10px] font-extrabold text-white px-2 py-0.5 rounded-full"
+            style={{ background: "#EF4444" }}
           >
             -{discount}%
           </span>
@@ -152,16 +251,16 @@ export default function ProductCard({
         )}
       </div>
       <div className="p-3 flex flex-col flex-1">
-        <p className="text-sm font-semibold text-gray-900 leading-tight line-clamp-2 flex-1">
+        <p className="text-sm font-semibold leading-tight line-clamp-2 flex-1" style={{ color: "#0F172A" }}>
           {product.name}
         </p>
         <div className="mt-2 flex items-center justify-between gap-1">
           <div>
-            <span className="font-bold text-base" style={{ color: storeColor }}>
+            <span className="font-extrabold text-base" style={{ color: storeColor }}>
               {formatPrice(product.price_cents)}
             </span>
             {product.compare_price && (
-              <span className="block text-xs text-gray-400 line-through">
+              <span className="block text-xs line-through" style={{ color: "#CBD5E1" }}>
                 {formatPrice(product.compare_price)}
               </span>
             )}
@@ -170,8 +269,7 @@ export default function ProductCard({
             whileTap={{ scale: 0.85 }}
             onClick={handleAdd}
             disabled={outOfStock}
-            className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center
-                       text-white shadow-sm transition-colors"
+            className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-white"
             style={{ background: outOfStock ? "#d1d5db" : storeColor }}
           >
             {added ? <Check size={16} /> : <Plus size={16} />}

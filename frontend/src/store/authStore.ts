@@ -6,6 +6,7 @@ interface AuthUser {
   id: string;
   email: string;
   full_name: string;
+  phone?: string | null;
   role: string;
   avatar_url?: string | null;
   is_verified?: boolean;

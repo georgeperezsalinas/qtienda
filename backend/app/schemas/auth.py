@@ -156,6 +156,18 @@ class PublicOrderCreate(BaseModel):
         return cleaned
 
 
+class UpdateProfileRequest(BaseModel):
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+
+    @field_validator("full_name")
+    @classmethod
+    def name_not_empty(cls, v):
+        if v is not None and not v.strip():
+            raise ValueError("El nombre no puede estar vacío")
+        return v.strip() if v else v
+
+
 class OrderResponse(BaseModel):
     order_id: UUID
     order_number: str
