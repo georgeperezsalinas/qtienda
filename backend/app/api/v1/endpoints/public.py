@@ -2,14 +2,15 @@
 Public endpoints — accessed by buyers via /tienda/{slug}
 No authentication required.
 """
+from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Request
 from urllib.parse import quote
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import func, select, and_
 from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
-from app.models.models import Store, Product, Order, OrderItem, Payment, StoreSettings
+from app.models.models import Plan, Store, Product, Order, OrderItem, Payment, StoreSettings, Subscription
 from app.schemas.orders import PublicOrderCreate, OrderResponse
 from app.core.limiter import limiter
 
@@ -185,6 +186,9 @@ async def create_order(
     store = store_q.scalar_one_or_none()
     if not store:
         raise HTTPException(status_code=404, detail="Tienda no encontrada")
+
+    # Plan limit: max orders per month
+    await _check_order_limit(store.id, db)
 
     # Load & validate products
     product_ids = [item.product_id for item in payload.items]
@@ -364,6 +368,39 @@ async def create_order(
             "plin_phone": settings.plin_phone if settings else None,
         },
     }
+
+
+async def _check_order_limit(store_id, db: AsyncSession) -> None:
+    sub = (await db.execute(
+        select(Subscription)
+        .options(selectinload(Subscription.plan))
+        .where(
+            Subscription.store_id == store_id,
+            Subscription.status.in_(["active", "trial"]),
+        )
+        .order_by(Subscription.created_at.desc())
+        .limit(1)
+    )).scalar_one_or_none()
+
+    plan = sub.plan if sub else None
+    if plan is None:
+        plan = (await db.execute(
+            select(Plan).join(Store, Store.plan_id == Plan.id).where(Store.id == store_id)
+        )).scalar_one_or_none()
+
+    if plan and plan.max_orders_mo is not None:
+        first_day = date.today().replace(day=1)
+        count = (await db.execute(
+            select(func.count()).select_from(Order).where(
+                Order.store_id == store_id,
+                Order.created_at >= first_day,
+            )
+        )).scalar()
+        if count >= plan.max_orders_mo:
+            raise HTTPException(
+                status_code=503,
+                detail="Esta tienda alcanzó su límite de pedidos del mes. Vuelve el próximo mes.",
+            )
 
 
 @router.get("/store/{slug}/orders/{order_number}/track")

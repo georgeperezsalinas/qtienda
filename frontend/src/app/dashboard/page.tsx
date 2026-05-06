@@ -6,10 +6,12 @@ import {
   ShoppingBag, Clock, CheckCircle2,
   Store, ExternalLink, Plus, Bell,
   Eye, Share2, ChevronRight, AlertCircle, Package,
+  Mail, RefreshCw, CreditCard, Rocket,
 } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import Logo from "@/components/ui/Logo";
+import toast from "react-hot-toast";
 
 /* ── Types ── */
 interface Stats {
@@ -155,6 +157,9 @@ export default function DashboardPage() {
   const [recent,       setRecent]       = useState<RecentOrder[]>([]);
   const [loadingStore, setLoadingStore] = useState(true);
   const [loadingStats, setLoadingStats] = useState(true);
+  const [productCount, setProductCount] = useState<number | null>(null);
+  const [resending,    setResending]    = useState(false);
+  const [resent,       setResent]       = useState(false);
 
   const firstName = user?.full_name?.split(" ")[0] ?? "vendedor";
   const initials  = (user?.full_name ?? "U")
@@ -176,14 +181,29 @@ export default function DashboardPage() {
     Promise.all([
       apiClient.get("/orders/stats/summary", { params: { from_date: today, to_date: today } }),
       apiClient.get("/orders/", { params: { limit: 4, page: 1 } }),
+      apiClient.get("/products/", { params: { limit: 1, page: 1 } }),
     ])
-      .then(([statsRes, ordersRes]) => {
+      .then(([statsRes, ordersRes, prodsRes]) => {
         setStats(statsRes.data.this_month);
         setRecent(ordersRes.data.items ?? []);
+        setProductCount(prodsRes.data.total ?? 0);
       })
       .catch(() => {})
       .finally(() => setLoadingStats(false));
   }, [store]);
+
+  async function resendVerification() {
+    setResending(true);
+    try {
+      await apiClient.post("/auth/resend-verification");
+      setResent(true);
+      toast.success("Correo reenviado. Revisa tu bandeja de entrada.");
+    } catch {
+      toast.error("No se pudo reenviar. Intenta más tarde.");
+    } finally {
+      setResending(false);
+    }
+  }
 
   /* ── Derived ── */
   const pending    = stats?.pending    ?? 0;
@@ -211,6 +231,7 @@ export default function DashboardPage() {
 
   /* ── No-store empty state ── */
   if (!store) {
+    const isVerified = user?.is_verified ?? false;
     return (
       <div className="p-5 max-w-lg mx-auto animate-fade-up">
         <div className="mb-6">
@@ -221,28 +242,76 @@ export default function DashboardPage() {
             Hola, {firstName}
           </h1>
         </div>
-        <div
-          className="rounded-2xl p-8 text-center space-y-5"
-          style={{ background: "var(--brand-50)", border: "2px dashed var(--brand-200)" }}
-        >
+
+        {!isVerified ? (
+          /* ── Email not verified ── */
           <div
-            className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto"
-            style={{ background: "var(--brand-100)" }}
+            className="rounded-2xl p-8 text-center space-y-5"
+            style={{ background: "#EFF6FF", border: "2px solid #BFDBFE" }}
           >
-            <Store size={30} style={{ color: "var(--brand-600)" }} />
+            <div
+              className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto"
+              style={{ background: "#DBEAFE" }}
+            >
+              <Mail size={30} style={{ color: "#2563EB" }} />
+            </div>
+            <div>
+              <h2 className="font-display font-bold text-lg" style={{ color: "var(--ink)" }}>
+                Verifica tu correo
+              </h2>
+              <p className="text-sm mt-1.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>
+                Te enviamos un enlace a{" "}
+                <strong style={{ color: "var(--ink)" }}>{user?.email}</strong>.
+                <br />
+                Haz clic en ese enlace para activar tu cuenta y crear tu tienda.
+              </p>
+            </div>
+            <div className="space-y-3">
+              <button
+                onClick={resendVerification}
+                disabled={resending || resent}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all disabled:opacity-60"
+                style={{ background: "#2563EB", color: "#fff" }}
+              >
+                {resending ? (
+                  <RefreshCw size={15} className="animate-spin" />
+                ) : resent ? (
+                  <CheckCircle2 size={15} />
+                ) : (
+                  <Mail size={15} />
+                )}
+                {resent ? "Correo enviado" : "Reenviar correo de verificación"}
+              </button>
+              <p className="text-xs" style={{ color: "var(--ink-4)" }}>
+                Revisa tu bandeja de entrada y la carpeta de spam.
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="font-display font-bold text-lg" style={{ color: "var(--ink)" }}>
-              Crea tu tienda
-            </h2>
-            <p className="text-sm mt-1.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>
-              Configura tu tienda online y empieza a recibir pedidos en minutos.
-            </p>
+        ) : (
+          /* ── Verified, no store yet ── */
+          <div
+            className="rounded-2xl p-8 text-center space-y-5"
+            style={{ background: "var(--brand-50)", border: "2px dashed var(--brand-200)" }}
+          >
+            <div
+              className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto"
+              style={{ background: "var(--brand-100)" }}
+            >
+              <Store size={30} style={{ color: "var(--brand-600)" }} />
+            </div>
+            <div>
+              <h2 className="font-display font-bold text-lg" style={{ color: "var(--ink)" }}>
+                Crea tu tienda
+              </h2>
+              <p className="text-sm mt-1.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>
+                Configura tu tienda online y empieza a recibir pedidos en minutos.
+              </p>
+            </div>
+            <Link href="/dashboard/configuracion" className="btn-primary">
+              <Plus size={16} /> Crear tienda ahora
+            </Link>
           </div>
-          <Link href="/dashboard/configuracion" className="btn-primary">
-            <Plus size={16} /> Crear tienda ahora
-          </Link>
-        </div>
+        )}
       </div>
     );
   }
@@ -373,6 +442,92 @@ export default function DashboardPage() {
             </a>
           </div>
         </div>
+
+        {/* ── Onboarding checklist ── */}
+        {!loadingStats && productCount !== null && productCount === 0 && (
+          <div
+            className="rounded-2xl p-4 space-y-3 animate-fade-up"
+            style={{ background: "var(--surface-0)", border: "1.5px solid #E2E8F0" }}
+          >
+            <div className="flex items-center gap-2">
+              <Rocket size={16} style={{ color: "var(--brand-600)" }} />
+              <p className="text-sm font-bold" style={{ color: "var(--ink)" }}>
+                Primeros pasos
+              </p>
+            </div>
+            {([
+              {
+                done: true,
+                label: "Tienda creada",
+                sub: store.name,
+                icon: <Store size={14} />,
+                color: "#059669", bg: "#D1FAE5",
+              },
+              {
+                done: false,
+                label: "Agrega tu primer producto",
+                sub: "Fotos, precio y stock",
+                href: "/dashboard/productos",
+                icon: <Package size={14} />,
+                color: "#2563EB", bg: "#DBEAFE",
+              },
+              {
+                done: false,
+                label: "Configura métodos de pago",
+                sub: "Yape, Plin, efectivo...",
+                href: "/dashboard/configuracion",
+                icon: <CreditCard size={14} />,
+                color: "#D97706", bg: "#FEF3C7",
+              },
+              {
+                done: false,
+                label: "Comparte tu tienda",
+                sub: `qtienda.shop/tienda/${store.slug}`,
+                icon: <Share2 size={14} />,
+                color: "#7C3AED", bg: "#EDE9FE",
+                onClick: () => navigator.share?.({
+                  title: store.name,
+                  text: `Visita mi tienda: ${store.name}`,
+                  url: `${window.location.origin}/tienda/${store.slug}`,
+                }),
+              },
+            ] as const).map((step, i) => {
+              const inner = (
+                <div key={i} className="flex items-center gap-3">
+                  <div
+                    className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: step.done ? "#D1FAE5" : step.bg }}
+                  >
+                    {step.done
+                      ? <CheckCircle2 size={16} style={{ color: "#059669" }} />
+                      : <span style={{ color: step.color }}>{step.icon}</span>
+                    }
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate"
+                       style={{ color: step.done ? "var(--ink-3)" : "var(--ink)",
+                                textDecoration: step.done ? "line-through" : "none" }}>
+                      {step.label}
+                    </p>
+                    <p className="text-[11px] truncate" style={{ color: "var(--ink-4)" }}>
+                      {step.sub}
+                    </p>
+                  </div>
+                  {!step.done && (
+                    <ChevronRight size={16} style={{ color: "var(--ink-4)", flexShrink: 0 }} />
+                  )}
+                </div>
+              );
+              if ("href" in step && step.href) {
+                return <Link key={i} href={step.href} className="block">{inner}</Link>;
+              }
+              if ("onClick" in step && step.onClick) {
+                return <button key={i} className="w-full text-left" onClick={step.onClick}>{inner}</button>;
+              }
+              return <div key={i}>{inner}</div>;
+            })}
+          </div>
+        )}
 
         {/* ── Pending alert ── */}
         {!loadingStats && pending > 0 && (

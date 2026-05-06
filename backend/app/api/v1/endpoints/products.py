@@ -5,14 +5,13 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, and_, update as sa_update
+from sqlalchemy import func, and_, select, update as sa_update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from sqlalchemy import select
 
 from app.db.session import get_db
 from app.core.security import require_vendor
-from app.models.models import Category, Product, ProductImage, Store
+from app.models.models import Category, Plan, Product, ProductImage, Store, Subscription
 from app.schemas.auth import ProductCreate, ProductUpdate
 
 router = APIRouter()
@@ -119,6 +118,38 @@ async def list_products(
     }
 
 
+async def _check_product_limit(store: Store, db: AsyncSession) -> None:
+    sub = (await db.execute(
+        select(Subscription)
+        .options(selectinload(Subscription.plan))
+        .where(
+            Subscription.store_id == store.id,
+            Subscription.status.in_(["active", "trial"]),
+        )
+        .order_by(Subscription.created_at.desc())
+        .limit(1)
+    )).scalar_one_or_none()
+
+    plan = sub.plan if sub else None
+    if plan is None:
+        plan = (await db.execute(
+            select(Plan).where(Plan.id == store.plan_id)
+        )).scalar_one_or_none()
+
+    if plan and plan.max_products is not None:
+        count = (await db.execute(
+            select(func.count()).select_from(Product).where(
+                Product.store_id == store.id,
+                Product.deleted_at.is_(None),
+            )
+        )).scalar()
+        if count >= plan.max_products:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Tu plan {plan.name} permite máximo {plan.max_products} productos. Actualiza para agregar más.",
+            )
+
+
 @router.post("/", status_code=201)
 async def create_product(
     payload: ProductCreate,
@@ -126,6 +157,7 @@ async def create_product(
     db: AsyncSession = Depends(get_db),
 ):
     store = await _get_store(current_user, db)
+    await _check_product_limit(store, db)
 
     if payload.category_id:
         cat = (

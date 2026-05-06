@@ -142,7 +142,13 @@ async def order_stats(
         # Include the full to_date day
         end = datetime(to_date.year, to_date.month, to_date.day, 23, 59, 59, tzinfo=timezone.utc)
 
-    result = await db.execute(
+    base_filter = [
+        Order.store_id == store.id,
+        Order.created_at >= start,
+        Order.created_at <= end,
+    ]
+
+    row = (await db.execute(
         select(
             func.count().label("total"),
             func.count(case((Order.status == "pending",   1))).label("pending"),
@@ -152,13 +158,20 @@ async def order_stats(
                 case((Order.status != "cancelled", Order.total_cents), else_=0)
             ), 0).label("revenue_cents"),
         )
-        .where(
-            Order.store_id == store.id,
-            Order.created_at >= start,
-            Order.created_at <= end,
+        .where(*base_filter)
+    )).one()
+
+    pm_rows = (await db.execute(
+        select(
+            Order.payment_method,
+            func.count().label("cnt"),
+            func.coalesce(func.sum(
+                case((Order.status != "cancelled", Order.total_cents), else_=0)
+            ), 0).label("rev"),
         )
-    )
-    row = result.one()
+        .where(*base_filter)
+        .group_by(Order.payment_method)
+    )).all()
 
     return {
         "this_month": {
@@ -167,8 +180,61 @@ async def order_stats(
             "delivered":     row.delivered,
             "cancelled":     row.cancelled,
             "revenue_cents": row.revenue_cents,
+            "by_payment": [
+                {"method": r.payment_method, "count": r.cnt, "revenue_cents": r.rev}
+                for r in pm_rows
+            ],
         }
     }
+
+
+@router.get("/stats/daily")
+async def order_stats_daily(
+    from_date: Optional[date] = Query(None),
+    to_date:   Optional[date] = Query(None),
+    current_user = Depends(require_vendor),
+    db: AsyncSession = Depends(get_db),
+):
+    """Day-by-day orders + revenue for chart rendering."""
+    store = await get_vendor_store(current_user, db)
+
+    now = datetime.now(timezone.utc)
+    start = (
+        datetime(from_date.year, from_date.month, from_date.day, tzinfo=timezone.utc)
+        if from_date
+        else datetime(now.year, now.month, 1, tzinfo=timezone.utc)
+    )
+    end = (
+        datetime(to_date.year, to_date.month, to_date.day, 23, 59, 59, tzinfo=timezone.utc)
+        if to_date
+        else now
+    )
+
+    rows = (await db.execute(
+        select(
+            func.date_trunc("day", Order.created_at).label("day"),
+            func.count().label("orders"),
+            func.coalesce(func.sum(
+                case((Order.status != "cancelled", Order.total_cents), else_=0)
+            ), 0).label("revenue_cents"),
+        )
+        .where(
+            Order.store_id == store.id,
+            Order.created_at >= start,
+            Order.created_at <= end,
+        )
+        .group_by("day")
+        .order_by("day")
+    )).all()
+
+    return [
+        {
+            "date": r.day.strftime("%Y-%m-%d"),
+            "orders": r.orders,
+            "revenue_cents": r.revenue_cents,
+        }
+        for r in rows
+    ]
 
 
 @router.get("/")

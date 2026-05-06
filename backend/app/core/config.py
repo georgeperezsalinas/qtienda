@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     VAPID_PUBLIC_KEY: str = ""
     VAPID_CLAIMS_EMAIL: str = "mailto:ventas@qtienda.shop"
 
+    CULQI_SECRET_KEY: str = ""
+    CULQI_PUBLIC_KEY: str = ""
+    TRIAL_DAYS: int = 14
+
     class Config:
         env_file = ".env"
         case_sensitive = True

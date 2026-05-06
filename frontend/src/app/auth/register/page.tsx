@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Logo from "@/components/ui/Logo";
 import PhoneInput from "@/components/ui/PhoneInput";
-import { Eye, EyeOff, ChevronLeft, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Eye, EyeOff, ChevronLeft, ArrowRight, CheckCircle2, RefreshCw } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
@@ -51,6 +51,37 @@ function validate(form: FormData): FieldErrors {
   if (form.phone && !/^\+?[\d\s\-()]{7,15}$/.test(form.phone))
     errors.phone = "Número inválido";
   return errors;
+}
+
+function ResendButton({ email }: { email: string }) {
+  const [state, setState] = useState<"idle" | "loading" | "sent">("idle");
+
+  async function resend() {
+    setState("loading");
+    try {
+      await apiClient.post("/auth/resend-verification");
+      setState("sent");
+      toast.success(`Correo reenviado a ${email}`);
+    } catch (err: any) {
+      const detail = err.response?.data?.detail ?? "Error al reenviar";
+      toast.error(detail);
+      setState("idle");
+    }
+  }
+
+  return (
+    <p className="text-xs text-slate-400 mt-4">
+      ¿No llegó el correo? Revisa spam o{" "}
+      <button
+        onClick={resend}
+        disabled={state !== "idle"}
+        className="text-blue-600 font-semibold underline disabled:opacity-60 inline-flex items-center gap-1"
+      >
+        {state === "loading" && <RefreshCw size={11} className="animate-spin" />}
+        {state === "sent" ? "¡Enviado!" : "reenviar ahora"}
+      </button>
+    </p>
+  );
 }
 
 const STEPS = ["Cuenta", "Acceso", "Listo"];
@@ -154,13 +185,7 @@ export default function RegisterPage() {
           >
             Ir al dashboard
           </button>
-          <p className="text-xs text-slate-400 mt-4">
-            ¿No llegó el correo? Revisa spam o{" "}
-            <button className="text-blue-600 font-semibold underline"
-                    onClick={() => router.push("/dashboard")}>
-              continúa y reenvía desde el dashboard
-            </button>
-          </p>
+          <ResendButton email={form.email} />
         </div>
       </div>
     );

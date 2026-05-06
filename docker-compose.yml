@@ -2,18 +2,6 @@ version: "3.9"
 
 services:
 
-  redis:
-    image: redis:7-alpine
-    container_name: qtienda_redis
-    restart: unless-stopped
-    command: redis-server --requirepass ${REDIS_PASSWORD}
-    ports:
-      - "6380:6379"
-    logging:
-      options:
-        max-size: "10m"
-        max-file: "3"
-
   api:
     build: ./backend
     container_name: qtienda_api
@@ -23,12 +11,12 @@ services:
     environment:
       UPLOADS_DIR: /app/data/uploads
       UPLOADS_BASE_URL: https://qtienda.shop/uploads
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
-      - "8001:8000"
+      - "127.0.0.1:8001:8000"
     volumes:
       - ./data/uploads:/app/data/uploads
-    depends_on:
-      - redis
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -45,11 +33,12 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: https://qtienda.shop/api/v1
-        NEXT_PUBLIC_CDN_URL:
+        NEXT_PUBLIC_CDN_URL: ${CDN_URL:-}
+        NEXT_PUBLIC_CULQI_PUBLIC_KEY: ${CULQI_PUBLIC_KEY:-}
     container_name: qtienda_web
     restart: unless-stopped
     ports:
-      - "3001:3000"
+      - "127.0.0.1:3001:3000"
     depends_on:
       - api
     logging:
@@ -59,5 +48,4 @@ services:
 
 networks:
   default:
-    external: true
-    name: siscont-erp_default
+    name: qtienda_net
