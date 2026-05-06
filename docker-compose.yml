@@ -11,8 +11,6 @@ services:
     environment:
       UPLOADS_DIR: /app/data/uploads
       UPLOADS_BASE_URL: https://qtienda.shop/uploads
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     ports:
       - "127.0.0.1:8001:8000"
     volumes:
@@ -46,6 +44,10 @@ services:
         max-size: "10m"
         max-file: "3"
 
+# Red compartida donde vive siscont_db.
+# Se pre-crea manualmente en deploy.sh para que sea permanente
+# (no se elimina cuando siscont-erp hace docker compose down).
 networks:
   default:
-    name: qtienda_net
+    external: true
+    name: siscont-erp_default
