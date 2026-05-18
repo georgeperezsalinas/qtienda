@@ -180,9 +180,8 @@ async def create_order(
             selectinload(Store.settings),
             selectinload(Store.user),       # ← AGREGAR
         )
-        .where(...)
+        .where(Store.slug == slug, Store.deleted_at.is_(None))
     )
-
 
     store = store_q.scalar_one_or_none()
     if not store:
