@@ -117,7 +117,7 @@
       "name": "Mi tienda",
       "short_name": "Tienda",
       "description": "Ver mi tienda pública",
-      "url": "/tienda/mi-tienda",
+      "url": "/dashboard",
       "icons": [
         {
           "src": "/icon/icon-192.png",

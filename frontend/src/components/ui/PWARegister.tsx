@@ -57,14 +57,18 @@ export default function PWARegister() {
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      // Esperar 30s antes de mostrar el banner (no interrumpir de entrada)
-      setTimeout(() => setShowBanner(true), 30_000);
+      // Esperar 5s; en páginas /tienda/* ya hay banner propio en StorePage
+      setTimeout(() => {
+        if (!window.location.pathname.startsWith("/tienda/")) setShowBanner(true);
+      }, 5_000);
     };
     window.addEventListener("beforeinstallprompt", handler);
 
     // iOS Safari: mostrar hint manual después de 45s
     if (isIOS()) {
-      const timer = setTimeout(() => setShowIOSHint(true), 45_000);
+      const timer = setTimeout(() => {
+        if (!window.location.pathname.startsWith("/tienda/")) setShowIOSHint(true);
+      }, 45_000);
       return () => {
         window.removeEventListener("beforeinstallprompt", handler);
         clearTimeout(timer);

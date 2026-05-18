@@ -308,7 +308,7 @@ export default function StorePage({ store, initialProducts }: Props) {
             >
               <Download size={11} /> Instalar
             </button>
-            <button onClick={() => setInstallDismissed(true)}><X size={14} style={{ color: "#94A3B8" }} /></button>
+            <button onClick={() => { setInstallDismissed(true); localStorage.setItem("pwa-banner-dismissed", "1"); }}><X size={14} style={{ color: "#94A3B8" }} /></button>
           </motion.div>
         )}
       </AnimatePresence>
@@ -523,7 +523,7 @@ export default function StorePage({ store, initialProducts }: Props) {
           <span className="text-[11px] font-medium" style={{ color: "#CBD5E1" }}>Powered by</span>
           <a href="https://qtienda.shop" target="_blank" rel="noopener noreferrer">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo_qtienda.png" alt="qtienda" style={{ height: 18, width: "auto", opacity: 0.5 }} />
+            <img src="/brand/qtienda-wordmark.svg" alt="qtienda" style={{ height: 16, width: "auto", opacity: 0.4 }} />
           </a>
         </footer>
       </div>
