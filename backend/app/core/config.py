@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     CULQI_PUBLIC_KEY: str = ""
     TRIAL_DAYS: int = 14
 
+    UPLOADS_DIR: str = "/tmp/qtienda-uploads"
+    UPLOADS_BASE_URL: str = "http://localhost:8000/uploads"
+
     class Config:
         env_file = ".env"
         case_sensitive = True

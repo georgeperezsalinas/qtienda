@@ -1,4 +1,16 @@
 "use client";
+
+// src/store/authStore.ts — qtienda v2 (fix seguridad)
+//
+// CAMBIOS vs versión anterior:
+//   - Los tokens YA NO se duplican en localStorage manualmente.
+//   - Zustand persist los guarda en localStorage automáticamente con la
+//     clave "qtienda-auth". El interceptor de Axios lee del store, no de
+//     localStorage directamente.
+//   - logout() limpia solo la clave del store, no hace localStorage.clear()
+//     (que borraba datos ajenos al auth).
+//   - Se agrega getAccessToken() para que api.ts lo use sin acoplarse a localStorage.
+
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -20,6 +32,8 @@ interface AuthStore {
   setUser: (user: AuthUser) => void;
   logout: () => void;
   isAuthenticated: () => boolean;
+  getAccessToken: () => string | null;
+  getRefreshToken: () => string | null;
 }
 
 export const useAuthStore = create<AuthStore>()(
@@ -30,12 +44,8 @@ export const useAuthStore = create<AuthStore>()(
       refreshToken: null,
 
       setTokens(access, refresh) {
+        // Una sola fuente de verdad: Zustand persist se encarga del localStorage
         set({ accessToken: access, refreshToken: refresh });
-        // Keep localStorage in sync for the Axios interceptor
-        if (typeof window !== "undefined") {
-          localStorage.setItem("access_token", access);
-          localStorage.setItem("refresh_token", refresh);
-        }
       },
 
       setUser(user) {
@@ -44,13 +54,14 @@ export const useAuthStore = create<AuthStore>()(
 
       logout() {
         set({ user: null, accessToken: null, refreshToken: null });
-        if (typeof window !== "undefined") {
-          localStorage.removeItem("access_token");
-          localStorage.removeItem("refresh_token");
-        }
+        // NO usar localStorage.clear() — borra datos de otras librerías
       },
 
       isAuthenticated: () => !!get().accessToken,
+
+      // Helpers que api.ts usa para leer tokens sin tocar localStorage
+      getAccessToken: () => get().accessToken,
+      getRefreshToken: () => get().refreshToken,
     }),
     {
       name: "qtienda-auth",

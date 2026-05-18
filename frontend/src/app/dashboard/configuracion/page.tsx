@@ -5,6 +5,7 @@ import { ExternalLink, Save, Plus, Trash2, Bike, Eye, EyeOff, UserX, Store, Cred
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
 import { ImageUpload } from "@/components/ui/ImageUpload";
+import { track } from "@vercel/analytics";
 
 interface StoreData {
   id: string;
@@ -33,23 +34,44 @@ interface CategoryForm { name: string; icon: string }
 const COLORS = ["#6366f1", "#ec4899", "#f97316", "#10b981", "#3b82f6", "#8b5cf6", "#ef4444", "#14b8a6"];
 
 const VEHICLE_TYPES = [
-  { value: "moto",      label: "Moto" },
-  { value: "auto",      label: "Auto" },
+  { value: "moto", label: "Moto" },
+  { value: "auto", label: "Auto" },
   { value: "camioneta", label: "Camioneta" },
-  { value: "camion",    label: "Camión" },
+  { value: "camion", label: "Camión" },
 ];
 
 type Tab = "tienda" | "pagos" | "categorias" | "repartidores";
 
 function Toggle({ value, onChange, label }: { value: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
-    <label className="flex items-center justify-between cursor-pointer">
-      <span className="text-sm font-medium text-gray-700">{label}</span>
+    <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
+      <span style={{ fontSize: 13, fontWeight: 500, color: "var(--ink-2)" }}>{label}</span>
       <div
-        className={`w-10 h-6 rounded-full transition-colors relative ${value ? "bg-brand-600" : "bg-gray-200"}`}
         onClick={() => onChange(!value)}
+        style={{
+          width: 40,
+          height: 24,
+          borderRadius: 12,
+          background: value ? "var(--ink)" : "var(--line-2)",
+          position: "relative",
+          transition: "background 0.2s",
+          flexShrink: 0,
+          cursor: "pointer",
+        }}
       >
-        <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${value ? "translate-x-4" : "translate-x-0.5"}`} />
+        <div
+          style={{
+            position: "absolute",
+            top: 2,
+            left: value ? 18 : 2,
+            width: 20,
+            height: 20,
+            background: "var(--surface)",
+            borderRadius: "50%",
+            transition: "left 0.2s",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
+          }}
+        />
       </div>
     </label>
   );
@@ -141,9 +163,15 @@ export default function ConfiguracionPage() {
     if (!newStore.slug || !newStore.name) { toast.error("Nombre y URL requeridos"); return; }
     setCreating(true);
     try {
+
       await apiClient.post("/stores/", newStore);
       toast.success("¡Tienda creada!");
+      track("store_created", {
+        city: newStore.city || "sin_ciudad",
+        has_whatsapp: !!newStore.whatsapp,
+      });
       window.location.reload();
+
     } catch (err: any) {
       toast.error(err.response?.data?.detail || "Error al crear tienda");
     } finally {
@@ -301,7 +329,24 @@ export default function ConfiguracionPage() {
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Ciudad</label>
             <input className="input" placeholder="Lima" value={newStore.city} onChange={(e) => setNewStore({ ...newStore, city: e.target.value })} />
           </div>
-          <button type="submit" disabled={creating} className="btn-primary w-full bg-brand-600">
+          <button
+            type="submit"
+            disabled={saving}
+            style={{
+              width: "100%",
+              background: "var(--ink)",
+              color: "var(--bg)",
+              border: "none",
+              borderRadius: 12,
+              padding: "12px 16px",
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: creating ? "not-allowed" : "pointer",
+              opacity: creating ? 0.6 : 1,
+              transition: "opacity 0.15s",
+              fontFamily: "var(--font-sans)",
+            }}
+          >
             {creating ? "Creando..." : "Crear tienda"}
           </button>
         </form>
@@ -310,10 +355,10 @@ export default function ConfiguracionPage() {
   }
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: "tienda",       label: "Tienda",       icon: <Store size={15} /> },
-    { id: "pagos",        label: "Pagos",         icon: <CreditCard size={15} /> },
-    { id: "categorias",   label: "Categorías",    icon: <Tag size={15} /> },
-    { id: "repartidores", label: "Repartidores",  icon: <Truck size={15} /> },
+    { id: "tienda", label: "Tienda", icon: <Store size={15} /> },
+    { id: "pagos", label: "Pagos", icon: <CreditCard size={15} /> },
+    { id: "categorias", label: "Categorías", icon: <Tag size={15} /> },
+    { id: "repartidores", label: "Repartidores", icon: <Truck size={15} /> },
   ];
 
   return (
@@ -334,16 +379,37 @@ export default function ConfiguracionPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-5">
+      <div
+        style={{
+          display: "flex",
+          gap: 4,
+          background: "var(--surface-2)",
+          borderRadius: 14,
+          padding: 4,
+          marginBottom: 20,
+        }}
+      >
         {tabs.map((t) => (
           <button
             key={t.id}
             onClick={() => setActiveTab(t.id)}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-1 rounded-lg text-xs font-semibold transition-all ${
-              activeTab === t.id
-                ? "bg-white text-brand-700 shadow-sm"
-                : "text-gray-500 hover:text-gray-700"
-            }`}
+            style={{
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              padding: "8px 4px",
+              borderRadius: 10,
+              fontSize: 12,
+              fontWeight: 600,
+              border: "none",
+              cursor: "pointer",
+              transition: "all 0.15s",
+              background: activeTab === t.id ? "var(--surface)" : "transparent",
+              color: activeTab === t.id ? "var(--ink)" : "var(--ink-3)",
+              boxShadow: activeTab === t.id ? "0 1px 4px rgba(0,0,0,0.08)" : "none",
+            }}
           >
             {t.icon}
             <span className="hidden sm:inline">{t.label}</span>
@@ -404,7 +470,24 @@ export default function ConfiguracionPage() {
                 className="h-28 w-full"
               />
             </div>
-            <button type="submit" disabled={saving} className="btn-primary w-full bg-brand-600">
+            <button
+              type="submit"
+              disabled={saving}
+              style={{
+                width: "100%",
+                background: "var(--ink)",
+                color: "var(--bg)",
+                border: "none",
+                borderRadius: 12,
+                padding: "12px 16px",
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: creating ? "not-allowed" : "pointer",
+                opacity: creating ? 0.6 : 1,
+                transition: "opacity 0.15s",
+                fontFamily: "var(--font-sans)",
+              }}
+            >
               <Save size={15} />
               {saving ? "Guardando..." : "Guardar información"}
             </button>
@@ -458,7 +541,25 @@ export default function ConfiguracionPage() {
                 <input className="input" type="number" min="0" step="0.50" placeholder="0 = sin mínimo" value={settings.free_delivery_above} onChange={(e) => setSettings({ ...settings, free_delivery_above: e.target.value })} />
               </div>
             </div>
-            <button type="submit" disabled={saving} className="btn-primary w-full bg-brand-600">
+
+            <button
+              type="submit"
+              disabled={saving}
+              style={{
+                width: "100%",
+                background: "var(--ink)",
+                color: "var(--bg)",
+                border: "none",
+                borderRadius: 12,
+                padding: "12px 16px",
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: creating ? "not-allowed" : "pointer",
+                opacity: creating ? 0.6 : 1,
+                transition: "opacity 0.15s",
+                fontFamily: "var(--font-sans)",
+              }}
+            >
               <Save size={15} />
               {saving ? "Guardando..." : "Guardar configuración"}
             </button>
@@ -535,10 +636,24 @@ export default function ConfiguracionPage() {
                   Copia y pega un emoji para identificar la categoría visualmente.
                 </p>
               </div>
+
               <button
                 type="submit"
                 disabled={addingCat || !catForm.name.trim()}
-                className="btn-primary w-full bg-brand-600"
+                style={{
+                  width: "100%",
+                  background: "var(--ink)",
+                  color: "var(--bg)",
+                  border: "none",
+                  borderRadius: 12,
+                  padding: "12px 16px",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: creating ? "not-allowed" : "pointer",
+                  opacity: creating ? 0.6 : 1,
+                  transition: "opacity 0.15s",
+                  fontFamily: "var(--font-sans)",
+                }}
               >
                 <Plus size={15} />
                 {addingCat ? "Creando..." : "Agregar categoría"}
@@ -651,7 +766,24 @@ export default function ConfiguracionPage() {
                 />
               </div>
             </div>
-            <button type="submit" disabled={addingStaff} className="btn-primary w-full bg-brand-600">
+            <button
+              type="submit"
+              disabled={addingStaff}
+              style={{
+                width: "100%",
+                background: "var(--ink)",
+                color: "var(--bg)",
+                border: "none",
+                borderRadius: 12,
+                padding: "12px 16px",
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: creating ? "not-allowed" : "pointer",
+                opacity: creating ? 0.6 : 1,
+                transition: "opacity 0.15s",
+                fontFamily: "var(--font-sans)",
+              }}
+            >
               <Plus size={15} />
               {addingStaff ? "Creando..." : "Agregar repartidor"}
             </button>

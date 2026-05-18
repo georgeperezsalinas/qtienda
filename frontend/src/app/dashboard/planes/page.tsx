@@ -1,10 +1,22 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+// src/app/dashboard/planes/page.tsx — qtienda v2 (con useCulqi)
+//
+// CAMBIOS vs versión anterior:
+//   - Reemplaza la lógica de Culqi inline por el hook useCulqi
+//   - Agrega div#culqi-container requerido por el modal de Culqi
+//   - Limpia el declare global duplicado (ya está en useCulqi.ts)
+//   - Migra fetching a React Query con useQuery
+
+import { useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, Zap, Crown, Sparkles, Loader2, X } from "lucide-react";
+import { ArrowLeft, Check, Zap, Crown, Sparkles, Loader2 } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
+import { useCulqi } from "@/hooks/useCulqi";
+import { useAuthStore } from "@/store/authStore";
 import toast from "react-hot-toast";
+import { track } from "@vercel/analytics";
 
 interface Plan {
   id: string;
@@ -26,21 +38,6 @@ interface Subscription {
   plan_slug: string;
 }
 
-declare global {
-  interface Window {
-    Culqi: {
-      publicKey: string;
-      settings: (config: Record<string, unknown>) => void;
-      open: () => void;
-      close: () => void;
-    };
-    culqiAction: () => void;
-    culqiError: () => void;
-  }
-}
-
-const CULQI_PUBLIC_KEY = process.env.NEXT_PUBLIC_CULQI_PUBLIC_KEY ?? "";
-
 const PLAN_VISUAL: Record<string, {
   icon: React.ReactNode;
   gradient: string;
@@ -56,10 +53,10 @@ const PLAN_VISUAL: Record<string, {
   },
   pro: {
     icon: <Zap size={22} />,
-    gradient: "linear-gradient(135deg, var(--brand-600), #7C3AED)",
+    gradient: "linear-gradient(135deg, #C5613B, #9B4A2A)",
     badge: "Más popular",
-    color: "var(--brand-700)",
-    border: "var(--brand-300)",
+    color: "#C5613B",
+    border: "#E8A882",
   },
   elite: {
     icon: <Crown size={22} />,
@@ -69,7 +66,7 @@ const PLAN_VISUAL: Record<string, {
   },
 };
 
-function formatPrice(cents: number): string {
+function formatPricePlan(cents: number): string {
   if (cents === 0) return "Gratis";
   return `S/ ${(cents / 100).toFixed(0)}`;
 }
@@ -92,14 +89,13 @@ function PlanCard({
     <div
       className="rounded-2xl overflow-hidden transition-all"
       style={{
-        background: "var(--surface-0)",
-        border: `2px solid ${isCurrent ? visual.border : "#F1F5F9"}`,
-        boxShadow: isCurrent
-          ? "0 4px 24px rgba(0,0,0,.08)"
-          : "0 1px 4px rgba(0,0,0,.04)",
+        background: "var(--surface)",
+        border: `2px solid ${isCurrent ? visual.border : "var(--line)"}`,
+        boxShadow: isCurrent ? "0 4px 24px rgba(0,0,0,.08)" : "0 1px 4px rgba(0,0,0,.04)",
         transform: isPro ? "scale(1.01)" : "scale(1)",
       }}
     >
+      {/* Header con gradiente */}
       <div className="px-5 pt-5 pb-4" style={{ background: visual.gradient }}>
         <div className="flex items-start justify-between">
           <div className="text-white opacity-90">{visual.icon}</div>
@@ -122,12 +118,11 @@ function PlanCard({
             )}
           </div>
         </div>
-
         <div className="mt-3">
-          <p className="text-white font-display font-bold text-lg">{plan.name}</p>
+          <p className="text-white font-bold text-lg">{plan.name}</p>
           <div className="flex items-baseline gap-1 mt-0.5">
-            <span className="text-white text-2xl font-display font-bold">
-              {formatPrice(plan.price_cents)}
+            <span className="text-white text-2xl font-bold">
+              {formatPricePlan(plan.price_cents)}
             </span>
             {plan.price_cents > 0 && (
               <span className="text-white/70 text-sm">/ mes</span>
@@ -136,6 +131,7 @@ function PlanCard({
         </div>
       </div>
 
+      {/* Features */}
       <div className="px-5 py-4">
         <ul className="space-y-2.5">
           {plan.features.map((f, i) => (
@@ -146,16 +142,14 @@ function PlanCard({
               >
                 <Check size={11} strokeWidth={3} style={{ color: visual.color }} />
               </div>
-              <span className="text-sm" style={{ color: "var(--ink-2)" }}>
-                {f}
-              </span>
+              <span className="text-sm" style={{ color: "var(--ink-2)" }}>{f}</span>
             </li>
           ))}
         </ul>
 
         <div
           className="mt-4 pt-4 flex gap-3 text-xs"
-          style={{ borderTop: "1px solid #F1F5F9", color: "var(--ink-3)" }}
+          style={{ borderTop: "1px solid var(--line)", color: "var(--ink-3)" }}
         >
           <span>
             {plan.max_products == null
@@ -174,14 +168,14 @@ function PlanCard({
           {isCurrent ? (
             <div
               className="w-full text-center text-sm font-semibold py-3 rounded-xl"
-              style={{ background: "var(--surface-1)", color: "var(--ink-3)" }}
+              style={{ background: "var(--surface-2)", color: "var(--ink-3)" }}
             >
               Tu plan actual
             </div>
           ) : plan.price_cents === 0 ? (
             <div
               className="w-full text-center text-sm font-semibold py-3 rounded-xl"
-              style={{ background: "var(--surface-1)", color: "var(--ink-3)" }}
+              style={{ background: "var(--surface-2)", color: "var(--ink-3)" }}
             >
               Plan base
             </div>
@@ -193,13 +187,15 @@ function PlanCard({
               style={{
                 background: visual.gradient,
                 color: "#fff",
+                border: "none",
+                cursor: loading ? "not-allowed" : "pointer",
                 boxShadow: `0 4px 12px ${visual.color}40`,
               }}
             >
               {loading ? (
                 <Loader2 size={16} className="animate-spin" />
               ) : (
-                <>Actualizar a {plan.name}</>
+                <>Activar {plan.name}</>
               )}
             </button>
           )}
@@ -209,243 +205,139 @@ function PlanCard({
   );
 }
 
-function ConfirmModal({
-  plan,
-  onConfirm,
-  onClose,
-  loading,
-}: {
-  plan: Plan;
-  onConfirm: () => void;
-  onClose: () => void;
-  loading: boolean;
-}) {
-  const visual = PLAN_VISUAL[plan.slug] ?? PLAN_VISUAL.free;
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div
-        className="relative w-full max-w-sm rounded-2xl p-6 z-10"
-        style={{ background: "var(--surface-0)" }}
-      >
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-lg"
-          style={{ color: "var(--ink-3)" }}
-        >
-          <X size={18} />
-        </button>
-
-        <div
-          className="w-12 h-12 rounded-2xl flex items-center justify-center mb-4 text-white"
-          style={{ background: visual.gradient }}
-        >
-          {visual.icon}
-        </div>
-
-        <h2 className="font-display font-bold text-lg mb-1" style={{ color: "var(--ink)" }}>
-          Suscribirse a {plan.name}
-        </h2>
-        <p className="text-sm mb-5" style={{ color: "var(--ink-3)" }}>
-          Se cobrará {formatPrice(plan.price_cents)} por mes a tu tarjeta. Puedes cancelar en cualquier momento.
-        </p>
-
-        <button
-          onClick={onConfirm}
-          disabled={loading}
-          className="w-full flex items-center justify-center gap-2 font-bold py-3 rounded-xl text-white text-sm transition-all active:scale-95 disabled:opacity-60"
-          style={{ background: visual.gradient }}
-        >
-          {loading ? (
-            <Loader2 size={16} className="animate-spin" />
-          ) : (
-            "Ingresar datos de tarjeta"
-          )}
-        </button>
-      </div>
-    </div>
-  );
-}
+/* ══════════════════════════════════════════════════ */
 
 export default function PlanesPage() {
   const router = useRouter();
-  const [plans, setPlans] = useState<Plan[]>([]);
-  const [subscription, setSubscription] = useState<Subscription | null>(null);
-  const [currentPlanSlug, setCurrentPlanSlug] = useState<string>("free");
-  const [loading, setLoading] = useState(true);
-  const [payingPlan, setPayingPlan] = useState<Plan | null>(null);
-  const [confirmPlan, setConfirmPlan] = useState<Plan | null>(null);
-  const [paying, setPaying] = useState(false);
+  const qc = useQueryClient();
+  const user = useAuthStore((s) => s.user);
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const [plansRes, storeRes, subRes] = await Promise.allSettled([
-          apiClient.get("/plans"),
-          apiClient.get("/stores/me"),
-          apiClient.get("/plans/my-subscription"),
-        ]);
-        if (plansRes.status === "fulfilled") setPlans(plansRes.value.data);
-        if (storeRes.status === "fulfilled")
-          setCurrentPlanSlug(storeRes.value.data.plan_slug ?? "free");
-        if (subRes.status === "fulfilled") setSubscription(subRes.value.data);
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, []);
-
-  // Load Culqi.js once
-  useEffect(() => {
-    if (!CULQI_PUBLIC_KEY) return;
-    if (document.getElementById("culqi-js")) return;
-    const script = document.createElement("script");
-    script.id = "culqi-js";
-    script.src = "https://checkout.culqi.com/js/v4";
-    script.async = true;
-    document.head.appendChild(script);
-  }, []);
-
-  const openCulqi = useCallback(
-    (plan: Plan) => {
-      if (!window.Culqi) {
-        toast.error("El módulo de pago no cargó. Recarga la página.");
-        return;
-      }
-
-      setPaying(true);
-      setPayingPlan(plan);
-      setConfirmPlan(null);
-
-      window.Culqi.publicKey = CULQI_PUBLIC_KEY;
-      window.Culqi.settings({
-        title: "qtienda.shop",
-        currency: "PEN",
-        description: `Plan ${plan.name} mensual`,
-        amount: plan.price_cents,
-        order: `PLAN-${plan.slug.toUpperCase()}`,
-      });
-
-      window.culqiAction = async () => {
-        const token = (window.Culqi as unknown as { token: { id: string } }).token?.id;
-        window.Culqi.close();
-        if (!token) {
-          setPaying(false);
-          return;
-        }
-        try {
-          await apiClient.post(`/plans/${plan.id}/subscribe`, {
-            culqi_token: token,
-          });
-          toast.success(`¡Suscripción a ${plan.name} activada!`);
-          setCurrentPlanSlug(plan.slug);
-          setSubscription({ status: "active", ends_at: null, trial_ends_at: null, plan_slug: plan.slug });
-        } catch (err: unknown) {
-          const msg =
-            (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
-            "Error procesando el pago";
-          toast.error(msg);
-        } finally {
-          setPaying(false);
-          setPayingPlan(null);
-        }
-      };
-
-      window.culqiError = () => {
-        setPaying(false);
-        setPayingPlan(null);
-      };
-
-      window.Culqi.open();
+  // ── Data con React Query ─────────────────────────
+  const { data: plans = [], isLoading: loadingPlans } = useQuery({
+    queryKey: ["plans"],
+    queryFn: async () => {
+      const { data } = await apiClient.get("/plans/");
+      return data as Plan[];
     },
-    []
-  );
+    staleTime: 10 * 60 * 1000, // los planes cambian muy poco
+  });
 
-  const handleUpgrade = (plan: Plan) => {
-    if (!CULQI_PUBLIC_KEY) {
-      toast.error("Pagos no configurados aún. Contáctanos por WhatsApp.");
-      return;
-    }
-    setConfirmPlan(plan);
-  };
+  const { data: subscription } = useQuery({
+    queryKey: ["subscription"],
+    queryFn: async () => {
+      const { data } = await apiClient.get("/plans/my-subscription");
+      return data as Subscription;
+    },
+    retry: false, // 404 si no tiene suscripción activa — no reintentar
+  });
+
+  // ── Mutación de suscripción ──────────────────────
+  const subscribeMutation = useMutation({
+    mutationFn: async ({ planId, token }: { planId: string; token: string }) => {
+      const { data } = await apiClient.post("/plans/subscribe", {
+        plan_id: planId,
+        culqi_token: token,
+      });
+      return data;
+    },
+    onSuccess: (data, { planId }) => {
+      const plan = plans.find(p => p.id === planId);
+      toast.success("¡Plan activado! Bienvenido 🎉");
+      track("plan_upgraded", {
+        plan_slug: plan?.slug ?? "unknown",
+        amount_soles: (plan?.price_cents ?? 0) / 100,
+      });
+      qc.invalidateQueries({ queryKey: ["subscription"] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.detail || "Error al procesar el pago");
+    },
+  });
+
+  // ── Culqi hook ───────────────────────────────────
+  // selectedPlan se actualiza dinámicamente via ref en el hook
+  const selectedPlanRef = { current: plans[0] };
+
+  const { openCulqi, loading: culqiLoading } = useCulqi({
+    amount: selectedPlanRef.current?.price_cents ?? 0,
+    currency: "PEN",
+    title: "qtienda",
+    description: `Plan ${selectedPlanRef.current?.name ?? ""} mensual`,
+    email: user?.email,
+    onSuccess: async (token) => {
+      await subscribeMutation.mutateAsync({
+        planId: selectedPlanRef.current.id,
+        token,
+      });
+    },
+    onError: (msg) => toast.error(msg),
+  });
+
+  const handleUpgrade = useCallback((plan: Plan) => {
+    selectedPlanRef.current = plan;
+    openCulqi();
+  }, [openCulqi]);
+
+  const currentSlug = subscription?.plan_slug ?? "free";
+  const isLoading = culqiLoading || subscribeMutation.isPending;
 
   return (
-    <div className="max-w-2xl mx-auto px-4 pb-10">
-      <div className="flex items-center gap-3 pt-5 pb-6">
-        <button
-          onClick={() => router.back()}
-          className="w-9 h-9 flex items-center justify-center rounded-xl transition-colors hover:bg-slate-100"
-          style={{ color: "var(--ink-2)" }}
-        >
-          <ArrowLeft size={20} />
-        </button>
-        <div>
-          <h1 className="font-display font-bold text-lg" style={{ color: "var(--ink)" }}>
-            Planes
-          </h1>
-          <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
-            Elige el plan que mejor se adapta a tu tienda
-          </p>
-        </div>
-      </div>
+    <div style={{ padding: "20px 20px 40px", fontFamily: "var(--font-sans)", maxWidth: 700, margin: "0 auto" }}>
+      {/* Header */}
+      <button
+        onClick={() => router.back()}
+        className="flex items-center gap-1.5 mb-5"
+        style={{ background: "transparent", border: "none", color: "var(--ink-3)", fontSize: 13, cursor: "pointer" }}
+      >
+        <ArrowLeft size={15} /> Volver
+      </button>
 
-      {subscription && (
+      <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--ink)", letterSpacing: "-0.02em", margin: "0 0 4px" }}>
+        Planes
+      </h1>
+      <p style={{ fontSize: 13, color: "var(--ink-3)", margin: "0 0 24px" }}>
+        Elige el plan que mejor se adapta a tu negocio.
+      </p>
+
+      {/* Estado de suscripción actual */}
+      {subscription && subscription.status !== "free" && (
         <div
-          className="mb-5 rounded-xl px-4 py-3 text-sm"
-          style={{ background: "var(--surface-1)", color: "var(--ink-2)" }}
+          className="flex items-center gap-2 px-4 py-3 rounded-2xl mb-5 text-sm font-medium"
+          style={{ background: "var(--success-soft)", color: "var(--success)" }}
         >
-          Suscripción{" "}
-          <span className="font-semibold" style={{ color: "var(--ink)" }}>
-            {subscription.status === "active" ? "activa" : subscription.status === "trial" ? "en período de prueba" : subscription.status}
-          </span>
+          <Check size={15} strokeWidth={2.5} />
+          Suscripción {subscription.status === "active" ? "activa" : subscription.status}
           {subscription.ends_at && (
-            <> · Vence el {new Date(subscription.ends_at).toLocaleDateString("es-PE")}</>
+            <span style={{ opacity: 0.7, marginLeft: 4 }}>
+              · vence {new Date(subscription.ends_at).toLocaleDateString("es-PE")}
+            </span>
           )}
         </div>
       )}
 
-      {loading ? (
-        <div className="space-y-4">
+      {/* Grid de planes */}
+      {loadingPlans ? (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
           {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="rounded-2xl animate-pulse"
-              style={{ height: 260, background: "var(--surface-1)" }}
-            />
+            <div key={i} className="skeleton" style={{ height: 320, borderRadius: 16 }} />
           ))}
         </div>
       ) : (
-        <div className="space-y-4">
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
           {plans.map((plan) => (
             <PlanCard
               key={plan.id}
               plan={plan}
-              isCurrent={plan.slug === currentPlanSlug}
+              isCurrent={plan.slug === currentSlug}
               onUpgrade={handleUpgrade}
-              loading={paying && payingPlan?.id === plan.id}
+              loading={isLoading}
             />
           ))}
         </div>
       )}
 
-      {!loading && !CULQI_PUBLIC_KEY && (
-        <p
-          className="text-center text-xs mt-6 leading-relaxed"
-          style={{ color: "var(--ink-4)" }}
-        >
-          Para cambiar de plan, contáctanos por WhatsApp.
-        </p>
-      )}
-
-      {confirmPlan && (
-        <ConfirmModal
-          plan={confirmPlan}
-          onConfirm={() => openCulqi(confirmPlan)}
-          onClose={() => setConfirmPlan(null)}
-          loading={paying}
-        />
-      )}
+      {/* Contenedor requerido por el modal de Culqi */}
+      <div id="culqi-container" />
     </div>
   );
 }

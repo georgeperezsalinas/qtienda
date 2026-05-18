@@ -13,7 +13,7 @@ router = APIRouter()
 
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 MAX_SIZE_MB = 5
-UPLOADS_DIR = Path(os.getenv("UPLOADS_DIR", "/tmp/qtienda-uploads"))
+UPLOADS_DIR = Path(settings.UPLOADS_DIR)
 
 
 @router.post("/image")
@@ -42,8 +42,7 @@ async def upload_image(
 def _save_local(content: bytes, filename: str) -> str:
     UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
     (UPLOADS_DIR / filename).write_bytes(content)
-    base = os.getenv("UPLOADS_BASE_URL", "http://localhost:8000/uploads")
-    return f"{base}/{filename}"
+    return f"{settings.UPLOADS_BASE_URL}/{filename}"
 
 
 async def _upload_r2(content: bytes, filename: str, content_type: str, object_key: str | None = None) -> str:

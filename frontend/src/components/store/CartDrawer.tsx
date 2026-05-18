@@ -13,6 +13,7 @@ import { formatPrice } from "@/lib/utils";
 import { apiClient } from "@/lib/api";
 import toast from "react-hot-toast";
 import PhoneInput from "@/components/ui/PhoneInput";
+import { track } from "@vercel/analytics";
 
 interface Props {
   open: boolean;
@@ -23,9 +24,9 @@ interface Props {
 type Step = "cart" | "info" | "payment" | "success";
 
 const STEPS: { key: Step; label: string }[] = [
-  { key: "cart",    label: "Carrito" },
-  { key: "info",    label: "Datos"   },
-  { key: "payment", label: "Pago"    },
+  { key: "cart", label: "Carrito" },
+  { key: "info", label: "Datos" },
+  { key: "payment", label: "Pago" },
 ];
 
 const STEP_IDX: Record<Step, number> = { cart: 0, info: 1, payment: 2, success: 3 };
@@ -37,7 +38,7 @@ function Stepper({ step, color }: { step: Step; color: string }) {
   return (
     <div className="flex items-center justify-center gap-0 px-6 pt-1 pb-3">
       {STEPS.map((s, i) => {
-        const done   = i < current;
+        const done = i < current;
         const active = i === current;
         return (
           <div key={s.key} className="flex items-center">
@@ -47,8 +48,8 @@ function Stepper({ step, color }: { step: Step; color: string }) {
                 className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300"
                 style={{
                   background: done || active ? color : "#E2E8F0",
-                  color:      done || active ? "#fff"  : "#94A3B8",
-                  transform:  active ? "scale(1.1)" : "scale(1)",
+                  color: done || active ? "#fff" : "#94A3B8",
+                  transform: active ? "scale(1.1)" : "scale(1)",
                 }}
               >
                 {done ? <CheckCircle2 size={14} /> : i + 1}
@@ -93,35 +94,35 @@ function Field({ label, icon, children }: { label: string; icon: React.ReactNode
 export default function CartDrawer({ open, onClose, store }: Props) {
   const { items, updateQty, removeItem, clearCart, totalCents } = useCartStore();
   const { user } = useAuthStore();
-  const [step,        setStep]        = useState<Step>("cart");
-  const [loading,     setLoading]     = useState(false);
+  const [step, setStep] = useState<Step>("cart");
+  const [loading, setLoading] = useState(false);
   const [orderResult, setOrderResult] = useState<any>(null);
-  const [direction,   setDirection]   = useState(1); // 1 = forward, -1 = back
+  const [direction, setDirection] = useState(1); // 1 = forward, -1 = back
 
   const [form, setForm] = useState({
-    buyer_name:     user?.full_name || "",
-    buyer_phone:    "",
-    buyer_email:    user?.email || "",
-    buyer_address:  "",
-    notes:          "",
+    buyer_name: user?.full_name || "",
+    buyer_phone: "",
+    buyer_email: user?.email || "",
+    buyer_address: "",
+    notes: "",
     payment_method: "",
   });
 
-  const color         = store.primary_color || "#2563EB";
-  const deliveryFee   = store.settings?.delivery_fee_cents  || 0;
-  const freeAbove     = store.settings?.free_delivery_above;
-  const subtotal      = totalCents();
-  const effectiveDel  = freeAbove && subtotal >= freeAbove ? 0 : deliveryFee;
-  const total         = subtotal + effectiveDel;
-  const minOrder      = store.settings?.min_order_cents || 0;
-  const belowMin      = minOrder > 0 && total < minOrder;
+  const color = store.primary_color || "#2563EB";
+  const deliveryFee = store.settings?.delivery_fee_cents || 0;
+  const freeAbove = store.settings?.free_delivery_above;
+  const subtotal = totalCents();
+  const effectiveDel = freeAbove && subtotal >= freeAbove ? 0 : deliveryFee;
+  const total = subtotal + effectiveDel;
+  const minOrder = store.settings?.min_order_cents || 0;
+  const belowMin = minOrder > 0 && total < minOrder;
 
   const paymentOptions = [
-    store.settings?.accept_cash     && { value: "cash",     label: "Efectivo",      icon: "💵", sub: "Pago contra entrega" },
-    store.settings?.accept_yape     && { value: "yape",     label: "Yape",          icon: "💜", sub: store.settings?.yape_phone ? `Yape: ${store.settings.yape_phone}` : "Te enviamos el número" },
-    store.settings?.accept_plin     && { value: "plin",     label: "Plin",          icon: "💚", sub: store.settings?.plin_phone ? `Plin: ${store.settings.plin_phone}` : "Te enviamos el número" },
+    store.settings?.accept_cash && { value: "cash", label: "Efectivo", icon: "💵", sub: "Pago contra entrega" },
+    store.settings?.accept_yape && { value: "yape", label: "Yape", icon: "💜", sub: store.settings?.yape_phone ? `Yape: ${store.settings.yape_phone}` : "Te enviamos el número" },
+    store.settings?.accept_plin && { value: "plin", label: "Plin", icon: "💚", sub: store.settings?.plin_phone ? `Plin: ${store.settings.plin_phone}` : "Te enviamos el número" },
     store.settings?.accept_transfer && { value: "transfer", label: "Transferencia", icon: "🏦", sub: "Datos bancarios al confirmar" },
-    store.settings?.accept_card     && { value: "card",     label: "Tarjeta",       icon: "💳", sub: "POS al momento de la entrega" },
+    store.settings?.accept_card && { value: "card", label: "Tarjeta", icon: "💳", sub: "POS al momento de la entrega" },
   ].filter(Boolean) as { value: string; label: string; icon: string; sub: string }[];
 
   function go(next: Step, dir = 1) {
@@ -141,18 +142,26 @@ export default function CartDrawer({ open, onClose, store }: Props) {
     setLoading(true);
     try {
       const result = await apiClient.post(`/public/store/${store.slug}/orders`, {
-        buyer_name:     form.buyer_name.trim(),
-        buyer_phone:    form.buyer_phone.trim(),
-        buyer_email:    form.buyer_email.trim() || undefined,
-        buyer_address:  form.buyer_address.trim() || undefined,
-        notes:          form.notes.trim() || undefined,
+        buyer_name: form.buyer_name.trim(),
+        buyer_phone: form.buyer_phone.trim(),
+        buyer_email: form.buyer_email.trim() || undefined,
+        buyer_address: form.buyer_address.trim() || undefined,
+        notes: form.notes.trim() || undefined,
         payment_method: form.payment_method,
-        source:         "tiktok",
-        items:          items.map((i) => ({ product_id: i.id, quantity: i.quantity })),
+        source: "tiktok",
+        items: items.map((i) => ({ product_id: i.id, quantity: i.quantity })),
       });
+
       setOrderResult(result.data);
       clearCart();
+      track("order_placed", {
+        store_slug: store.slug,
+        payment_method: form.payment_method,
+        total_cents: total,
+        items_count: items.length,
+      });
       go("success");
+
     } catch (err: any) {
       toast.error(err.response?.data?.detail || "Error al procesar pedido");
     } finally {
@@ -166,9 +175,9 @@ export default function CartDrawer({ open, onClose, store }: Props) {
   }
 
   const slideVariants = {
-    enter:  (d: number) => ({ x: d * 40, opacity: 0 }),
+    enter: (d: number) => ({ x: d * 40, opacity: 0 }),
     center: { x: 0, opacity: 1 },
-    exit:   (d: number) => ({ x: d * -40, opacity: 0 }),
+    exit: (d: number) => ({ x: d * -40, opacity: 0 }),
   };
 
   return (
@@ -191,10 +200,10 @@ export default function CartDrawer({ open, onClose, store }: Props) {
             transition={{ type: "spring", damping: 30, stiffness: 320 }}
             className="fixed bottom-0 left-0 right-0 z-50 flex flex-col"
             style={{
-              background:   "#fff",
+              background: "#fff",
               borderRadius: "28px 28px 0 0",
-              maxHeight:    "94dvh",
-              boxShadow:    "0 -8px 48px rgba(15,23,42,.2)",
+              maxHeight: "94dvh",
+              boxShadow: "0 -8px 48px rgba(15,23,42,.2)",
             }}
           >
             {/* Handle */}
@@ -214,8 +223,8 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                 </button>
               )}
               <h2 className="font-extrabold text-lg flex-1" style={{ color: "#0F172A", fontFamily: "var(--font-display)" }}>
-                {step === "cart"    && `Mi pedido (${items.length})`}
-                {step === "info"    && "¿A dónde enviamos?"}
+                {step === "cart" && `Mi pedido (${items.length})`}
+                {step === "info" && "¿A dónde enviamos?"}
                 {step === "payment" && "¿Cómo pagas?"}
                 {step === "success" && "¡Pedido enviado!"}
               </h2>
@@ -479,9 +488,9 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                               onClick={() => setForm({ ...form, payment_method: opt.value })}
                               className="w-full flex items-center gap-4 rounded-2xl px-4 py-3.5 text-left transition-all active:scale-[.98]"
                               style={{
-                                border:     `2px solid ${selected ? color : "#E2E8F0"}`,
+                                border: `2px solid ${selected ? color : "#E2E8F0"}`,
                                 background: selected ? `${color}09` : "#fff",
-                                boxShadow:  selected ? `0 0 0 3px ${color}18` : "none",
+                                boxShadow: selected ? `0 0 0 3px ${color}18` : "none",
                               }}
                             >
                               <span className="text-2xl flex-shrink-0">{opt.icon}</span>
@@ -495,7 +504,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                                 className="w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all"
                                 style={{
                                   borderColor: selected ? color : "#CBD5E1",
-                                  background:  selected ? color : "transparent",
+                                  background: selected ? color : "transparent",
                                 }}
                               >
                                 {selected && <CheckCircle2 size={12} color="white" />}
@@ -595,8 +604,8 @@ export default function CartDrawer({ open, onClose, store }: Props) {
               <div
                 className="flex-shrink-0 px-4 pt-3 pb-safe"
                 style={{
-                  borderTop:      "1px solid #F1F5F9",
-                  paddingBottom:  "max(16px, env(safe-area-inset-bottom))",
+                  borderTop: "1px solid #F1F5F9",
+                  paddingBottom: "max(16px, env(safe-area-inset-bottom))",
                 }}
               >
                 {step === "cart" && (

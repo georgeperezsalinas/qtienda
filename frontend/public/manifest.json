@@ -1,22 +1,139 @@
 {
-  "name": "qtienda.shop",
+  "name": "qtienda",
   "short_name": "qtienda",
-  "description": "Tu tienda online en 2 minutos. Recibe pedidos directo a tu WhatsApp.",
+  "description": "Tu tienda online en 2 minutos. Sin comisiones.",
+  "id": "/?source=pwa",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#2563EB",
-  "orientation": "portrait-primary",
-  "categories": ["shopping", "business"],
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "orientation": "portrait",
+  "lang": "es",
+  "dir": "ltr",
+  "background_color": "#F7F5F0",
+  "theme_color": "#C5613B",
+  "categories": [
+    "business",
+    "shopping",
+    "productivity"
+  ],
   "icons": [
     {
-      "src": "/logo_pro_qtienda.ico",
-      "sizes": "any",
-      "type": "image/x-icon",
-      "purpose": "any maskable"
+      "src": "/icon/icon-72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon/icon-96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon/icon-128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon/icon-144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon/icon-152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon/icon-256.png",
+      "sizes": "256x256",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon/icon-384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
-  "screenshots": [],
-  "related_applications": [],
+  "shortcuts": [
+    {
+      "name": "Nuevo producto",
+      "short_name": "Producto",
+      "description": "Agrega un producto a tu catálogo",
+      "url": "/dashboard/productos/nuevo",
+      "icons": [
+        {
+          "src": "/icon/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Pedidos pendientes",
+      "short_name": "Pedidos",
+      "description": "Pedidos que esperan respuesta",
+      "url": "/dashboard/pedidos?status=pending",
+      "icons": [
+        {
+          "src": "/icon/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Mi tienda",
+      "short_name": "Tienda",
+      "description": "Ver mi tienda pública",
+      "url": "/tienda/mi-tienda",
+      "icons": [
+        {
+          "src": "/icon/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/icon/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Dashboard de qtienda"
+    }
+  ],
   "prefer_related_applications": false
 }

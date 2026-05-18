@@ -10,6 +10,7 @@ import { Eye, EyeOff, ChevronLeft, ArrowRight, CheckCircle2, RefreshCw } from "l
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
+import { track } from "@vercel/analytics";
 
 const GoogleLoginButton = dynamic(
   () => import("@/components/ui/GoogleLoginButton"),
@@ -27,17 +28,17 @@ type FieldErrors = Partial<Record<keyof FormData, string>>;
 function getPasswordStrength(pwd: string): { score: number; label: string; color: string } {
   if (!pwd) return { score: 0, label: "", color: "" };
   let score = 0;
-  if (pwd.length >= 8)  score++;
+  if (pwd.length >= 8) score++;
   if (pwd.length >= 12) score++;
   if (/[A-Z]/.test(pwd) && /[0-9]/.test(pwd)) score++;
   if (/[^A-Za-z0-9]/.test(pwd)) score++;
 
   const map = [
-    { label: "Muy débil",  color: "#EF4444" },
-    { label: "Débil",      color: "#F97316" },
-    { label: "Regular",    color: "#F59E0B" },
-    { label: "Buena",      color: "#10B981" },
-    { label: "Excelente",  color: "#059669" },
+    { label: "Muy débil", color: "#EF4444" },
+    { label: "Débil", color: "#F97316" },
+    { label: "Regular", color: "#F59E0B" },
+    { label: "Buena", color: "#10B981" },
+    { label: "Excelente", color: "#059669" },
   ];
   return { score, ...map[score] };
 }
@@ -99,10 +100,10 @@ export default function RegisterPage() {
   const router = useRouter();
   const { setTokens, setUser } = useAuthStore();
 
-  const [form, setForm]         = useState<FormData>({ full_name: "", email: "", password: "", phone: "" });
-  const [errors, setErrors]     = useState<FieldErrors>({});
+  const [form, setForm] = useState<FormData>({ full_name: "", email: "", password: "", phone: "" });
+  const [errors, setErrors] = useState<FieldErrors>({});
   const [showPass, setShowPass] = useState(false);
-  const [loading, setLoading]   = useState(false);
+  const [loading, setLoading] = useState(false);
   const [verifyScreen, setVerifyScreen] = useState(false);
 
   const strength = useMemo(() => getPasswordStrength(form.password), [form.password]);
@@ -142,10 +143,13 @@ export default function RegisterPage() {
       setTokens(data.access_token, data.refresh_token);
       const { data: me } = await apiClient.get("/auth/me");
       setUser(me);
-
+      track("seller_registered", {
+        has_phone: !!form.phone.trim(),
+      });
       setVerifyScreen(true);
+
     } catch (err: any) {
-      const raw    = err.response?.data?.detail;
+      const raw = err.response?.data?.detail;
       const detail = Array.isArray(raw)
         ? raw[0]?.msg ?? "Datos inválidos"
         : typeof raw === "string" ? raw : "Error al crear la cuenta";
@@ -163,7 +167,7 @@ export default function RegisterPage() {
   if (verifyScreen) {
     return (
       <div className="min-h-dvh flex flex-col items-center justify-center px-6"
-           style={{ background: "var(--surface-2)" }}>
+        style={{ background: "var(--surface-2)" }}>
         <div className="w-full max-w-sm bg-white rounded-3xl p-8 text-center shadow-lg border border-slate-100">
           <div className="w-16 h-16 rounded-2xl bg-blue-50 flex items-center justify-center mx-auto mb-5">
             <span className="text-3xl">📧</span>
@@ -229,8 +233,8 @@ export default function RegisterPage() {
           }}
         >
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" aria-hidden>
-            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
-            <circle cx="12" cy="7" r="4"/>
+            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
           </svg>
         </div>
 

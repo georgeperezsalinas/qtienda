@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import Image from "next/image";
 import {
   Plus, Pencil, Trash2, Package, X,
   Search,
@@ -29,13 +30,13 @@ interface Product {
 }
 
 const EMPTY_FORM = {
-  name:          "",
-  description:   "",
-  price_cents:   "",
+  name: "",
+  description: "",
+  price_cents: "",
   compare_price: "",
-  stock:         "",
-  category_id:   "",
-  is_featured:   false,
+  stock: "",
+  category_id: "",
+  is_featured: false,
 };
 
 type FilterStatus = "all" | "active" | "inactive";
@@ -61,18 +62,19 @@ function ProductCard({
   onDelete: () => void;
   onToggleStatus: () => void;
 }) {
-  const img      = getPrimaryImg(product);
+  const img = getPrimaryImg(product);
   const discount = discountPct(product.price_cents, product.compare_price);
-  const active   = product.status === "active";
+  const active = product.status === "active";
+  const [imgError, setImgError] = useState(false);
 
   return (
     <div
       className="rounded-2xl flex items-center gap-3.5 p-3 transition-all"
       style={{
         background: "var(--surface-0)",
-        border:     "1.5px solid #E2E8F0",
-        boxShadow:  "var(--shadow-sm)",
-        opacity:    active ? 1 : 0.65,
+        border: "1.5px solid #E2E8F0",
+        boxShadow: "var(--shadow-sm)",
+        opacity: active ? 1 : 0.65,
       }}
     >
       {/* Thumbnail */}
@@ -80,8 +82,15 @@ function ProductCard({
         className="w-16 h-16 rounded-xl flex-shrink-0 overflow-hidden relative"
         style={{ background: "var(--surface-1)" }}
       >
-        {img ? (
-          <img src={img} alt={product.name} className="w-full h-full object-cover" />
+        {img && !imgError ? (
+          <Image
+            src={img}
+            alt={product.name}
+            fill
+            sizes="64px"
+            className="object-cover"
+            onError={() => setImgError(true)}
+          />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-2xl">🛍️</div>
         )}
@@ -133,7 +142,7 @@ function ProductCard({
               className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
               style={{
                 background: product.stock > 0 ? "#D1FAE5" : "#FEE2E2",
-                color:      product.stock > 0 ? "#065F46" : "#991B1B",
+                color: product.stock > 0 ? "#065F46" : "#991B1B",
               }}
             >
               {product.stock > 0 ? `${product.stock} en stock` : "Agotado"}
@@ -150,8 +159,8 @@ function ProductCard({
           className="w-8 h-8 rounded-xl flex items-center justify-center transition-all"
           style={{
             background: active ? "#D1FAE5" : "var(--surface-1)",
-            color:      active ? "#059669" : "var(--ink-3)",
-            border:     `1.5px solid ${active ? "#A7F3D0" : "#E2E8F0"}`,
+            color: active ? "#059669" : "var(--ink-3)",
+            border: `1.5px solid ${active ? "#A7F3D0" : "#E2E8F0"}`,
           }}
         >
           {active ? <Eye size={14} /> : <EyeOff size={14} />}
@@ -161,8 +170,8 @@ function ProductCard({
           className="w-8 h-8 rounded-xl flex items-center justify-center transition-all"
           style={{
             background: "var(--surface-1)",
-            color:      "var(--ink-2)",
-            border:     "1.5px solid #E2E8F0",
+            color: "var(--ink-2)",
+            border: "1.5px solid #E2E8F0",
           }}
         >
           <Pencil size={13} />
@@ -172,8 +181,8 @@ function ProductCard({
           className="w-8 h-8 rounded-xl flex items-center justify-center transition-all"
           style={{
             background: "#FEF2F2",
-            color:      "var(--danger)",
-            border:     "1.5px solid #FECACA",
+            color: "var(--danger)",
+            border: "1.5px solid #FECACA",
           }}
         >
           <Trash2 size={13} />
@@ -191,7 +200,7 @@ function Toggle({ checked, onChange, label, sub }: {
 }) {
   return (
     <div className="flex items-center justify-between py-3.5"
-         style={{ borderBottom: "1px solid #F1F5F9" }}>
+      style={{ borderBottom: "1px solid #F1F5F9" }}>
       <div>
         <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{label}</p>
         {sub && <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>{sub}</p>}
@@ -240,20 +249,20 @@ function Skel({ h = 80 }: { h?: number }) {
    PAGE
 ════════════════════════════ */
 export default function ProductosPage() {
-  const [products,    setProducts]    = useState<Product[]>([]);
-  const [categories,  setCategories]  = useState<Category[]>([]);
-  const [loading,     setLoading]     = useState(true);
-  const [saving,      setSaving]      = useState(false);
-  const [showForm,    setShowForm]    = useState(false);
-  const [editId,      setEditId]      = useState<string | null>(null);
-  const [search,      setSearch]      = useState("");
-  const [filter,      setFilter]      = useState<FilterStatus>("all");
-  const [form,        setForm]        = useState({ ...EMPTY_FORM });
-  const [formImages,  setFormImages]  = useState<FormImage[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<FilterStatus>("all");
+  const [form, setForm] = useState({ ...EMPTY_FORM });
+  const [formImages, setFormImages] = useState<FormImage[]>([]);
 
   /* IDs de imágenes originales al abrir edición (para saber cuáles borrar) */
   const origImagesRef = useRef<ProductImage[]>([]);
-  const drawerRef     = useRef<HTMLDivElement>(null);
+  const drawerRef = useRef<HTMLDivElement>(null);
 
   /* ── Data fetching ── */
   const fetchAll = useCallback(async () => {
@@ -277,9 +286,9 @@ export default function ProductosPage() {
     const q = search.toLowerCase();
     const matchSearch = !q || p.name.toLowerCase().includes(q);
     const matchFilter =
-      filter === "all"    ? true :
-      filter === "active" ? p.status === "active" :
-                            p.status !== "active";
+      filter === "all" ? true :
+        filter === "active" ? p.status === "active" :
+          p.status !== "active";
     return matchSearch && matchFilter;
   });
 
@@ -301,13 +310,13 @@ export default function ProductosPage() {
     );
     setFormImages(sorted.map((img) => ({ id: img.id, url: img.url })));
     setForm({
-      name:          p.name,
-      description:   p.description ?? "",
-      price_cents:   String(p.price_cents / 100),
+      name: p.name,
+      description: p.description ?? "",
+      price_cents: String(p.price_cents / 100),
       compare_price: p.compare_price ? String(p.compare_price / 100) : "",
-      stock:         p.stock != null ? String(p.stock) : "",
-      category_id:   p.category_id ?? "",
-      is_featured:   p.is_featured,
+      stock: p.stock != null ? String(p.stock) : "",
+      category_id: p.category_id ?? "",
+      is_featured: p.is_featured,
     });
     setShowForm(true);
   }
@@ -315,9 +324,9 @@ export default function ProductosPage() {
   /* ── Save ── */
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.name.trim())      { toast.error("El nombre es requerido"); return; }
+    if (!form.name.trim()) { toast.error("El nombre es requerido"); return; }
     const price = parseFloat(form.price_cents);
-    if (!price || price <= 0)   { toast.error("Precio inválido"); return; }
+    if (!price || price <= 0) { toast.error("Precio inválido"); return; }
 
     setSaving(true);
     try {
@@ -325,13 +334,13 @@ export default function ProductosPage() {
       const cleanDesc = form.description.replace(/<p>\s*<\/p>/g, "").trim();
 
       const payload: Record<string, any> = {
-        name:          form.name.trim(),
-        description:   cleanDesc || undefined,
-        price_cents:   Math.round(price * 100),
+        name: form.name.trim(),
+        description: cleanDesc || undefined,
+        price_cents: Math.round(price * 100),
         compare_price: form.compare_price ? Math.round(parseFloat(form.compare_price) * 100) : undefined,
-        stock:         form.stock !== "" ? parseInt(form.stock) : undefined,
-        category_id:   form.category_id || undefined,
-        is_featured:   form.is_featured,
+        stock: form.stock !== "" ? parseInt(form.stock) : undefined,
+        category_id: form.category_id || undefined,
+        is_featured: form.is_featured,
       };
 
       if (editId) {
@@ -348,7 +357,7 @@ export default function ProductosPage() {
         /* Re-publicar todas las imágenes en el orden actual */
         for (let i = 0; i < formImages.length; i++) {
           await apiClient.post(`/products/${editId}/images`, {
-            url:        formImages[i].url,
+            url: formImages[i].url,
             is_primary: i === 0,
           });
         }
@@ -359,7 +368,7 @@ export default function ProductosPage() {
         const { data } = await apiClient.post("/products/", payload);
         for (let i = 0; i < formImages.length; i++) {
           await apiClient.post(`/products/${data.id}/images`, {
-            url:        formImages[i].url,
+            url: formImages[i].url,
             is_primary: i === 0,
           });
         }
@@ -448,8 +457,8 @@ export default function ProductosPage() {
                 className="px-3 py-2.5 rounded-xl text-xs font-bold transition-all"
                 style={{
                   background: filter === f ? "var(--brand-600)" : "var(--surface-0)",
-                  color:      filter === f ? "#fff" : "var(--ink-3)",
-                  border:     `1.5px solid ${filter === f ? "var(--brand-600)" : "#E2E8F0"}`,
+                  color: filter === f ? "#fff" : "var(--ink-3)",
+                  border: `1.5px solid ${filter === f ? "var(--brand-600)" : "#E2E8F0"}`,
                 }}
               >
                 {f === "all" ? "Todos" : f === "active" ? "Activos" : "Inactivos"}
@@ -515,11 +524,11 @@ export default function ProductosPage() {
             ref={drawerRef}
             className="fixed bottom-0 left-0 right-0 z-50 animate-fade-up"
             style={{
-              background:   "var(--surface-0)",
+              background: "var(--surface-0)",
               borderRadius: "28px 28px 0 0",
-              boxShadow:    "0 -8px 40px rgba(15,23,42,.2)",
-              maxHeight:    "94dvh",
-              overflowY:    "auto",
+              boxShadow: "0 -8px 40px rgba(15,23,42,.2)",
+              maxHeight: "94dvh",
+              overflowY: "auto",
             }}
           >
             {/* Handle */}
@@ -648,7 +657,7 @@ export default function ProductosPage() {
                     <p className="text-[10px] mt-1" style={{ color: "var(--ink-3)" }}>
                       Precio tachado{" "}
                       {form.price_cents && form.compare_price &&
-                       parseFloat(form.compare_price) > parseFloat(form.price_cents) ? (
+                        parseFloat(form.compare_price) > parseFloat(form.price_cents) ? (
                         <span style={{ color: "var(--danger)", fontWeight: 700 }}>
                           (-{Math.round(
                             ((parseFloat(form.compare_price) - parseFloat(form.price_cents)) /
@@ -702,22 +711,22 @@ export default function ProductosPage() {
 
               {/* Discount preview */}
               {form.price_cents && form.compare_price &&
-               parseFloat(form.compare_price) > parseFloat(form.price_cents) && (
-                <div
-                  className="rounded-2xl p-3 flex items-center gap-3"
-                  style={{ background: "#FEF3C7", border: "1.5px solid #FDE68A" }}
-                >
-                  <Tag size={16} style={{ color: "#D97706", flexShrink: 0 }} />
-                  <p className="text-xs font-semibold" style={{ color: "#92400E" }}>
-                    Descuento activo: clientes verán{" "}
-                    <strong style={{ color: "#D97706" }}>
-                      {formatPrice(Math.round(parseFloat(form.price_cents) * 100))}
-                    </strong>{" "}
-                    en lugar de{" "}
-                    <s>{formatPrice(Math.round(parseFloat(form.compare_price) * 100))}</s>
-                  </p>
-                </div>
-              )}
+                parseFloat(form.compare_price) > parseFloat(form.price_cents) && (
+                  <div
+                    className="rounded-2xl p-3 flex items-center gap-3"
+                    style={{ background: "#FEF3C7", border: "1.5px solid #FDE68A" }}
+                  >
+                    <Tag size={16} style={{ color: "#D97706", flexShrink: 0 }} />
+                    <p className="text-xs font-semibold" style={{ color: "#92400E" }}>
+                      Descuento activo: clientes verán{" "}
+                      <strong style={{ color: "#D97706" }}>
+                        {formatPrice(Math.round(parseFloat(form.price_cents) * 100))}
+                      </strong>{" "}
+                      en lugar de{" "}
+                      <s>{formatPrice(Math.round(parseFloat(form.compare_price) * 100))}</s>
+                    </p>
+                  </div>
+                )}
 
               {/* Submit */}
               <button
@@ -729,7 +738,7 @@ export default function ProductosPage() {
                 {saving ? (
                   <span className="flex items-center gap-2">
                     <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24"
-                         fill="none" stroke="currentColor" strokeWidth="2.5">
+                      fill="none" stroke="currentColor" strokeWidth="2.5">
                       <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4" />
                     </svg>
                     Guardando...

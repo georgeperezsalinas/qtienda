@@ -86,7 +86,7 @@ export default function LoginPage() {
         />
 
         <div className="relative">
-          <Logo size="md" invertOnDark />
+          <Logo size="md" variant="white" />
         </div>
 
         <div className="relative space-y-5">

@@ -176,13 +176,14 @@ async def create_order(
     # Load store
     store_q = await db.execute(
         select(Store)
-        .options(selectinload(Store.settings))
-        .where(
-            Store.slug == slug,
-            Store.status == "active",
-            Store.deleted_at.is_(None),
+        .options(
+            selectinload(Store.settings),
+            selectinload(Store.user),       # ← AGREGAR
         )
+        .where(...)
     )
+
+
     store = store_q.scalar_one_or_none()
     if not store:
         raise HTTPException(status_code=404, detail="Tienda no encontrada")
@@ -308,6 +309,19 @@ async def create_order(
 
     await db.commit()
     await db.refresh(order)
+
+    # ── Push notification al vendedor (fire-and-forget) ──────
+    if store.user and store.user.email:
+        from app.services.push import send_push_to_vendor
+        import asyncio
+        asyncio.ensure_future(
+            send_push_to_vendor(
+                vendor_email = store.user.email,
+                order_number = order.order_number,
+                buyer_name   = payload.buyer_name,
+                total_cents  = order.total_cents,
+            )
+        )
 
     # WhatsApp deep-link for vendor notification
     wa_link = None

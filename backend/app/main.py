@@ -11,15 +11,13 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
-import os
-
 from app.core.config import settings
 from app.core.limiter import limiter
 from app.db.session import engine
 from app.api.v1.router import api_router
 from app.middleware.logging import RequestLoggingMiddleware
 
-UPLOADS_DIR = Path(os.getenv("UPLOADS_DIR", "/tmp/qtienda-uploads"))
+UPLOADS_DIR = Path(settings.UPLOADS_DIR)
 
 
 @asynccontextmanager
@@ -64,3 +62,4 @@ app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 @app.get("/health")
 async def health():
     return {"status": "ok", "service": "qtienda-api"}
+

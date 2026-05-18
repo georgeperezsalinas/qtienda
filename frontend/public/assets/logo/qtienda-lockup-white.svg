@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 100" width="720" height="200">
+
+  <g transform="translate(0 0)">
+    <circle cx="38" cy="38" r="28" stroke="#fff" stroke-width="8" fill="none"></circle>
+    <line x1="58" y1="58" x2="82" y2="82" stroke="#fff" stroke-width="8" stroke-linecap="round"></line>
+    <circle cx="84" cy="84" r="7.6" fill="#fff"></circle>
+  </g>
+  <text x="118" y="62" font-family="Geist, ui-sans-serif, -apple-system, system-ui, sans-serif" font-weight="500" font-size="52" fill="#fff" letter-spacing="-1.8">qtienda</text>
+</svg>

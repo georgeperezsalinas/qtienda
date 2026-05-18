@@ -1,0 +1,25 @@
+# public/robots.txt — qtienda
+#
+# Permite indexar las tiendas públicas y la landing.
+# Bloquea el dashboard, admin, y rutas privadas de los vendedores.
+
+User-agent: *
+
+# Rutas públicas — indexar
+Allow: /$
+Allow: /tienda/
+Allow: /tiendas
+Allow: /auth/login
+Allow: /auth/register
+
+# Rutas privadas — no indexar
+Disallow: /dashboard/
+Disallow: /admin/
+Disallow: /mis-pedidos/
+Disallow: /mi-cuenta/
+Disallow: /delivery-app/
+Disallow: /api/
+Disallow: /auth/verify-email
+
+# Sitemap
+Sitemap: https://qtienda.shop/sitemap.xml

@@ -1,74 +1,120 @@
+// src/app/layout.tsx — qtienda v2 (con ErrorBoundary global)
+//
+// CAMBIOS vs versión anterior:
+//   - Agrega <ErrorBoundary> envolviendo toda la app
+//   - Si cualquier componente crashea, el usuario ve un mensaje útil
+//     en vez de pantalla blanca
+
 import type { Metadata, Viewport } from "next";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import QueryProvider from "@/components/ui/QueryProvider";
 import { GoogleAuthProvider } from "@/components/ui/GoogleAuthProvider";
 import PWARegister from "@/components/ui/PWARegister";
+import ErrorBoundary from "@/components/ui/ErrorBoundary";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
+
 
 export const metadata: Metadata = {
-  title: { default: "qtienda.shop — Tu tienda en Redes Sociales", template: "%s | qtienda.shop" },
-  description: "Crea tu tienda online en 2 minutos. Recibe pedidos directo a tu WhatsApp.",
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL ?? "https://qtienda.shop"
+  ),
+  title: {
+    default: "qtienda — Tu tienda online en 2 minutos",
+    template: "%s · qtienda",
+  },
+  description:
+    "Crea tu tienda online en 2 minutos. Pedidos directo a tu WhatsApp. Sin comisiones.",
+  applicationName: "qtienda",
   manifest: "/manifest.json",
-  keywords: ["tienda online", "TikTok shop", "WhatsApp pedidos", "emprendimiento", "Peru"],
+  keywords: [
+    "tienda online",
+    "ecommerce LatAm",
+    "vender en WhatsApp",
+    "emprendimiento",
+    "Perú",
+    "México",
+    "Colombia",
+  ],
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-16.png", sizes: "16x16", type: "image/png" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "qtienda",
   },
-  icons: {
-    icon: "/logo_pro_qtienda.ico",
-    apple: "/logo_pro_qtienda.ico",
-  },
   openGraph: {
-    title: "qtienda.shop",
+    title: "qtienda",
     description: "Tu tienda online en 2 minutos",
     type: "website",
-    locale: "es_PE",
+    locale: "es",
+    siteName: "qtienda",
+    images: [{ url: "/brand/qtienda-lockup.svg", width: 720, height: 200 }],
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#2563EB",
+  themeColor: "#C5613B",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  maximumScale: 5,
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <html lang="es" className="h-full">
-      <body className="h-full">
-        <QueryProvider>
-          <PWARegister />
-          <GoogleAuthProvider>
-          {children}
-          </GoogleAuthProvider>
-          <Toaster
-            position="bottom-center"
-            gutter={12}
-            toastOptions={{
-              duration: 3500,
-              style: {
-                borderRadius: "14px",
-                fontSize: "13px",
-                fontWeight: 600,
-                fontFamily: "'Sora', sans-serif",
-                background: "#0F172A",
-                color: "#F8FAFC",
-                padding: "12px 16px",
-                boxShadow: "0 8px 32px rgba(15,23,42,.24)",
-                maxWidth: "320px",
-              },
-              success: {
-                iconTheme: { primary: "#10B981", secondary: "#fff" },
-              },
-              error: {
-                iconTheme: { primary: "#EF4444", secondary: "#fff" },
-              },
-            }}
-          />
-        </QueryProvider>
+    <html lang="es" className={`${GeistSans.variable} ${GeistMono.variable}`}>
+      <body suppressHydrationWarning>
+        {/* ErrorBoundary global — si cualquier componente crashea,
+            el usuario ve un mensaje útil en vez de pantalla blanca */}
+        <ErrorBoundary>
+          <QueryProvider>
+            <GoogleAuthProvider>
+              {children}
+              <PWARegister />
+              <Toaster
+                position="top-center"
+                toastOptions={{
+                  style: {
+                    background: "var(--ink)",
+                    color: "var(--bg)",
+                    border: "1px solid var(--ink)",
+                    borderRadius: "12px",
+                    fontFamily: "var(--font-sans)",
+                    fontSize: "13px",
+                    padding: "10px 14px",
+                  },
+                  success: {
+                    iconTheme: { primary: "var(--bg)", secondary: "var(--ink)" },
+                  },
+                  error: {
+                    style: {
+                      background: "var(--danger)",
+                      color: "#fff",
+                      border: "1px solid var(--danger)",
+                    },
+                  },
+                }}
+              />
+            </GoogleAuthProvider>
+          </QueryProvider>
+          <Analytics />
+          <SpeedInsights />
+        </ErrorBoundary>
       </body>
     </html>
   );
