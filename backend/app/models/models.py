@@ -56,6 +56,8 @@ class User(Base):
     deleted_at: Mapped[Optional[datetime]]    = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    push_token:    Mapped[Optional[str]]  = mapped_column(String, nullable=True)
+    push_platform: Mapped[Optional[str]]  = mapped_column(String, default="android")
 
     role: Mapped["Role"] = relationship(back_populates="users")
     store: Mapped[Optional["Store"]] = relationship(

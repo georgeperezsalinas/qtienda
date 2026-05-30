@@ -5,7 +5,7 @@ import Image from "next/image";
 import { X, ChevronLeft, ChevronRight, Check, ShoppingCart, ZoomIn } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCartStore } from "@/store/cartStore";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, stripHtml } from "@/lib/utils";
 import toast from "react-hot-toast";
 
 interface ProductForSheet {
@@ -49,6 +49,7 @@ export default function ProductDetailSheet({
     : null;
   const hasImages = product.images.length > 0;
   const hasDescription = !!product.description?.trim();
+  const displayName = stripHtml(product.name);
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -70,7 +71,7 @@ export default function ProductDetailSheet({
   function handleAdd() {
     if (outOfStock) return;
     addItem(
-      { id: product.id, name: product.name, price_cents: product.price_cents,
+      { id: product.id, name: displayName, price_cents: product.price_cents,
         image_url: primaryImage, quantity: 1 },
       storeSlug,
     );
@@ -125,7 +126,7 @@ export default function ProductDetailSheet({
               >
                 <Image
                   src={product.images[current].url}
-                  alt={product.name}
+                  alt={displayName}
                   fill
                   className="object-cover"
                   sizes="576px"
@@ -221,7 +222,7 @@ export default function ProductDetailSheet({
               className="font-display font-extrabold text-xl leading-tight"
               style={{ color: "#0F172A" }}
             >
-              {product.name}
+              {displayName}
             </h2>
 
             {/* Precio */}
@@ -346,7 +347,7 @@ export default function ProductDetailSheet({
         >
           <img
             src={product.images[current].url}
-            alt={product.name}
+            alt={displayName}
             className="max-w-full max-h-full object-contain"
             style={{ maxHeight: "90dvh" }}
             onClick={(e) => e.stopPropagation()}

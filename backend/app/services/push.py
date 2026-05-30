@@ -16,6 +16,11 @@ from app.core.config import settings
 from app.db.session import AsyncSessionLocal   # fábrica de sesiones async
 from app.models.models import PushSubscription
 
+import httpx
+
+EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send"
+
+
 log = logging.getLogger(__name__)
 
 # ── VAPID config ─────────────────────────────────────────────
@@ -172,3 +177,122 @@ async def send_push_to_vendor(
         "badge": "/icon/icon-96.png",
         "tag":   "new-order",   # agrupa todas las notifs de pedido en una
     })
+
+# Agregar al final de app/services/push.py
+# ─────────────────────────────────────────────────────────────
+# EXPO PUSH — notificaciones nativas iOS/Android
+# Complementa el WebPush existente, no lo reemplaza
+# ─────────────────────────────────────────────────────────────
+
+async def send_expo_push(
+    expo_token: str,
+    title:      str,
+    body:       str,
+    data:       Optional[dict] = None,
+) -> bool:
+    """Envía una notificación push nativa via Expo Push API."""
+    if not expo_token or not expo_token.startswith("ExponentPushToken"):
+        return False
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(
+                EXPO_PUSH_URL,
+                json={
+                    "to":        expo_token,
+                    "title":     title,
+                    "body":      body,
+                    "sound":     "default",
+                    "priority":  "high",
+                    "channelId": "pedidos",
+                    "data":      data or {},
+                },
+                headers={"Content-Type": "application/json"},
+            )
+            result = resp.json()
+            if result.get("data", {}).get("status") == "error":
+                log.error("[expo-push] Error Expo: %s", result)
+                return False
+            log.info("[expo-push] OK → %s...", expo_token[:35])
+            return True
+    except Exception as e:
+        log.error("[expo-push] Excepción: %s", e)
+        return False
+
+
+async def send_expo_push_to_vendor(
+    vendor_email: str,
+    title:        str,
+    body:         str,
+    order_id:     str,
+) -> None:
+    """Busca el expo_push_token del vendor por email y envía la notificación."""
+    async with AsyncSessionLocal() as db:
+        from app.models.models import User
+        result = await db.execute(
+            select(User).where(User.email == vendor_email)
+        )
+        vendor = result.scalar_one_or_none()
+        if not vendor or not getattr(vendor, "expo_push_token", None):
+            return
+        await send_expo_push(
+            expo_token=vendor.expo_push_token,
+            title=title,
+            body=body,
+            data={"orderId": order_id, "type": "new_order"},
+        )
+
+
+async def send_expo_push_to_vendor_by_store(
+    store_id: str,
+    title:    str,
+    body:     str,
+    order_id: str,
+) -> None:
+    """Busca el vendor dueño de la tienda y le envía la notificación."""
+    async with AsyncSessionLocal() as db:
+        from app.models.models import Store, User
+        result = await db.execute(
+            select(User).join(Store, Store.user_id == User.id)
+            .where(Store.id == store_id)
+        )
+        vendor = result.scalar_one_or_none()
+        if not vendor or not getattr(vendor, "expo_push_token", None):
+            return
+        await send_expo_push(
+            expo_token=vendor.expo_push_token,
+            title=title,
+            body=body,
+            data={"orderId": order_id, "type": "order_update"},
+        )
+
+
+async def notify_new_order_to_vendor(
+    store_id:     str,
+    order_number: str,
+    buyer_name:   str,
+    total_cents:  int,
+    order_id:     str,
+) -> None:
+    """
+    Notifica al vendor cuando llega un pedido nuevo.
+
+    Llamar desde public.py en create_order(), junto al send_push_to_vendor existente:
+
+        from app.services.push import notify_new_order_to_vendor
+        asyncio.ensure_future(
+            notify_new_order_to_vendor(
+                store_id     = str(store.id),
+                order_number = order.order_number,
+                buyer_name   = payload.buyer_name,
+                total_cents  = order.total_cents,
+                order_id     = str(order.id),
+            )
+        )
+    """
+    total_soles = total_cents / 100
+    await send_expo_push_to_vendor_by_store(
+        store_id = store_id,
+        title    = f"🛍️ Nuevo pedido #{order_number}",
+        body     = f"{buyer_name} · S/ {total_soles:.0f}",
+        order_id = order_id,
+    )

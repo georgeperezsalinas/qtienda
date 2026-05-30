@@ -13,6 +13,7 @@ from app.api.v1.endpoints import (
     push,
     delivery,
     plans,
+    devices,
 )
 
 api_router = APIRouter()
@@ -44,3 +45,6 @@ api_router.include_router(plans.router,     prefix="/plans",     tags=["Plans"])
 
 # Admin
 api_router.include_router(admin.router,     prefix="/admin",     tags=["Admin"])
+
+# Device 
+api_router.include_router(devices.router,    prefix="/devices",   tags=["Devices"])

@@ -14,6 +14,11 @@ export function formatPrice(cents: number, currency = "PEN"): string {
   }).format(cents / 100);
 }
 
+export function stripHtml(html?: string | null): string {
+  if (!html) return "";
+  return html.replace(/<[^>]*>/g, " ").replace(/\s{2,}/g, " ").trim();
+}
+
 export function slugify(text: string): string {
   return text
     .toLowerCase()

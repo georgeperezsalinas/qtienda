@@ -407,11 +407,33 @@ async def update_order_status(
     await db.commit()
 
     # Push notification to buyer (fire-and-forget, uses its own DB session)
+    # if order.buyer_email:
+    #     from app.services.push import send_push_to_buyer
+    #     import asyncio
+    #     asyncio.ensure_future(
+    #         send_push_to_buyer(order.buyer_email, new_status, order.order_number, store.slug)
+    #     )
+
+    import asyncio
+    from app.services.push import send_push_to_buyer
+
+    # 1. Push WebPush al comprador (ya existente)
     if order.buyer_email:
-        from app.services.push import send_push_to_buyer
-        import asyncio
         asyncio.ensure_future(
             send_push_to_buyer(order.buyer_email, new_status, order.order_number, store.slug)
+        )
+
+    # 2. Expo Push al vendor en su app móvil (nuevo)
+    #    Solo notificamos en estados relevantes para el vendor
+    if new_status in ("cancelled",):
+        from app.services.push import send_expo_push_to_vendor_by_store
+        asyncio.ensure_future(
+            send_expo_push_to_vendor_by_store(
+                store_id     = store.id,
+                title        = f"⚠️ Pedido #{order.order_number} cancelado",
+                body         = f"El pedido de {order.buyer_name} fue cancelado",
+                order_id     = str(order.id),
+            )
         )
 
     buyer_wa_link = _buyer_wa_link(order, store)

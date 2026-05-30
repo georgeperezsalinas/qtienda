@@ -4,7 +4,7 @@ import Image from "next/image";
 import { Plus, Check, Images } from "lucide-react";
 import { useState } from "react";
 import { useCartStore } from "@/store/cartStore";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, stripHtml } from "@/lib/utils";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 
@@ -40,12 +40,14 @@ export default function ProductCard({
     ? Math.round((1 - product.price_cents / product.compare_price) * 100)
     : null;
   const multipleImages = (product.images?.length ?? 0) > 1;
+  const displayName = stripHtml(product.name);
+  const displayDesc = stripHtml(product.description);
 
   function handleAdd(e: React.MouseEvent) {
     e.stopPropagation();
     if (outOfStock) return;
     addItem(
-      { id: product.id, name: product.name, price_cents: product.price_cents,
+      { id: product.id, name: displayName, price_cents: product.price_cents,
         image_url: primaryImage || "", quantity: 1 },
       storeSlug,
     );
@@ -67,7 +69,7 @@ export default function ProductCard({
         >
           <div className="relative h-40 bg-gray-50">
             {primaryImage ? (
-              <Image src={primaryImage} alt={product.name} fill className="object-cover" />
+              <Image src={primaryImage} alt={displayName} fill className="object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-4xl">🛍️</div>
             )}
@@ -99,7 +101,7 @@ export default function ProductCard({
           </div>
           <div className="p-3">
             <p className="font-semibold text-sm leading-tight line-clamp-2" style={{ color: "#0F172A" }}>
-              {product.name}
+              {displayName}
             </p>
             <div className="flex items-center justify-between mt-2">
               <div>
@@ -143,7 +145,7 @@ export default function ProductCard({
         {/* Image */}
         <div className="relative w-[76px] h-[76px] rounded-xl overflow-hidden flex-shrink-0 bg-gray-50">
           {primaryImage ? (
-            <Image src={primaryImage} alt={product.name} fill className="object-cover" />
+            <Image src={primaryImage} alt={displayName} fill className="object-cover" />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-2xl">🛍️</div>
           )}
@@ -167,11 +169,11 @@ export default function ProductCard({
         {/* Info */}
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold leading-snug line-clamp-2" style={{ color: "#0F172A" }}>
-            {product.name}
+            {displayName}
           </p>
           {product.description && (
             <p className="text-xs mt-0.5 line-clamp-1" style={{ color: "#94A3B8" }}>
-              {product.description}
+              {displayDesc}
             </p>
           )}
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
@@ -220,7 +222,7 @@ export default function ProductCard({
     >
       <div className="relative bg-gray-50 aspect-square">
         {primaryImage ? (
-          <Image src={primaryImage} alt={product.name} fill className="object-cover" />
+          <Image src={primaryImage} alt={displayName} fill className="object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-5xl">🛍️</div>
         )}
@@ -252,7 +254,7 @@ export default function ProductCard({
       </div>
       <div className="p-3 flex flex-col flex-1">
         <p className="text-sm font-semibold leading-tight line-clamp-2 flex-1" style={{ color: "#0F172A" }}>
-          {product.name}
+          {displayName}
         </p>
         <div className="mt-2 flex items-center justify-between gap-1">
           <div>
