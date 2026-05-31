@@ -183,7 +183,9 @@ async def send_push_to_vendor(
 # EXPO PUSH — notificaciones nativas iOS/Android
 # Complementa el WebPush existente, no lo reemplaza
 # ─────────────────────────────────────────────────────────────
-
+# ─────────────────────────────────────────────────────────────
+# Agregar al FINAL de app/services/push.py
+# ─────────────────────────────────────────────────────────────
 async def send_expo_push(
     expo_token: str,
     title:      str,
@@ -225,17 +227,17 @@ async def send_expo_push_to_vendor(
     body:         str,
     order_id:     str,
 ) -> None:
-    """Busca el expo_push_token del vendor por email y envía la notificación."""
+    """Busca el push_token del vendor por email y envía la notificación."""
     async with AsyncSessionLocal() as db:
         from app.models.models import User
         result = await db.execute(
             select(User).where(User.email == vendor_email)
         )
         vendor = result.scalar_one_or_none()
-        if not vendor or not getattr(vendor, "expo_push_token", None):
+        if not vendor or not getattr(vendor, "push_token", None):
             return
         await send_expo_push(
-            expo_token=vendor.expo_push_token,
+            expo_token=vendor.push_token,
             title=title,
             body=body,
             data={"orderId": order_id, "type": "new_order"},
@@ -256,10 +258,10 @@ async def send_expo_push_to_vendor_by_store(
             .where(Store.id == store_id)
         )
         vendor = result.scalar_one_or_none()
-        if not vendor or not getattr(vendor, "expo_push_token", None):
+        if not vendor or not getattr(vendor, "push_token", None):
             return
         await send_expo_push(
-            expo_token=vendor.expo_push_token,
+            expo_token=vendor.push_token,
             title=title,
             body=body,
             data={"orderId": order_id, "type": "order_update"},
