@@ -310,6 +310,7 @@ async def get_order(
             selectinload(Order.items),
             selectinload(Order.payment),
             selectinload(Order.delivery),
+            selectinload(Order.assigned_to), 
         )
         .where(Order.id == order_id, Order.store_id == store.id)
     )
@@ -332,6 +333,8 @@ async def get_order(
         "total_cents": order.total_cents,
         "notes": order.notes,
         "source": order.source,
+        "assigned_to_id":   str(order.assigned_to_id) if order.assigned_to_id else None,
+        "assigned_to_name": order.assigned_to.full_name if order.assigned_to else None,
         "created_at": order.created_at,
         "updated_at": order.updated_at,
         "items": [
