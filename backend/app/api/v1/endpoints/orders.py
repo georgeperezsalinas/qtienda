@@ -196,6 +196,7 @@ async def order_stats_daily(
     db: AsyncSession = Depends(get_db),
 ):
     """Day-by-day orders + revenue for chart rendering."""
+    from sqlalchemy import case
     store = await get_vendor_store(current_user, db)
 
     now = datetime.now(timezone.utc)
