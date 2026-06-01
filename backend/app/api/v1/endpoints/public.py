@@ -312,13 +312,25 @@ async def create_order(
     # ── Push notification al vendedor (fire-and-forget) ──────
     if store.user and store.user.email:
         from app.services.push import send_push_to_vendor
+        from app.services.push import notify_new_order_to_vendor
         import asyncio
+        # WebPush para la PWA (ya existente)
         asyncio.ensure_future(
             send_push_to_vendor(
                 vendor_email = store.user.email,
                 order_number = order.order_number,
                 buyer_name   = payload.buyer_name,
                 total_cents  = order.total_cents,
+            )
+        )
+        # Expo Push para la app móvil (nuevo)
+        asyncio.ensure_future(
+            notify_new_order_to_vendor(
+                store_id     = str(store.id),
+                order_number = order.order_number,
+                buyer_name   = payload.buyer_name,
+                total_cents  = order.total_cents,
+                order_id     = str(order.id),
             )
         )
 
