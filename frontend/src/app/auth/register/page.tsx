@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, Suspense } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -96,7 +96,7 @@ function LoadingSpinner() {
   );
 }
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const referralCode = (searchParams.get("ref") ?? "").trim().toUpperCase();
@@ -442,5 +442,14 @@ export default function RegisterPage() {
         </p>
       </form>
     </div>
+  );
+}
+
+// useSearchParams() exige un límite de Suspense para el prerender de Next
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={null}>
+      <RegisterForm />
+    </Suspense>
   );
 }
