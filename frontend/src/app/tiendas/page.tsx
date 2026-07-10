@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Search, Store, ChevronRight, MapPin, ArrowLeft } from "lucide-react";
 import Logo from "@/components/ui/Logo";
 import { useAuthStore } from "@/store/authStore";
+import { resolveMediaUrl } from "@/lib/media";
 
 interface StoreCard {
   slug: string;
@@ -154,7 +155,7 @@ export default function TiendasPage() {
                 >
                   {s.logo_url ? (
                     <img
-                      src={s.logo_url}
+                      src={resolveMediaUrl(s.logo_url)}
                       alt={s.name}
                       className="w-full h-full object-cover"
                     />

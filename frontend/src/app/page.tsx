@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { ArrowRight, ChevronRight, Check, Package } from "lucide-react";
 import Logo from "@/components/ui/Logo";
+import { resolveMediaUrl } from "@/lib/media";
 
 interface StoreCard {
   slug: string;
@@ -47,7 +48,7 @@ async function StoresSection() {
             className="card p-4 flex flex-col items-center text-center gap-3 transition-colors hover:bg-[var(--tint)]"
           >
             {s.logo_url ? (
-              <img src={s.logo_url} alt={s.name} style={{ width: 48, height: 48, borderRadius: 10, objectFit: "cover" }} />
+              <img src={resolveMediaUrl(s.logo_url)} alt={s.name} style={{ width: 48, height: 48, borderRadius: 10, objectFit: "cover" }} />
             ) : (
               <div
                 className="placeholder flex items-center justify-center"

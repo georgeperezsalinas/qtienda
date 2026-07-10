@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Store, Users, ShoppingBag, TrendingUp, Clock, ArrowRight, Trash2, AlertTriangle } from "lucide-react";
+import { Store, Users, ShoppingBag, TrendingUp, Clock, ArrowRight, ShieldAlert } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
-import toast from "react-hot-toast";
 
 interface Metrics {
   stores:     { total: number; active: number };
@@ -65,18 +64,9 @@ function Skel({ h = 24, className = "" }: { h?: number; className?: string }) {
   return <div className={`skeleton ${className}`} style={{ height: h, borderRadius: 16 }} />;
 }
 
-interface ResetResult {
-  deleted: { orders: number; stores: number; users: number };
-}
-
 export default function AdminDashboardPage() {
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const [resetOpen,    setResetOpen]    = useState(false);
-  const [resetInput,   setResetInput]   = useState("");
-  const [resetting,    setResetting]    = useState(false);
-  const [resetResult,  setResetResult]  = useState<ResetResult | null>(null);
 
   function loadMetrics() {
     apiClient
@@ -86,24 +76,6 @@ export default function AdminDashboardPage() {
   }
 
   useEffect(() => { loadMetrics(); }, []);
-
-  async function handleReset() {
-    if (resetInput !== "RESET") return;
-    setResetting(true);
-    try {
-      const { data } = await apiClient.post<ResetResult>("/admin/reset-test-data", { confirm: "RESET" });
-      setResetResult(data);
-      setResetOpen(false);
-      setResetInput("");
-      toast.success("Datos de prueba eliminados");
-      setLoading(true);
-      loadMetrics();
-    } catch {
-      toast.error("Error al resetear los datos");
-    } finally {
-      setResetting(false);
-    }
-  }
 
   return (
     <div className="max-w-2xl mx-auto px-5 py-6 space-y-6">
@@ -213,106 +185,23 @@ export default function AdminDashboardPage() {
         </Link>
       </div>
 
-      {/* Zona de pruebas */}
-      <div className="space-y-3">
-        <h2 className="font-display font-bold text-sm" style={{ color: "var(--ink)" }}>
-          Zona de pruebas
-        </h2>
-
-        {resetResult && (
-          <div
-            className="p-4 rounded-2xl text-sm space-y-1"
-            style={{ background: "#F0FDF4", border: "1.5px solid #BBF7D0" }}
-          >
-            <p className="font-bold" style={{ color: "#15803D" }}>Reset completado</p>
-            <p style={{ color: "#166534" }}>
-              {resetResult.deleted.orders} pedidos · {resetResult.deleted.stores} tiendas · {resetResult.deleted.users} usuarios eliminados
-            </p>
-          </div>
-        )}
-
-        <button
-          onClick={() => { setResetOpen(true); setResetResult(null); }}
-          className="flex items-center gap-3 p-4 rounded-2xl w-full text-left transition-all active:scale-[.98]"
-          style={{ background: "#FEF2F2", border: "1.5px solid #FECACA" }}
-        >
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "#FEE2E2" }}>
-            <Trash2 size={18} style={{ color: "#DC2626" }} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold" style={{ color: "#DC2626" }}>Resetear datos de prueba</p>
-            <p className="text-xs mt-0.5" style={{ color: "#EF4444" }}>
-              Elimina todos los usuarios, tiendas y pedidos (excepto admin)
-            </p>
-          </div>
-        </button>
+      <div
+        className="flex items-start gap-3 p-4 rounded-2xl"
+        style={{ background: "#FFFBEB", border: "1.5px solid #FDE68A" }}
+      >
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "#FEF3C7" }}>
+          <ShieldAlert size={18} style={{ color: "#B45309" }} />
+        </div>
+        <div>
+          <p className="text-sm font-semibold" style={{ color: "#92400E" }}>
+            Limpieza controlada de marcha blanca
+          </p>
+          <p className="text-xs mt-1 leading-relaxed" style={{ color: "#B45309" }}>
+            El reset masivo está deshabilitado en producción. Para tiendas de prueba usa
+            <strong> Gestionar tiendas</strong>, revisa el detalle y elimina individualmente con auditoría.
+          </p>
+        </div>
       </div>
-
-      {/* Modal confirmación reset */}
-      {resetOpen && (
-        <>
-          <div
-            className="fixed inset-0 z-50 bg-black/40"
-            style={{ backdropFilter: "blur(4px)" }}
-            onClick={() => setResetOpen(false)}
-          />
-          <div
-            className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-50 rounded-3xl p-6 max-w-sm mx-auto"
-            style={{ background: "var(--surface-0)", boxShadow: "0 24px 64px rgba(15,23,42,.24)" }}
-          >
-            <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: "#FEE2E2" }}>
-              <AlertTriangle size={22} style={{ color: "#DC2626" }} />
-            </div>
-
-            <h3 className="font-display font-extrabold text-lg text-center mb-1" style={{ color: "var(--ink)" }}>
-              ¿Resetear datos de prueba?
-            </h3>
-            <p className="text-sm text-center mb-5" style={{ color: "var(--ink-3)" }}>
-              Se eliminarán <strong>todos los usuarios, tiendas y pedidos</strong> de la plataforma. El usuario admin se mantiene. Esta acción es <strong>irreversible</strong>.
-            </p>
-
-            <p className="text-xs font-bold mb-2" style={{ color: "var(--ink-2)" }}>
-              Escribe <span style={{ color: "#DC2626" }}>RESET</span> para confirmar
-            </p>
-            <input
-              type="text"
-              value={resetInput}
-              onChange={(e) => setResetInput(e.target.value)}
-              placeholder="RESET"
-              autoFocus
-              className="w-full px-4 py-3 rounded-xl text-sm font-mono mb-4 outline-none"
-              style={{
-                border: "1.5px solid",
-                borderColor: resetInput === "RESET" ? "#DC2626" : "#E2E8F0",
-                background: "var(--surface-1)",
-                color: "var(--ink)",
-              }}
-            />
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => { setResetOpen(false); setResetInput(""); }}
-                className="flex-1 py-3 rounded-xl text-sm font-bold transition-colors"
-                style={{ background: "var(--surface-1)", color: "var(--ink-2)" }}
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleReset}
-                disabled={resetInput !== "RESET" || resetting}
-                className="flex-1 py-3 rounded-xl text-sm font-bold transition-all"
-                style={{
-                  background: resetInput === "RESET" ? "#DC2626" : "#FECACA",
-                  color: "#fff",
-                  cursor: resetInput === "RESET" ? "pointer" : "not-allowed",
-                }}
-              >
-                {resetting ? "Eliminando..." : "Resetear todo"}
-              </button>
-            </div>
-          </div>
-        </>
-      )}
 
     </div>
   );

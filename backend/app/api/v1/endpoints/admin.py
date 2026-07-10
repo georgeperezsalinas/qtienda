@@ -5,13 +5,14 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import delete as sql_delete, func, select, and_
+from sqlalchemy import delete as sql_delete, func, select, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
+from app.core.config import settings
 from app.core.security import require_admin
-from app.models.models import AuditLog, Order, Payment, Role, Store, User
+from app.models.models import AuditLog, Order, Payment, Product, Role, Store, User
 
 router = APIRouter()
 
@@ -19,6 +20,7 @@ router = APIRouter()
 @router.get("/stores")
 async def list_stores(
     status: Optional[str] = Query(None),
+    q: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     limit: int = Query(20, le=100),
     _=Depends(require_admin),
@@ -27,6 +29,15 @@ async def list_stores(
     filters = [Store.deleted_at.is_(None)]
     if status:
         filters.append(Store.status == status)
+    if q:
+        term = f"%{q.strip()}%"
+        filters.append(
+            or_(
+                Store.name.ilike(term),
+                Store.slug.ilike(term),
+                Store.city.ilike(term),
+            )
+        )
 
     total = (
         await db.execute(select(func.count()).select_from(Store).where(and_(*filters)))
@@ -41,6 +52,34 @@ async def list_stores(
         .limit(limit)
     )
     stores = result.scalars().all()
+
+    store_ids = [s.id for s in stores]
+    product_counts = {}
+    order_counts = {}
+    revenue_by_store = {}
+    if store_ids:
+        product_rows = (
+            await db.execute(
+                select(Product.store_id, func.count(Product.id))
+                .where(Product.store_id.in_(store_ids), Product.deleted_at.is_(None))
+                .group_by(Product.store_id)
+            )
+        ).all()
+        product_counts = {store_id: count for store_id, count in product_rows}
+
+        order_rows = (
+            await db.execute(
+                select(
+                    Order.store_id,
+                    func.count(Order.id),
+                    func.coalesce(func.sum(Order.total_cents), 0),
+                )
+                .where(Order.store_id.in_(store_ids))
+                .group_by(Order.store_id)
+            )
+        ).all()
+        order_counts = {store_id: count for store_id, count, _ in order_rows}
+        revenue_by_store = {store_id: revenue for store_id, _, revenue in order_rows}
 
     return {
         "total": total,
@@ -57,6 +96,10 @@ async def list_stores(
                 "created_at": s.created_at,
                 "owner_email": s.user.email if s.user else None,
                 "owner_name": s.user.full_name if s.user else None,
+                "owner_phone": s.user.phone if s.user else None,
+                "products_count": product_counts.get(s.id, 0),
+                "orders_count": order_counts.get(s.id, 0),
+                "revenue_cents": revenue_by_store.get(s.id, 0),
             }
             for s in stores
         ],
@@ -83,6 +126,38 @@ async def get_store(
             select(func.count()).select_from(Order).where(Order.store_id == store_id)
         )
     ).scalar()
+    product_count = (
+        await db.execute(
+            select(func.count()).select_from(Product).where(
+                Product.store_id == store_id,
+                Product.deleted_at.is_(None),
+            )
+        )
+    ).scalar()
+    revenue_cents = (
+        await db.execute(
+            select(func.coalesce(func.sum(Order.total_cents), 0)).where(
+                Order.store_id == store_id,
+                Order.status != "cancelled",
+            )
+        )
+    ).scalar()
+    products = (
+        await db.execute(
+            select(Product)
+            .where(Product.store_id == store_id, Product.deleted_at.is_(None))
+            .order_by(Product.created_at.desc())
+            .limit(8)
+        )
+    ).scalars().all()
+    orders = (
+        await db.execute(
+            select(Order)
+            .where(Order.store_id == store_id)
+            .order_by(Order.created_at.desc())
+            .limit(8)
+        )
+    ).scalars().all()
 
     return {
         "id": store.id,
@@ -94,6 +169,10 @@ async def get_store(
         "whatsapp": store.whatsapp,
         "created_at": store.created_at,
         "deleted_at": store.deleted_at,
+        "logo_url": store.logo_url,
+        "banner_url": store.banner_url,
+        "primary_color": store.primary_color,
+        "description": store.description,
         "owner": {
             "id": store.user.id,
             "email": store.user.email,
@@ -102,6 +181,39 @@ async def get_store(
             "is_active": store.user.is_active,
         } if store.user else None,
         "order_count": order_count,
+        "product_count": product_count,
+        "revenue_cents": revenue_cents,
+        "settings": {
+            "accept_cash": store.settings.accept_cash,
+            "accept_yape": store.settings.accept_yape,
+            "accept_plin": store.settings.accept_plin,
+            "accept_transfer": store.settings.accept_transfer,
+            "accept_card": store.settings.accept_card,
+            "delivery_fee_cents": store.settings.delivery_fee_cents,
+            "min_order_cents": store.settings.min_order_cents,
+        } if store.settings else None,
+        "products": [
+            {
+                "id": p.id,
+                "name": p.name,
+                "status": p.status,
+                "price_cents": p.price_cents,
+                "stock": p.stock,
+                "created_at": p.created_at,
+            }
+            for p in products
+        ],
+        "recent_orders": [
+            {
+                "id": o.id,
+                "order_number": o.order_number,
+                "status": o.status,
+                "buyer_name": o.buyer_name,
+                "total_cents": o.total_cents,
+                "created_at": o.created_at,
+            }
+            for o in orders
+        ],
     }
 
 
@@ -155,6 +267,51 @@ async def suspend_store(
     ))
     await db.commit()
     return {"store_id": store.id, "status": store.status}
+
+
+class StoreDeleteRequest(BaseModel):
+    confirm: str
+    reason: Optional[str] = None
+
+
+@router.delete("/stores/{store_id}")
+async def delete_store(
+    store_id: UUID,
+    body: StoreDeleteRequest,
+    current_admin=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    if body.confirm != "DELETE":
+        raise HTTPException(status_code=400, detail="Confirmación inválida. Envía { confirm: 'DELETE' }")
+
+    result = await db.execute(select(Store).where(Store.id == store_id, Store.deleted_at.is_(None)))
+    store = result.scalar_one_or_none()
+    if not store:
+        raise HTTPException(status_code=404, detail="Tienda no encontrada")
+
+    old_value = {
+        "status": store.status,
+        "deleted_at": None,
+        "slug": store.slug,
+        "name": store.name,
+    }
+    store.status = "suspended"
+    store.deleted_at = datetime.now(timezone.utc)
+    db.add(AuditLog(
+        user_id=current_admin.id,
+        store_id=store.id,
+        action="store.soft_deleted",
+        entity="stores",
+        entity_id=store.id,
+        old_value=old_value,
+        new_value={
+            "status": store.status,
+            "deleted_at": store.deleted_at.isoformat(),
+            "reason": body.reason,
+        },
+    ))
+    await db.commit()
+    return {"store_id": store.id, "deleted_at": store.deleted_at, "status": store.status}
 
 
 @router.get("/users")
@@ -267,6 +424,9 @@ async def reset_test_data(
     current_admin=Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
+    if not settings.DEBUG:
+        raise HTTPException(status_code=403, detail="Reset masivo deshabilitado en producción")
+
     if body.confirm != "RESET":
         raise HTTPException(status_code=400, detail="Confirmación inválida. Envía { confirm: 'RESET' }")
 
