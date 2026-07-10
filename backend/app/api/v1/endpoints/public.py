@@ -2,11 +2,11 @@
 Public endpoints — accessed by buyers via /tienda/{slug}
 No authentication required.
 """
-from datetime import date
+from datetime import date, datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request
 from urllib.parse import quote
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import func, select, and_
+from sqlalchemy import func, select, and_, or_
 from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
@@ -407,6 +407,10 @@ async def _check_order_limit(store: Store, db: AsyncSession) -> None:
         .where(
             Subscription.store_id == store_id,
             Subscription.status.in_(["active", "trial"]),
+            or_(
+                Subscription.ends_at.is_(None),
+                Subscription.ends_at > datetime.now(timezone.utc),
+            ),
         )
         .order_by(Subscription.created_at.desc())
         .limit(1)

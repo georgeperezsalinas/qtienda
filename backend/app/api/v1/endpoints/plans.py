@@ -4,7 +4,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -202,19 +202,24 @@ async def subscribe(
 
     charge_id: str = charge.get("id", "")
 
-    # Cancelar suscripción anterior
-    old_sub = await _active_sub(store.id, db)
-    if old_sub:
-        old_sub.status = "cancelled"
-        old_sub.cancelled_at = datetime.now(timezone.utc)
-
     now = datetime.now(timezone.utc)
+
+    # Cancelar suscripción anterior. Si renueva el mismo plan antes de vencer,
+    # los días restantes se suman (los 30 nuevos corren desde ends_at).
+    old_sub = await _active_sub(store.id, db)
+    base = now
+    if old_sub:
+        if old_sub.plan_id == plan.id and old_sub.ends_at and old_sub.ends_at > now:
+            base = old_sub.ends_at
+        old_sub.status = "cancelled"
+        old_sub.cancelled_at = now
+
     new_sub = Subscription(
         store_id=store.id,
         plan_id=plan.id,
         status="active",
         starts_at=now,
-        ends_at=now + timedelta(days=30),
+        ends_at=base + timedelta(days=30),
         payment_ref=charge_id,
     )
     db.add(new_sub)
@@ -257,12 +262,17 @@ async def _get_store(user, db: AsyncSession) -> Store:
 
 
 async def _active_sub(store_id: UUID, db: AsyncSession):
+    # Una suscripción con ends_at pasado ya no cuenta: la tienda vuelve a free
     return (await db.execute(
         select(Subscription)
         .options(selectinload(Subscription.plan))
         .where(
             Subscription.store_id == store_id,
             Subscription.status.in_(["active", "trial"]),
+            or_(
+                Subscription.ends_at.is_(None),
+                Subscription.ends_at > datetime.now(timezone.utc),
+            ),
         )
         .order_by(Subscription.created_at.desc())
         .limit(1)

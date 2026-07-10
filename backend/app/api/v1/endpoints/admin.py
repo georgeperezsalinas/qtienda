@@ -553,14 +553,18 @@ async def approve_plan_request(
 
     now = datetime.now(timezone.utc)
 
-    # Cancelar suscripción activa anterior
+    # Cancelar suscripción activa anterior. Si renueva el mismo plan antes de
+    # vencer, los 30 días nuevos corren desde ends_at (no pierde lo pagado).
     old_sub = (await db.execute(
         select(Subscription).where(
             Subscription.store_id == req.store_id,
             Subscription.status.in_(["active", "trial"]),
         )
     )).scalars().first()
+    base = now
     if old_sub:
+        if old_sub.plan_id == req.plan_id and old_sub.ends_at and old_sub.ends_at > now:
+            base = old_sub.ends_at
         old_sub.status = "cancelled"
         old_sub.cancelled_at = now
 
@@ -570,7 +574,7 @@ async def approve_plan_request(
         plan_id=req.plan_id,
         status="active",
         starts_at=now,
-        ends_at=now + timedelta(days=30),
+        ends_at=base + timedelta(days=30),
         payment_ref=f"yape:{req.operation_number or req.id}",
     )
     db.add(new_sub)

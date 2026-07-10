@@ -48,6 +48,10 @@ class Settings(BaseSettings):
     YAPE_PAYMENT_PHONE: str = "921459342"
     YAPE_PAYMENT_NAME: str = "Jorge P. Salinas"
 
+    # Aviso de vencimiento de plan
+    PLAN_EXPIRY_NOTICE_DAYS: int = 3   # avisar cuando falten <= N dias
+    PLAN_EXPIRY_CHECK_HOURS: int = 6   # frecuencia del chequeo
+
     UPLOADS_DIR: str = "/tmp/qtienda-uploads"
     UPLOADS_BASE_URL: str = "http://localhost:8000/uploads"
 

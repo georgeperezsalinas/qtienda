@@ -5,7 +5,7 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, and_, select, update as sa_update
+from sqlalchemy import func, and_, or_, select, update as sa_update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -127,6 +127,10 @@ async def _check_product_limit(store: Store, db: AsyncSession) -> None:
         .where(
             Subscription.store_id == store.id,
             Subscription.status.in_(["active", "trial"]),
+            or_(
+                Subscription.ends_at.is_(None),
+                Subscription.ends_at > datetime.now(timezone.utc),
+            ),
         )
         .order_by(Subscription.created_at.desc())
         .limit(1)

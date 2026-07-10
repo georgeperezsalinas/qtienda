@@ -23,8 +23,12 @@ UPLOADS_DIR = Path(settings.UPLOADS_DIR)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # startup
+    import asyncio
+    from app.services.plan_expiry import expiry_watcher
+    expiry_task = asyncio.create_task(expiry_watcher())
     yield
     # shutdown
+    expiry_task.cancel()
     await engine.dispose()
 
 

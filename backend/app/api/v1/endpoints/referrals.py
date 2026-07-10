@@ -1,6 +1,8 @@
 """Referidos del vendedor: código propio, progreso y bonus de límites."""
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -36,6 +38,10 @@ async def my_referrals(
             .where(
                 Subscription.store_id == store.id,
                 Subscription.status.in_(["active", "trial"]),
+                or_(
+                    Subscription.ends_at.is_(None),
+                    Subscription.ends_at > datetime.now(timezone.utc),
+                ),
             )
             .order_by(Subscription.created_at.desc())
             .limit(1)

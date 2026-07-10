@@ -337,6 +337,7 @@ class Subscription(Base):
     ends_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     trial_ends_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     cancelled_at: Mapped[Optional[datetime]]  = mapped_column(DateTime(timezone=True))
+    expiry_notified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     payment_ref: Mapped[Optional[str]] = mapped_column(String(120))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

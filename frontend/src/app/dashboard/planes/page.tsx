@@ -403,20 +403,43 @@ export default function PlanesPage() {
       )}
 
       {/* Estado de suscripción actual */}
-      {subscription && subscription.status !== "free" && (
-        <div
-          className="flex items-center gap-2 px-4 py-3 rounded-2xl mb-5 text-sm font-medium"
-          style={{ background: "var(--success-soft)", color: "var(--success)" }}
-        >
-          <Check size={15} strokeWidth={2.5} />
-          Suscripción {subscription.status === "active" ? "activa" : subscription.status}
-          {subscription.ends_at && (
-            <span style={{ opacity: 0.7, marginLeft: 4 }}>
-              · vence {new Date(subscription.ends_at).toLocaleDateString("es-PE")}
+      {subscription && subscription.status !== "free" && (() => {
+        const daysLeft = subscription.ends_at
+          ? Math.ceil((new Date(subscription.ends_at).getTime() - Date.now()) / 86_400_000)
+          : null;
+        const nearExpiry = daysLeft !== null && daysLeft <= 7;
+        const currentPlan = plans.find((p) => p.slug === subscription.plan_slug);
+        return (
+          <div
+            className="flex items-center gap-2 px-4 py-3 rounded-2xl mb-5 text-sm font-medium flex-wrap"
+            style={
+              nearExpiry
+                ? { background: "#FFFBEB", color: "#92400E", border: "1px solid #FDE68A" }
+                : { background: "var(--success-soft)", color: "var(--success)" }
+            }
+          >
+            <Check size={15} strokeWidth={2.5} />
+            <span>
+              Suscripción {subscription.status === "active" ? "activa" : subscription.status}
+              {subscription.ends_at && (
+                <span style={{ opacity: 0.75, marginLeft: 4 }}>
+                  · vence {new Date(subscription.ends_at).toLocaleDateString("es-PE")}
+                  {daysLeft !== null && daysLeft > 0 && ` (${daysLeft} día${daysLeft !== 1 ? "s" : ""})`}
+                </span>
+              )}
             </span>
-          )}
-        </div>
-      )}
+            {nearExpiry && currentPlan && (
+              <button
+                onClick={() => handleUpgrade(currentPlan)}
+                className="ml-auto px-3.5 py-1.5 rounded-xl text-xs font-bold text-white transition-all active:scale-95"
+                style={{ background: "#D97706" }}
+              >
+                Renovar ahora
+              </button>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Grid de planes */}
       {loadingPlans ? (

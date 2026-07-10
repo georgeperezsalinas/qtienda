@@ -79,7 +79,7 @@ export default function ReferralBanner() {
           </p>
           <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "#6D28D9" }}>
             Por cada amigo que cree su tienda ganas <strong>+{perProducts} productos</strong> y{" "}
-            <strong>+{perOrders} pedidos/mes</strong> en tu plan.
+            <strong>+{perOrders} pedidos/mes</strong> en tu plan free.
           </p>
 
           {info.counted > 0 && (
