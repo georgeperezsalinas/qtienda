@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
+import Image from "next/image";
 import {
   ShoppingCart, Search, ChevronRight, Zap,
   MapPin, X, MessageCircle, Share2, Download,
@@ -13,7 +14,6 @@ import CartDrawer from "./CartDrawer";
 import { useCartStore } from "@/store/cartStore";
 import { useAuthStore } from "@/store/authStore";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
-import SafeImage from "@/components/ui/SafeImage";
 
 interface StoreData {
   slug:          string;
@@ -144,7 +144,7 @@ export default function StorePage({ store, initialProducts }: Props) {
             {/* Logo */}
             <div className="flex-shrink-0">
               {store.logo_url ? (
-                <SafeImage src={store.logo_url} alt={store.name} width={36} height={36}
+                <Image src={store.logo_url} alt={store.name} width={36} height={36}
                   className="rounded-[12px] object-cover" />
               ) : (
                 <div

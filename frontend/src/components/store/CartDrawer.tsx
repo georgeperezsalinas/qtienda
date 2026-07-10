@@ -14,7 +14,6 @@ import { apiClient } from "@/lib/api";
 import toast from "react-hot-toast";
 import PhoneInput from "@/components/ui/PhoneInput";
 import { track } from "@vercel/analytics";
-import { resolveMediaUrl } from "@/lib/media";
 
 interface Props {
   open: boolean;
@@ -286,7 +285,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                               {/* Image */}
                               {item.image_url ? (
                                 <img
-                                  src={resolveMediaUrl(item.image_url)}
+                                  src={item.image_url}
                                   alt={item.name}
                                   className="w-16 h-16 rounded-xl object-cover flex-shrink-0"
                                 />

@@ -1,13 +1,12 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import { X, ChevronLeft, ChevronRight, Check, ShoppingCart, ZoomIn } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCartStore } from "@/store/cartStore";
 import { formatPrice, stripHtml } from "@/lib/utils";
 import toast from "react-hot-toast";
-import SafeImage from "@/components/ui/SafeImage";
-import { resolveMediaUrl } from "@/lib/media";
 
 interface ProductForSheet {
   id: string;
@@ -125,7 +124,7 @@ export default function ProductDetailSheet({
                 transition={{ duration: 0.18 }}
                 className="absolute inset-0"
               >
-                <SafeImage
+                <Image
                   src={product.images[current].url}
                   alt={displayName}
                   fill
@@ -272,7 +271,7 @@ export default function ProductDetailSheet({
                       opacity:  i === current ? 1 : 0.6,
                     }}
                   >
-                    <SafeImage src={img.url} alt="" fill className="object-cover" sizes="56px" />
+                    <Image src={img.url} alt="" fill className="object-cover" sizes="56px" />
                   </button>
                 ))}
               </div>
@@ -347,7 +346,7 @@ export default function ProductDetailSheet({
           onClick={() => setZoomOpen(false)}
         >
           <img
-            src={resolveMediaUrl(product.images[current].url)}
+            src={product.images[current].url}
             alt={displayName}
             className="max-w-full max-h-full object-contain"
             style={{ maxHeight: "90dvh" }}

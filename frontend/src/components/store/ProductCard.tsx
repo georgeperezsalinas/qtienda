@@ -1,12 +1,12 @@
 "use client";
 
+import Image from "next/image";
 import { Plus, Check, Images } from "lucide-react";
 import { useState } from "react";
 import { useCartStore } from "@/store/cartStore";
 import { formatPrice, stripHtml } from "@/lib/utils";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
-import SafeImage from "@/components/ui/SafeImage";
 
 interface Props {
   product: {
@@ -69,7 +69,7 @@ export default function ProductCard({
         >
           <div className="relative h-40 bg-gray-50">
             {primaryImage ? (
-              <SafeImage src={primaryImage} alt={displayName} fill className="object-cover" />
+              <Image src={primaryImage} alt={displayName} fill className="object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-4xl">🛍️</div>
             )}
@@ -145,7 +145,7 @@ export default function ProductCard({
         {/* Image */}
         <div className="relative w-[76px] h-[76px] rounded-xl overflow-hidden flex-shrink-0 bg-gray-50">
           {primaryImage ? (
-            <SafeImage src={primaryImage} alt={displayName} fill className="object-cover" />
+            <Image src={primaryImage} alt={displayName} fill className="object-cover" />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-2xl">🛍️</div>
           )}
@@ -222,7 +222,7 @@ export default function ProductCard({
     >
       <div className="relative bg-gray-50 aspect-square">
         {primaryImage ? (
-          <SafeImage src={primaryImage} alt={displayName} fill className="object-cover" />
+          <Image src={primaryImage} alt={displayName} fill className="object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-5xl">🛍️</div>
         )}
