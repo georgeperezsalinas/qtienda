@@ -638,7 +638,7 @@ export default function MisPedidosPage() {
         }}
       >
         <div
-          className="px-4 pb-3 max-w-lg mx-auto w-full"
+          className="px-4 pb-3 max-w-lg lg:max-w-3xl mx-auto w-full"
           style={{ paddingTop: "max(16px, env(safe-area-inset-top))" }}
         >
           <div className="flex items-center justify-between">
@@ -680,7 +680,7 @@ export default function MisPedidosPage() {
       </header>
 
       {/* ── Content ── */}
-      <main className="flex-1 px-4 py-4 max-w-lg mx-auto w-full">
+      <main className="flex-1 px-4 py-4 max-w-lg lg:max-w-3xl mx-auto w-full">
 
         {/* ── Guest view ── */}
         {!isLoggedIn && (

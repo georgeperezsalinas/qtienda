@@ -99,7 +99,7 @@ function BannerCarousel({ banners, storeName }: {
           const link = b.link && /^(https?:\/\/|\/)/.test(b.link) ? b.link : undefined;
           const isExternal = !!link && link.startsWith("http") && !link.includes("qtienda.shop");
           const img = (
-            <div className="relative w-full aspect-[3/1] lg:aspect-[4/1]">
+            <div className="relative w-full aspect-[3/1] md:aspect-[4/1]">
               <Image
                 src={b.url}
                 alt={`Banner ${i + 1} de ${storeName}`}
@@ -230,6 +230,8 @@ export default function StorePage({ store, initialProducts }: Props) {
     setMounted(true);
     if (localStorage.getItem("qtienda_buyer_banner_dismissed") === "1")
       setBuyerBannerDismissed(true);
+    // En pantallas grandes la grilla aprovecha mejor el espacio que la lista
+    if (window.innerWidth >= 1024) setListView(false);
   }, []);
 
   useEffect(() => {
@@ -296,7 +298,7 @@ export default function StorePage({ store, initialProducts }: Props) {
           boxShadow:            headerScrolled ? "0 2px 16px rgba(15,23,42,.07)" : "none",
         }}
       >
-        <div className="max-w-xl lg:max-w-5xl mx-auto">
+        <div className="max-w-xl md:max-w-3xl lg:max-w-5xl mx-auto">
 
           {/* Row 1: logo + name + actions */}
           <div className="flex items-center gap-3 px-4 pt-3 pb-2">
@@ -470,7 +472,7 @@ export default function StorePage({ store, initialProducts }: Props) {
       ══════════════════════════════════ */}
       {effectiveBanners.length > 0 && (
         <motion.div
-          className="max-w-xl lg:max-w-5xl mx-auto px-4 pt-3 pb-1"
+          className="max-w-xl md:max-w-3xl lg:max-w-5xl mx-auto px-4 pt-3 pb-1"
           style={{ y: bannerY, opacity: bannerOpacity, scale: bannerScale }}
         >
           <BannerCarousel banners={effectiveBanners} storeName={store.name} />
@@ -484,7 +486,7 @@ export default function StorePage({ store, initialProducts }: Props) {
         {mounted && installPrompt && !installDismissed && (
           <motion.div
             initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-            className="flex items-center gap-3 px-4 py-2.5 max-w-xl lg:max-w-5xl mx-auto"
+            className="flex items-center gap-3 px-4 py-2.5 max-w-xl md:max-w-3xl lg:max-w-5xl mx-auto"
             style={{ background: `${color}10`, borderBottom: `1px solid ${color}18` }}
           >
             <span className="text-lg flex-shrink-0">📲</span>
@@ -507,7 +509,7 @@ export default function StorePage({ store, initialProducts }: Props) {
         {mounted && !isLoggedIn && !buyerBannerDismissed && (
           <motion.div
             initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-            className="flex items-center gap-3 px-4 py-2.5 max-w-xl lg:max-w-5xl mx-auto"
+            className="flex items-center gap-3 px-4 py-2.5 max-w-xl md:max-w-3xl lg:max-w-5xl mx-auto"
             style={{ background: "#F0FDF4", borderBottom: "1px solid #BBF7D0" }}
           >
             <span className="text-lg flex-shrink-0">🛍️</span>
@@ -527,7 +529,7 @@ export default function StorePage({ store, initialProducts }: Props) {
       {/* Descripción de la tienda (si existe) */}
       {store.description && (
         <div
-          className="max-w-xl lg:max-w-5xl mx-auto px-4 py-3"
+          className="max-w-xl md:max-w-3xl lg:max-w-5xl mx-auto px-4 py-3"
           style={{ background: `${color}07`, borderBottom: `1px solid ${color}15` }}
         >
           <p className="text-xs leading-snug" style={{ color: "#475569" }}>
@@ -545,7 +547,7 @@ export default function StorePage({ store, initialProducts }: Props) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="max-w-xl lg:max-w-5xl mx-auto pt-4 pb-5 lg:rounded-2xl lg:mt-3"
+            className="max-w-xl md:max-w-3xl lg:max-w-5xl mx-auto pt-4 pb-5 lg:rounded-2xl lg:mt-3"
             style={{ background: `${color}07` }}
           >
             <div className="flex items-center gap-2 px-4 mb-3">
@@ -660,7 +662,7 @@ export default function StorePage({ store, initialProducts }: Props) {
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.18 }}
-                className="space-y-2 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-3"
+                className="space-y-2 md:space-y-0 md:grid md:grid-cols-2 md:gap-3"
               >
                 {filtered.map((product, i) => (
                   <motion.div

@@ -55,7 +55,7 @@ export default function TiendasPage() {
         }}
       >
         <div
-          className="px-4 pb-3 max-w-lg mx-auto w-full"
+          className="px-4 pb-3 max-w-lg lg:max-w-4xl mx-auto w-full"
           style={{ paddingTop: "max(16px, env(safe-area-inset-top))" }}
         >
           <div className="flex items-center gap-3 mb-3">
@@ -101,7 +101,7 @@ export default function TiendasPage() {
       </header>
 
       {/* ── Content ── */}
-      <main className="flex-1 px-4 py-4 max-w-lg mx-auto w-full">
+      <main className="flex-1 px-4 py-4 max-w-lg lg:max-w-4xl mx-auto w-full">
 
         {/* Skeletons */}
         {loading && (
@@ -133,7 +133,7 @@ export default function TiendasPage() {
         )}
 
         {/* Store list */}
-        <div className="space-y-2.5">
+        <div className="space-y-2.5 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-3">
           {filtered.map((s) => {
             const color = s.primary_color ?? "#6366f1";
             return (

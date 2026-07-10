@@ -409,7 +409,7 @@ export default function FinanzasPage() {
   const ordersThisMonth = period === "this_month" ? (stats?.total_orders ?? 0) : 0;
 
   return (
-    <div className="max-w-lg mx-auto pb-10">
+    <div className="max-w-lg lg:max-w-4xl mx-auto pb-10">
 
       {/* ── Header ── */}
       <div className="px-5 pt-6 pb-2">
@@ -475,7 +475,7 @@ export default function FinanzasPage() {
             {[...Array(4)].map((_, i) => <Skel key={i} h={104} />)}
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3 animate-fade-up">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 animate-fade-up">
             <KpiTile
               label="Pedidos"
               value={String(total)}
