@@ -2,7 +2,7 @@
 UPDATE plans
 SET max_products  = 10,
     max_orders_mo = 50,
-    features      = '["Tienda básica","WhatsApp","5 fotos/producto","10 productos","500 pedidos/mes"]'
+    features      = '["Tienda básica","WhatsApp","5 fotos/producto","10 productos","50 pedidos/mes"]'
 WHERE slug = 'free';
 
 -- Normalizar pro/elite: 0 significaba "sin limite" pero el check lo trata como

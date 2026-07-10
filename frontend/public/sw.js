@@ -1,9 +1,14 @@
-// qtienda — Service Worker v2
+// qtienda — Service Worker
 // Estrategia: Cache-first para assets estáticos, Network-first para navegación
+//
+// SW_VERSION se reemplaza automáticamente con un timestamp en el build de
+// Docker (ver frontend/Dockerfile). Cada deploy genera una versión nueva y
+// dispara el banner "Nueva versión disponible" en los clientes.
+const SW_VERSION = "v3-dev";
 
-const CACHE_STATIC = "qtienda-static-v2";
-const CACHE_PAGES = "qtienda-pages-v2";
-const CACHE_IMAGES = "qtienda-images-v2";
+const CACHE_STATIC = `qtienda-static-${SW_VERSION}`;
+const CACHE_PAGES = `qtienda-pages-${SW_VERSION}`;
+const CACHE_IMAGES = `qtienda-images-${SW_VERSION}`;
 
 // Assets que siempre queremos en caché (shell de la app)
 const PRECACHE_URLS = [
@@ -15,11 +20,17 @@ const PRECACHE_URLS = [
 ];
 
 // ── Install: pre-cachear shell ──────────────────────────────
+// Sin skipWaiting automático: el SW nuevo queda "waiting" y la página
+// muestra el banner de actualización; se activa cuando el usuario acepta.
 self.addEventListener("install", (e) => {
   e.waitUntil(
     caches.open(CACHE_STATIC).then((cache) => cache.addAll(PRECACHE_URLS))
   );
-  self.skipWaiting();
+});
+
+// La página envía SKIP_WAITING cuando el usuario toca "Actualizar"
+self.addEventListener("message", (e) => {
+  if (e.data && e.data.type === "SKIP_WAITING") self.skipWaiting();
 });
 
 // ── Activate: limpiar caches viejos ────────────────────────

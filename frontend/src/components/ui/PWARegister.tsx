@@ -7,7 +7,7 @@
 // - En iOS muestra instrucciones manuales (Safari no soporta beforeinstallprompt)
 
 import { useEffect, useState } from "react";
-import { Download, X, Share } from "lucide-react";
+import { Download, X, Share, RefreshCw } from "lucide-react";
 
 // Detectar iOS
 function isIOS() {
@@ -29,18 +29,52 @@ export default function PWARegister() {
   const [showBanner, setShowBanner] = useState(false);
   const [showIOSHint, setShowIOSHint] = useState(false);
   const [installed, setInstalled] = useState(false);
+  const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
-    // Registrar Service Worker
+    // Registrar Service Worker + detección de nueva versión
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker
         .register("/sw.js", { scope: "/" })
         .then((reg) => {
           console.log("[qtienda] SW registrado:", reg.scope);
+
+          // ¿Ya hay una versión nueva esperando? (la página se abrió con la vieja)
+          if (reg.waiting && navigator.serviceWorker.controller) {
+            setWaitingWorker(reg.waiting);
+          }
+
+          // Versión nueva descargándose en este momento
+          reg.addEventListener("updatefound", () => {
+            const nw = reg.installing;
+            if (!nw) return;
+            nw.addEventListener("statechange", () => {
+              if (nw.state === "installed" && navigator.serviceWorker.controller) {
+                setWaitingWorker(nw);
+              }
+            });
+          });
+
+          // Buscar updates al volver a la app (clave en PWAs instaladas que
+          // quedan en memoria en el celular) y cada hora
+          const check = () => reg.update().catch(() => {});
+          document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === "visible") check();
+          });
+          setInterval(check, 60 * 60 * 1000);
         })
         .catch((err) => {
           console.warn("[qtienda] SW error:", err);
         });
+
+      // Cuando el SW nuevo toma control, recargar una sola vez
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (refreshing) return;
+        refreshing = true;
+        window.location.reload();
+      });
     }
 
     // Si ya está instalada, no mostrar nada
@@ -101,6 +135,74 @@ export default function PWARegister() {
     setShowBanner(false);
     setShowIOSHint(false);
     localStorage.setItem("pwa-banner-dismissed", "1");
+  }
+
+  // Activar la versión nueva: el SW hace skipWaiting y controllerchange recarga
+  function handleUpdate() {
+    if (!waitingWorker) return;
+    setUpdating(true);
+    waitingWorker.postMessage({ type: "SKIP_WAITING" });
+    // Fallback por si controllerchange no dispara (ej. SW ya activado)
+    setTimeout(() => window.location.reload(), 3_000);
+  }
+
+  // ── Banner de nueva versión (prioridad sobre todo lo demás) ──
+  if (waitingWorker) {
+    return (
+      <div
+        role="banner"
+        aria-label="Nueva versión disponible"
+        style={{
+          position: "fixed",
+          bottom: 80,
+          left: 16,
+          right: 16,
+          zIndex: 9999,
+          background: "var(--ink)",
+          color: "var(--bg)",
+          borderRadius: 16,
+          padding: "14px 16px",
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          boxShadow: "0 8px 32px rgba(0,0,0,0.28)",
+          fontFamily: "var(--font-sans)",
+          animation: "slideUp 0.3s ease",
+        }}
+      >
+        <span style={{ fontSize: 24, flexShrink: 0 }}>✨</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontSize: 13, fontWeight: 600, margin: 0 }}>
+            Nueva versión de qtienda
+          </p>
+          <p style={{ fontSize: 12, opacity: 0.7, margin: "2px 0 0", lineHeight: 1.3 }}>
+            Actualiza para ver las mejoras
+          </p>
+        </div>
+        <button
+          onClick={handleUpdate}
+          disabled={updating}
+          style={{
+            background: "var(--accent)",
+            color: "#fff",
+            border: "none",
+            borderRadius: 10,
+            padding: "8px 14px",
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: updating ? "wait" : "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            flexShrink: 0,
+            opacity: updating ? 0.7 : 1,
+          }}
+        >
+          <RefreshCw size={14} className={updating ? "animate-spin" : undefined} />
+          {updating ? "Actualizando..." : "Actualizar"}
+        </button>
+      </div>
+    );
   }
 
   if (installed || (!showBanner && !showIOSHint)) return null;

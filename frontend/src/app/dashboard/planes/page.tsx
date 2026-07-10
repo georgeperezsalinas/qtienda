@@ -91,14 +91,17 @@ function formatPricePlan(cents: number): string {
 function PlanCard({
   plan,
   isCurrent,
+  daysLeft,
   onUpgrade,
   loading,
 }: {
   plan: Plan;
   isCurrent: boolean;
+  daysLeft: number | null;
   onUpgrade: (plan: Plan) => void;
   loading: boolean;
 }) {
+  const renewNow = isCurrent && daysLeft !== null && daysLeft <= 7;
   const visual = PLAN_VISUAL[plan.slug] ?? PLAN_VISUAL.free;
   const isPro = plan.slug === "pro";
 
@@ -182,7 +185,34 @@ function PlanCard({
         </div>
 
         <div className="mt-4">
-          {isCurrent ? (
+          {renewNow ? (
+            <>
+              <button
+                onClick={() => onUpgrade(plan)}
+                disabled={loading}
+                className="flex w-full items-center justify-center gap-2 text-sm font-bold py-3 rounded-xl transition-all active:scale-95 disabled:opacity-60"
+                style={{
+                  background: "#D97706",
+                  color: "#fff",
+                  border: "none",
+                  cursor: loading ? "not-allowed" : "pointer",
+                  boxShadow: "0 4px 12px #D9770640",
+                }}
+              >
+                {loading ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <>
+                    Renovar {plan.name}
+                    {daysLeft !== null && daysLeft > 0 && ` · vence en ${daysLeft} día${daysLeft !== 1 ? "s" : ""}`}
+                  </>
+                )}
+              </button>
+              <p className="text-center text-[11px] mt-2" style={{ color: "var(--ink-4)" }}>
+                Paga con Yape o tarjeta · los 30 días se suman a tu fecha
+              </p>
+            </>
+          ) : isCurrent ? (
             <div
               className="w-full text-center text-sm font-semibold py-3 rounded-xl"
               style={{ background: "var(--surface-2)", color: "var(--ink-3)" }}
@@ -358,6 +388,9 @@ export default function PlanesPage() {
 
   const currentSlug = subscription?.plan_slug ?? "free";
   const isLoading = culqiLoading || subscribeMutation.isPending;
+  const daysLeft = subscription?.ends_at
+    ? Math.ceil((new Date(subscription.ends_at).getTime() - Date.now()) / 86_400_000)
+    : null;
 
   return (
     <div style={{ padding: "20px 20px 40px", fontFamily: "var(--font-sans)", maxWidth: 700, margin: "0 auto" }}>
@@ -404,9 +437,6 @@ export default function PlanesPage() {
 
       {/* Estado de suscripción actual */}
       {subscription && subscription.status !== "free" && (() => {
-        const daysLeft = subscription.ends_at
-          ? Math.ceil((new Date(subscription.ends_at).getTime() - Date.now()) / 86_400_000)
-          : null;
         const nearExpiry = daysLeft !== null && daysLeft <= 7;
         const currentPlan = plans.find((p) => p.slug === subscription.plan_slug);
         return (
@@ -455,6 +485,7 @@ export default function PlanesPage() {
               key={plan.id}
               plan={plan}
               isCurrent={plan.slug === currentSlug}
+              daysLeft={plan.slug === currentSlug ? daysLeft : null}
               onUpgrade={handleUpgrade}
               loading={isLoading}
             />
