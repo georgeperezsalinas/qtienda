@@ -157,7 +157,7 @@ PostgreSQL compartido en VPS
 | R-005 | P1 | DB | Migraciones SQL manuales. | Formalizar Alembic o procedimiento versionado estricto. |
 | R-006 | P1 | Pagos | Culqi no tiene webhook/conciliacion. | Mitigado parcialmente: Yape directo con aprobacion manual admin es la via principal. Webhook sigue pendiente para tarjeta. |
 | R-009 | P0 | Planes | Plans pro/elite tenian limites en 0 y el check los trataba como "limite alcanzado": bloqueaba pedidos/productos a clientes de pago. | Resuelto 2026-07-10: migracion 011 normaliza a NULL y el codigo trata 0/NULL como ilimitado. Verificar que 011 corra en VPS. |
-| R-010 | P1 | Planes | Migracion 011 dice free = 50 pedidos/mes, BD local tiene 500 y el texto de features dice "500 pedidos/mes". | Definir el limite real y alinear archivo, BD y features. |
+| R-010 | P1 | Planes | Migracion 011 dice free = 50 pedidos/mes, BD local tiene 500 y el texto de features dice "500 pedidos/mes". | Resuelto 2026-07-10: limite definitivo 50/mes, migracion 016 converge todo. |
 | R-007 | P1 | Mobile | Logs debug en produccion. | Resuelto 2026-07-10: logger condicionado por `__DEV__` en `lib/logger.ts`, sin console.* directos. |
 | R-008 | P1 | Deploy | Posible inconsistencia `qtienda.shop/api` vs `api.qtienda.shop/api`. | Definir dominio canonico de API. |
 
@@ -172,7 +172,7 @@ PostgreSQL compartido en VPS
 | QT-005 | P0 | Admin | Suspender/reactivar tiendas desde admin. | Control operativo sin borrar datos. | Hecho (suspend/approve con auditoria) |
 | QT-006 | P0 | Admin | Eliminar tiendas de prueba con soft delete y auditoria. | Limpieza segura de marcha blanca. | Hecho (confirm DELETE + razon + audit log) |
 | QT-007 | P0 | Admin | Marcar tiendas/usuarios como prueba. | Separar metricas reales de pruebas. | Hecho para tiendas (`is_test` + migracion 010) |
-| QT-008 | P1 | Analytics | Registrar eventos basicos: tienda vista, producto visto, add cart, checkout. | Saber uso real por celular/laptop y conversion. | Pendiente |
+| QT-008 | P1 | Analytics | Registrar eventos basicos: tienda vista, producto visto, add cart, checkout. | Saber uso real por celular/laptop y conversion. | Hecho 2026-07-10 (migracion 017 `store_events`, endpoint publico + `order_created` server-side, dispositivo/sesion, metricas en `GET /stores/me/analytics` y tarjeta "ultimos 30 dias" en dashboard) |
 | QT-009 | P1 | QA | Smoke tests backend. | Validacion rapida antes de deploy. | Hecho 2026-07-10 (`smoke_test.py` solo lecturas, integrado al final de `deploy.sh`, probado contra produccion 5/5) |
 | QT-010 | P1 | QA | Smoke tests web responsive. | Validar landing, tienda, login, dashboard y checkout. | Pendiente |
 | QT-011 | P1 | DB | Definir estrategia backup diaria. | Recuperacion ante error operativo. | Parcial (script `infra/backup_postgres.sh` con rotacion 14 dias listo; falta programar cron en VPS y verificar primer backup) |
@@ -188,8 +188,8 @@ PostgreSQL compartido en VPS
 | QT-021 | P1 | Producto | Sistema de referidos con bonus de limites en plan free y banner en dashboard. | Crecimiento organico de usuarios. | Hecho 2026-07-10 (migracion 012, probado e2e) |
 | QT-022 | P1 | Planes | Expiracion automatica de suscripcion, renovacion que suma dias y aviso previo (email + push web + Expo) 3 dias antes. | Ciclo de suscripcion completo. | Hecho 2026-07-10 (migracion 014, watcher en lifespan) |
 | QT-023 | P1 | PWA | Banner "nueva version disponible" con versionado automatico del SW en build Docker. | Usuarios con cache vieja se enteran de mejoras. | Hecho 2026-07-10 |
-| QT-024 | P0 | Deploy | Ejecutar y verificar migraciones 010-015 en Postgres del VPS. | Backend nuevo funciona en produccion. | Pendiente verificar |
-| QT-025 | P1 | Planes | Alinear limite de pedidos free: migracion 011 dice 50, BD local 500, features dice "500 pedidos/mes". | Un solo valor consistente en archivo, BD y UI. | Pendiente decision |
+| QT-024 | P0 | Deploy | Ejecutar y verificar migraciones 010-017 en Postgres del VPS. OJO: el deploy real es `git pull + docker compose build + up -d`, que NO aplica migraciones — correr `deploy.sh` o aplicar los .sql manualmente. | Backend nuevo funciona en produccion. | Pendiente verificar (015 aplicada segun API en prod; faltan 016 y 017) |
+| QT-025 | P1 | Planes | Alinear limite de pedidos free: migracion 011 dice 50, BD local 500, features dice "500 pedidos/mes". | Un solo valor consistente en archivo, BD y UI. | Hecho 2026-07-10 (decision: 50/mes; migracion 016 converge cualquier BD, fallback en referrals.py corregido; produccion ya estaba en 50) |
 | QT-026 | P2 | Pagos | Activar Yape en panel de Culqi (opcional, ya existe Yape directo). | Yape tambien via pasarela. | Backlog |
 | QT-027 | P2 | Admin | Notificar al admin (push/email) cuando llega una solicitud de pago Yape. | Aprobacion mas rapida sin revisar panel. | Backlog |
 | QT-028 | P1 | Frontend | Mostrar banner del vendedor en tienda publica (estilo TEMU: se desliza y desvanece al hacer scroll) y hacerlo clickeable con enlace opcional configurable en ajustes. | Banner subido en configuracion se usa en la tienda y puede dirigir a una promo/producto. | Hecho 2026-07-10 (migracion 015, validacion de esquema http/ruta contra XSS) |

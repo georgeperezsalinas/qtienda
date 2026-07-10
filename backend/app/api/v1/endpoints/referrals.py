@@ -54,7 +54,7 @@ async def my_referrals(
 
     is_free = plan is None or plan.slug == settings.FREE_PLAN_SLUG
     base_products = plan.max_products if plan else 10
-    base_orders = plan.max_orders_mo if plan else 500
+    base_orders = plan.max_orders_mo if plan else 50
 
     return {
         "code": code,

@@ -1,14 +1,15 @@
 import re
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
 from app.core.config import settings
 from app.core.security import require_vendor
-from app.models.models import Store, StoreSettings, Plan, Subscription
+from app.models.models import Product, Store, StoreEvent, StoreSettings, Plan, Subscription
 from app.schemas.stores import StoreCreate, StoreUpdate, StoreSettingsUpdate
 
 router = APIRouter()
@@ -145,6 +146,71 @@ async def my_store(
             "store_hours": store.settings.store_hours,
         } if store.settings else None,
         "created_at": store.created_at,
+    }
+
+
+@router.get("/me/analytics")
+async def my_store_analytics(
+    days: int = 30,
+    current_user=Depends(require_vendor),
+    db: AsyncSession = Depends(get_db),
+):
+    """Metricas de uso de la tienda del vendedor (ultimos N dias, max 90)."""
+    result = await db.execute(
+        select(Store.id).where(Store.user_id == current_user.id, Store.deleted_at.is_(None))
+    )
+    store_id = result.scalar_one_or_none()
+    if not store_id:
+        raise HTTPException(status_code=404, detail="No tienes tienda aún")
+
+    days = max(1, min(days, 90))
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    base = [StoreEvent.store_id == store_id, StoreEvent.created_at >= since]
+
+    # Totales por evento
+    ev_q = await db.execute(
+        select(StoreEvent.event, func.count())
+        .where(*base)
+        .group_by(StoreEvent.event)
+    )
+    totals = dict(ev_q.all())
+
+    # Visitantes unicos (sesiones distintas con store_view)
+    uniq_q = await db.execute(
+        select(func.count(func.distinct(StoreEvent.session_id)))
+        .where(*base, StoreEvent.event == "store_view", StoreEvent.session_id.isnot(None))
+    )
+    unique_visitors = uniq_q.scalar() or 0
+
+    # Dispositivos
+    dev_q = await db.execute(
+        select(StoreEvent.device, func.count())
+        .where(*base, StoreEvent.event == "store_view", StoreEvent.device.isnot(None))
+        .group_by(StoreEvent.device)
+    )
+    devices = dict(dev_q.all())
+
+    # Productos mas vistos
+    top_q = await db.execute(
+        select(Product.name, func.count().label("views"))
+        .join(StoreEvent, StoreEvent.product_id == Product.id)
+        .where(*base, StoreEvent.event == "product_view")
+        .group_by(Product.id, Product.name)
+        .order_by(func.count().desc())
+        .limit(5)
+    )
+    top_products = [{"name": name, "views": views} for name, views in top_q.all()]
+
+    return {
+        "days": days,
+        "store_views": totals.get("store_view", 0),
+        "unique_visitors": unique_visitors,
+        "product_views": totals.get("product_view", 0),
+        "add_to_cart": totals.get("add_to_cart", 0),
+        "checkout_start": totals.get("checkout_start", 0),
+        "orders_created": totals.get("order_created", 0),
+        "devices": devices,
+        "top_products": top_products,
     }
 
 

@@ -10,7 +10,7 @@ from sqlalchemy import func, select, and_, or_
 from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
-from app.models.models import Plan, Store, Product, Order, OrderItem, Payment, StoreSettings, Subscription
+from app.models.models import Plan, Store, Product, Order, OrderItem, Payment, StoreSettings, StoreEvent, Subscription
 from app.schemas.orders import PublicOrderCreate, OrderResponse
 from app.core.limiter import limiter
 from app.core.config import settings as app_settings
@@ -327,6 +327,9 @@ async def create_order(
         amount_cents=total,
     ))
 
+    # Analytics: pedido creado (server-side, no depende del navegador)
+    db.add(StoreEvent(store_id=store.id, event="order_created"))
+
     await db.commit()
     await db.refresh(order)
 
@@ -492,3 +495,58 @@ async def track_order(request: Request, slug: str, order_number: str, db: AsyncS
             for i in order.items
         ],
     }
+
+
+# ── Analytics de tienda (QT-008) ──────────────────────────────
+
+ALLOWED_EVENTS = {"store_view", "product_view", "add_to_cart", "checkout_start"}
+
+
+@router.post("/store/{slug}/events", status_code=204)
+@limiter.limit("120/minute")
+async def track_event(
+    request: Request,
+    slug: str,
+    payload: dict,
+    db: AsyncSession = Depends(get_db),
+):
+    """Registra un evento de uso del comprador. Best-effort: nunca rompe la tienda."""
+    event = payload.get("event")
+    if event not in ALLOWED_EVENTS:
+        raise HTTPException(status_code=422, detail="Evento no valido")
+
+    store_q = await db.execute(
+        select(Store.id).where(
+            Store.slug == slug,
+            Store.status == "active",
+            Store.deleted_at.is_(None),
+        )
+    )
+    store_id = store_q.scalar_one_or_none()
+    if not store_id:
+        raise HTTPException(status_code=404, detail="Tienda no encontrada")
+
+    product_id = payload.get("product_id")
+    if product_id:
+        # Validar que el producto pertenece a la tienda (evita basura en datos)
+        prod_q = await db.execute(
+            select(Product.id).where(Product.id == product_id, Product.store_id == store_id)
+        )
+        product_id = prod_q.scalar_one_or_none()
+
+    device = payload.get("device")
+    if device not in ("mobile", "tablet", "desktop"):
+        device = None
+
+    session_id = payload.get("session_id")
+    if session_id is not None:
+        session_id = str(session_id)[:64]
+
+    db.add(StoreEvent(
+        store_id=store_id,
+        event=event,
+        product_id=product_id,
+        session_id=session_id,
+        device=device,
+    ))
+    await db.commit()

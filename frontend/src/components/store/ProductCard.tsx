@@ -5,6 +5,7 @@ import { Plus, Check, Images } from "lucide-react";
 import { useState } from "react";
 import { useCartStore } from "@/store/cartStore";
 import { formatPrice, stripHtml } from "@/lib/utils";
+import { trackStoreEvent } from "@/lib/storeAnalytics";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 
@@ -98,6 +99,7 @@ export default function ProductCard({
       storeSlug,
     );
     setAdded(true);
+    trackStoreEvent(storeSlug, "add_to_cart", product.id);
     toast.success("Agregado al carrito", { duration: 1500 });
     setTimeout(() => setAdded(false), 2000);
   }

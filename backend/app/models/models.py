@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Optional, List
 
 from sqlalchemy import (
-    Boolean, DateTime, Enum, ForeignKey, Integer,
+    BigInteger, Boolean, DateTime, Enum, ForeignKey, Integer,
     SmallInteger, String, Text, func, DECIMAL, UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB, INET
@@ -397,4 +397,18 @@ class AuditLog(Base):
     old_value: Mapped[Optional[dict]] = mapped_column(JSONB)
     new_value: Mapped[Optional[dict]] = mapped_column(JSONB)
     ip_address: Mapped[Optional[str]] = mapped_column(INET)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+# ── Store Events (analytics) ──────────────────────────────────
+
+class StoreEvent(Base):
+    __tablename__ = "store_events"
+
+    id: Mapped[int]             = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    store_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("stores.id", ondelete="CASCADE"), nullable=False)
+    event: Mapped[str]          = mapped_column(String(30))
+    product_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("products.id", ondelete="SET NULL"))
+    session_id: Mapped[Optional[str]] = mapped_column(String(64))
+    device: Mapped[Optional[str]] = mapped_column(String(10))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

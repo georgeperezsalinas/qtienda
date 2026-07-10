@@ -99,6 +99,15 @@ export default function DashboardPage() {
   const [loadingStore, setLoadingStore] = useState(true);
   const [loadingStats, setLoadingStats] = useState(true);
   const [productCount, setProductCount] = useState<number | null>(null);
+  const [analytics, setAnalytics] = useState<{
+    store_views: number;
+    unique_visitors: number;
+    product_views: number;
+    add_to_cart: number;
+    orders_created: number;
+    devices: Record<string, number>;
+    top_products: { name: string; views: number }[];
+  } | null>(null);
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
 
@@ -134,6 +143,11 @@ export default function DashboardPage() {
       })
       .catch(() => { })
       .finally(() => setLoadingStats(false));
+
+    apiClient
+      .get("/stores/me/analytics", { params: { days: 30 } })
+      .then(({ data }) => setAnalytics(data))
+      .catch(() => { });
   }, [store]);
 
   async function resendVerification() {
@@ -525,6 +539,55 @@ export default function DashboardPage() {
             </div>
           )
         }
+
+        {/* Visitas (últimos 30 días) */}
+        {analytics && analytics.store_views > 0 && (
+          <div className="animate-fade-up mb-7">
+            <p className="eyebrow mb-3">Tu tienda · últimos 30 días</p>
+            <div
+              className="grid grid-cols-3"
+              style={{
+                borderTop: "1px solid var(--line)",
+                borderBottom: "1px solid var(--line)",
+              }}
+            >
+              {[
+                { value: analytics.store_views.toString(), label: "visitas" },
+                { value: analytics.unique_visitors.toString(), label: "visitantes" },
+                {
+                  value: analytics.store_views
+                    ? `${Math.round((analytics.orders_created / analytics.store_views) * 100)}%`
+                    : "0%",
+                  label: "conversión",
+                },
+              ].map((s, i) => (
+                <div
+                  key={i}
+                  style={{
+                    padding: "16px 14px",
+                    borderRight: i < 2 ? "1px solid var(--line)" : "0",
+                  }}
+                >
+                  <div
+                    className="mono num"
+                    style={{ fontSize: 22, fontWeight: 500, lineHeight: 1 }}
+                  >
+                    {s.value}
+                  </div>
+                  <div className="text-xs mt-1.5" style={{ color: "var(--ink-3)" }}>
+                    {s.label}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {analytics.top_products.length > 0 && (
+              <p className="text-xs mt-2" style={{ color: "var(--ink-3)" }}>
+                Más visto: <span style={{ color: "var(--ink-2)", fontWeight: 500 }}>{analytics.top_products[0].name}</span>
+                {" "}({analytics.top_products[0].views} vistas)
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Recent orders */}
         {

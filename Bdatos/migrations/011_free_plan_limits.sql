@@ -1,4 +1,4 @@
--- Plan free: 10 productos y hasta 500 pedidos al mes
+-- Plan free: 10 productos y hasta 50 pedidos al mes (QT-025: limite definitivo = 50)
 UPDATE plans
 SET max_products  = 10,
     max_orders_mo = 50,

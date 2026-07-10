@@ -14,6 +14,7 @@ import CartDrawer from "./CartDrawer";
 import { useCartStore } from "@/store/cartStore";
 import { useAuthStore } from "@/store/authStore";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
+import { trackStoreEvent } from "@/lib/storeAnalytics";
 
 interface StoreData {
   slug:          string;
@@ -145,6 +146,19 @@ export default function StorePage({ store, initialProducts }: Props) {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  /* Analytics (QT-008) */
+  useEffect(() => {
+    trackStoreEvent(store.slug, "store_view");
+  }, [store.slug]);
+
+  useEffect(() => {
+    if (viewProduct) trackStoreEvent(store.slug, "product_view", viewProduct.id);
+  }, [viewProduct, store.slug]);
+
+  useEffect(() => {
+    if (cartOpen) trackStoreEvent(store.slug, "checkout_start");
+  }, [cartOpen, store.slug]);
 
   const filtered = useMemo(() => {
     let items = initialProducts;
