@@ -71,6 +71,7 @@ async def get_store(request: Request, slug: str, db: AsyncSession = Depends(get_
         "description": store.description,
         "logo_url": store.logo_url,
         "banner_url": store.banner_url,
+        "banner_link": store.banner_link,
         "whatsapp": store.whatsapp,
         "primary_color": store.primary_color,
         "city": store.city,

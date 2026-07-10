@@ -16,6 +16,7 @@ interface StoreData {
   primary_color: string;
   logo_url?: string;
   banner_url?: string;
+  banner_link?: string;
   city?: string;
 }
 
@@ -86,7 +87,7 @@ export default function ConfiguracionPage() {
 
   const [info, setInfo] = useState({
     name: "", description: "", whatsapp: "",
-    primary_color: "#6366f1", logo_url: "", banner_url: "", city: "",
+    primary_color: "#6366f1", logo_url: "", banner_url: "", banner_link: "", city: "",
   });
 
   const [settings, setSettings] = useState({
@@ -123,6 +124,7 @@ export default function ConfiguracionPage() {
           primary_color: storeData.primary_color || "#6366f1",
           logo_url: storeData.logo_url || "",
           banner_url: storeData.banner_url || "",
+          banner_link: storeData.banner_link || "",
           city: storeData.city || "",
         });
         if (storeData.settings) {
@@ -190,6 +192,7 @@ export default function ConfiguracionPage() {
         primary_color: info.primary_color,
         logo_url: info.logo_url || undefined,
         banner_url: info.banner_url || undefined,
+        banner_link: info.banner_link.trim() || null,
         city: info.city || undefined,
       });
       toast.success("Tienda actualizada");
@@ -470,6 +473,23 @@ export default function ConfiguracionPage() {
                 className="h-28 w-full"
               />
             </div>
+            {info.banner_url && (
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
+                  Enlace del banner (opcional)
+                </label>
+                <input
+                  className="input"
+                  type="url"
+                  placeholder="https://… o /tienda/mi-tienda"
+                  value={info.banner_link}
+                  onChange={(e) => setInfo({ ...info, banner_link: e.target.value })}
+                />
+                <p className="text-[11px] text-gray-400 mt-1">
+                  Al tocar el banner, tus clientes irán a este enlace. Déjalo vacío si no quieres que sea clickeable.
+                </p>
+              </div>
+            )}
             <button
               type="submit"
               disabled={saving}

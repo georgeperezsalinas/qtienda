@@ -108,6 +108,7 @@ async def my_store(
         "description": store.description,
         "logo_url": store.logo_url,
         "banner_url": store.banner_url,
+        "banner_link": store.banner_link,
         "whatsapp": store.whatsapp,
         "status": store.status,
         "primary_color": store.primary_color,

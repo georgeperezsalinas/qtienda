@@ -58,10 +58,19 @@ class StoreUpdate(BaseModel):
     whatsapp: Optional[str] = None
     logo_url: Optional[str] = None
     banner_url: Optional[str] = None
+    banner_link: Optional[str] = None
     primary_color: Optional[str] = None
     city: Optional[str] = None
     meta_title: Optional[str] = None
     meta_desc: Optional[str] = None
+
+    @field_validator("banner_link")
+    @classmethod
+    def validate_banner_link(cls, v):
+        # Solo URLs http(s) o rutas internas: evita javascript: en el href público
+        if v and not re.match(r"^(https?://|/)", v):
+            raise ValueError("El enlace debe comenzar con https:// o /")
+        return v
 
 
 class StoreSettingsUpdate(BaseModel):

@@ -105,6 +105,7 @@ class Store(Base):
     description: Mapped[Optional[str]] = mapped_column(Text)
     logo_url: Mapped[Optional[str]] = mapped_column(Text)
     banner_url: Mapped[Optional[str]] = mapped_column(Text)
+    banner_link: Mapped[Optional[str]] = mapped_column(Text)
     whatsapp: Mapped[Optional[str]] = mapped_column(String(20))
     status: Mapped[str]             = mapped_column(
         Enum("pending", "active", "suspended", "banned", name="store_status", create_type=False),

@@ -7,7 +7,7 @@ import {
   MapPin, X, MessageCircle, Share2, Download,
   LayoutGrid, List,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
 import ProductCard from "./ProductCard";
 import ProductDetailSheet from "./ProductDetailSheet";
 import CartDrawer from "./CartDrawer";
@@ -21,6 +21,7 @@ interface StoreData {
   description?:  string;
   logo_url?:     string;
   banner_url?:   string;
+  banner_link?:  string;
   primary_color: string;
   city?:         string;
   categories?:   { id: string; name: string; icon?: string }[];
@@ -75,6 +76,12 @@ export default function StorePage({ store, initialProducts }: Props) {
   usePushSubscription(user?.email);
   const searchRef = useRef<HTMLInputElement>(null);
   const color     = store.primary_color || "#2563EB";
+
+  /* Banner: parallax sutil al hacer scroll (estilo TEMU) */
+  const { scrollY }   = useScroll();
+  const bannerY       = useTransform(scrollY, [0, 200], [0, -28]);
+  const bannerOpacity = useTransform(scrollY, [0, 180], [1, 0]);
+  const bannerScale   = useTransform(scrollY, [0, 200], [1, 0.96]);
 
   async function handleInstall() {
     if (!installPrompt) return;
@@ -286,6 +293,48 @@ export default function StorePage({ store, initialProducts }: Props) {
           )}
         </div>
       </header>
+
+      {/* ══════════════════════════════════
+          BANNER DEL VENDEDOR (se desliza al hacer scroll)
+      ══════════════════════════════════ */}
+      {store.banner_url && (() => {
+        // Solo http(s) o rutas internas: nunca javascript: en el href
+        const link = store.banner_link && /^(https?:\/\/|\/)/.test(store.banner_link)
+          ? store.banner_link : undefined;
+        const isExternal = !!link && link.startsWith("http") && !link.includes("qtienda.shop");
+        const banner = (
+          <div
+            className="relative w-full overflow-hidden rounded-2xl"
+            style={{ aspectRatio: "3 / 1", boxShadow: "0 2px 12px rgba(15,23,42,.08)" }}
+          >
+            <Image
+              src={store.banner_url}
+              alt={`Banner de ${store.name}`}
+              fill
+              className="object-cover"
+              sizes="(max-width: 640px) 100vw, 576px"
+            />
+          </div>
+        );
+        return (
+          <motion.div
+            className="max-w-xl mx-auto px-4 pt-3 pb-1"
+            style={{ y: bannerY, opacity: bannerOpacity, scale: bannerScale }}
+          >
+            {link ? (
+              <a
+                href={link}
+                target={isExternal ? "_blank" : undefined}
+                rel={isExternal ? "noopener noreferrer" : undefined}
+                className="block active:scale-[.99] transition-transform"
+                aria-label={`Promoción de ${store.name}`}
+              >
+                {banner}
+              </a>
+            ) : banner}
+          </motion.div>
+        );
+      })()}
 
       {/* ══════════════════════════════════
           BANNERS (PWA + buyer)
