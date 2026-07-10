@@ -9,8 +9,9 @@ from sqlalchemy.orm import selectinload
 from app.db.session import get_db
 from app.core.config import settings
 from app.core.security import require_vendor
-from app.models.models import Product, Store, StoreEvent, StoreSettings, Plan, Subscription
+from app.models.models import Product, Store, StoreBanner, StoreEvent, StoreSettings, Plan, Subscription
 from app.schemas.stores import StoreCreate, StoreUpdate, StoreSettingsUpdate
+from app.schemas.auth import BannersUpdate
 
 router = APIRouter()
 
@@ -95,7 +96,12 @@ async def my_store(
 ):
     result = await db.execute(
         select(Store)
-        .options(selectinload(Store.settings), selectinload(Store.categories), selectinload(Store.plan))
+        .options(
+            selectinload(Store.settings),
+            selectinload(Store.categories),
+            selectinload(Store.plan),
+            selectinload(Store.banners),
+        )
         .where(Store.user_id == current_user.id, Store.deleted_at.is_(None))
     )
     store = result.scalar_one_or_none()
@@ -110,6 +116,10 @@ async def my_store(
         "logo_url": store.logo_url,
         "banner_url": store.banner_url,
         "banner_link": store.banner_link,
+        "banners": [
+            {"image_url": b.image_url, "link_url": b.link_url}
+            for b in store.banners
+        ],
         "whatsapp": store.whatsapp,
         "status": store.status,
         "primary_color": store.primary_color,
@@ -233,6 +243,42 @@ async def update_store(
 
     await db.commit()
     return {"updated": True}
+
+
+@router.put("/me/banners")
+async def update_banners(
+    payload: BannersUpdate,
+    current_user=Depends(require_vendor),
+    db: AsyncSession = Depends(get_db),
+):
+    """Reemplaza los banners de la tienda. Limite por plan: free 1, pro/elite 3."""
+    result = await db.execute(
+        select(Store)
+        .options(selectinload(Store.plan), selectinload(Store.banners))
+        .where(Store.user_id == current_user.id, Store.deleted_at.is_(None))
+    )
+    store = result.scalar_one_or_none()
+    if not store:
+        raise HTTPException(status_code=404, detail="Tienda no encontrada")
+
+    plan_slug = store.plan.slug if store.plan else "free"
+    max_banners = 1 if plan_slug == "free" else 3
+    if len(payload.banners) > max_banners:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Tu plan permite hasta {max_banners} banner{'s' if max_banners > 1 else ''}. Mejora a Pro para usar hasta 3.",
+        )
+
+    store.banners.clear()
+    for i, b in enumerate(payload.banners):
+        store.banners.append(StoreBanner(image_url=b.image_url, link_url=b.link_url, sort_order=i))
+
+    # Compatibilidad: la app movil y las imagenes OG usan stores.banner_url
+    store.banner_url = payload.banners[0].image_url if payload.banners else None
+    store.banner_link = payload.banners[0].link_url if payload.banners else None
+
+    await db.commit()
+    return {"updated": True, "count": len(payload.banners)}
 
 
 @router.patch("/me/settings")

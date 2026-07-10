@@ -12,12 +12,15 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
 from app.core.config import settings
+from app.core.logging import setup_logging
 from app.core.limiter import limiter
 from app.db.session import engine
 from app.api.v1.router import api_router
 from app.middleware.logging import RequestLoggingMiddleware
 
 UPLOADS_DIR = Path(settings.UPLOADS_DIR)
+
+setup_logging(debug=settings.DEBUG)
 
 
 @asynccontextmanager
@@ -50,7 +53,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
 )
 app.add_middleware(RequestLoggingMiddleware)

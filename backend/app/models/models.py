@@ -124,6 +124,7 @@ class Store(Base):
     user: Mapped["User"]            = relationship(back_populates="store", foreign_keys="[Store.user_id]")
     plan: Mapped[Optional["Plan"]]  = relationship(back_populates="stores")
     settings: Mapped[Optional["StoreSettings"]] = relationship(back_populates="store", uselist=False, cascade="all, delete-orphan")
+    banners: Mapped[List["StoreBanner"]] = relationship(back_populates="store", cascade="all, delete-orphan", order_by="StoreBanner.sort_order")
     categories: Mapped[List["Category"]] = relationship(back_populates="store", cascade="all, delete-orphan")
     products: Mapped[List["Product"]]    = relationship(back_populates="store", cascade="all, delete-orphan")
     orders: Mapped[List["Order"]]        = relationship(back_populates="store")
@@ -398,6 +399,21 @@ class AuditLog(Base):
     new_value: Mapped[Optional[dict]] = mapped_column(JSONB)
     ip_address: Mapped[Optional[str]] = mapped_column(INET)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+# ── Store Banners (QT-030) ────────────────────────────────────
+
+class StoreBanner(Base):
+    __tablename__ = "store_banners"
+
+    id: Mapped[uuid.UUID]       = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    store_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("stores.id", ondelete="CASCADE"), nullable=False)
+    image_url: Mapped[str]      = mapped_column(Text)
+    link_url: Mapped[Optional[str]] = mapped_column(Text)
+    sort_order: Mapped[int]     = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    store: Mapped["Store"]      = relationship(back_populates="banners")
 
 
 # ── Store Events (analytics) ──────────────────────────────────

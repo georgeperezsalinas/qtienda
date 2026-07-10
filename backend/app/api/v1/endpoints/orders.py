@@ -244,6 +244,8 @@ async def list_orders(
     page: int              = Query(1, ge=1),
     limit: int             = Query(20, le=100),
     search: Optional[str]  = Query(None),
+    from_date: Optional[date] = Query(None, description="YYYY-MM-DD"),
+    to_date:   Optional[date] = Query(None, description="YYYY-MM-DD"),
     current_user           = Depends(require_vendor),
     db: AsyncSession       = Depends(get_db),
 ):
@@ -252,6 +254,10 @@ async def list_orders(
     filters = [Order.store_id == store.id]
     if status:
         filters.append(Order.status == status)
+    if from_date:
+        filters.append(Order.created_at >= datetime(from_date.year, from_date.month, from_date.day, tzinfo=timezone.utc))
+    if to_date:
+        filters.append(Order.created_at <= datetime(to_date.year, to_date.month, to_date.day, 23, 59, 59, tzinfo=timezone.utc))
     if search:
         filters.append(
             Order.buyer_name.ilike(f"%{search}%") |

@@ -24,13 +24,9 @@ docker network create siscont-erp_default 2>/dev/null || echo "   (red ya existe
 echo ">> Conectando siscont_db a la red..."
 docker network connect siscont-erp_default siscont_db 2>/dev/null || echo "   (siscont_db ya conectado)"
 
-# 4. Aplicar migraciones (directo en siscont_db)
+# 4. Aplicar migraciones versionadas (QT-012: solo pendientes, aborta si falla)
 echo ">> Aplicando migraciones..."
-for f in Bdatos/migrations/*.sql; do
-  [ -f "$f" ] || continue
-  echo "   $f"
-  docker exec -i siscont_db psql -U siscont -d qtienda < "$f" 2>/dev/null || echo "   (ya aplicada)"
-done
+./Bdatos/apply_migrations.sh
 
 # 5. Build y levantar servicios
 echo ">> Building contenedores..."

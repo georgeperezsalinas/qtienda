@@ -73,6 +73,22 @@ class StoreUpdate(BaseModel):
         return v
 
 
+class BannerItem(BaseModel):
+    image_url: str
+    link_url: Optional[str] = None
+
+    @field_validator("link_url")
+    @classmethod
+    def validate_link(cls, v):
+        if v and not re.match(r"^(https?://|/)", v):
+            raise ValueError("El enlace debe comenzar con https:// o /")
+        return v
+
+
+class BannersUpdate(BaseModel):
+    banners: list[BannerItem]
+
+
 class StoreSettingsUpdate(BaseModel):
     accept_cash: Optional[bool] = None
     accept_yape: Optional[bool] = None

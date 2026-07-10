@@ -53,7 +53,7 @@ async def get_store(request: Request, slug: str, db: AsyncSession = Depends(get_
     """Load store page data for buyers."""
     result = await db.execute(
         select(Store)
-        .options(selectinload(Store.settings), selectinload(Store.categories))
+        .options(selectinload(Store.settings), selectinload(Store.categories), selectinload(Store.banners))
         .where(
             Store.slug == slug,
             Store.status == "active",
@@ -72,6 +72,10 @@ async def get_store(request: Request, slug: str, db: AsyncSession = Depends(get_
         "logo_url": store.logo_url,
         "banner_url": store.banner_url,
         "banner_link": store.banner_link,
+        "banners": [
+            {"url": b.image_url, "link": b.link_url}
+            for b in store.banners
+        ],
         "store_hours": store.settings.store_hours if store.settings else None,
         "whatsapp": store.whatsapp,
         "primary_color": store.primary_color,

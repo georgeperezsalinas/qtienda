@@ -110,6 +110,8 @@ export default function ConfiguracionPage() {
   });
 
   const [hours, setHours] = useState<Record<string, DayHours>>({});
+  const [banners, setBanners] = useState<{ image_url: string; link_url: string }[]>([]);
+  const [planSlug, setPlanSlug] = useState("free");
 
   const [newStore, setNewStore] = useState({ slug: "", name: "", whatsapp: "", city: "" });
   const [creating, setCreating] = useState(false);
@@ -141,6 +143,14 @@ export default function ConfiguracionPage() {
           banner_link: storeData.banner_link || "",
           city: storeData.city || "",
         });
+        setPlanSlug(storeData.plan_slug || "free");
+        setBanners(
+          storeData.banners?.length
+            ? storeData.banners.map((b: any) => ({ image_url: b.image_url, link_url: b.link_url || "" }))
+            : storeData.banner_url
+            ? [{ image_url: storeData.banner_url, link_url: storeData.banner_link || "" }]
+            : []
+        );
         if (storeData.settings) {
           setSettings({
             accept_cash: storeData.settings.accept_cash,
@@ -206,9 +216,12 @@ export default function ConfiguracionPage() {
         whatsapp: info.whatsapp || undefined,
         primary_color: info.primary_color,
         logo_url: info.logo_url || undefined,
-        banner_url: info.banner_url || undefined,
-        banner_link: info.banner_link.trim() || null,
         city: info.city || undefined,
+      });
+      await apiClient.put("/stores/me/banners", {
+        banners: banners
+          .filter((b) => b.image_url)
+          .map((b) => ({ image_url: b.image_url, link_url: b.link_url.trim() || null })),
       });
       await apiClient.patch("/stores/me/settings", { store_hours: hours });
       toast.success("Tienda actualizada");
@@ -481,31 +494,67 @@ export default function ConfiguracionPage() {
                 hint={"200×200 px · cuadrado\nJPEG, PNG o WebP · máx 5 MB"}
                 className="h-28 w-full"
               />
-              <ImageUpload
-                label="Banner"
-                value={info.banner_url}
-                onChange={(url) => setInfo((prev) => ({ ...prev, banner_url: url }))}
-                hint={"1200×400 px · horizontal\nJPEG, PNG o WebP · máx 5 MB"}
-                className="h-28 w-full"
-              />
             </div>
-            {info.banner_url && (
-              <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
-                  Enlace del banner (opcional)
-                </label>
-                <input
-                  className="input"
-                  type="url"
-                  placeholder="https://… o /tienda/mi-tienda"
-                  value={info.banner_link}
-                  onChange={(e) => setInfo({ ...info, banner_link: e.target.value })}
-                />
-                <p className="text-[11px] text-gray-400 mt-1">
-                  Al tocar el banner, tus clientes irán a este enlace. Déjalo vacío si no quieres que sea clickeable.
-                </p>
-              </div>
-            )}
+
+            {/* Banners (free: 1, pro/elite: hasta 3 rotando) */}
+            {(() => {
+              const maxBanners = planSlug === "free" ? 1 : 3;
+              return (
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
+                    Banners de la tienda ({banners.length}/{maxBanners})
+                  </label>
+                  <p className="text-[11px] text-gray-400 mb-2">
+                    {maxBanners > 1
+                      ? "Hasta 3 banners que rotan automáticamente en tu tienda. Cada uno puede tener su enlace."
+                      : "Tu plan incluye 1 banner. Mejora a Pro para usar hasta 3 banners rotando."}
+                  </p>
+                  <div className="space-y-3">
+                    {banners.map((b, i) => (
+                      <div key={i} className="rounded-xl border border-gray-200 p-3 space-y-2">
+                        <div className="flex items-start gap-2">
+                          <ImageUpload
+                            label={`Banner ${i + 1}`}
+                            value={b.image_url}
+                            onChange={(url) =>
+                              setBanners((prev) => prev.map((x, j) => (j === i ? { ...x, image_url: url } : x)))
+                            }
+                            hint={"1200×400 px · horizontal\nJPEG, PNG o WebP · máx 5 MB"}
+                            className="h-24 w-full"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setBanners((prev) => prev.filter((_, j) => j !== i))}
+                            className="p-2 rounded-lg text-red-500 hover:bg-red-50 flex-shrink-0"
+                            aria-label="Quitar banner"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                        <input
+                          className="input"
+                          type="url"
+                          placeholder="Enlace opcional: https://… o /tienda/mi-tienda"
+                          value={b.link_url}
+                          onChange={(e) =>
+                            setBanners((prev) => prev.map((x, j) => (j === i ? { ...x, link_url: e.target.value } : x)))
+                          }
+                        />
+                      </div>
+                    ))}
+                    {banners.length < maxBanners && (
+                      <button
+                        type="button"
+                        onClick={() => setBanners((prev) => [...prev, { image_url: "", link_url: "" }])}
+                        className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 py-3 text-sm font-medium text-gray-500 hover:border-gray-400 hover:text-gray-600"
+                      >
+                        <Plus size={15} /> Agregar banner
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
             <div>
               <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
                 Horario de atención

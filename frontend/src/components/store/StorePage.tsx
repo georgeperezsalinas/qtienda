@@ -23,6 +23,7 @@ interface StoreData {
   logo_url?:     string;
   banner_url?:   string;
   banner_link?:  string;
+  banners?:      { url: string; link?: string | null }[];
   store_hours?:  Record<string, { open: string; close: string }> | null;
   primary_color: string;
   city?:         string;
@@ -53,6 +54,95 @@ interface Props {
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
+
+/* Carrusel de banners (QT-030): swipe + rotación automática cada 5s + puntitos.
+   Con un solo banner se comporta como imagen estática. */
+function BannerCarousel({ banners, storeName }: {
+  banners: { url: string; link?: string | null }[];
+  storeName: string;
+}) {
+  const [idx, setIdx] = useState(0);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const pausedRef = useRef(false);
+
+  useEffect(() => {
+    if (banners.length < 2) return;
+    const t = setInterval(() => {
+      const el = trackRef.current;
+      if (!el || pausedRef.current) return;
+      const next = (Math.round(el.scrollLeft / el.clientWidth) + 1) % banners.length;
+      el.scrollTo({ left: next * el.clientWidth, behavior: "smooth" });
+    }, 5000);
+    return () => clearInterval(t);
+  }, [banners.length]);
+
+  function onScroll() {
+    const el = trackRef.current;
+    if (el) setIdx(Math.round(el.scrollLeft / el.clientWidth));
+  }
+
+  return (
+    <div className="relative">
+      <div
+        ref={trackRef}
+        onScroll={onScroll}
+        onTouchStart={() => { pausedRef.current = true; }}
+        onTouchEnd={() => { pausedRef.current = false; }}
+        onMouseEnter={() => { pausedRef.current = true; }}
+        onMouseLeave={() => { pausedRef.current = false; }}
+        className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide rounded-2xl"
+        style={{ boxShadow: "0 2px 12px rgba(15,23,42,.08)" }}
+      >
+        {banners.map((b, i) => {
+          // Solo http(s) o rutas internas: nunca javascript: en el href
+          const link = b.link && /^(https?:\/\/|\/)/.test(b.link) ? b.link : undefined;
+          const isExternal = !!link && link.startsWith("http") && !link.includes("qtienda.shop");
+          const img = (
+            <div className="relative w-full aspect-[3/1] lg:aspect-[4/1]">
+              <Image
+                src={b.url}
+                alt={`Banner ${i + 1} de ${storeName}`}
+                fill
+                className="object-cover"
+                sizes="(max-width: 640px) 100vw, 1024px"
+              />
+            </div>
+          );
+          return (
+            <div key={i} className="w-full flex-shrink-0 snap-start">
+              {link ? (
+                <a
+                  href={link}
+                  target={isExternal ? "_blank" : undefined}
+                  rel={isExternal ? "noopener noreferrer" : undefined}
+                  className="block active:scale-[.99] transition-transform"
+                  aria-label={`Promoción ${i + 1} de ${storeName}`}
+                >
+                  {img}
+                </a>
+              ) : img}
+            </div>
+          );
+        })}
+      </div>
+      {banners.length > 1 && (
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5 pointer-events-none">
+          {banners.map((_, i) => (
+            <span
+              key={i}
+              className="h-1.5 rounded-full transition-all duration-300"
+              style={{
+                width: i === idx ? 14 : 6,
+                background: i === idx ? "#fff" : "rgba(255,255,255,.55)",
+                boxShadow: "0 1px 3px rgba(0,0,0,.25)",
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 /* Estado abierto/cerrado a partir del horario configurado por el vendedor.
@@ -111,6 +201,13 @@ export default function StorePage({ store, initialProducts }: Props) {
   const searchRef  = useRef<HTMLInputElement>(null);
   const color      = store.primary_color || "#2563EB";
   const openStatus = getOpenStatus(store.store_hours);
+
+  // Carrusel nuevo con fallback al banner único (compatibilidad con API vieja)
+  const effectiveBanners = store.banners?.length
+    ? store.banners
+    : store.banner_url
+    ? [{ url: store.banner_url, link: store.banner_link ?? null }]
+    : [];
 
   /* Banner: parallax sutil al hacer scroll (estilo TEMU) */
   const { scrollY }   = useScroll();
@@ -369,46 +466,16 @@ export default function StorePage({ store, initialProducts }: Props) {
       </header>
 
       {/* ══════════════════════════════════
-          BANNER DEL VENDEDOR (se desliza al hacer scroll)
+          BANNERS DEL VENDEDOR (carrusel, se desliza al hacer scroll)
       ══════════════════════════════════ */}
-      {store.banner_url && (() => {
-        // Solo http(s) o rutas internas: nunca javascript: en el href
-        const link = store.banner_link && /^(https?:\/\/|\/)/.test(store.banner_link)
-          ? store.banner_link : undefined;
-        const isExternal = !!link && link.startsWith("http") && !link.includes("qtienda.shop");
-        const banner = (
-          <div
-            className="relative w-full overflow-hidden rounded-2xl aspect-[3/1] lg:aspect-[4/1]"
-            style={{ boxShadow: "0 2px 12px rgba(15,23,42,.08)" }}
-          >
-            <Image
-              src={store.banner_url}
-              alt={`Banner de ${store.name}`}
-              fill
-              className="object-cover"
-              sizes="(max-width: 640px) 100vw, 576px"
-            />
-          </div>
-        );
-        return (
-          <motion.div
-            className="max-w-xl lg:max-w-5xl mx-auto px-4 pt-3 pb-1"
-            style={{ y: bannerY, opacity: bannerOpacity, scale: bannerScale }}
-          >
-            {link ? (
-              <a
-                href={link}
-                target={isExternal ? "_blank" : undefined}
-                rel={isExternal ? "noopener noreferrer" : undefined}
-                className="block active:scale-[.99] transition-transform"
-                aria-label={`Promoción de ${store.name}`}
-              >
-                {banner}
-              </a>
-            ) : banner}
-          </motion.div>
-        );
-      })()}
+      {effectiveBanners.length > 0 && (
+        <motion.div
+          className="max-w-xl lg:max-w-5xl mx-auto px-4 pt-3 pb-1"
+          style={{ y: bannerY, opacity: bannerOpacity, scale: bannerScale }}
+        >
+          <BannerCarousel banners={effectiveBanners} storeName={store.name} />
+        </motion.div>
+      )}
 
       {/* ══════════════════════════════════
           BANNERS (PWA + buyer)
