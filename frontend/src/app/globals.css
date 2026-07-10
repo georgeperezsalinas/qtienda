@@ -94,6 +94,9 @@
     letter-spacing: -0.005em;
     @apply antialiased;
     min-height: 100dvh;
+    /* Un elemento más ancho que el viewport no debe generar scroll lateral
+       ni descuadrar los navs fijos (app móvil) */
+    overflow-x: hidden;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -168,6 +171,25 @@
     border: 1px solid var(--line);
     border-radius: var(--r-lg);
   }
+
+  /* Input — caja estándar. Usada como className="input" en toda la app.
+     w-full + min-width:0 evitan que el ancho intrínseco del <input>
+     desborde los contenedores flex en pantallas angostas. */
+  .input {
+    @apply w-full transition-all duration-150;
+    min-width: 0;
+    background: var(--surface);
+    border: 1.5px solid var(--line-2);
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-family: var(--font-sans);
+    font-size: 15px;
+    color: var(--ink);
+    outline: none;
+  }
+  .input::placeholder { color: var(--ink-4); }
+  .input:focus { border-color: var(--ink); }
+  .input-error { border-color: var(--danger) !important; }
 
   /* Input — underline style */
   .field {

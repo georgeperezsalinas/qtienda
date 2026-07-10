@@ -434,9 +434,9 @@ export default function ProductosPage() {
           </button>
         </div>
 
-        {/* Search + filter */}
-        <div className="flex gap-2">
-          <div className="relative flex-1">
+        {/* Search + filter — apilados en móvil para no desbordar el ancho */}
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="relative flex-1 min-w-0">
             <Search
               size={15}
               className="absolute left-3.5 top-1/2 -translate-y-1/2"

@@ -1,6 +1,7 @@
 # QTIENDA - Tracking Marcha Blanca
 
 Fecha de analisis: 2026-07-09  
+Ultima actualizacion: 2026-07-10  
 Estado del producto: marcha blanca desplegada en VPS con Docker  
 Contexto operativo: ya existen usuarios reales creando tiendas desde web responsive, principalmente celular y posiblemente laptop.
 
@@ -71,7 +72,8 @@ PostgreSQL compartido en VPS
 | Checkout publico | Critico funcional | 78% | `public.py` | Crea pedidos sin login, valida productos, stock, metodo de pago y limites de plan. | Validar tienda activa al crear pedido; mas proteccion antifraude/spam. |
 | Pedidos vendedor | Funcional | 80% | `orders.py` | Estados, stats, detalle, asignacion delivery, WhatsApp link. | Mejorar filtros admin, historial y busqueda global. |
 | Delivery | Avanzado | 75% | `delivery.py` | Repartidores, asignacion, foto, GPS, pago cobrado. | Panel admin/tienda con evidencia, trazabilidad de entregas. |
-| Planes y pagos | Parcial | 55% | `plans.py`, `services/culqi.py` | Cobro Culqi inmediato y suscripcion activa. | Webhooks Culqi, conciliacion, expiracion automatica, facturacion. |
+| Planes y pagos | Funcional | 80% | `plans.py`, `services/culqi.py`, `services/plan_expiry.py` | Culqi (tarjeta/Yape), Yape directo con aprobacion admin, expiracion automatica, renovacion que suma dias, aviso previo por email/push. | Webhook Culqi para tarjeta, facturacion. |
+| Referidos | Funcional | 85% | `referrals.py`, `services/referrals.py` | Codigo por usuario, registro con `?ref=`, bonus de limites en plan free (+5 prod/+50 pedidos por referido con tienda, tope 10). | Panel admin de referidos, antifraude (mismo IP/dispositivo). |
 | Push | Parcial | 65% | `push.py`, `devices.py` | WebPush y Expo Push. | Manejo de errores, limpieza tokens, metricas de entrega. |
 | Admin | Insuficiente para marcha blanca | 45% | `admin.py` | Lista tiendas/usuarios/metricas basicas, approve/suspend, reset test data. | Admin operativo completo, eliminacion controlada, auditoria visible. |
 | Auditoria | Base creada | 35% | `models.py`, `orders.py` | Tabla `audit_logs` usada en cambios de estado. | Extender a acciones admin, tienda, producto, usuario y eliminaciones. |
@@ -89,9 +91,9 @@ PostgreSQL compartido en VPS
 | Pedidos | Funcional | 75% | `dashboard/pedidos/page.tsx` | Lista, detalle, cambio estado, WhatsApp. | Mejor UX desktop/tablet, filtros por fecha/metodo/repartidor. |
 | Configuracion | Funcional | 70% | `dashboard/configuracion/page.tsx` | Tienda, pagos, categorias, delivery staff. | Validaciones, preview tienda, gestion de zonas. |
 | Finanzas | Parcial | 60% | `dashboard/finanzas/page.tsx` | Estadisticas basicas. | Reportes descargables, ventas por metodo, conciliacion. |
-| Planes | Parcial | 55% | `dashboard/planes/page.tsx` | Cambio de plan conectado a API. | Estados reales de pago, trial, renovacion. |
+| Planes | Funcional | 85% | `dashboard/planes/page.tsx`, `admin/pagos/page.tsx` | Modal Yape directo/tarjeta, estado de pago en verificacion, renovacion visible al vencer, admin aprueba/rechaza Yapes. | Historial de pagos del vendedor. |
 | Admin web | Basico | 45% | `admin/*` | Vistas iniciales. | Herramientas de inspeccion, limpieza y soporte. |
-| PWA | Parcial | 65% | `public/sw.js`, `PWARegister.tsx` | Cache y push. | Revisar cache de datos dinamicos y estrategia offline. |
+| PWA | Funcional | 80% | `public/sw.js`, `PWARegister.tsx` | Cache, push, banner "nueva version disponible" con versionado automatico por build Docker. | Revisar cache de datos dinamicos y estrategia offline. |
 
 ### Mobile App
 
@@ -148,12 +150,14 @@ PostgreSQL compartido en VPS
 
 | ID | Prioridad | Area | Riesgo | Recomendacion |
 |---|---:|---|---|---|
-| R-001 | P0 | Checkout | `POST /public/store/{slug}/orders` no valida que la tienda este `active`. | Bloquear pedidos para tiendas suspendidas/baneadas/pending. |
-| R-002 | P0 | Admin | Existe endpoint `/admin/reset-test-data`. | Deshabilitar en produccion o proteger por variable de entorno adicional. |
+| R-001 | P0 | Checkout | `POST /public/store/{slug}/orders` no valida que la tienda este `active`. | Resuelto 2026-07-09: responde 403 si la tienda no esta activa. |
+| R-002 | P0 | Admin | Existe endpoint `/admin/reset-test-data`. | Resuelto: bloqueado con 403 cuando `DEBUG=False` y exige confirmacion. |
 | R-003 | P0 | QA | No hay tests propios detectables. | Agregar smoke tests API y flujo web minimo. |
 | R-004 | P0 | Operacion | No hay panel admin suficiente para ver actividad real. | Priorizar admin operativo. |
 | R-005 | P1 | DB | Migraciones SQL manuales. | Formalizar Alembic o procedimiento versionado estricto. |
-| R-006 | P1 | Pagos | Culqi no tiene webhook/conciliacion. | Agregar webhooks antes de vender planes masivamente. |
+| R-006 | P1 | Pagos | Culqi no tiene webhook/conciliacion. | Mitigado parcialmente: Yape directo con aprobacion manual admin es la via principal. Webhook sigue pendiente para tarjeta. |
+| R-009 | P0 | Planes | Plans pro/elite tenian limites en 0 y el check los trataba como "limite alcanzado": bloqueaba pedidos/productos a clientes de pago. | Resuelto 2026-07-10: migracion 011 normaliza a NULL y el codigo trata 0/NULL como ilimitado. Verificar que 011 corra en VPS. |
+| R-010 | P1 | Planes | Migracion 011 dice free = 50 pedidos/mes, BD local tiene 500 y el texto de features dice "500 pedidos/mes". | Definir el limite real y alinear archivo, BD y features. |
 | R-007 | P1 | Mobile | Logs debug en produccion. | Limpiar `console.log` y usar logger condicionado por entorno. |
 | R-008 | P1 | Deploy | Posible inconsistencia `qtienda.shop/api` vs `api.qtienda.shop/api`. | Definir dominio canonico de API. |
 
@@ -174,12 +178,20 @@ PostgreSQL compartido en VPS
 | QT-011 | P1 | DB | Definir estrategia backup diaria. | Recuperacion ante error operativo. | Pendiente |
 | QT-012 | P1 | DB | Formalizar migraciones. | Despliegues reproducibles. | Pendiente |
 | QT-013 | P1 | Observabilidad | Logs estructurados y errores visibles. | Diagnostico rapido en VPS. | Pendiente |
-| QT-014 | P1 | Pagos | Webhook Culqi. | Suscripciones confiables. | Pendiente |
+| QT-014 | P1 | Pagos | Webhook Culqi. | Suscripciones confiables. | Pendiente (mitigado: Yape directo manual es la via principal) |
 | QT-015 | P1 | Mobile | Limpiar logs debug. | Build listo para usuarios reales. | Parcial (quedan ~9 console.log) |
 | QT-016 | P1 | Frontend | Mejorar panel pedidos desktop/tablet. | Soporte a vendedores en laptop. | Pendiente |
 | QT-017 | P2 | Producto | Onboarding/checklist vendedor. | Mejor activacion de nuevos usuarios. | Backlog |
 | QT-018 | P2 | Producto | Reportes exportables. | Analisis comercial y soporte. | Backlog |
 | QT-019 | P2 | Producto | Cupones, variantes, dominios propios. | Roadmap comercial. | Backlog |
+| QT-020 | P0 | Pagos | Yape directo para suscripciones (pago manual al celular admin + aprobacion en `admin/pagos`). | Vendedores sin tarjeta pueden pagar plan. | Hecho 2026-07-10 (migracion 013, probado e2e) |
+| QT-021 | P1 | Producto | Sistema de referidos con bonus de limites en plan free y banner en dashboard. | Crecimiento organico de usuarios. | Hecho 2026-07-10 (migracion 012, probado e2e) |
+| QT-022 | P1 | Planes | Expiracion automatica de suscripcion, renovacion que suma dias y aviso previo (email + push web + Expo) 3 dias antes. | Ciclo de suscripcion completo. | Hecho 2026-07-10 (migracion 014, watcher en lifespan) |
+| QT-023 | P1 | PWA | Banner "nueva version disponible" con versionado automatico del SW en build Docker. | Usuarios con cache vieja se enteran de mejoras. | Hecho 2026-07-10 |
+| QT-024 | P0 | Deploy | Ejecutar y verificar migraciones 010-014 en Postgres del VPS. | Backend nuevo funciona en produccion. | Pendiente verificar |
+| QT-025 | P1 | Planes | Alinear limite de pedidos free: migracion 011 dice 50, BD local 500, features dice "500 pedidos/mes". | Un solo valor consistente en archivo, BD y UI. | Pendiente decision |
+| QT-026 | P2 | Pagos | Activar Yape en panel de Culqi (opcional, ya existe Yape directo). | Yape tambien via pasarela. | Backlog |
+| QT-027 | P2 | Admin | Notificar al admin (push/email) cuando llega una solicitud de pago Yape. | Aprobacion mas rapida sin revisar panel. | Backlog |
 
 ## Backlog Especifico Admin
 
@@ -253,14 +265,14 @@ PostgreSQL compartido en VPS
 
 | Criterio | Estado requerido |
 |---|---|
-| Admin puede ver y gestionar tiendas reales/de prueba | Obligatorio |
-| Hay backups automaticos verificados | Obligatorio |
-| Hay smoke tests antes de deploy | Obligatorio |
-| No hay endpoint destructivo disponible en produccion | Obligatorio |
-| Checkout bloquea tiendas no activas | Obligatorio |
-| Se mide uso por dispositivo y conversion basica | Recomendado |
-| Se puede exportar informacion operativa | Recomendado |
-| Pagos de planes tienen webhook/conciliacion | Requerido antes de cobro masivo |
+| Admin puede ver y gestionar tiendas reales/de prueba | Obligatorio — CUMPLIDO |
+| Hay backups automaticos verificados | Obligatorio — PENDIENTE |
+| Hay smoke tests antes de deploy | Obligatorio — PENDIENTE |
+| No hay endpoint destructivo disponible en produccion | Obligatorio — CUMPLIDO |
+| Checkout bloquea tiendas no activas | Obligatorio — CUMPLIDO |
+| Se mide uso por dispositivo y conversion basica | Recomendado — PENDIENTE |
+| Se puede exportar informacion operativa | Recomendado — PENDIENTE |
+| Pagos de planes tienen webhook/conciliacion | Requerido antes de cobro masivo — mitigado con Yape directo manual |
 
 ## Archivos Clave Del Repositorio
 
