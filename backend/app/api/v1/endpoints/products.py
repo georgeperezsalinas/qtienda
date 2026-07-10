@@ -10,9 +10,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
+from app.core.config import settings
 from app.core.security import require_vendor
 from app.models.models import Category, Plan, Product, ProductImage, Store, Subscription
 from app.schemas.auth import ProductCreate, ProductUpdate
+from app.services.referrals import referral_bonus
 
 router = APIRouter()
 
@@ -136,17 +138,23 @@ async def _check_product_limit(store: Store, db: AsyncSession) -> None:
             select(Plan).where(Plan.id == store.plan_id)
         )).scalar_one_or_none()
 
-    if plan and plan.max_products is not None:
+    # max_products NULL o 0 = ilimitado
+    if plan and plan.max_products:
+        limit = plan.max_products
+        if plan.slug == settings.FREE_PLAN_SLUG:
+            bonus = await referral_bonus(store.user_id, db)
+            limit += bonus["extra_products"]
+
         count = (await db.execute(
             select(func.count()).select_from(Product).where(
                 Product.store_id == store.id,
                 Product.deleted_at.is_(None),
             )
         )).scalar()
-        if count >= plan.max_products:
+        if count >= limit:
             raise HTTPException(
                 status_code=403,
-                detail=f"Tu plan {plan.name} permite máximo {plan.max_products} productos. Actualiza para agregar más.",
+                detail=f"Tu plan {plan.name} permite máximo {limit} productos. Actualiza tu plan o invita amigos con tu código de referido para subir tu límite.",
             )
 
 

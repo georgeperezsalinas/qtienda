@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import {
-  LayoutDashboard, Store, Users, LogOut, ChevronRight, ShieldCheck,
+  LayoutDashboard, Store, Users, LogOut, ChevronRight, ShieldCheck, Smartphone,
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 
@@ -12,6 +12,7 @@ const NAV = [
   { href: "/admin",          label: "Dashboard", icon: LayoutDashboard, exact: true  },
   { href: "/admin/tiendas",  label: "Tiendas",   icon: Store,            exact: false },
   { href: "/admin/usuarios", label: "Usuarios",  icon: Users,            exact: false },
+  { href: "/admin/pagos",    label: "Pagos",     icon: Smartphone,       exact: false },
 ];
 
 function isActive(pathname: string, href: string, exact?: boolean) {

@@ -27,6 +27,11 @@ class Settings(BaseSettings):
     WA_BASE_URL: str = "https://wa.me/"
     FREE_PLAN_SLUG: str = "free"
 
+    # Referidos: bonus de limites para plan free por cada referido con tienda creada
+    REFERRAL_BONUS_PRODUCTS: int = 5
+    REFERRAL_BONUS_ORDERS: int = 50
+    REFERRAL_MAX_REFERRALS: int = 10
+
     RESEND_API_KEY: str = ""
     EMAIL_FROM: str = "qtienda <ventas@qtienda.shop>"
     APP_URL: str = "https://qtienda.shop"
@@ -38,6 +43,10 @@ class Settings(BaseSettings):
     CULQI_SECRET_KEY: str = ""
     CULQI_PUBLIC_KEY: str = ""
     TRIAL_DAYS: int = 14
+
+    # Yape directo (pago manual de planes, aprobado por admin)
+    YAPE_PAYMENT_PHONE: str = "921459342"
+    YAPE_PAYMENT_NAME: str = "Jorge P. Salinas"
 
     UPLOADS_DIR: str = "/tmp/qtienda-uploads"
     UPLOADS_BASE_URL: str = "http://localhost:8000/uploads"

@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -10,7 +11,7 @@ from sqlalchemy.orm import selectinload
 from app.core.config import settings
 from app.core.security import require_vendor
 from app.db.session import get_db
-from app.models.models import Plan, Store, Subscription
+from app.models.models import Plan, PlanPaymentRequest, Store, Subscription
 from app.services import culqi as culqi_svc
 
 router = APIRouter()
@@ -18,6 +19,28 @@ router = APIRouter()
 
 class SubscribeRequest(BaseModel):
     culqi_token: str
+
+
+class YapeRequestBody(BaseModel):
+    operation_number: str
+    payer_phone: Optional[str] = None
+    note: Optional[str] = None
+
+
+def _payment_request_out(req: PlanPaymentRequest) -> dict:
+    return {
+        "id": str(req.id),
+        "plan_id": str(req.plan_id),
+        "plan_name": req.plan.name if req.plan else None,
+        "plan_slug": req.plan.slug if req.plan else None,
+        "method": req.method,
+        "amount_cents": req.amount_cents,
+        "operation_number": req.operation_number,
+        "status": req.status,
+        "reject_reason": req.reject_reason,
+        "created_at": req.created_at,
+        "reviewed_at": req.reviewed_at,
+    }
 
 
 def _sub_out(sub: Subscription) -> dict:
@@ -57,6 +80,83 @@ async def list_plans(db: AsyncSession = Depends(get_db)):
         }
         for p in plans
     ]
+
+
+@router.get("/payment-info")
+async def payment_info():
+    """Datos para pagar un plan con Yape directo (sin pasarela)."""
+    return {
+        "yape_phone": settings.YAPE_PAYMENT_PHONE,
+        "yape_name": settings.YAPE_PAYMENT_NAME,
+    }
+
+
+@router.post("/{plan_id}/yape-request", status_code=201)
+async def create_yape_request(
+    plan_id: UUID,
+    body: YapeRequestBody,
+    current_user=Depends(require_vendor),
+    db: AsyncSession = Depends(get_db),
+):
+    """El vendedor ya yapeó: registra el nº de operación para que admin apruebe."""
+    plan = (await db.execute(
+        select(Plan).where(Plan.id == plan_id, Plan.is_active.is_(True))
+    )).scalar_one_or_none()
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan no encontrado")
+    if plan.slug == settings.FREE_PLAN_SLUG:
+        raise HTTPException(status_code=400, detail="El plan gratuito no requiere pago")
+
+    operation = body.operation_number.strip()
+    if not operation:
+        raise HTTPException(status_code=422, detail="Ingresa el número de operación de tu Yape")
+
+    store = await _get_store(current_user, db)
+
+    pending = (await db.execute(
+        select(PlanPaymentRequest).where(
+            PlanPaymentRequest.store_id == store.id,
+            PlanPaymentRequest.status == "pending",
+        )
+    )).scalars().first()
+    if pending:
+        raise HTTPException(
+            status_code=409,
+            detail="Ya tienes un pago en verificación. Te avisaremos al confirmarlo.",
+        )
+
+    req = PlanPaymentRequest(
+        store_id=store.id,
+        plan_id=plan.id,
+        method="yape",
+        amount_cents=plan.price_cents,
+        operation_number=operation[:40],
+        payer_phone=(body.payer_phone or "").strip()[:20] or None,
+        note=(body.note or "").strip() or None,
+    )
+    db.add(req)
+    await db.commit()
+    await db.refresh(req)
+    await db.refresh(req, ["plan"])
+    return _payment_request_out(req)
+
+
+@router.get("/yape-request/latest")
+async def latest_yape_request(
+    current_user=Depends(require_vendor),
+    db: AsyncSession = Depends(get_db),
+):
+    store = await _get_store(current_user, db)
+    req = (await db.execute(
+        select(PlanPaymentRequest)
+        .options(selectinload(PlanPaymentRequest.plan))
+        .where(PlanPaymentRequest.store_id == store.id)
+        .order_by(PlanPaymentRequest.created_at.desc())
+        .limit(1)
+    )).scalar_one_or_none()
+    if not req:
+        raise HTTPException(status_code=404, detail="Sin solicitudes de pago")
+    return _payment_request_out(req)
 
 
 @router.get("/my-subscription")

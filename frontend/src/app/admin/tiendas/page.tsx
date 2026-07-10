@@ -9,6 +9,7 @@ import {
   ChevronRight as ChevronRightIcon,
   Eye,
   ExternalLink,
+  FlaskConical,
   Package,
   PauseCircle,
   RefreshCw,
@@ -28,6 +29,7 @@ interface StoreItem {
   slug: string;
   name: string;
   status: string;
+  is_test: boolean;
   city: string | null;
   created_at: string;
   owner_email: string | null;
@@ -94,6 +96,7 @@ const STATUS_TABS = [
   { key: "pending", label: "Pendientes" },
   { key: "active", label: "Activas" },
   { key: "suspended", label: "Suspendidas" },
+  { key: "test", label: "Prueba" },
 ];
 
 const STATUS_STYLES: Record<string, { bg: string; color: string; dot: string; label: string }> = {
@@ -105,6 +108,18 @@ const STATUS_STYLES: Record<string, { bg: string; color: string; dot: string; la
 
 function Skel({ h = 24 }: { h?: number }) {
   return <div className="skeleton" style={{ height: h, borderRadius: 16 }} />;
+}
+
+function TestBadge() {
+  return (
+    <span
+      className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
+      style={{ background: "#EDE9FE", color: "#5B21B6" }}
+    >
+      <FlaskConical size={10} />
+      Prueba
+    </span>
+  );
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -148,8 +163,9 @@ export default function AdminTiendasPage() {
   const fetchStores = useCallback(async () => {
     setLoading(true);
     try {
-      const params: Record<string, string | number> = { page, limit: 20 };
-      if (status) params.status = status;
+      const params: Record<string, string | number | boolean> = { page, limit: 20 };
+      if (status === "test") params.is_test = true;
+      else if (status) params.status = status;
       if (q) params.q = q;
       const { data } = await apiClient.get<StoresResponse>("/admin/stores", { params });
       setStores(data.items);
@@ -224,6 +240,20 @@ export default function AdminTiendasPage() {
       if (detail?.id === id) await loadDetail(id);
     } catch (err: any) {
       toast.error(err.response?.data?.detail ?? "No se pudo suspender");
+    } finally {
+      setActing(null);
+    }
+  }
+
+  async function markTest(id: string, isTest: boolean) {
+    setActing(id);
+    try {
+      await apiClient.post(`/admin/stores/${id}/mark-test`, { is_test: isTest });
+      toast.success(isTest ? "Marcada como prueba" : "Marca de prueba retirada");
+      await fetchStores();
+      if (detail?.id === id) await loadDetail(id);
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail ?? "No se pudo actualizar");
     } finally {
       setActing(null);
     }
@@ -359,6 +389,7 @@ export default function AdminTiendasPage() {
                       {s.name}
                     </p>
                     <StatusBadge status={s.status} />
+                    {s.is_test && <TestBadge />}
                   </div>
                   <p className="text-xs mt-0.5 truncate" style={{ color: "var(--ink-3)" }}>
                     {s.owner_name ?? "Sin dueño"} · {s.owner_email ?? "sin email"}
@@ -425,6 +456,15 @@ export default function AdminTiendasPage() {
                     Suspender
                   </button>
                 )}
+                <button
+                  disabled={acting === s.id}
+                  onClick={() => markTest(s.id, !s.is_test)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold disabled:opacity-50"
+                  style={{ background: "#EDE9FE", color: "#5B21B6" }}
+                >
+                  <FlaskConical size={13} />
+                  {s.is_test ? "Quitar prueba" : "Marcar prueba"}
+                </button>
                 <button
                   disabled={acting === s.id}
                   onClick={() => deleteStore(s.id, s.name)}
@@ -500,6 +540,7 @@ export default function AdminTiendasPage() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-bold" style={{ color: "var(--ink)" }}>{detail.name}</p>
                         <StatusBadge status={detail.status} />
+                        {detail.is_test && <TestBadge />}
                       </div>
                       <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>
                         /{detail.slug} · creada {datePE(detail.created_at)}
@@ -602,6 +643,15 @@ export default function AdminTiendasPage() {
                       Suspender
                     </button>
                   )}
+                  <button
+                    onClick={() => markTest(detail.id, !detail.is_test)}
+                    disabled={acting === detail.id}
+                    className="col-span-2 flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold disabled:opacity-50"
+                    style={{ background: "#EDE9FE", color: "#5B21B6" }}
+                  >
+                    <FlaskConical size={15} />
+                    {detail.is_test ? "Quitar marca de prueba" : "Marcar como prueba"}
+                  </button>
                   <button
                     onClick={() => deleteStore(detail.id, detail.name)}
                     disabled={acting === detail.id}

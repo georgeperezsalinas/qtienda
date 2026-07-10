@@ -14,6 +14,7 @@ from app.api.v1.endpoints import (
     delivery,
     plans,
     devices,
+    referrals,
 )
 
 api_router = APIRouter()
@@ -42,6 +43,9 @@ api_router.include_router(delivery.router,  prefix="/delivery",  tags=["Delivery
 
 # Plans (public)
 api_router.include_router(plans.router,     prefix="/plans",     tags=["Plans"])
+
+# Referidos (vendor)
+api_router.include_router(referrals.router, prefix="/referrals", tags=["Referrals"])
 
 # Admin
 api_router.include_router(admin.router,     prefix="/admin",     tags=["Admin"])

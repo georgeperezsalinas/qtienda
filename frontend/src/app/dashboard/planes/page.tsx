@@ -8,9 +8,12 @@
 //   - Limpia el declare global duplicado (ya está en useCulqi.ts)
 //   - Migra fetching a React Query con useQuery
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, Zap, Crown, Sparkles, Loader2 } from "lucide-react";
+import {
+  ArrowLeft, Check, Zap, Crown, Sparkles, Loader2,
+  X, Copy, Smartphone, CreditCard, Clock,
+} from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
 import { useCulqi } from "@/hooks/useCulqi";
@@ -36,6 +39,20 @@ interface Subscription {
   ends_at: string | null;
   trial_ends_at: string | null;
   plan_slug: string;
+}
+
+interface PaymentInfo {
+  yape_phone: string;
+  yape_name: string;
+}
+
+interface YapeRequest {
+  id: string;
+  status: string;
+  plan_name: string | null;
+  amount_cents: number;
+  reject_reason: string | null;
+  created_at: string;
 }
 
 const PLAN_VISUAL: Record<string, {
@@ -180,24 +197,29 @@ function PlanCard({
               Plan base
             </div>
           ) : (
-            <button
-              onClick={() => onUpgrade(plan)}
-              disabled={loading}
-              className="flex w-full items-center justify-center gap-2 text-sm font-bold py-3 rounded-xl transition-all active:scale-95 disabled:opacity-60"
-              style={{
-                background: visual.gradient,
-                color: "#fff",
-                border: "none",
-                cursor: loading ? "not-allowed" : "pointer",
-                boxShadow: `0 4px 12px ${visual.color}40`,
-              }}
-            >
-              {loading ? (
-                <Loader2 size={16} className="animate-spin" />
-              ) : (
-                <>Activar {plan.name}</>
-              )}
-            </button>
+            <>
+              <button
+                onClick={() => onUpgrade(plan)}
+                disabled={loading}
+                className="flex w-full items-center justify-center gap-2 text-sm font-bold py-3 rounded-xl transition-all active:scale-95 disabled:opacity-60"
+                style={{
+                  background: visual.gradient,
+                  color: "#fff",
+                  border: "none",
+                  cursor: loading ? "not-allowed" : "pointer",
+                  boxShadow: `0 4px 12px ${visual.color}40`,
+                }}
+              >
+                {loading ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <>Activar {plan.name}</>
+                )}
+              </button>
+              <p className="text-center text-[11px] mt-2" style={{ color: "var(--ink-4)" }}>
+                Paga con tarjeta o Yape
+              </p>
+            </>
           )}
         </div>
       </div>
@@ -231,11 +253,59 @@ export default function PlanesPage() {
     retry: false, // 404 si no tiene suscripción activa — no reintentar
   });
 
+  const { data: paymentInfo } = useQuery({
+    queryKey: ["payment-info"],
+    queryFn: async () => {
+      const { data } = await apiClient.get("/plans/payment-info");
+      return data as PaymentInfo;
+    },
+    staleTime: 60 * 60 * 1000,
+  });
+
+  const { data: yapeRequest } = useQuery({
+    queryKey: ["yape-request"],
+    queryFn: async () => {
+      const { data } = await apiClient.get("/plans/yape-request/latest");
+      return data as YapeRequest;
+    },
+    retry: false, // 404 si nunca solicitó
+  });
+
+  // ── Yape directo ─────────────────────────────────
+  const [payModalPlan, setPayModalPlan] = useState<Plan | null>(null);
+  const [yapeMode, setYapeMode] = useState(false);
+  const [operationNumber, setOperationNumber] = useState("");
+
+  const yapeMutation = useMutation({
+    mutationFn: async ({ planId }: { planId: string }) => {
+      const { data } = await apiClient.post(`/plans/${planId}/yape-request`, {
+        operation_number: operationNumber.trim(),
+      });
+      return data;
+    },
+    onSuccess: () => {
+      toast.success("¡Recibido! Activaremos tu plan al confirmar el Yape 🙌");
+      setPayModalPlan(null);
+      setYapeMode(false);
+      setOperationNumber("");
+      qc.invalidateQueries({ queryKey: ["yape-request"] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.detail || "No se pudo registrar tu pago");
+    },
+  });
+
+  function copyYapePhone() {
+    if (!paymentInfo) return;
+    navigator.clipboard.writeText(paymentInfo.yape_phone)
+      .then(() => toast.success("Número copiado"))
+      .catch(() => toast.error("No se pudo copiar"));
+  }
+
   // ── Mutación de suscripción ──────────────────────
   const subscribeMutation = useMutation({
     mutationFn: async ({ planId, token }: { planId: string; token: string }) => {
-      const { data } = await apiClient.post("/plans/subscribe", {
-        plan_id: planId,
+      const { data } = await apiClient.post(`/plans/${planId}/subscribe`, {
         culqi_token: token,
       });
       return data;
@@ -275,8 +345,16 @@ export default function PlanesPage() {
 
   const handleUpgrade = useCallback((plan: Plan) => {
     selectedPlanRef.current = plan;
+    setPayModalPlan(plan);
+    setYapeMode(false);
+    setOperationNumber("");
+  }, []);
+
+  const payWithCulqi = useCallback(() => {
+    if (payModalPlan) selectedPlanRef.current = payModalPlan;
+    setPayModalPlan(null);
     openCulqi();
-  }, [openCulqi]);
+  }, [openCulqi, payModalPlan]);
 
   const currentSlug = subscription?.plan_slug ?? "free";
   const isLoading = culqiLoading || subscribeMutation.isPending;
@@ -298,6 +376,31 @@ export default function PlanesPage() {
       <p style={{ fontSize: 13, color: "var(--ink-3)", margin: "0 0 24px" }}>
         Elige el plan que mejor se adapta a tu negocio.
       </p>
+
+      {/* Pago Yape en verificación */}
+      {yapeRequest?.status === "pending" && (
+        <div
+          className="flex items-start gap-2.5 px-4 py-3 rounded-2xl mb-5 text-sm"
+          style={{ background: "#FEF3C7", color: "#92400E", border: "1px solid #FDE68A" }}
+        >
+          <Clock size={16} className="mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="font-bold">Tu Yape está en verificación</p>
+            <p className="text-xs mt-0.5">
+              Plan {yapeRequest.plan_name} · {formatPricePlan(yapeRequest.amount_cents)} — lo activamos
+              apenas confirmemos el pago (normalmente en unas horas).
+            </p>
+          </div>
+        </div>
+      )}
+      {yapeRequest?.status === "rejected" && yapeRequest.reject_reason && (
+        <div
+          className="px-4 py-3 rounded-2xl mb-5 text-xs"
+          style={{ background: "#FEE2E2", color: "#991B1B", border: "1px solid #FECACA" }}
+        >
+          Tu último pago Yape fue rechazado: {yapeRequest.reject_reason}. Puedes intentarlo de nuevo.
+        </div>
+      )}
 
       {/* Estado de suscripción actual */}
       {subscription && subscription.status !== "free" && (
@@ -334,6 +437,137 @@ export default function PlanesPage() {
             />
           ))}
         </div>
+      )}
+
+      {/* ── Modal: elegir método de pago ── */}
+      {payModalPlan && (
+        <>
+          <div
+            className="fixed inset-0 z-50"
+            style={{ background: "rgba(15,23,42,.45)" }}
+            onClick={() => setPayModalPlan(null)}
+          />
+          <div
+            className="fixed inset-x-0 bottom-0 md:inset-x-auto md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:bottom-auto md:w-[420px] z-50 p-5 rounded-t-3xl md:rounded-3xl"
+            style={{ background: "var(--surface)" }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-xs font-bold uppercase" style={{ color: "var(--ink-3)" }}>
+                  Activar {payModalPlan.name}
+                </p>
+                <p className="font-bold text-lg" style={{ color: "var(--ink)" }}>
+                  {formatPricePlan(payModalPlan.price_cents)} / mes
+                </p>
+              </div>
+              <button
+                onClick={() => setPayModalPlan(null)}
+                className="w-9 h-9 rounded-xl flex items-center justify-center"
+                style={{ background: "var(--surface-2)" }}
+                aria-label="Cerrar"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {!yapeMode ? (
+              <div className="space-y-3 pb-2">
+                {/* Yape directo — primero, es lo que más usa la gente */}
+                <button
+                  onClick={() => setYapeMode(true)}
+                  className="w-full flex items-center gap-3 p-4 rounded-2xl text-left transition-all active:scale-[.98]"
+                  style={{ background: "#742384", color: "#fff" }}
+                >
+                  <Smartphone size={22} />
+                  <div className="flex-1">
+                    <p className="font-bold text-sm">Pagar con Yape</p>
+                    <p className="text-xs opacity-80">Directo al celular, sin tarjeta</p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={payWithCulqi}
+                  className="w-full flex items-center gap-3 p-4 rounded-2xl text-left transition-all active:scale-[.98]"
+                  style={{ background: "var(--surface-2)", color: "var(--ink)", border: "1.5px solid var(--line)" }}
+                >
+                  <CreditCard size={22} style={{ color: "var(--ink-2)" }} />
+                  <div className="flex-1">
+                    <p className="font-bold text-sm">Tarjeta de crédito/débito</p>
+                    <p className="text-xs" style={{ color: "var(--ink-3)" }}>Pago seguro con Culqi</p>
+                  </div>
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4 pb-2">
+                <div
+                  className="rounded-2xl p-4 text-center"
+                  style={{ background: "#F8F0FA", border: "1.5px dashed #C084CF" }}
+                >
+                  <p className="text-xs font-semibold" style={{ color: "#742384" }}>
+                    Yapea {formatPricePlan(payModalPlan.price_cents)} al número
+                  </p>
+                  <div className="flex items-center justify-center gap-2 mt-1.5">
+                    <p className="font-display font-extrabold text-2xl tracking-wide" style={{ color: "#742384" }}>
+                      {paymentInfo?.yape_phone ?? "—"}
+                    </p>
+                    <button
+                      onClick={copyYapePhone}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center"
+                      style={{ background: "#fff", border: "1px solid #E9D5F0" }}
+                      aria-label="Copiar número"
+                    >
+                      <Copy size={13} style={{ color: "#742384" }} />
+                    </button>
+                  </div>
+                  {paymentInfo?.yape_name && (
+                    <p className="text-xs mt-1" style={{ color: "#9333B8" }}>
+                      A nombre de {paymentInfo.yape_name}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="field-label" htmlFor="yape-op">
+                    Nº de operación de tu Yape
+                  </label>
+                  <input
+                    id="yape-op"
+                    className="input"
+                    placeholder="Ej. 04519823"
+                    inputMode="numeric"
+                    value={operationNumber}
+                    onChange={(e) => setOperationNumber(e.target.value)}
+                  />
+                  <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-4)" }}>
+                    Aparece en el comprobante de Yape después de enviar el pago.
+                  </p>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setYapeMode(false)}
+                    className="px-4 py-3 rounded-xl text-sm font-semibold"
+                    style={{ background: "var(--surface-2)", color: "var(--ink-2)" }}
+                  >
+                    Volver
+                  </button>
+                  <button
+                    onClick={() => yapeMutation.mutate({ planId: payModalPlan.id })}
+                    disabled={yapeMutation.isPending || !operationNumber.trim()}
+                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white disabled:opacity-50 transition-all active:scale-[.98]"
+                    style={{ background: "#742384" }}
+                  >
+                    {yapeMutation.isPending ? (
+                      <Loader2 size={15} className="animate-spin" />
+                    ) : (
+                      <>Ya yapeé, confirmar</>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </>
       )}
 
       {/* Contenedor requerido por el modal de Culqi */}

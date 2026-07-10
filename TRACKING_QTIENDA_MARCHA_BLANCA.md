@@ -161,13 +161,13 @@ PostgreSQL compartido en VPS
 
 | ID | Prioridad | Modulo | Pendiente | Resultado esperado | Estado |
 |---|---:|---|---|---|---|
-| QT-001 | P0 | Backend/Public | Validar tienda activa en checkout publico. | No se aceptan pedidos en tiendas suspendidas/pending/banned. | Pendiente |
-| QT-002 | P0 | Admin | Deshabilitar o blindar `/reset-test-data` en produccion. | No existe riesgo de borrado masivo accidental. | Pendiente |
-| QT-003 | P0 | Admin | Crear listado admin de tiendas con filtros y metricas. | Ver todas las tiendas creadas por usuarios. | Pendiente |
-| QT-004 | P0 | Admin | Crear detalle admin de tienda. | Ver productos, pedidos, pagos, configuracion y actividad. | Pendiente |
-| QT-005 | P0 | Admin | Suspender/reactivar tiendas desde admin. | Control operativo sin borrar datos. | Pendiente |
-| QT-006 | P0 | Admin | Eliminar tiendas de prueba con soft delete y auditoria. | Limpieza segura de marcha blanca. | Pendiente |
-| QT-007 | P0 | Admin | Marcar tiendas/usuarios como prueba. | Separar metricas reales de pruebas. | Pendiente |
+| QT-001 | P0 | Backend/Public | Validar tienda activa en checkout publico. | No se aceptan pedidos en tiendas suspendidas/pending/banned. | Hecho (403 si status != active) |
+| QT-002 | P0 | Admin | Deshabilitar o blindar `/reset-test-data` en produccion. | No existe riesgo de borrado masivo accidental. | Hecho (403 si no DEBUG + confirmacion) |
+| QT-003 | P0 | Admin | Crear listado admin de tiendas con filtros y metricas. | Ver todas las tiendas creadas por usuarios. | Hecho (endpoint + `admin/tiendas`) |
+| QT-004 | P0 | Admin | Crear detalle admin de tienda. | Ver productos, pedidos, pagos, configuracion y actividad. | Hecho (drawer en `admin/tiendas`) |
+| QT-005 | P0 | Admin | Suspender/reactivar tiendas desde admin. | Control operativo sin borrar datos. | Hecho (suspend/approve con auditoria) |
+| QT-006 | P0 | Admin | Eliminar tiendas de prueba con soft delete y auditoria. | Limpieza segura de marcha blanca. | Hecho (confirm DELETE + razon + audit log) |
+| QT-007 | P0 | Admin | Marcar tiendas/usuarios como prueba. | Separar metricas reales de pruebas. | Hecho para tiendas (`is_test` + migracion 010) |
 | QT-008 | P1 | Analytics | Registrar eventos basicos: tienda vista, producto visto, add cart, checkout. | Saber uso real por celular/laptop y conversion. | Pendiente |
 | QT-009 | P1 | QA | Smoke tests backend. | Validacion rapida antes de deploy. | Pendiente |
 | QT-010 | P1 | QA | Smoke tests web responsive. | Validar landing, tienda, login, dashboard y checkout. | Pendiente |
@@ -175,7 +175,7 @@ PostgreSQL compartido en VPS
 | QT-012 | P1 | DB | Formalizar migraciones. | Despliegues reproducibles. | Pendiente |
 | QT-013 | P1 | Observabilidad | Logs estructurados y errores visibles. | Diagnostico rapido en VPS. | Pendiente |
 | QT-014 | P1 | Pagos | Webhook Culqi. | Suscripciones confiables. | Pendiente |
-| QT-015 | P1 | Mobile | Limpiar logs debug. | Build listo para usuarios reales. | Pendiente |
+| QT-015 | P1 | Mobile | Limpiar logs debug. | Build listo para usuarios reales. | Parcial (quedan ~9 console.log) |
 | QT-016 | P1 | Frontend | Mejorar panel pedidos desktop/tablet. | Soporte a vendedores en laptop. | Pendiente |
 | QT-017 | P2 | Producto | Onboarding/checklist vendedor. | Mejor activacion de nuevos usuarios. | Backlog |
 | QT-018 | P2 | Producto | Reportes exportables. | Analisis comercial y soporte. | Backlog |

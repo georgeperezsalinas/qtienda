@@ -13,6 +13,7 @@ from app.db.session import get_db
 from app.models.models import Plan, Store, Product, Order, OrderItem, Payment, StoreSettings, Subscription
 from app.schemas.orders import PublicOrderCreate, OrderResponse
 from app.core.limiter import limiter
+from app.core.config import settings as app_settings
 
 router = APIRouter()
 
@@ -187,8 +188,11 @@ async def create_order(
     if not store:
         raise HTTPException(status_code=404, detail="Tienda no encontrada")
 
+    if store.status != "active":
+        raise HTTPException(status_code=403, detail="Esta tienda no está disponible en este momento")
+
     # Plan limit: max orders per month
-    await _check_order_limit(store.id, db)
+    await _check_order_limit(store, db)
 
     # Load & validate products
     product_ids = [item.product_id for item in payload.items]
@@ -395,7 +399,8 @@ async def create_order(
     }
 
 
-async def _check_order_limit(store_id, db: AsyncSession) -> None:
+async def _check_order_limit(store: Store, db: AsyncSession) -> None:
+    store_id = store.id
     sub = (await db.execute(
         select(Subscription)
         .options(selectinload(Subscription.plan))
@@ -413,7 +418,14 @@ async def _check_order_limit(store_id, db: AsyncSession) -> None:
             select(Plan).join(Store, Store.plan_id == Plan.id).where(Store.id == store_id)
         )).scalar_one_or_none()
 
-    if plan and plan.max_orders_mo is not None:
+    # max_orders_mo NULL o 0 = ilimitado
+    if plan and plan.max_orders_mo:
+        limit = plan.max_orders_mo
+        if plan.slug == app_settings.FREE_PLAN_SLUG:
+            from app.services.referrals import referral_bonus
+            bonus = await referral_bonus(store.user_id, db)
+            limit += bonus["extra_orders"]
+
         first_day = date.today().replace(day=1)
         count = (await db.execute(
             select(func.count()).select_from(Order).where(
@@ -421,7 +433,7 @@ async def _check_order_limit(store_id, db: AsyncSession) -> None:
                 Order.created_at >= first_day,
             )
         )).scalar()
-        if count >= plan.max_orders_mo:
+        if count >= limit:
             raise HTTPException(
                 status_code=503,
                 detail="Esta tienda alcanzó su límite de pedidos del mes. Vuelve el próximo mes.",

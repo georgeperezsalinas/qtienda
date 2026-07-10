@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Logo from "@/components/ui/Logo";
 import PhoneInput from "@/components/ui/PhoneInput";
 import { Eye, EyeOff, ChevronLeft, ArrowRight, CheckCircle2, RefreshCw } from "lucide-react";
@@ -98,6 +98,8 @@ function LoadingSpinner() {
 
 export default function RegisterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const referralCode = (searchParams.get("ref") ?? "").trim().toUpperCase();
   const { setTokens, setUser } = useAuthStore();
 
   const [form, setForm] = useState<FormData>({ full_name: "", email: "", password: "", phone: "" });
@@ -138,6 +140,7 @@ export default function RegisterPage() {
         email: form.email.toLowerCase().trim(),
         password: form.password,
         phone: form.phone.trim() || undefined,
+        referral_code: referralCode || undefined,
       });
 
       setTokens(data.access_token, data.refresh_token);
@@ -244,6 +247,14 @@ export default function RegisterPage() {
         <p className="text-sm" style={{ color: "var(--ink-3)" }}>
           Gratis · Sin tarjeta · En 2 minutos
         </p>
+        {referralCode && (
+          <p
+            className="inline-flex items-center gap-1.5 text-xs font-semibold mt-2 px-3 py-1.5 rounded-full"
+            style={{ background: "#EDE9FE", color: "#5B21B6" }}
+          >
+            🎁 Un amigo te invitó · código {referralCode}
+          </p>
+        )}
 
         {/* Step indicator */}
         <div className="flex items-center justify-center gap-2 mt-5">

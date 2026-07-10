@@ -12,6 +12,7 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
     phone: Optional[str] = None
+    referral_code: Optional[str] = None
 
     @field_validator("password")
     @classmethod

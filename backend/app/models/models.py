@@ -50,6 +50,8 @@ class User(Base):
     vehicle_plate: Mapped[Optional[str]] = mapped_column(String(15))
     is_active: Mapped[bool]      = mapped_column(Boolean, default=True)
     is_verified: Mapped[bool]    = mapped_column(Boolean, default=False)
+    referral_code: Mapped[Optional[str]] = mapped_column(String(12), unique=True)
+    referred_by_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     email_verification_token: Mapped[Optional[str]]     = mapped_column(String(64))
     email_verification_sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
@@ -80,7 +82,7 @@ class Plan(Base):
         Enum("monthly", "yearly", name="plan_interval", create_type=False),
         default="monthly",
     )
-    max_products: Mapped[int]   = mapped_column(Integer, default=10)
+    max_products: Mapped[Optional[int]] = mapped_column(Integer, default=10)
     max_orders_mo: Mapped[Optional[int]] = mapped_column(Integer)
     features: Mapped[dict]      = mapped_column(JSONB, default=dict)
     is_active: Mapped[bool]     = mapped_column(Boolean, default=True)
@@ -113,6 +115,7 @@ class Store(Base):
     country: Mapped[str]            = mapped_column(String(2), default="PE")
     meta_title: Mapped[Optional[str]] = mapped_column(String(120))
     meta_desc: Mapped[Optional[str]]  = mapped_column(String(300))
+    is_test: Mapped[bool]           = mapped_column(Boolean, default=False)
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime]    = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime]    = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -339,6 +342,29 @@ class Subscription(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     store: Mapped["Store"] = relationship(back_populates="subscriptions")
+    plan: Mapped["Plan"]   = relationship()
+
+
+class PlanPaymentRequest(Base):
+    """Pago manual de plan (Yape directo): el vendedor yapea y el admin aprueba."""
+    __tablename__ = "plan_payment_requests"
+
+    id: Mapped[uuid.UUID]       = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    store_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("stores.id", ondelete="CASCADE"))
+    plan_id: Mapped[uuid.UUID]  = mapped_column(UUID(as_uuid=True), ForeignKey("plans.id"))
+    method: Mapped[str]         = mapped_column(String(20), default="yape")
+    amount_cents: Mapped[int]   = mapped_column(Integer)
+    operation_number: Mapped[Optional[str]] = mapped_column(String(40))
+    payer_phone: Mapped[Optional[str]]      = mapped_column(String(20))
+    note: Mapped[Optional[str]] = mapped_column(Text)
+    status: Mapped[str]         = mapped_column(String(20), default="pending")  # pending/approved/rejected
+    reviewed_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    reviewed_at: Mapped[Optional[datetime]]  = mapped_column(DateTime(timezone=True))
+    reject_reason: Mapped[Optional[str]]     = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    store: Mapped["Store"] = relationship()
     plan: Mapped["Plan"]   = relationship()
 
 

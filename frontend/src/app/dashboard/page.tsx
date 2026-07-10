@@ -24,6 +24,7 @@ import {
 import { apiClient } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import Logo from "@/components/ui/Logo";
+import ReferralBanner from "@/components/ui/ReferralBanner";
 import toast from "react-hot-toast";
 
 /* ─── Types ─── */
@@ -361,6 +362,9 @@ export default function DashboardPage() {
             <Share2 size={14} strokeWidth={1.7} />
           </button>
         </Link>
+
+        {/* Referidos: sube tus límites del plan free */}
+        <ReferralBanner />
 
         {/* Pending alert */}
         {

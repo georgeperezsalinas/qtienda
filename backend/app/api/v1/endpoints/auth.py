@@ -19,6 +19,7 @@ from app.schemas.auth import (
     UpdateProfileRequest,
 )
 from app.services.email import send_verification_email
+from app.services.referrals import ensure_referral_code
 from app.core.limiter import limiter
 
 router = APIRouter()
@@ -37,6 +38,18 @@ async def register(request: Request, payload: RegisterRequest, db: AsyncSession 
     if not vendor_role:
         raise HTTPException(status_code=500, detail="Error de configuración del sistema")
 
+    # Referido: si viene un código válido, vincular al referidor
+    referrer_id = None
+    if payload.referral_code:
+        referrer = (await db.execute(
+            select(User).where(
+                User.referral_code == payload.referral_code.strip().upper(),
+                User.deleted_at.is_(None),
+            )
+        )).scalar_one_or_none()
+        if referrer:
+            referrer_id = referrer.id
+
     verification_token = secrets.token_hex(32)
     user = User(
         role_id=vendor_role.id,
@@ -47,8 +60,10 @@ async def register(request: Request, payload: RegisterRequest, db: AsyncSession 
         is_verified=False,
         email_verification_token=verification_token,
         email_verification_sent_at=datetime.now(timezone.utc),
+        referred_by_user_id=referrer_id,
     )
     db.add(user)
+    await ensure_referral_code(user, db)
     await db.commit()
     await db.refresh(user)
 

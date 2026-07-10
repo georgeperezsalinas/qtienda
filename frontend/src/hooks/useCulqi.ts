@@ -72,28 +72,29 @@ export function useCulqi(options: UseCulqiOptions) {
       description,
       amount,
       ...(email && { email }),
-      // Opciones de apariencia
-      options: {
-        lang:            "es",
-        installments:    false,  // sin cuotas por defecto
-        modal:           true,
-        container:       "#culqi-container",
-        paymentMethods: {
-          tarjeta:     true,
-          yape:        true,   // Yape vía Culqi
-          billetera:   false,
-          bancaMovil:  false,
-          agente:      false,
-          cuotealo:    false,
-        },
-        style: {
-          logo:            "/icon/icon-72.png",
-          maincolor:       "#C5613B",   // --accent de qtienda
-          buttontext:      "Pagar ahora",
-          maintext:        "Pago seguro",
-          desctext:        description,
-          errortext:       "Verifica los datos de tu tarjeta",
-        },
+    });
+
+    // paymentMethods/style van en Culqi.options(), NO dentro de settings():
+    // anidados en settings el checkout los ignora y solo muestra tarjeta.
+    window.Culqi.options({
+      lang:         "es",
+      installments: false,  // sin cuotas por defecto
+      modal:        true,
+      paymentMethods: {
+        tarjeta:     true,
+        yape:        true,   // Yape vía Culqi
+        billetera:   false,
+        bancaMovil:  false,
+        agente:      false,
+        cuotealo:    false,
+      },
+      style: {
+        logo:            "https://qtienda.shop/icon/icon-72.png",
+        maincolor:       "#C5613B",   // --accent de qtienda
+        buttontext:      "Pagar ahora",
+        maintext:        "Pago seguro",
+        desctext:        description,
+        errortext:       "Verifica los datos de tu pago",
       },
     });
 
@@ -137,6 +138,7 @@ declare global {
     Culqi: {
       publicKey: string;
       settings: (config: Record<string, unknown>) => void;
+      options: (config: Record<string, unknown>) => void;
       open:  () => void;
       close: () => void;
     };

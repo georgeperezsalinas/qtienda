@@ -12,7 +12,10 @@ from sqlalchemy.orm import selectinload
 from app.db.session import get_db
 from app.core.config import settings
 from app.core.security import require_admin
-from app.models.models import AuditLog, Order, Payment, Product, Role, Store, User
+from app.models.models import (
+    AuditLog, Order, Payment, Plan, PlanPaymentRequest, Product, Role, Store,
+    Subscription, User,
+)
 
 router = APIRouter()
 
@@ -21,6 +24,7 @@ router = APIRouter()
 async def list_stores(
     status: Optional[str] = Query(None),
     q: Optional[str] = Query(None),
+    is_test: Optional[bool] = Query(None),
     page: int = Query(1, ge=1),
     limit: int = Query(20, le=100),
     _=Depends(require_admin),
@@ -29,6 +33,8 @@ async def list_stores(
     filters = [Store.deleted_at.is_(None)]
     if status:
         filters.append(Store.status == status)
+    if is_test is not None:
+        filters.append(Store.is_test == is_test)
     if q:
         term = f"%{q.strip()}%"
         filters.append(
@@ -92,6 +98,7 @@ async def list_stores(
                 "slug": s.slug,
                 "name": s.name,
                 "status": s.status,
+                "is_test": s.is_test,
                 "city": s.city,
                 "created_at": s.created_at,
                 "owner_email": s.user.email if s.user else None,
@@ -164,6 +171,7 @@ async def get_store(
         "slug": store.slug,
         "name": store.name,
         "status": store.status,
+        "is_test": store.is_test,
         "city": store.city,
         "country": store.country,
         "whatsapp": store.whatsapp,
@@ -267,6 +275,39 @@ async def suspend_store(
     ))
     await db.commit()
     return {"store_id": store.id, "status": store.status}
+
+
+class MarkTestRequest(BaseModel):
+    is_test: bool
+
+
+@router.post("/stores/{store_id}/mark-test")
+async def mark_store_test(
+    store_id: UUID,
+    body: MarkTestRequest,
+    current_admin=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Store).where(Store.id == store_id, Store.deleted_at.is_(None))
+    )
+    store = result.scalar_one_or_none()
+    if not store:
+        raise HTTPException(status_code=404, detail="Tienda no encontrada")
+
+    old_value = store.is_test
+    store.is_test = body.is_test
+    db.add(AuditLog(
+        user_id=current_admin.id,
+        store_id=store.id,
+        action="store.marked_test" if body.is_test else "store.unmarked_test",
+        entity="stores",
+        entity_id=store.id,
+        old_value={"is_test": old_value},
+        new_value={"is_test": body.is_test},
+    ))
+    await db.commit()
+    return {"store_id": store.id, "is_test": store.is_test}
 
 
 class StoreDeleteRequest(BaseModel):
@@ -378,6 +419,14 @@ async def global_metrics(
         )
     ).scalar()
 
+    test_stores = (
+        await db.execute(
+            select(func.count()).select_from(Store).where(
+                Store.is_test.is_(True), Store.deleted_at.is_(None)
+            )
+        )
+    ).scalar()
+
     total_users = (
         await db.execute(
             select(func.count()).select_from(User).where(User.deleted_at.is_(None))
@@ -385,9 +434,14 @@ async def global_metrics(
     ).scalar()
 
     from sqlalchemy import extract
+    # Excluir tiendas marcadas como prueba para no inflar metricas de marcha blanca
     monthly_orders = (
         await db.execute(
-            select(func.count()).select_from(Order).where(
+            select(func.count())
+            .select_from(Order)
+            .join(Store, Order.store_id == Store.id)
+            .where(
+                Store.is_test.is_(False),
                 extract("month", Order.created_at) == now.month,
                 extract("year", Order.created_at) == now.year,
             )
@@ -396,7 +450,11 @@ async def global_metrics(
 
     monthly_revenue = (
         await db.execute(
-            select(func.coalesce(func.sum(Order.total_cents), 0)).where(
+            select(func.coalesce(func.sum(Order.total_cents), 0))
+            .select_from(Order)
+            .join(Store, Order.store_id == Store.id)
+            .where(
+                Store.is_test.is_(False),
                 Order.status != "cancelled",
                 extract("month", Order.created_at) == now.month,
                 extract("year", Order.created_at) == now.year,
@@ -405,13 +463,178 @@ async def global_metrics(
     ).scalar()
 
     return {
-        "stores": {"total": total_stores, "active": active_stores},
+        "stores": {"total": total_stores, "active": active_stores, "test": test_stores},
         "users": {"total": total_users},
         "this_month": {
             "orders": monthly_orders,
             "revenue_cents": monthly_revenue,
         },
     }
+
+
+# ── Pagos manuales de planes (Yape directo) ──────────────────
+
+@router.get("/plan-requests")
+async def list_plan_requests(
+    status: Optional[str] = Query("pending"),
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, le=100),
+    _=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    filters = []
+    if status:
+        filters.append(PlanPaymentRequest.status == status)
+
+    total = (
+        await db.execute(
+            select(func.count()).select_from(PlanPaymentRequest).where(and_(*filters) if filters else True)
+        )
+    ).scalar()
+
+    result = await db.execute(
+        select(PlanPaymentRequest)
+        .options(
+            selectinload(PlanPaymentRequest.plan),
+            selectinload(PlanPaymentRequest.store).selectinload(Store.user),
+        )
+        .where(and_(*filters) if filters else True)
+        .order_by(PlanPaymentRequest.created_at.desc())
+        .offset((page - 1) * limit)
+        .limit(limit)
+    )
+    reqs = result.scalars().all()
+
+    return {
+        "total": total,
+        "page": page,
+        "pages": -(-total // limit),
+        "items": [
+            {
+                "id": r.id,
+                "status": r.status,
+                "method": r.method,
+                "amount_cents": r.amount_cents,
+                "operation_number": r.operation_number,
+                "payer_phone": r.payer_phone,
+                "note": r.note,
+                "reject_reason": r.reject_reason,
+                "created_at": r.created_at,
+                "reviewed_at": r.reviewed_at,
+                "plan": {"id": r.plan.id, "name": r.plan.name, "slug": r.plan.slug} if r.plan else None,
+                "store": {
+                    "id": r.store.id,
+                    "name": r.store.name,
+                    "slug": r.store.slug,
+                    "owner_email": r.store.user.email if r.store and r.store.user else None,
+                    "owner_phone": r.store.user.phone if r.store and r.store.user else None,
+                } if r.store else None,
+            }
+            for r in reqs
+        ],
+    }
+
+
+@router.post("/plan-requests/{request_id}/approve")
+async def approve_plan_request(
+    request_id: UUID,
+    current_admin=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    req = (await db.execute(
+        select(PlanPaymentRequest)
+        .options(selectinload(PlanPaymentRequest.plan), selectinload(PlanPaymentRequest.store))
+        .where(PlanPaymentRequest.id == request_id)
+    )).scalar_one_or_none()
+    if not req:
+        raise HTTPException(status_code=404, detail="Solicitud no encontrada")
+    if req.status != "pending":
+        raise HTTPException(status_code=409, detail=f"La solicitud ya fue {req.status}")
+
+    now = datetime.now(timezone.utc)
+
+    # Cancelar suscripción activa anterior
+    old_sub = (await db.execute(
+        select(Subscription).where(
+            Subscription.store_id == req.store_id,
+            Subscription.status.in_(["active", "trial"]),
+        )
+    )).scalars().first()
+    if old_sub:
+        old_sub.status = "cancelled"
+        old_sub.cancelled_at = now
+
+    from datetime import timedelta
+    new_sub = Subscription(
+        store_id=req.store_id,
+        plan_id=req.plan_id,
+        status="active",
+        starts_at=now,
+        ends_at=now + timedelta(days=30),
+        payment_ref=f"yape:{req.operation_number or req.id}",
+    )
+    db.add(new_sub)
+
+    if req.store:
+        req.store.plan_id = req.plan_id
+
+    req.status = "approved"
+    req.reviewed_by = current_admin.id
+    req.reviewed_at = now
+
+    db.add(AuditLog(
+        user_id=current_admin.id,
+        store_id=req.store_id,
+        action="plan_payment.approved",
+        entity="plan_payment_requests",
+        entity_id=req.id,
+        old_value={"status": "pending"},
+        new_value={
+            "status": "approved",
+            "plan": req.plan.slug if req.plan else str(req.plan_id),
+            "amount_cents": req.amount_cents,
+            "operation_number": req.operation_number,
+        },
+    ))
+    await db.commit()
+    return {"request_id": req.id, "status": req.status, "subscription_ends_at": new_sub.ends_at}
+
+
+class RejectRequest(BaseModel):
+    reason: Optional[str] = None
+
+
+@router.post("/plan-requests/{request_id}/reject")
+async def reject_plan_request(
+    request_id: UUID,
+    body: RejectRequest,
+    current_admin=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    req = (await db.execute(
+        select(PlanPaymentRequest).where(PlanPaymentRequest.id == request_id)
+    )).scalar_one_or_none()
+    if not req:
+        raise HTTPException(status_code=404, detail="Solicitud no encontrada")
+    if req.status != "pending":
+        raise HTTPException(status_code=409, detail=f"La solicitud ya fue {req.status}")
+
+    req.status = "rejected"
+    req.reviewed_by = current_admin.id
+    req.reviewed_at = datetime.now(timezone.utc)
+    req.reject_reason = (body.reason or "").strip() or None
+
+    db.add(AuditLog(
+        user_id=current_admin.id,
+        store_id=req.store_id,
+        action="plan_payment.rejected",
+        entity="plan_payment_requests",
+        entity_id=req.id,
+        old_value={"status": "pending"},
+        new_value={"status": "rejected", "reason": req.reject_reason},
+    ))
+    await db.commit()
+    return {"request_id": req.id, "status": req.status}
 
 
 class ResetConfirm(BaseModel):
