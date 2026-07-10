@@ -144,6 +144,19 @@ async def get_store_products(
     )
     products = result.scalars().all()
 
+    # Unidades vendidas por producto (pedidos no cancelados) para prueba social
+    sold_q = await db.execute(
+        select(OrderItem.product_id, func.coalesce(func.sum(OrderItem.quantity), 0))
+        .join(Order, Order.id == OrderItem.order_id)
+        .where(
+            Order.store_id == store_id,
+            Order.status != "cancelled",
+            OrderItem.product_id.isnot(None),
+        )
+        .group_by(OrderItem.product_id)
+    )
+    sold_map = dict(sold_q.all())
+
     return [
         {
             "id": p.id,
@@ -155,6 +168,8 @@ async def get_store_products(
             "stock": p.stock,
             "is_featured": p.is_featured,
             "category_id": p.category_id,
+            "sold_count": sold_map.get(p.id, 0),
+            "created_at": p.created_at,
             "images": [
                 {"url": img.url, "is_primary": img.is_primary}
                 for img in p.images

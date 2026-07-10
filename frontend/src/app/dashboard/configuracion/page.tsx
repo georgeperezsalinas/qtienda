@@ -34,6 +34,18 @@ interface CategoryForm { name: string; icon: string }
 
 const COLORS = ["#6366f1", "#ec4899", "#f97316", "#10b981", "#3b82f6", "#8b5cf6", "#ef4444", "#14b8a6"];
 
+const WEEK_DAYS = [
+  { key: "mon", label: "Lunes" },
+  { key: "tue", label: "Martes" },
+  { key: "wed", label: "Miércoles" },
+  { key: "thu", label: "Jueves" },
+  { key: "fri", label: "Viernes" },
+  { key: "sat", label: "Sábado" },
+  { key: "sun", label: "Domingo" },
+];
+
+type DayHours = { open: string; close: string };
+
 const VEHICLE_TYPES = [
   { value: "moto", label: "Moto" },
   { value: "auto", label: "Auto" },
@@ -97,6 +109,8 @@ export default function ConfiguracionPage() {
     delivery_fee_cents: "0", min_order_cents: "0", free_delivery_above: "",
   });
 
+  const [hours, setHours] = useState<Record<string, DayHours>>({});
+
   const [newStore, setNewStore] = useState({ slug: "", name: "", whatsapp: "", city: "" });
   const [creating, setCreating] = useState(false);
 
@@ -144,6 +158,7 @@ export default function ConfiguracionPage() {
               ? String(storeData.settings.free_delivery_above / 100)
               : "",
           });
+          if (storeData.settings.store_hours) setHours(storeData.settings.store_hours);
         }
         const [{ data: cats }, { data: staffData }] = await Promise.all([
           apiClient.get("/categories/"),
@@ -195,6 +210,7 @@ export default function ConfiguracionPage() {
         banner_link: info.banner_link.trim() || null,
         city: info.city || undefined,
       });
+      await apiClient.patch("/stores/me/settings", { store_hours: hours });
       toast.success("Tienda actualizada");
     } catch (err: any) {
       toast.error(err.response?.data?.detail || "Error al guardar");
@@ -490,6 +506,61 @@ export default function ConfiguracionPage() {
                 </p>
               </div>
             )}
+            <div>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
+                Horario de atención
+              </label>
+              <p className="text-[11px] text-gray-400 mb-2">
+                Tus clientes verán &quot;Abierto&quot; o &quot;Cerrado&quot; en la tienda. Si no marcas ningún día, no se muestra nada.
+              </p>
+              <div className="space-y-1.5">
+                {WEEK_DAYS.map(({ key, label }) => {
+                  const day = hours[key];
+                  return (
+                    <div key={key} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id={`day-${key}`}
+                        checked={!!day}
+                        onChange={() =>
+                          setHours((prev) => {
+                            const next = { ...prev };
+                            if (next[key]) delete next[key];
+                            else next[key] = { open: "09:00", close: "18:00" };
+                            return next;
+                          })
+                        }
+                        className="w-4 h-4 accent-gray-900 flex-shrink-0"
+                      />
+                      <label htmlFor={`day-${key}`} className="text-sm w-20 flex-shrink-0 cursor-pointer" style={{ color: "var(--ink-2)" }}>
+                        {label}
+                      </label>
+                      {day ? (
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="time"
+                            className="input"
+                            style={{ width: 105, padding: "6px 8px" }}
+                            value={day.open}
+                            onChange={(e) => setHours((prev) => ({ ...prev, [key]: { ...day, open: e.target.value } }))}
+                          />
+                          <span className="text-xs text-gray-400">a</span>
+                          <input
+                            type="time"
+                            className="input"
+                            style={{ width: 105, padding: "6px 8px" }}
+                            value={day.close}
+                            onChange={(e) => setHours((prev) => ({ ...prev, [key]: { ...day, close: e.target.value } }))}
+                          />
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400">Cerrado</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
             <button
               type="submit"
               disabled={saving}

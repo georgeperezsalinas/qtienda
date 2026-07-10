@@ -16,6 +16,8 @@ interface Props {
     price_cents: number;
     compare_price?: number;
     stock?: number;
+    sold_count?: number;
+    created_at?: string;
     images: { url: string; is_primary: boolean }[];
   };
   storeColor: string;
@@ -23,6 +25,30 @@ interface Props {
   featured?: boolean;
   compact?: boolean;   // list-view mode
   onTap?: () => void;
+}
+
+const NEW_PRODUCT_DAYS = 14;
+
+/* Imagen con skeleton: shimmer mientras carga, fade-in al terminar */
+function CardImage({ src, alt }: { src: string; alt: string }) {
+  const [loaded, setLoaded] = useState(false);
+  return (
+    <>
+      <Image
+        src={src}
+        alt={alt}
+        fill
+        className={`object-cover transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}`}
+        onLoad={() => setLoaded(true)}
+      />
+      {!loaded && (
+        <div
+          className="absolute inset-0 animate-pulse"
+          style={{ background: "linear-gradient(110deg, #F1F5F9 40%, #E8EEF5 50%, #F1F5F9 60%)" }}
+        />
+      )}
+    </>
+  );
 }
 
 export default function ProductCard({
@@ -42,6 +68,26 @@ export default function ProductCard({
   const multipleImages = (product.images?.length ?? 0) > 1;
   const displayName = stripHtml(product.name);
   const displayDesc = stripHtml(product.description);
+
+  const soldCount = product.sold_count ?? 0;
+  const isNew =
+    soldCount < 2 &&
+    !!product.created_at &&
+    Date.now() - new Date(product.created_at).getTime() < NEW_PRODUCT_DAYS * 24 * 60 * 60 * 1000;
+
+  const socialBadge =
+    soldCount >= 2 ? (
+      <span className="text-[10px] font-bold whitespace-nowrap" style={{ color: "#EA580C" }}>
+        🔥 {soldCount} vendidos
+      </span>
+    ) : isNew ? (
+      <span
+        className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full whitespace-nowrap"
+        style={{ background: "#DCFCE7", color: "#16A34A" }}
+      >
+        NUEVO
+      </span>
+    ) : null;
 
   function handleAdd(e: React.MouseEvent) {
     e.stopPropagation();
@@ -69,7 +115,7 @@ export default function ProductCard({
         >
           <div className="relative h-40 bg-gray-50">
             {primaryImage ? (
-              <Image src={primaryImage} alt={displayName} fill className="object-cover" />
+              <CardImage src={primaryImage} alt={displayName} />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-4xl">🛍️</div>
             )}
@@ -103,6 +149,7 @@ export default function ProductCard({
             <p className="font-semibold text-sm leading-tight line-clamp-2" style={{ color: "#0F172A" }}>
               {displayName}
             </p>
+            {socialBadge && <div className="mt-1">{socialBadge}</div>}
             <div className="flex items-center justify-between mt-2">
               <div>
                 <span className="font-extrabold text-sm" style={{ color: storeColor }}>
@@ -145,7 +192,7 @@ export default function ProductCard({
         {/* Image */}
         <div className="relative w-[76px] h-[76px] rounded-xl overflow-hidden flex-shrink-0 bg-gray-50">
           {primaryImage ? (
-            <Image src={primaryImage} alt={displayName} fill className="object-cover" />
+            <CardImage src={primaryImage} alt={displayName} />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-2xl">🛍️</div>
           )}
@@ -193,6 +240,7 @@ export default function ProductCard({
                 {formatPrice(product.compare_price)}
               </span>
             )}
+            {socialBadge}
           </div>
         </div>
 
@@ -222,7 +270,7 @@ export default function ProductCard({
     >
       <div className="relative bg-gray-50 aspect-square">
         {primaryImage ? (
-          <Image src={primaryImage} alt={displayName} fill className="object-cover" />
+          <CardImage src={primaryImage} alt={displayName} />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-5xl">🛍️</div>
         )}
@@ -256,6 +304,7 @@ export default function ProductCard({
         <p className="text-sm font-semibold leading-tight line-clamp-2 flex-1" style={{ color: "#0F172A" }}>
           {displayName}
         </p>
+        {socialBadge && <div className="mt-1">{socialBadge}</div>}
         <div className="mt-2 flex items-center justify-between gap-1">
           <div>
             <span className="font-extrabold text-base" style={{ color: storeColor }}>

@@ -22,6 +22,7 @@ interface StoreData {
   logo_url?:     string;
   banner_url?:   string;
   banner_link?:  string;
+  store_hours?:  Record<string, { open: string; close: string }> | null;
   primary_color: string;
   city?:         string;
   categories?:   { id: string; name: string; icon?: string }[];
@@ -38,6 +39,8 @@ interface ProductData {
   stock?:         number;
   is_featured:    boolean;
   category_id?:   string;
+  sold_count?:    number;
+  created_at?:    string;
   images:         { url: string; is_primary: boolean }[];
 }
 
@@ -49,6 +52,36 @@ interface Props {
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
+
+/* Estado abierto/cerrado a partir del horario configurado por el vendedor.
+   Soporta horario nocturno (cierre <= apertura = cruza medianoche). */
+function getOpenStatus(hours?: Record<string, { open: string; close: string }> | null) {
+  if (!hours || Object.keys(hours).length === 0) return null;
+  const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+  const now = new Date();
+  const cur = now.getHours() * 60 + now.getMinutes();
+  const toMin = (t: string) => {
+    const [h, m] = t.split(":").map(Number);
+    return h * 60 + m;
+  };
+  const today = hours[DAY_KEYS[now.getDay()]];
+  const yesterday = hours[DAY_KEYS[(now.getDay() + 6) % 7]];
+
+  // ¿Sigue abierto desde ayer? (horario que cruza medianoche)
+  if (yesterday && toMin(yesterday.close) <= toMin(yesterday.open) && cur < toMin(yesterday.close)) {
+    return { open: true, label: `Abierto · hasta ${yesterday.close}` };
+  }
+  if (today) {
+    const open = toMin(today.open);
+    const close = toMin(today.close);
+    const overnight = close <= open;
+    if (overnight ? cur >= open : cur >= open && cur < close) {
+      return { open: true, label: `Abierto · hasta ${today.close}` };
+    }
+    if (cur < open) return { open: false, label: `Cerrado · abre ${today.open}` };
+  }
+  return { open: false, label: "Cerrado" };
 }
 
 /* ════════════════════════════════════════
@@ -74,8 +107,9 @@ export default function StorePage({ store, initialProducts }: Props) {
   const logout     = useAuthStore((s) => s.logout);
 
   usePushSubscription(user?.email);
-  const searchRef = useRef<HTMLInputElement>(null);
-  const color     = store.primary_color || "#2563EB";
+  const searchRef  = useRef<HTMLInputElement>(null);
+  const color      = store.primary_color || "#2563EB";
+  const openStatus = getOpenStatus(store.store_hours);
 
   /* Banner: parallax sutil al hacer scroll (estilo TEMU) */
   const { scrollY }   = useScroll();
@@ -168,9 +202,28 @@ export default function StorePage({ store, initialProducts }: Props) {
               <p className="font-bold text-sm leading-tight truncate" style={{ color: "#0F172A" }}>
                 {store.name}
               </p>
-              {store.city && (
-                <p className="flex items-center gap-1 text-[11px] mt-0.5" style={{ color: "#94A3B8" }}>
-                  <MapPin size={9} /> {store.city}
+              {(store.city || (mounted && openStatus)) && (
+                <p className="flex items-center gap-1 text-[11px] mt-0.5 truncate" style={{ color: "#94A3B8" }}>
+                  {store.city && (
+                    <>
+                      <MapPin size={9} className="flex-shrink-0" /> {store.city}
+                    </>
+                  )}
+                  {mounted && openStatus && (
+                    <>
+                      {store.city && <span>·</span>}
+                      <span
+                        className="flex items-center gap-1 font-bold flex-shrink-0"
+                        style={{ color: openStatus.open ? "#16A34A" : "#94A3B8" }}
+                      >
+                        <span
+                          className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                          style={{ background: openStatus.open ? "#22C55E" : "#CBD5E1" }}
+                        />
+                        {openStatus.label}
+                      </span>
+                    </>
+                  )}
                 </p>
               )}
             </div>

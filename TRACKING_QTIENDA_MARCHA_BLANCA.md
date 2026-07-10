@@ -193,6 +193,8 @@ PostgreSQL compartido en VPS
 | QT-026 | P2 | Pagos | Activar Yape en panel de Culqi (opcional, ya existe Yape directo). | Yape tambien via pasarela. | Backlog |
 | QT-027 | P2 | Admin | Notificar al admin (push/email) cuando llega una solicitud de pago Yape. | Aprobacion mas rapida sin revisar panel. | Backlog |
 | QT-028 | P1 | Frontend | Mostrar banner del vendedor en tienda publica (estilo TEMU: se desliza y desvanece al hacer scroll) y hacerlo clickeable con enlace opcional configurable en ajustes. | Banner subido en configuracion se usa en la tienda y puede dirigir a una promo/producto. | Hecho 2026-07-10 (migracion 015, validacion de esquema http/ruta contra XSS) |
+| QT-029 | P1 | Frontend | UX tienda publica: indicador Abierto/Cerrado (horario por dia configurable en ajustes, usa columna `store_hours` existente), skeletons shimmer en imagenes de productos y badges de prueba social ("X vendidos" con pedidos no cancelados, "NUEVO" primeros 14 dias). | Tienda se siente mas viva, rapida y confiable para el comprador. | Hecho 2026-07-10 (sin migracion, `store_hours` ya existia) |
+| QT-030 | P2 | Producto | Carrusel de hasta 3 banners rotando (swipe + auto-rotacion) como feature del plan Pro; requiere tabla `store_banners`. | Diferenciador visible del plan Pro. | Backlog (acordado como primera feature Pro) |
 
 ## Backlog Especifico Admin
 
