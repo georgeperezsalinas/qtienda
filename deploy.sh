@@ -57,5 +57,12 @@ docker exec qtienda_api python create_admin.py \
   --password "${ADMIN_PASSWORD:-Admin1234!}" \
   --name "Administrador" || echo "   (admin ya existe o create_admin.py no disponible)"
 
+# 8. Smoke test (solo lecturas, falla el deploy si el API no responde bien)
+echo ">> Smoke test..."
+BASE_URL=http://127.0.0.1:8001 python3 smoke_test.py || {
+  echo "ERROR: smoke test fallo. Revisa logs: docker logs qtienda_api"
+  exit 1
+}
+
 echo ""
 echo "=== Deploy completado ==="
