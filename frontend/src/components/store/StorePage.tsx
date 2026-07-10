@@ -179,6 +179,13 @@ export default function StorePage({ store, initialProducts }: Props) {
   return (
     <div className="min-h-dvh" style={{ background: "#F8FAFC" }}>
 
+      {/* Franja de marca (color del vendedor) */}
+      <div
+        aria-hidden
+        className="h-1"
+        style={{ background: `linear-gradient(90deg, ${color}, ${color}66)` }}
+      />
+
       {/* ══════════════════════════════════
           STICKY HEADER (logo + search + categorías)
       ══════════════════════════════════ */}
@@ -192,7 +199,7 @@ export default function StorePage({ store, initialProducts }: Props) {
           boxShadow:            headerScrolled ? "0 2px 16px rgba(15,23,42,.07)" : "none",
         }}
       >
-        <div className="max-w-xl mx-auto">
+        <div className="max-w-xl lg:max-w-5xl mx-auto">
 
           {/* Row 1: logo + name + actions */}
           <div className="flex items-center gap-3 px-4 pt-3 pb-2">
@@ -371,8 +378,8 @@ export default function StorePage({ store, initialProducts }: Props) {
         const isExternal = !!link && link.startsWith("http") && !link.includes("qtienda.shop");
         const banner = (
           <div
-            className="relative w-full overflow-hidden rounded-2xl"
-            style={{ aspectRatio: "3 / 1", boxShadow: "0 2px 12px rgba(15,23,42,.08)" }}
+            className="relative w-full overflow-hidden rounded-2xl aspect-[3/1] lg:aspect-[4/1]"
+            style={{ boxShadow: "0 2px 12px rgba(15,23,42,.08)" }}
           >
             <Image
               src={store.banner_url}
@@ -385,7 +392,7 @@ export default function StorePage({ store, initialProducts }: Props) {
         );
         return (
           <motion.div
-            className="max-w-xl mx-auto px-4 pt-3 pb-1"
+            className="max-w-xl lg:max-w-5xl mx-auto px-4 pt-3 pb-1"
             style={{ y: bannerY, opacity: bannerOpacity, scale: bannerScale }}
           >
             {link ? (
@@ -410,7 +417,7 @@ export default function StorePage({ store, initialProducts }: Props) {
         {mounted && installPrompt && !installDismissed && (
           <motion.div
             initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-            className="flex items-center gap-3 px-4 py-2.5 max-w-xl mx-auto"
+            className="flex items-center gap-3 px-4 py-2.5 max-w-xl lg:max-w-5xl mx-auto"
             style={{ background: `${color}10`, borderBottom: `1px solid ${color}18` }}
           >
             <span className="text-lg flex-shrink-0">📲</span>
@@ -433,7 +440,7 @@ export default function StorePage({ store, initialProducts }: Props) {
         {mounted && !isLoggedIn && !buyerBannerDismissed && (
           <motion.div
             initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-            className="flex items-center gap-3 px-4 py-2.5 max-w-xl mx-auto"
+            className="flex items-center gap-3 px-4 py-2.5 max-w-xl lg:max-w-5xl mx-auto"
             style={{ background: "#F0FDF4", borderBottom: "1px solid #BBF7D0" }}
           >
             <span className="text-lg flex-shrink-0">🛍️</span>
@@ -453,7 +460,7 @@ export default function StorePage({ store, initialProducts }: Props) {
       {/* Descripción de la tienda (si existe) */}
       {store.description && (
         <div
-          className="max-w-xl mx-auto px-4 py-3"
+          className="max-w-xl lg:max-w-5xl mx-auto px-4 py-3"
           style={{ background: `${color}07`, borderBottom: `1px solid ${color}15` }}
         >
           <p className="text-xs leading-snug" style={{ color: "#475569" }}>
@@ -471,7 +478,7 @@ export default function StorePage({ store, initialProducts }: Props) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="max-w-xl mx-auto pt-4 pb-5"
+            className="max-w-xl lg:max-w-5xl mx-auto pt-4 pb-5 lg:rounded-2xl lg:mt-3"
             style={{ background: `${color}07` }}
           >
             <div className="flex items-center gap-2 px-4 mb-3">
@@ -586,7 +593,7 @@ export default function StorePage({ store, initialProducts }: Props) {
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.18 }}
-                className="space-y-2"
+                className="space-y-2 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-3"
               >
                 {filtered.map((product, i) => (
                   <motion.div
@@ -612,7 +619,7 @@ export default function StorePage({ store, initialProducts }: Props) {
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.18 }}
-                className="grid grid-cols-2 gap-3"
+                className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 lg:gap-4"
               >
                 {filtered.map((product, i) => (
                   <motion.div
@@ -634,13 +641,45 @@ export default function StorePage({ store, initialProducts }: Props) {
           </AnimatePresence>
         </main>
 
-        {/* Footer */}
-        <footer className="flex justify-center items-center gap-2 py-6">
-          <span className="text-[11px] font-medium" style={{ color: "#CBD5E1" }}>Powered by</span>
-          <a href="https://qtienda.shop" target="_blank" rel="noopener noreferrer">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/qtienda-wordmark.svg" alt="qtienda" style={{ height: 16, width: "auto", opacity: 0.4 }} />
-          </a>
+        {/* Footer con identidad de la tienda */}
+        <footer className="px-4 pt-8 pb-6" style={{ borderTop: "1px solid #EEF2F6" }}>
+          <div className="flex items-center gap-3 mb-4">
+            {store.logo_url ? (
+              <Image src={store.logo_url} alt={store.name} width={40} height={40}
+                className="rounded-xl object-cover" />
+            ) : (
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white"
+                style={{ background: color }}
+              >
+                {store.name[0]?.toUpperCase()}
+              </div>
+            )}
+            <div className="min-w-0">
+              <p className="font-bold text-sm" style={{ color: "#0F172A" }}>{store.name}</p>
+              <p className="text-[11px]" style={{ color: "#94A3B8" }}>
+                {[store.city, mounted && openStatus ? openStatus.label : null].filter(Boolean).join(" · ")}
+              </p>
+            </div>
+            {store.whatsapp && (
+              <a
+                href={`https://wa.me/${store.whatsapp.replace(/\D/g, "")}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ml-auto flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-full flex-shrink-0"
+                style={{ background: "#F0FDF4", color: "#16A34A", border: "1px solid #BBF7D0" }}
+              >
+                <MessageCircle size={13} /> WhatsApp
+              </a>
+            )}
+          </div>
+          <div className="flex justify-center items-center gap-2 pt-4" style={{ borderTop: "1px solid #F1F5F9" }}>
+            <span className="text-[11px] font-medium" style={{ color: "#CBD5E1" }}>Powered by</span>
+            <a href="https://qtienda.shop" target="_blank" rel="noopener noreferrer">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/brand/qtienda-wordmark.svg" alt="qtienda" style={{ height: 16, width: "auto", opacity: 0.4 }} />
+            </a>
+          </div>
         </footer>
       </div>
 

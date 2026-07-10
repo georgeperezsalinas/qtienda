@@ -174,7 +174,7 @@ PostgreSQL compartido en VPS
 | QT-007 | P0 | Admin | Marcar tiendas/usuarios como prueba. | Separar metricas reales de pruebas. | Hecho para tiendas (`is_test` + migracion 010) |
 | QT-008 | P1 | Analytics | Registrar eventos basicos: tienda vista, producto visto, add cart, checkout. | Saber uso real por celular/laptop y conversion. | Hecho 2026-07-10 (migracion 017 `store_events`, endpoint publico + `order_created` server-side, dispositivo/sesion, metricas en `GET /stores/me/analytics` y tarjeta "ultimos 30 dias" en dashboard) |
 | QT-009 | P1 | QA | Smoke tests backend. | Validacion rapida antes de deploy. | Hecho 2026-07-10 (`smoke_test.py` solo lecturas, integrado al final de `deploy.sh`, probado contra produccion 5/5) |
-| QT-010 | P1 | QA | Smoke tests web responsive. | Validar landing, tienda, login, dashboard y checkout. | Pendiente |
+| QT-010 | P1 | QA | Smoke tests web responsive. | Validar landing, tienda, login, dashboard y checkout. | Hecho 2026-07-10 (seccion web en `smoke_test.py`: landing, tienda publica renderizada, manifest y sw.js; probado contra produccion 9/9) |
 | QT-011 | P1 | DB | Definir estrategia backup diaria. | Recuperacion ante error operativo. | Parcial (script `infra/backup_postgres.sh` con rotacion 14 dias listo; falta programar cron en VPS y verificar primer backup) |
 | QT-012 | P1 | DB | Formalizar migraciones. | Despliegues reproducibles. | Pendiente |
 | QT-013 | P1 | Observabilidad | Logs estructurados y errores visibles. | Diagnostico rapido en VPS. | Pendiente |
@@ -195,6 +195,7 @@ PostgreSQL compartido en VPS
 | QT-028 | P1 | Frontend | Mostrar banner del vendedor en tienda publica (estilo TEMU: se desliza y desvanece al hacer scroll) y hacerlo clickeable con enlace opcional configurable en ajustes. | Banner subido en configuracion se usa en la tienda y puede dirigir a una promo/producto. | Hecho 2026-07-10 (migracion 015, validacion de esquema http/ruta contra XSS) |
 | QT-029 | P1 | Frontend | UX tienda publica: indicador Abierto/Cerrado (horario por dia configurable en ajustes, usa columna `store_hours` existente), skeletons shimmer en imagenes de productos y badges de prueba social ("X vendidos" con pedidos no cancelados, "NUEVO" primeros 14 dias). | Tienda se siente mas viva, rapida y confiable para el comprador. | Hecho 2026-07-10 (sin migracion, `store_hours` ya existia) |
 | QT-030 | P2 | Producto | Carrusel de hasta 3 banners rotando (swipe + auto-rotacion) como feature del plan Pro; requiere tabla `store_banners`. | Diferenciador visible del plan Pro. | Backlog (acordado como primera feature Pro) |
+| QT-031 | P1 | Frontend | Rediseno "pro" de tienda publica: franja de marca con color del vendedor, layout desktop/tablet aprovechado (contenedor 5xl, grilla 3-4 columnas, lista a 2 columnas), banner panoramico en desktop, hover con zoom de imagen y elevacion, footer con identidad de tienda + boton WhatsApp. | Tienda se ve profesional en celular, tablet y laptop. | Hecho 2026-07-10 (build de produccion verificado) |
 
 ## Backlog Especifico Admin
 

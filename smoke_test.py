@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Smoke test qtienda (QT-009): validacion rapida del API antes/despues de deploy.
+"""Smoke test qtienda (QT-009 API + QT-010 web): validacion rapida antes/despues de deploy.
 
 Solo hace LECTURAS: no crea, modifica ni borra datos. Seguro contra produccion.
 
 Uso:
-    python3 smoke_test.py                                        # local docker (127.0.0.1:8001)
-    BASE_URL=https://qtienda.shop python3 smoke_test.py          # produccion
+    python3 smoke_test.py                                        # local docker (API 8001, web 3001)
+    BASE_URL=https://qtienda.shop python3 smoke_test.py          # produccion (API y web mismo dominio)
+    WEB_URL=http://127.0.0.1:3001 python3 smoke_test.py          # web en otra URL
     ADMIN_EMAIL=... ADMIN_PASSWORD=... python3 smoke_test.py     # incluye checks admin
 
 Sale con codigo 0 si todo pasa, 1 si algo fallo (util en deploy.sh / CI).
@@ -20,6 +21,11 @@ import urllib.request
 
 BASE_URL = os.environ.get("BASE_URL", "http://127.0.0.1:8001").rstrip("/")
 API = f"{BASE_URL}/api/v1"
+# Web: mismo dominio si BASE_URL es publico (https); si es el API local, el Next corre en 3001
+WEB_URL = os.environ.get(
+    "WEB_URL",
+    BASE_URL if BASE_URL.startswith("https") else "http://127.0.0.1:3001",
+).rstrip("/")
 TIMEOUT = 15
 
 results: list[tuple[bool, str]] = []
@@ -45,6 +51,20 @@ def request(method: str, url: str, body: dict | None = None, token: str | None =
         return e.code, None
     except (urllib.error.URLError, TimeoutError, OSError) as e:
         return 0, {"error": str(e)}
+
+
+def fetch_text(url: str):
+    """Devuelve (status, texto) para paginas HTML/JS. No lanza excepcion."""
+    req = urllib.request.Request(url, method="GET")
+    req.add_header("User-Agent", "qtienda-smoke-test")
+    ctx = ssl.create_default_context()
+    try:
+        with urllib.request.urlopen(req, timeout=TIMEOUT, context=ctx) as resp:
+            return resp.status, resp.read().decode("utf-8", errors="replace")
+    except urllib.error.HTTPError as e:
+        return e.code, ""
+    except (urllib.error.URLError, TimeoutError, OSError):
+        return 0, ""
 
 
 def check(name: str, ok: bool, detail: str = ""):
@@ -107,6 +127,28 @@ def main() -> int:
             check("GET /admin/metrics con token responde 200", status == 200, f"status={status}")
     else:
         print("[SKIP] Checks admin: define ADMIN_EMAIL y ADMIN_PASSWORD para incluirlos")
+
+    # 6. Web (QT-010): landing, tienda publica, PWA
+    print(f"\nWeb contra: {WEB_URL}")
+    status, html = fetch_text(f"{WEB_URL}/")
+    check("GET / (landing) responde 200 con contenido", status == 200 and "qtienda" in html.lower(), f"status={status}")
+
+    if isinstance(stores, list) and stores:
+        slug = stores[0].get("slug")
+        name = stores[0].get("name", "")
+        status, html = fetch_text(f"{WEB_URL}/tienda/{slug}")
+        check(
+            f"GET /tienda/{slug} renderiza la tienda",
+            status == 200 and name.lower() in html.lower(),
+            f"status={status}",
+        )
+    else:
+        print("[SKIP] Pagina de tienda: no hay tiendas activas")
+
+    status, _ = fetch_text(f"{WEB_URL}/manifest.json")
+    check("GET /manifest.json responde 200 (PWA)", status == 200, f"status={status}")
+    status, _ = fetch_text(f"{WEB_URL}/sw.js")
+    check("GET /sw.js responde 200 (service worker)", status == 200, f"status={status}")
 
     failed = [name for ok, name in results if not ok]
     print(f"\nResultado: {len(results) - len(failed)}/{len(results)} checks OK")

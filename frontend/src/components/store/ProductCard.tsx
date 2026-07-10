@@ -39,7 +39,7 @@ function CardImage({ src, alt }: { src: string; alt: string }) {
         src={src}
         alt={alt}
         fill
-        className={`object-cover transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}`}
+        className={`object-cover transition-all duration-300 group-hover:scale-[1.05] ${loaded ? "opacity-100" : "opacity-0"}`}
         onLoad={() => setLoaded(true)}
       />
       {!loaded && (
@@ -108,7 +108,7 @@ export default function ProductCard({
   if (featured) {
     return (
       <div
-        className="flex-shrink-0 w-48 snap-start cursor-pointer"
+        className="flex-shrink-0 w-48 md:w-56 snap-start cursor-pointer group"
         onClick={onTap}
       >
         <div
@@ -263,7 +263,7 @@ export default function ProductCard({
   /* ── Grid card (default, 2-col) ── */
   return (
     <div
-      className="rounded-2xl overflow-hidden flex flex-col cursor-pointer transition-all active:scale-[.98]"
+      className="group rounded-2xl overflow-hidden flex flex-col cursor-pointer transition-all active:scale-[.98] lg:hover:-translate-y-1"
       style={{
         background: "#fff",
         boxShadow: "0 2px 12px rgba(15,23,42,.07), 0 0 0 1px rgba(15,23,42,.04)",
