@@ -56,6 +56,51 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
+/* Buscador de la tienda: se renderiza inline en el header desktop y como fila propia en móvil */
+function SearchBox({ value, onChange, focused, setFocused, color, inputRef }: {
+  value: string;
+  onChange: (v: string) => void;
+  focused: boolean;
+  setFocused: (v: boolean) => void;
+  color: string;
+  inputRef?: React.RefObject<HTMLInputElement>;
+}) {
+  return (
+    <div className="relative">
+      <Search
+        size={15}
+        className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+        style={{ color: focused ? color : "#94A3B8" }}
+      />
+      <input
+        ref={inputRef}
+        type="search"
+        inputMode="search"
+        placeholder="Buscar en la tienda…"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        className="w-full text-sm rounded-2xl pl-10 pr-9 py-2.5 outline-none transition-all"
+        style={{
+          background: focused ? "#fff" : "#F1F5F9",
+          border:     `1.5px solid ${focused ? color : "transparent"}`,
+          boxShadow:  focused ? `0 0 0 3px ${color}18` : "none",
+          color:      "#0F172A",
+        }}
+      />
+      {value && (
+        <button
+          onClick={() => onChange("")}
+          className="absolute right-3 top-1/2 -translate-y-1/2"
+        >
+          <X size={14} style={{ color: "#94A3B8" }} />
+        </button>
+      )}
+    </div>
+  );
+}
+
 /* Carrusel de banners (QT-030): swipe + rotación automática cada 5s + puntitos.
    Con un solo banner se comporta como imagen estática. */
 function BannerCarousel({ banners, storeName }: {
@@ -300,16 +345,16 @@ export default function StorePage({ store, initialProducts }: Props) {
       >
         <div className="max-w-xl md:max-w-3xl lg:max-w-5xl xl:max-w-7xl mx-auto">
 
-          {/* Row 1: logo + name + actions */}
-          <div className="flex items-center gap-3 px-4 pt-3 pb-2">
+          {/* Row 1: logo + name (+ búsqueda inline en desktop) + actions */}
+          <div className="flex items-center gap-3 px-4 pt-3 pb-2 lg:px-6 lg:py-3.5">
             {/* Logo */}
             <div className="flex-shrink-0">
               {store.logo_url ? (
                 <Image src={store.logo_url} alt={store.name} width={36} height={36}
-                  className="rounded-[12px] object-cover" />
+                  className="rounded-[12px] object-cover lg:w-10 lg:h-10" />
               ) : (
                 <div
-                  className="w-9 h-9 rounded-[12px] flex items-center justify-center font-bold text-sm text-white"
+                  className="w-9 h-9 lg:w-10 lg:h-10 rounded-[12px] flex items-center justify-center font-bold text-sm text-white"
                   style={{ background: color }}
                 >
                   {store.name[0]?.toUpperCase()}
@@ -318,8 +363,8 @@ export default function StorePage({ store, initialProducts }: Props) {
             </div>
 
             {/* Store name */}
-            <div className="flex-1 min-w-0">
-              <p className="font-bold text-sm leading-tight truncate" style={{ color: "#0F172A" }}>
+            <div className="flex-1 min-w-0 lg:flex-none lg:max-w-[300px]">
+              <p className="font-bold text-sm lg:text-base leading-tight truncate" style={{ color: "#0F172A" }}>
                 {store.name}
               </p>
               {(store.city || (mounted && openStatus)) && (
@@ -346,6 +391,17 @@ export default function StorePage({ store, initialProducts }: Props) {
                   )}
                 </p>
               )}
+            </div>
+
+            {/* Búsqueda inline (solo desktop) */}
+            <div className="hidden lg:block flex-1 max-w-xl mx-auto px-4">
+              <SearchBox
+                value={search}
+                onChange={setSearch}
+                focused={searchFocused}
+                setFocused={setSearchFocused}
+                color={color}
+              />
             </div>
 
             {/* Share */}
@@ -397,45 +453,21 @@ export default function StorePage({ store, initialProducts }: Props) {
             </button>
           </div>
 
-          {/* Row 2: Search bar — siempre visible */}
-          <div className="px-4 pb-2">
-            <div className="relative">
-              <Search
-                size={15}
-                className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
-                style={{ color: searchFocused ? color : "#94A3B8" }}
-              />
-              <input
-                ref={searchRef}
-                type="search"
-                inputMode="search"
-                placeholder="Buscar en la tienda…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onFocus={() => setSearchFocused(true)}
-                onBlur={() => setSearchFocused(false)}
-                className="w-full text-sm rounded-2xl pl-10 pr-9 py-2.5 outline-none transition-all"
-                style={{
-                  background: searchFocused ? "#fff" : "#F1F5F9",
-                  border:     `1.5px solid ${searchFocused ? color : "transparent"}`,
-                  boxShadow:  searchFocused ? `0 0 0 3px ${color}18` : "none",
-                  color:      "#0F172A",
-                }}
-              />
-              {search && (
-                <button
-                  onClick={() => setSearch("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2"
-                >
-                  <X size={14} style={{ color: "#94A3B8" }} />
-                </button>
-              )}
-            </div>
+          {/* Row 2: Search bar — solo móvil/tablet (en desktop va inline arriba) */}
+          <div className="px-4 pb-2 lg:hidden">
+            <SearchBox
+              value={search}
+              onChange={setSearch}
+              focused={searchFocused}
+              setFocused={setSearchFocused}
+              color={color}
+              inputRef={searchRef}
+            />
           </div>
 
           {/* Row 3: Category chips */}
           {hasCategories && (
-            <div className="flex gap-2 overflow-x-auto px-4 pb-3 scrollbar-hide">
+            <div className="flex gap-2 overflow-x-auto px-4 pb-3 scrollbar-hide lg:px-6">
               <button
                 onClick={() => setActiveCategory(null)}
                 className="flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
@@ -472,7 +504,7 @@ export default function StorePage({ store, initialProducts }: Props) {
       ══════════════════════════════════ */}
       {effectiveBanners.length > 0 && (
         <motion.div
-          className="max-w-xl md:max-w-3xl lg:max-w-5xl xl:max-w-7xl mx-auto px-4 pt-3 pb-1"
+          className="max-w-xl md:max-w-3xl lg:max-w-5xl xl:max-w-7xl mx-auto px-4 pt-3 pb-1 lg:px-6 lg:pt-5"
           style={{ y: bannerY, opacity: bannerOpacity, scale: bannerScale }}
         >
           <BannerCarousel banners={effectiveBanners} storeName={store.name} />
@@ -550,7 +582,7 @@ export default function StorePage({ store, initialProducts }: Props) {
             className="max-w-xl md:max-w-3xl lg:max-w-5xl xl:max-w-7xl mx-auto pt-4 pb-5 lg:rounded-2xl lg:mt-3"
             style={{ background: `${color}07` }}
           >
-            <div className="flex items-center gap-2 px-4 mb-3">
+            <div className="flex items-center gap-2 px-4 mb-3 lg:px-6">
               <div
                 className="w-6 h-6 rounded-lg flex items-center justify-center"
                 style={{ background: color }}
@@ -562,7 +594,7 @@ export default function StorePage({ store, initialProducts }: Props) {
               </span>
             </div>
 
-            <div className="flex gap-3 overflow-x-auto px-4 pb-1 snap-x snap-mandatory scrollbar-hide">
+            <div className="flex gap-3 overflow-x-auto px-4 pb-1 snap-x snap-mandatory scrollbar-hide lg:px-6">
               {featured.map((p) => (
                 <ProductCard
                   key={p.id}
@@ -585,9 +617,9 @@ export default function StorePage({ store, initialProducts }: Props) {
       <div className="max-w-xl mx-auto">
 
         {/* Section header */}
-        <div className="flex items-center justify-between px-4 pt-4 pb-2">
+        <div className="flex items-center justify-between px-4 pt-4 pb-2 lg:px-6 lg:pt-6 lg:pb-3">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-bold" style={{ color: "#0F172A" }}>
+            <span className="text-sm lg:text-lg font-bold" style={{ color: "#0F172A" }}>
               {isFiltering ? "Resultados" : "Productos"}
             </span>
             <span
@@ -631,7 +663,7 @@ export default function StorePage({ store, initialProducts }: Props) {
         </div>
 
         {/* Products */}
-        <main className="px-4 pb-40">
+        <main className="px-4 pb-40 lg:px-6">
           <AnimatePresence mode="wait">
             {filtered.length === 0 ? (
               <motion.div
@@ -667,6 +699,7 @@ export default function StorePage({ store, initialProducts }: Props) {
                 {filtered.map((product, i) => (
                   <motion.div
                     key={product.id}
+                    className="h-full"
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: Math.min(i * 0.03, 0.2) }}
@@ -688,7 +721,7 @@ export default function StorePage({ store, initialProducts }: Props) {
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.18 }}
-                className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 lg:gap-4 xl:grid-cols-5"
+                className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 lg:gap-4 xl:grid-cols-5 xl:gap-5"
               >
                 {filtered.map((product, i) => (
                   <motion.div
@@ -711,7 +744,7 @@ export default function StorePage({ store, initialProducts }: Props) {
         </main>
 
         {/* Footer con identidad de la tienda */}
-        <footer className="px-4 pt-8 pb-6" style={{ borderTop: "1px solid #EEF2F6" }}>
+        <footer className="px-4 pt-8 pb-6 lg:px-6" style={{ borderTop: "1px solid #EEF2F6" }}>
           <div className="flex items-center gap-3 mb-4">
             {store.logo_url ? (
               <Image src={store.logo_url} alt={store.name} width={40} height={40}

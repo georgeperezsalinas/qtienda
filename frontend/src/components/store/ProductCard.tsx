@@ -183,7 +183,7 @@ export default function ProductCard({
   if (compact) {
     return (
       <div
-        className="flex items-center gap-3 p-3 rounded-2xl transition-all active:scale-[.99] cursor-pointer"
+        className="flex items-center gap-3 p-3 rounded-2xl transition-all active:scale-[.99] cursor-pointer h-full"
         style={{
           background: "#fff",
           border: "1px solid #F1F5F9",
