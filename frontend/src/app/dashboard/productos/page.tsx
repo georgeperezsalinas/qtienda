@@ -407,13 +407,13 @@ export default function ProductosPage() {
   /* ── Render ── */
   return (
     <div
-      className="max-w-2xl lg:max-w-5xl mx-auto pb-8"
+      className="max-w-2xl lg:max-w-6xl xl:max-w-7xl mx-auto pb-8"
       style={{ background: "var(--surface-2)", minHeight: "100%" }}
     >
 
       {/* ── Header ── */}
       <div
-        className="sticky top-0 z-10 px-5 pt-safe pt-5 pb-4"
+        className="sticky top-0 z-10 px-5 pt-safe pt-5 md:pt-7 pb-4"
         style={{ background: "var(--surface-0)", borderBottom: "1px solid #F1F5F9" }}
       >
         <div className="flex items-center justify-between mb-4">
@@ -469,11 +469,11 @@ export default function ProductosPage() {
       </div>
 
       {/* ── List ── */}
-      <div className="px-5 pt-4 space-y-3 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-3">
+      <div className="px-5 pt-4 space-y-3 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-3 xl:grid-cols-3">
         {loading ? (
           [...Array(5)].map((_, i) => <Skel key={i} h={88} />)
         ) : visible.length === 0 ? (
-          <div className="py-20 flex flex-col items-center text-center animate-fade-in lg:col-span-2">
+          <div className="py-20 flex flex-col items-center text-center animate-fade-in lg:col-span-2 xl:col-span-3">
             <div
               className="w-20 h-20 rounded-2xl flex items-center justify-center mb-4"
               style={{ background: "var(--surface-1)" }}

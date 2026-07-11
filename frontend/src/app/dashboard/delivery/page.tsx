@@ -319,7 +319,7 @@ export default function DeliveryPage() {
   }
 
   return (
-    <div className="p-5 max-w-2xl lg:max-w-3xl mx-auto">
+    <div className="p-5 max-w-2xl lg:max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div>
@@ -358,7 +358,7 @@ export default function DeliveryPage() {
           <p className="text-sm text-slate-400 mt-1">Los pedidos en preparación o en camino aparecerán aquí.</p>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-6 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
           {preparing.length > 0 && (
             <section>
               <div className="flex items-center gap-2 mb-3">

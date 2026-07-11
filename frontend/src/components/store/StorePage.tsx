@@ -298,7 +298,7 @@ export default function StorePage({ store, initialProducts }: Props) {
           boxShadow:            headerScrolled ? "0 2px 16px rgba(15,23,42,.07)" : "none",
         }}
       >
-        <div className="max-w-xl md:max-w-3xl lg:max-w-5xl mx-auto">
+        <div className="max-w-xl md:max-w-3xl lg:max-w-5xl xl:max-w-7xl mx-auto">
 
           {/* Row 1: logo + name + actions */}
           <div className="flex items-center gap-3 px-4 pt-3 pb-2">
@@ -472,7 +472,7 @@ export default function StorePage({ store, initialProducts }: Props) {
       ══════════════════════════════════ */}
       {effectiveBanners.length > 0 && (
         <motion.div
-          className="max-w-xl md:max-w-3xl lg:max-w-5xl mx-auto px-4 pt-3 pb-1"
+          className="max-w-xl md:max-w-3xl lg:max-w-5xl xl:max-w-7xl mx-auto px-4 pt-3 pb-1"
           style={{ y: bannerY, opacity: bannerOpacity, scale: bannerScale }}
         >
           <BannerCarousel banners={effectiveBanners} storeName={store.name} />
@@ -486,7 +486,7 @@ export default function StorePage({ store, initialProducts }: Props) {
         {mounted && installPrompt && !installDismissed && (
           <motion.div
             initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-            className="flex items-center gap-3 px-4 py-2.5 max-w-xl md:max-w-3xl lg:max-w-5xl mx-auto"
+            className="flex items-center gap-3 px-4 py-2.5 max-w-xl md:max-w-3xl lg:max-w-5xl xl:max-w-7xl mx-auto"
             style={{ background: `${color}10`, borderBottom: `1px solid ${color}18` }}
           >
             <span className="text-lg flex-shrink-0">📲</span>
@@ -509,7 +509,7 @@ export default function StorePage({ store, initialProducts }: Props) {
         {mounted && !isLoggedIn && !buyerBannerDismissed && (
           <motion.div
             initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-            className="flex items-center gap-3 px-4 py-2.5 max-w-xl md:max-w-3xl lg:max-w-5xl mx-auto"
+            className="flex items-center gap-3 px-4 py-2.5 max-w-xl md:max-w-3xl lg:max-w-5xl xl:max-w-7xl mx-auto"
             style={{ background: "#F0FDF4", borderBottom: "1px solid #BBF7D0" }}
           >
             <span className="text-lg flex-shrink-0">🛍️</span>
@@ -529,7 +529,7 @@ export default function StorePage({ store, initialProducts }: Props) {
       {/* Descripción de la tienda (si existe) */}
       {store.description && (
         <div
-          className="max-w-xl md:max-w-3xl lg:max-w-5xl mx-auto px-4 py-3"
+          className="max-w-xl md:max-w-3xl lg:max-w-5xl xl:max-w-7xl mx-auto px-4 py-3"
           style={{ background: `${color}07`, borderBottom: `1px solid ${color}15` }}
         >
           <p className="text-xs leading-snug" style={{ color: "#475569" }}>
@@ -547,7 +547,7 @@ export default function StorePage({ store, initialProducts }: Props) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="max-w-xl md:max-w-3xl lg:max-w-5xl mx-auto pt-4 pb-5 lg:rounded-2xl lg:mt-3"
+            className="max-w-xl md:max-w-3xl lg:max-w-5xl xl:max-w-7xl mx-auto pt-4 pb-5 lg:rounded-2xl lg:mt-3"
             style={{ background: `${color}07` }}
           >
             <div className="flex items-center gap-2 px-4 mb-3">
@@ -662,7 +662,7 @@ export default function StorePage({ store, initialProducts }: Props) {
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.18 }}
-                className="space-y-2 md:space-y-0 md:grid md:grid-cols-2 md:gap-3"
+                className="space-y-2 md:space-y-0 md:grid md:grid-cols-2 md:gap-3 xl:grid-cols-3"
               >
                 {filtered.map((product, i) => (
                   <motion.div
@@ -688,7 +688,7 @@ export default function StorePage({ store, initialProducts }: Props) {
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.18 }}
-                className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 lg:gap-4"
+                className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 lg:gap-4 xl:grid-cols-5"
               >
                 {filtered.map((product, i) => (
                   <motion.div

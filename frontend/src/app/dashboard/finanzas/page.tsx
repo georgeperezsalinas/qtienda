@@ -409,7 +409,7 @@ export default function FinanzasPage() {
   const ordersThisMonth = period === "this_month" ? (stats?.total_orders ?? 0) : 0;
 
   return (
-    <div className="max-w-lg lg:max-w-4xl mx-auto pb-10">
+    <div className="max-w-lg lg:max-w-5xl mx-auto pb-10">
 
       {/* ── Header ── */}
       <div className="px-5 pt-6 pb-2">
@@ -439,14 +439,14 @@ export default function FinanzasPage() {
         ))}
       </div>
 
-      <div className="px-5 pt-4 space-y-4">
+      <div className="px-5 pt-4 space-y-4 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-4 lg:items-stretch">
 
         {/* ── Hero revenue card ── */}
         {loadingStats ? (
           <Skel h={128} />
         ) : (
           <div
-            className="rounded-2xl p-5 animate-fade-up"
+            className="rounded-2xl p-5 animate-fade-up lg:flex lg:flex-col lg:justify-center"
             style={{ background: "linear-gradient(135deg, var(--brand-700), #5B21B6)" }}
           >
             <div className="flex items-center gap-2 mb-3">
@@ -475,7 +475,7 @@ export default function FinanzasPage() {
             {[...Array(4)].map((_, i) => <Skel key={i} h={104} />)}
           </div>
         ) : (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 animate-fade-up">
+          <div className="grid grid-cols-2 gap-3 animate-fade-up">
             <KpiTile
               label="Pedidos"
               value={String(total)}
@@ -508,7 +508,9 @@ export default function FinanzasPage() {
         )}
 
         {/* ── Daily chart ── */}
-        <DailyChart data={daily} loading={loadingDaily} />
+        <div className="lg:col-span-2">
+          <DailyChart data={daily} loading={loadingDaily} />
+        </div>
 
         {/* ── Plan usage ── */}
         {period === "this_month" && !loadingStats && (
@@ -519,7 +521,7 @@ export default function FinanzasPage() {
         <PaymentBreakdown entries={byPayment} loading={loadingStats} />
 
         {/* ── Detalle de movimientos ── */}
-        <div className="animate-fade-up">
+        <div className="animate-fade-up lg:col-span-2">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-display font-bold text-sm" style={{ color: "var(--ink)" }}>
               Movimientos

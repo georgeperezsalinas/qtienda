@@ -172,7 +172,7 @@ export default function DashboardPage() {
   /* ── Skeleton ── */
   if (loadingStore) {
     return (
-      <div className="px-5 md:px-8 py-5 max-w-3xl mx-auto md:max-w-none lg:max-w-5xl space-y-4 animate-fade-in">
+      <div className="px-5 md:px-8 py-5 max-w-3xl mx-auto md:max-w-none xl:max-w-6xl space-y-4 animate-fade-in">
         <Skel h={28} className="w-48" />
         <Skel h={64} />
         <Skel h={120} />
@@ -500,6 +500,7 @@ export default function DashboardPage() {
           )
         }
 
+        <div className="lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
         {/* Today — typographic, no boxes */}
         {
           !loadingStats && (
@@ -588,6 +589,8 @@ export default function DashboardPage() {
             )}
           </div>
         )}
+
+        </div>
 
         {/* Recent orders */}
         {
