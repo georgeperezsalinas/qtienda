@@ -614,7 +614,7 @@ export default function StorePage({ store, initialProducts }: Props) {
       {/* ══════════════════════════════════
           PRODUCT SECTION
       ══════════════════════════════════ */}
-      <div className="max-w-xl mx-auto">
+      <div className="max-w-xl md:max-w-3xl lg:max-w-5xl xl:max-w-7xl mx-auto">
 
         {/* Section header */}
         <div className="flex items-center justify-between px-4 pt-4 pb-2 lg:px-6 lg:pt-6 lg:pb-3">
