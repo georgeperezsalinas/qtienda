@@ -294,10 +294,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div
-        className="px-5 md:px-10 pt-5 md:pt-8 pb-8 mx-auto"
-        style={{ maxWidth: 760 }}
-      >
+      <div className="px-5 md:px-10 pt-5 md:pt-8 pb-8 mx-auto max-w-[760px] lg:max-w-6xl">
         {/* Greeting */}
         <div className="animate-fade-up mb-5">
           <p className="eyebrow">{getGreeting()}</p>
@@ -504,7 +501,7 @@ export default function DashboardPage() {
         {/* Today — typographic, no boxes */}
         {
           !loadingStats && (
-            <div className="animate-fade-up mb-7">
+            <div className={`animate-fade-up mb-7 ${analytics && analytics.store_views > 0 ? "" : "lg:col-span-2"}`}>
               <p className="eyebrow mb-3">Hoy</p>
               <div
                 className="grid grid-cols-3"

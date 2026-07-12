@@ -393,7 +393,7 @@ export default function PlanesPage() {
     : null;
 
   return (
-    <div style={{ padding: "20px 20px 40px", fontFamily: "var(--font-sans)", maxWidth: 700, margin: "0 auto" }}>
+    <div className="mx-auto max-w-[700px] lg:max-w-[960px]" style={{ padding: "20px 20px 40px", fontFamily: "var(--font-sans)" }}>
       {/* Header */}
       <button
         onClick={() => router.back()}
