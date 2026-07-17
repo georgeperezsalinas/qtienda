@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
-import { X, ChevronLeft, ChevronRight, Check, ShoppingCart, ZoomIn } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Check, ShoppingCart, ZoomIn, Share2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCartStore } from "@/store/cartStore";
 import { formatPrice, stripHtml } from "@/lib/utils";
@@ -44,6 +44,8 @@ export default function ProductDetailSheet({
     product.images.find((i) => i.is_primary)?.url ?? product.images[0]?.url ?? "";
   const outOfStock =
     product.stock !== null && product.stock !== undefined && product.stock <= 0;
+  const lowStock =
+    product.stock !== null && product.stock !== undefined && product.stock > 0 && product.stock <= 3;
   const discount = product.compare_price
     ? Math.round((1 - product.price_cents / product.compare_price) * 100)
     : null;
@@ -88,7 +90,7 @@ export default function ProductDetailSheet({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-[59]"
-        style={{ background: "rgba(15,23,42,.55)" }}
+        style={{ background: "rgba(20,19,15,.55)" }}
         onClick={onClose}
       />
 
@@ -98,19 +100,18 @@ export default function ProductDetailSheet({
         animate={{ y: 0 }}
         exit={{ y: "100%" }}
         transition={{ type: "spring", damping: 28, stiffness: 320 }}
-        className="fixed bottom-0 left-0 right-0 z-[60] flex flex-col max-w-xl mx-auto"
+        className="fixed bottom-0 left-0 right-0 z-[60] flex flex-col max-w-xl mx-auto rounded-t-[24px] lg:inset-0 lg:bottom-auto lg:m-auto lg:h-fit lg:max-w-[520px] lg:rounded-[24px]"
         style={{
-          background:    "#fff",
-          borderRadius:  "24px 24px 0 0",
-          maxHeight:     "92dvh",
-          boxShadow:     "0 -8px 48px rgba(15,23,42,.22)",
+          background:    "var(--surface)",
+          maxHeight:     "90dvh",
+          boxShadow:     "0 -8px 48px rgba(20,19,15,.22)",
           overflow:      "hidden",
         }}
       >
         {/* ── Galería de imágenes ── */}
         <div
           className="relative w-full flex-shrink-0"
-          style={{ height: 280, background: "#F8FAFC" }}
+          style={{ height: 280, background: "var(--surface-2)" }}
           onTouchStart={onTouchStart}
           onTouchEnd={onTouchEnd}
         >
@@ -184,7 +185,7 @@ export default function ProductDetailSheet({
           {discount && (
             <span
               className="absolute top-3 left-3 z-10 text-white text-xs font-bold px-2.5 py-1 rounded-full"
-              style={{ background: "#EF4444" }}
+              style={{ background: "var(--danger)" }}
             >
               -{discount}%
             </span>
@@ -199,6 +200,25 @@ export default function ProductDetailSheet({
               aria-label="Ver imagen completa"
             >
               <ZoomIn size={16} color="white" />
+            </button>
+          )}
+
+          {/* Botón compartir */}
+          {hasImages && (
+            <button
+              onClick={() => {
+                const url = `${location.origin}/tienda/${storeSlug}`;
+                if (navigator.share) {
+                  navigator.share({ title: displayName, text: `Mira ${displayName}`, url });
+                } else {
+                  navigator.clipboard.writeText(url).then(() => toast.success("Link copiado"));
+                }
+              }}
+              className="absolute top-3 z-10 w-9 h-9 rounded-full flex items-center justify-center"
+              style={{ background: "rgba(20,19,15,.48)", left: 52 }}
+              aria-label="Compartir producto"
+            >
+              <Share2 size={15} color="white" />
             </button>
           )}
 
@@ -220,7 +240,7 @@ export default function ProductDetailSheet({
             {/* Nombre */}
             <h2
               className="font-display font-extrabold text-xl leading-tight"
-              style={{ color: "#0F172A" }}
+              style={{ color: "var(--ink)" }}
             >
               {displayName}
             </h2>
@@ -234,14 +254,14 @@ export default function ProductDetailSheet({
                 {formatPrice(product.price_cents)}
               </span>
               {product.compare_price && (
-                <span className="text-sm line-through" style={{ color: "#94A3B8" }}>
+                <span className="text-sm line-through" style={{ color: "var(--ink-4)" }}>
                   {formatPrice(product.compare_price)}
                 </span>
               )}
               {discount && (
                 <span
                   className="text-xs font-bold px-2 py-0.5 rounded-full"
-                  style={{ background: "#FEE2E2", color: "#B91C1C" }}
+                  style={{ background: "var(--danger-soft)", color: "var(--danger)" }}
                 >
                   {discount}% OFF
                 </span>
@@ -252,10 +272,17 @@ export default function ProductDetailSheet({
             {outOfStock && (
               <span
                 className="inline-block mt-2 text-xs font-bold px-3 py-1 rounded-full"
-                style={{ background: "#FEE2E2", color: "#991B1B" }}
+                style={{ background: "var(--danger-soft)", color: "var(--danger)" }}
               >
                 Agotado
               </span>
+            )}
+
+            {/* Stock bajo */}
+            {lowStock && (
+              <p className="text-xs font-bold mt-2" style={{ color: "var(--warn)" }}>
+                ⚡ Quedan solo {product.stock} unidades
+              </p>
             )}
 
             {/* Miniaturas de otras imágenes */}
@@ -267,7 +294,7 @@ export default function ProductDetailSheet({
                     onClick={() => setCurrent(i)}
                     className="relative w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 transition-all"
                     style={{
-                      border:   `2px solid ${i === current ? storeColor : "#E2E8F0"}`,
+                      border:   `2px solid ${i === current ? storeColor : "var(--line-2)"}`,
                       opacity:  i === current ? 1 : 0.6,
                     }}
                   >
@@ -282,7 +309,7 @@ export default function ProductDetailSheet({
               <div className="mt-5">
                 <p
                   className="text-[11px] font-bold uppercase tracking-wider mb-2.5"
-                  style={{ color: "#94A3B8" }}
+                  style={{ color: "var(--ink-3)" }}
                 >
                   Descripción
                 </p>
@@ -294,7 +321,7 @@ export default function ProductDetailSheet({
                 ) : (
                   <p
                     className="text-sm leading-relaxed whitespace-pre-wrap"
-                    style={{ color: "#475569" }}
+                    style={{ color: "var(--ink-2)" }}
                   >
                     {product.description}
                   </p>
@@ -308,9 +335,9 @@ export default function ProductDetailSheet({
         <div
           className="absolute bottom-0 left-0 right-0 px-5 pt-3 pb-safe pb-5"
           style={{
-            background: "rgba(255,255,255,.97)",
+            background: "color-mix(in srgb, var(--surface) 97%, transparent)",
             backdropFilter: "blur(8px)",
-            borderTop: "1px solid #F1F5F9",
+            borderTop: "1px solid var(--line)",
           }}
         >
           <motion.button
@@ -320,8 +347,8 @@ export default function ProductDetailSheet({
             className="w-full flex items-center justify-center gap-2.5 rounded-2xl py-4
                        font-display font-bold text-sm transition-colors"
             style={{
-              background: outOfStock ? "#E2E8F0" : storeColor,
-              color:      outOfStock ? "#94A3B8" : "white",
+              background: outOfStock ? "var(--line-2)" : storeColor,
+              color:      outOfStock ? "var(--ink-3)" : "white",
               boxShadow:  outOfStock ? "none" : `0 6px 20px ${storeColor}44`,
             }}
           >

@@ -394,10 +394,10 @@ export default function ConfiguracionPage() {
   ];
 
   return (
-    <div className="p-5 max-w-lg lg:max-w-3xl mx-auto">
+    <div className="p-5 md:p-8 max-w-lg md:max-w-4xl lg:max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h1 className="font-display font-bold text-xl text-gray-900">Configuración</h1>
+        <h1 className="font-display font-bold text-xl" style={{ color: "var(--ink)" }}>Configuración</h1>
         {store && (
           <a
             href={`/tienda/${store.slug}`}
@@ -410,8 +410,9 @@ export default function ConfiguracionPage() {
         )}
       </div>
 
-      {/* Tabs */}
+      {/* Tabs — fila de pills en móvil/tablet */}
       <div
+        className="md:hidden"
         style={{
           display: "flex",
           gap: 4,
@@ -448,6 +449,28 @@ export default function ConfiguracionPage() {
           </button>
         ))}
       </div>
+
+      <div className="md:flex md:gap-8 md:items-start">
+
+      {/* Tabs — rail vertical en desktop */}
+      <nav className="hidden md:flex md:flex-col md:gap-1 md:w-52 md:flex-shrink-0 md:sticky md:top-6">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setActiveTab(t.id)}
+            className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold text-left transition-all"
+            style={{
+              background: activeTab === t.id ? "var(--tint)" : "transparent",
+              color: activeTab === t.id ? "var(--ink)" : "var(--ink-2)",
+            }}
+          >
+            {t.icon}
+            {t.label}
+          </button>
+        ))}
+      </nav>
+
+      <div className="md:flex-1 md:min-w-0">
 
       {/* Tab: Tienda */}
       {activeTab === "tienda" && (
@@ -721,19 +744,19 @@ export default function ConfiguracionPage() {
               <div
                 key={c.id}
                 className="flex items-center justify-between rounded-xl px-3 py-2.5"
-                style={{ background: "#F8FAFC", border: "1px solid #E2E8F0" }}
+                style={{ background: "var(--bg)", border: "1px solid var(--line-2)" }}
               >
-                <span className="text-sm font-medium text-gray-700">
+                <span className="text-sm font-medium" style={{ color: "var(--ink-2)" }}>
                   {c.icon && <span className="mr-2">{c.icon}</span>}
                   {c.name}
                 </span>
                 <button
                   onClick={() => deleteCategory(c.id)}
                   className="ml-3 flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
-                  style={{ background: "#FEF2F2", border: "1.5px solid #FECACA" }}
+                  style={{ background: "var(--danger-soft)", border: "1.5px solid var(--line-2)" }}
                   title="Eliminar categoría"
                 >
-                  <Trash2 size={13} style={{ color: "#DC2626" }} />
+                  <Trash2 size={13} style={{ color: "var(--danger)" }} />
                 </button>
               </div>
             ))}
@@ -745,9 +768,9 @@ export default function ConfiguracionPage() {
           {/* Formulario nueva categoría */}
           <div
             className="rounded-xl p-4 space-y-3"
-            style={{ background: "#F8FAFC", border: "1px solid #E2E8F0" }}
+            style={{ background: "var(--bg)", border: "1px solid var(--line-2)" }}
           >
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Nueva categoría</p>
+            <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)" }}>Nueva categoría</p>
             <form onSubmit={addCategory} className="space-y-3">
               <div>
                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
@@ -807,7 +830,7 @@ export default function ConfiguracionPage() {
       {activeTab === "repartidores" && (
         <section className="card p-5">
           <div className="flex items-center gap-2 mb-4">
-            <Bike size={18} className="text-blue-600" />
+            <Bike size={18} style={{ color: "var(--accent)" }} />
             <h2 className="font-semibold text-gray-900">Repartidores</h2>
           </div>
 
@@ -816,7 +839,7 @@ export default function ConfiguracionPage() {
               <div
                 key={s.id}
                 className="flex items-center justify-between rounded-xl px-3 py-2.5"
-                style={{ background: "#F8FAFC", border: "1px solid #E2E8F0" }}
+                style={{ background: "var(--bg)", border: "1px solid var(--line-2)" }}
               >
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-gray-800 truncate">{s.full_name}</p>
@@ -830,10 +853,10 @@ export default function ConfiguracionPage() {
                 <button
                   onClick={() => removeStaff(s.id)}
                   className="ml-3 flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
-                  style={{ background: "#FEF2F2", border: "1.5px solid #FECACA" }}
+                  style={{ background: "var(--danger-soft)", border: "1.5px solid var(--line-2)" }}
                   title="Desactivar repartidor"
                 >
-                  <UserX size={14} style={{ color: "#DC2626" }} />
+                  <UserX size={14} style={{ color: "var(--danger)" }} />
                 </button>
               </div>
             ))}
@@ -930,6 +953,8 @@ export default function ConfiguracionPage() {
           </form>
         </section>
       )}
+      </div>{/* /contenido */}
+      </div>{/* /md:flex */}
     </div>
   );
 }

@@ -71,12 +71,13 @@ function ResendButton({ email }: { email: string }) {
   }
 
   return (
-    <p className="text-xs text-slate-400 mt-4">
+    <p className="text-xs mt-4" style={{ color: "var(--ink-4)" }}>
       ¿No llegó el correo? Revisa spam o{" "}
       <button
         onClick={resend}
         disabled={state !== "idle"}
-        className="text-blue-600 font-semibold underline disabled:opacity-60 inline-flex items-center gap-1"
+        className="font-semibold underline disabled:opacity-60 inline-flex items-center gap-1"
+        style={{ color: "var(--ink)" }}
       >
         {state === "loading" && <RefreshCw size={11} className="animate-spin" />}
         {state === "sent" ? "¡Enviado!" : "reenviar ahora"}
@@ -171,24 +172,23 @@ function RegisterForm() {
     return (
       <div className="min-h-dvh flex flex-col items-center justify-center px-6"
         style={{ background: "var(--surface-2)" }}>
-        <div className="w-full max-w-sm bg-white rounded-3xl p-8 text-center shadow-lg border border-slate-100">
-          <div className="w-16 h-16 rounded-2xl bg-blue-50 flex items-center justify-center mx-auto mb-5">
+        <div className="w-full max-w-sm rounded-3xl p-8 text-center" style={{ background: "var(--surface)", boxShadow: "var(--shadow-lg)", border: "1px solid var(--line)" }}>
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5" style={{ background: "var(--accent-soft)" }}>
             <span className="text-3xl">📧</span>
           </div>
-          <h1 className="font-display font-extrabold text-xl text-slate-900 mb-2">
+          <h1 className="font-display font-extrabold text-xl mb-2" style={{ color: "var(--ink)" }}>
             Verifica tu correo
           </h1>
-          <p className="text-sm text-slate-500 leading-relaxed mb-6">
+          <p className="text-sm leading-relaxed mb-6" style={{ color: "var(--ink-3)" }}>
             Te enviamos un enlace de verificación a<br />
-            <strong className="text-slate-700">{form.email}</strong>
+            <strong style={{ color: "var(--ink-2)" }}>{form.email}</strong>
           </p>
-          <p className="text-xs text-slate-400 mb-6">
+          <p className="text-xs mb-6" style={{ color: "var(--ink-4)" }}>
             Revisa tu bandeja de entrada y haz clic en el enlace para activar tu cuenta y crear tu tienda.
           </p>
           <button
             onClick={() => router.push("/dashboard")}
-            className="w-full py-3 rounded-xl font-bold text-sm text-white transition-all active:scale-[.98]"
-            style={{ background: "var(--brand-600)" }}
+            className="btn-primary w-full"
           >
             Ir al dashboard
           </button>
@@ -231,8 +231,8 @@ function RegisterForm() {
         <div
           className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
           style={{
-            background: "linear-gradient(135deg, var(--brand-600), #7C3AED)",
-            boxShadow: "0 6px 24px rgba(37,99,235,.3)",
+            background: "linear-gradient(135deg, var(--ink), var(--accent-ink))",
+            boxShadow: "var(--shadow-md)",
           }}
         >
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" aria-hidden>
@@ -250,7 +250,7 @@ function RegisterForm() {
         {referralCode && (
           <p
             className="inline-flex items-center gap-1.5 text-xs font-semibold mt-2 px-3 py-1.5 rounded-full"
-            style={{ background: "#EDE9FE", color: "#5B21B6" }}
+            style={{ background: "var(--accent-soft)", color: "var(--accent-ink)" }}
           >
             🎁 Un amigo te invitó · código {referralCode}
           </p>
@@ -264,17 +264,17 @@ function RegisterForm() {
                 <div
                   className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300"
                   style={{
-                    background: i <= currentStep ? "var(--brand-600)" : "var(--surface-0)",
+                    background: i <= currentStep ? "var(--ink)" : "var(--surface)",
                     color: i <= currentStep ? "white" : "var(--ink-3)",
-                    border: i <= currentStep ? "none" : "1.5px solid #E2E8F0",
-                    boxShadow: i === currentStep ? "0 2px 8px rgba(37,99,235,.3)" : "none",
+                    border: i <= currentStep ? "none" : "1.5px solid var(--line-2)",
+                    boxShadow: i === currentStep ? "var(--shadow-sm)" : "none",
                   }}
                 >
                   {i < currentStep ? <CheckCircle2 size={14} /> : i + 1}
                 </div>
                 <span
                   className="text-[10px] font-semibold"
-                  style={{ color: i <= currentStep ? "var(--brand-600)" : "var(--ink-4)" }}
+                  style={{ color: i <= currentStep ? "var(--ink)" : "var(--ink-4)" }}
                 >
                   {label}
                 </span>
@@ -282,7 +282,7 @@ function RegisterForm() {
               {i < STEPS.length - 1 && (
                 <div
                   className="w-8 h-0.5 rounded-full mb-4 transition-all duration-500"
-                  style={{ background: i < currentStep ? "var(--brand-600)" : "#E2E8F0" }}
+                  style={{ background: i < currentStep ? "var(--ink)" : "var(--line-2)" }}
                 />
               )}
             </div>
@@ -373,7 +373,7 @@ function RegisterForm() {
                   <div
                     key={n}
                     className="strength-bar flex-1 transition-colors duration-300"
-                    style={{ background: n <= strength.score ? strength.color : "#E2E8F0" }}
+                    style={{ background: n <= strength.score ? strength.color : "var(--line-2)" }}
                   />
                 ))}
               </div>
@@ -429,7 +429,7 @@ function RegisterForm() {
 
         <p className="text-center text-sm animate-fade-up delay-300" style={{ color: "var(--ink-3)" }}>
           ¿Ya tienes cuenta?{" "}
-          <Link href="/auth/login" className="font-bold transition-colors" style={{ color: "var(--brand-600)" }}>
+          <Link href="/auth/login" className="font-bold transition-colors" style={{ color: "var(--ink)" }}>
             Iniciar sesión
           </Link>
         </p>

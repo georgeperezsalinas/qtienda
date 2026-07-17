@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 220" width="600" height="220">
+  <defs>
+    <pattern id="stripes" width="14" height="14" patternTransform="rotate(-45)" patternUnits="userSpaceOnUse">
+      <rect width="14" height="14" fill="#F0EDE5"></rect>
+      <rect width="7" height="14" fill="#E7E3D6"></rect>
+    </pattern>
+  </defs>
+  <rect width="600" height="220" rx="14" fill="url(#stripes)"></rect>
+  <rect x="0.5" y="0.5" width="599" height="219" rx="13.5" fill="none" stroke="#D8D2C0"></rect>
+  <g fill="#8B887F" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
+    <text x="300" y="105" font-size="13" text-anchor="middle">banner promocional</text>
+    <text x="300" y="124" font-size="10" text-anchor="middle" fill="#B8B4A5">1200 x 440 recomendado</text>
+  </g>
+</svg>

@@ -39,13 +39,13 @@ function CardImage({ src, alt }: { src: string; alt: string }) {
         src={src}
         alt={alt}
         fill
-        className={`object-cover transition-all duration-300 group-hover:scale-[1.05] ${loaded ? "opacity-100" : "opacity-0"}`}
+        className={`object-cover transition-all duration-300 group-hover:scale-[1.04] ${loaded ? "opacity-100" : "opacity-0"}`}
         onLoad={() => setLoaded(true)}
       />
       {!loaded && (
         <div
           className="absolute inset-0 animate-pulse"
-          style={{ background: "linear-gradient(110deg, #F1F5F9 40%, #E8EEF5 50%, #F1F5F9 60%)" }}
+          style={{ background: "linear-gradient(110deg, var(--surface-2) 40%, var(--tint) 50%, var(--surface-2) 60%)" }}
         />
       )}
     </>
@@ -63,6 +63,8 @@ export default function ProductCard({
 
   const outOfStock =
     product.stock !== null && product.stock !== undefined && product.stock <= 0;
+  const lowStock =
+    product.stock !== null && product.stock !== undefined && product.stock > 0 && product.stock <= 3;
   const discount = product.compare_price
     ? Math.round((1 - product.price_cents / product.compare_price) * 100)
     : null;
@@ -78,13 +80,13 @@ export default function ProductCard({
 
   const socialBadge =
     soldCount >= 2 ? (
-      <span className="text-[10px] font-bold whitespace-nowrap" style={{ color: "#EA580C" }}>
+      <span className="text-[10px] lg:text-[11px] font-bold whitespace-nowrap" style={{ color: "var(--warn)" }}>
         🔥 {soldCount} vendidos
       </span>
     ) : isNew ? (
       <span
-        className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full whitespace-nowrap"
-        style={{ background: "#DCFCE7", color: "#16A34A" }}
+        className="text-[9px] lg:text-[10px] font-extrabold px-1.5 py-0.5 rounded-full whitespace-nowrap"
+        style={{ background: "var(--success-soft)", color: "var(--success)" }}
       >
         NUEVO
       </span>
@@ -108,14 +110,14 @@ export default function ProductCard({
   if (featured) {
     return (
       <div
-        className="flex-shrink-0 w-48 md:w-56 snap-start cursor-pointer group"
+        className="flex-shrink-0 w-48 md:w-56 lg:w-64 snap-start cursor-pointer group"
         onClick={onTap}
       >
         <div
-          className="rounded-2xl overflow-hidden"
-          style={{ background: "#fff", boxShadow: "0 2px 12px rgba(15,23,42,.08), 0 0 0 1px rgba(15,23,42,.05)" }}
+          className="rounded-2xl overflow-hidden transition-shadow lg:hover:shadow-lg"
+          style={{ background: "var(--surface)", boxShadow: "var(--shadow-md), 0 0 0 1px var(--line)" }}
         >
-          <div className="relative h-40 bg-gray-50">
+          <div className="relative h-40 lg:h-48" style={{ background: "var(--surface-2)" }}>
             {primaryImage ? (
               <CardImage src={primaryImage} alt={displayName} />
             ) : (
@@ -124,7 +126,7 @@ export default function ProductCard({
             {discount && (
               <span
                 className="absolute top-2 left-2 text-[10px] font-extrabold text-white px-2 py-0.5 rounded-full"
-                style={{ background: "#EF4444" }}
+                style={{ background: "var(--danger)" }}
               >
                 -{discount}%
               </span>
@@ -140,25 +142,25 @@ export default function ProductCard({
               </span>
             )}
             {outOfStock && (
-              <div className="absolute inset-0 bg-white/75 flex items-center justify-center">
-                <span className="text-xs font-semibold text-gray-500 bg-white rounded-full px-3 py-1 shadow-sm">
+              <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(255,255,255,.75)" }}>
+                <span className="text-xs font-semibold rounded-full px-3 py-1" style={{ color: "var(--ink-2)", background: "var(--surface)", boxShadow: "var(--shadow-sm)" }}>
                   Agotado
                 </span>
               </div>
             )}
           </div>
-          <div className="p-3">
-            <p className="font-semibold text-sm leading-tight line-clamp-2" style={{ color: "#0F172A" }}>
+          <div className="p-3 lg:p-4">
+            <p className="font-semibold text-sm lg:text-[15px] leading-tight line-clamp-2" style={{ color: "var(--ink)" }}>
               {displayName}
             </p>
             {socialBadge && <div className="mt-1">{socialBadge}</div>}
             <div className="flex items-center justify-between mt-2">
               <div>
-                <span className="font-extrabold text-sm" style={{ color: storeColor }}>
+                <span className="font-extrabold text-sm lg:text-base" style={{ color: storeColor }}>
                   {formatPrice(product.price_cents)}
                 </span>
                 {product.compare_price && (
-                  <span className="block text-[11px] line-through" style={{ color: "#CBD5E1" }}>
+                  <span className="block text-[11px] line-through" style={{ color: "var(--ink-4)" }}>
                     {formatPrice(product.compare_price)}
                   </span>
                 )}
@@ -167,8 +169,8 @@ export default function ProductCard({
                 whileTap={{ scale: 0.85 }}
                 onClick={handleAdd}
                 disabled={outOfStock}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-white"
-                style={{ background: outOfStock ? "#d1d5db" : storeColor }}
+                className="w-8 h-8 lg:w-9 lg:h-9 rounded-full flex items-center justify-center text-white"
+                style={{ background: outOfStock ? "var(--ink-4)" : storeColor }}
               >
                 {added ? <Check size={14} /> : <Plus size={14} />}
               </motion.button>
@@ -183,24 +185,24 @@ export default function ProductCard({
   if (compact) {
     return (
       <div
-        className="flex items-center gap-3 p-3 rounded-2xl transition-all active:scale-[.99] cursor-pointer h-full"
+        className="flex items-center gap-3 lg:gap-4 p-3 lg:p-4 rounded-2xl transition-all active:scale-[.99] lg:hover:shadow-md cursor-pointer h-full"
         style={{
-          background: "#fff",
-          border: "1px solid #F1F5F9",
-          boxShadow: "0 1px 4px rgba(15,23,42,.05)",
+          background: "var(--surface)",
+          border: "1px solid var(--line)",
+          boxShadow: "var(--shadow-sm)",
         }}
         onClick={onTap}
       >
         {/* Image */}
-        <div className="relative w-[76px] h-[76px] rounded-xl overflow-hidden flex-shrink-0 bg-gray-50">
+        <div className="relative w-[76px] h-[76px] lg:w-[92px] lg:h-[92px] rounded-xl overflow-hidden flex-shrink-0" style={{ background: "var(--surface-2)" }}>
           {primaryImage ? (
             <CardImage src={primaryImage} alt={displayName} />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-2xl">🛍️</div>
           )}
           {outOfStock && (
-            <div className="absolute inset-0 bg-white/75 flex items-center justify-center">
-              <span className="text-[9px] font-bold text-gray-400">Agotado</span>
+            <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(255,255,255,.75)" }}>
+              <span className="text-[9px] font-bold" style={{ color: "var(--ink-4)" }}>Agotado</span>
             </div>
           )}
           {multipleImages && primaryImage && (
@@ -217,28 +219,28 @@ export default function ProductCard({
 
         {/* Info */}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold leading-snug line-clamp-2" style={{ color: "#0F172A" }}>
+          <p className="text-sm lg:text-[15px] font-bold leading-snug line-clamp-2" style={{ color: "var(--ink)" }}>
             {displayName}
           </p>
           {product.description && (
-            <p className="text-xs mt-0.5 line-clamp-1" style={{ color: "#94A3B8" }}>
+            <p className="text-xs mt-0.5 line-clamp-1 lg:line-clamp-2" style={{ color: "var(--ink-3)" }}>
               {displayDesc}
             </p>
           )}
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-            <span className="font-extrabold text-sm" style={{ color: storeColor }}>
+            <span className="font-extrabold text-sm lg:text-base" style={{ color: storeColor }}>
               {formatPrice(product.price_cents)}
             </span>
             {discount && (
               <span
                 className="text-[10px] font-bold text-white px-1.5 py-0.5 rounded-full"
-                style={{ background: "#EF4444" }}
+                style={{ background: "var(--danger)" }}
               >
                 -{discount}%
               </span>
             )}
             {product.compare_price && (
-              <span className="text-xs line-through" style={{ color: "#CBD5E1" }}>
+              <span className="text-xs line-through" style={{ color: "var(--ink-4)" }}>
                 {formatPrice(product.compare_price)}
               </span>
             )}
@@ -251,8 +253,8 @@ export default function ProductCard({
           whileTap={{ scale: 0.85 }}
           onClick={handleAdd}
           disabled={outOfStock}
-          className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-white transition-colors"
-          style={{ background: outOfStock ? "#d1d5db" : storeColor }}
+          className="flex-shrink-0 w-9 h-9 lg:w-10 lg:h-10 rounded-full flex items-center justify-center text-white transition-colors"
+          style={{ background: outOfStock ? "var(--ink-4)" : storeColor }}
         >
           {added ? <Check size={16} /> : <Plus size={16} />}
         </motion.button>
@@ -260,17 +262,17 @@ export default function ProductCard({
     );
   }
 
-  /* ── Grid card (default, 2-col) ── */
+  /* ── Grid card (default) ── */
   return (
     <div
-      className="group rounded-2xl overflow-hidden flex flex-col cursor-pointer transition-all active:scale-[.98] lg:hover:-translate-y-1"
+      className="group rounded-2xl overflow-hidden flex flex-col cursor-pointer transition-all active:scale-[.98] lg:hover:-translate-y-1 lg:hover:shadow-lg"
       style={{
-        background: "#fff",
-        boxShadow: "0 2px 12px rgba(15,23,42,.07), 0 0 0 1px rgba(15,23,42,.04)",
+        background: "var(--surface)",
+        boxShadow: "var(--shadow-md), 0 0 0 1px var(--line)",
       }}
       onClick={onTap}
     >
-      <div className="relative bg-gray-50 aspect-square">
+      <div className="relative aspect-square" style={{ background: "var(--surface-2)" }}>
         {primaryImage ? (
           <CardImage src={primaryImage} alt={displayName} />
         ) : (
@@ -279,7 +281,7 @@ export default function ProductCard({
         {discount && (
           <span
             className="absolute top-2 left-2 text-[10px] font-extrabold text-white px-2 py-0.5 rounded-full"
-            style={{ background: "#EF4444" }}
+            style={{ background: "var(--danger)" }}
           >
             -{discount}%
           </span>
@@ -295,25 +297,30 @@ export default function ProductCard({
           </span>
         )}
         {outOfStock && (
-          <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
-            <span className="text-xs font-semibold text-gray-500 bg-white rounded-full px-3 py-1 shadow-sm">
+          <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(255,255,255,.7)" }}>
+            <span className="text-xs font-semibold rounded-full px-3 py-1" style={{ color: "var(--ink-2)", background: "var(--surface)", boxShadow: "var(--shadow-sm)" }}>
               Agotado
             </span>
           </div>
         )}
       </div>
-      <div className="p-3 flex flex-col flex-1">
-        <p className="text-sm font-semibold leading-tight line-clamp-2 flex-1" style={{ color: "#0F172A" }}>
+      <div className="p-3 lg:p-4 flex flex-col flex-1">
+        <p className="text-sm lg:text-[15px] font-semibold leading-tight line-clamp-2 flex-1" style={{ color: "var(--ink)" }}>
           {displayName}
         </p>
         {socialBadge && <div className="mt-1">{socialBadge}</div>}
+        {lowStock && (
+          <p className="text-[10px] lg:text-[11px] font-bold mt-1" style={{ color: "var(--warn)" }}>
+            ¡Quedan {product.stock}!
+          </p>
+        )}
         <div className="mt-2 flex items-center justify-between gap-1">
           <div>
-            <span className="font-extrabold text-base" style={{ color: storeColor }}>
+            <span className="font-extrabold text-base lg:text-lg" style={{ color: storeColor }}>
               {formatPrice(product.price_cents)}
             </span>
             {product.compare_price && (
-              <span className="block text-xs line-through" style={{ color: "#CBD5E1" }}>
+              <span className="block text-xs line-through" style={{ color: "var(--ink-4)" }}>
                 {formatPrice(product.compare_price)}
               </span>
             )}
@@ -322,8 +329,8 @@ export default function ProductCard({
             whileTap={{ scale: 0.85 }}
             onClick={handleAdd}
             disabled={outOfStock}
-            className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-white"
-            style={{ background: outOfStock ? "#d1d5db" : storeColor }}
+            className="flex-shrink-0 w-9 h-9 lg:w-10 lg:h-10 rounded-full flex items-center justify-center text-white"
+            style={{ background: outOfStock ? "var(--ink-4)" : storeColor }}
           >
             {added ? <Check size={16} /> : <Plus size={16} />}
           </motion.button>

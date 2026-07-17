@@ -60,7 +60,7 @@ function OrderCard({
   return (
     <div
       className="rounded-2xl overflow-hidden animate-fade-up"
-      style={{ background: "#fff", border: "1.5px solid #E2E8F0", boxShadow: "0 2px 12px rgba(15,23,42,.06)" }}
+      style={{ background: "#fff", border: "1.5px solid var(--line-2)", boxShadow: "0 2px 12px rgba(15,23,42,.06)" }}
     >
       {/* Header strip */}
       <div className="flex items-center justify-between px-4 py-2.5"
@@ -76,7 +76,7 @@ function OrderCard({
             {isPreparing ? "Preparando" : "En camino"}
           </span>
         </div>
-        <div className="flex items-center gap-1.5 text-[11px]" style={{ color: "#94A3B8" }}>
+        <div className="flex items-center gap-1.5 text-[11px]" style={{ color: "var(--ink-3)" }}>
           <Clock size={11} />
           {timeAgo(order.created_at)}
         </div>
@@ -87,10 +87,10 @@ function OrderCard({
         {/* Buyer */}
         <div className="flex items-start justify-between gap-2">
           <div>
-            <p className="font-display font-bold text-sm" style={{ color: "#0F172A" }}>
+            <p className="font-display font-bold text-sm" style={{ color: "var(--ink)" }}>
               {order.buyer_name}
             </p>
-            <p className="text-xs mt-0.5 font-medium" style={{ color: "#64748B" }}>
+            <p className="text-xs mt-0.5 font-medium" style={{ color: "var(--ink-2)" }}>
               {order.buyer_phone}
             </p>
           </div>
@@ -119,14 +119,14 @@ function OrderCard({
         {/* Address */}
         {order.buyer_address && (
           <div className="flex items-start gap-2 rounded-xl px-3 py-2"
-               style={{ background: "#F8FAFC", border: "1px solid #E2E8F0" }}>
-            <MapPin size={13} className="flex-shrink-0 mt-0.5" style={{ color: "#64748B" }} />
+               style={{ background: "#F8FAFC", border: "1px solid var(--line-2)" }}>
+            <MapPin size={13} className="flex-shrink-0 mt-0.5" style={{ color: "var(--ink-2)" }} />
             <div>
-              <p className="text-xs font-medium" style={{ color: "#334155" }}>
+              <p className="text-xs font-medium" style={{ color: "var(--ink-2)" }}>
                 {order.buyer_address}
               </p>
               {order.buyer_reference && (
-                <p className="text-[11px] mt-0.5" style={{ color: "#94A3B8" }}>
+                <p className="text-[11px] mt-0.5" style={{ color: "var(--ink-3)" }}>
                   Ref: {order.buyer_reference}
                 </p>
               )}
@@ -146,16 +146,16 @@ function OrderCard({
         {isPreparing && (
           staff.length > 0 ? (
             <div className="flex items-center gap-2">
-              <UserCheck size={13} style={{ color: "#64748B", flexShrink: 0 }} />
+              <UserCheck size={13} style={{ color: "var(--ink-2)", flexShrink: 0 }} />
               <select
                 value={order.assigned_to_id ?? ""}
                 disabled={assigning}
                 onChange={(e) => onAssign(order.id, e.target.value || null)}
                 className="flex-1 text-xs rounded-lg px-2 py-1.5 font-medium outline-none"
                 style={{
-                  border: order.assigned_to_id ? "1.5px solid #93C5FD" : "1.5px solid #E2E8F0",
+                  border: order.assigned_to_id ? "1.5px solid #93C5FD" : "1.5px solid var(--line-2)",
                   background: order.assigned_to_id ? "#EFF6FF" : "#F8FAFC",
-                  color: order.assigned_to_id ? "#1D4ED8" : "#94A3B8",
+                  color: order.assigned_to_id ? "#1D4ED8" : "var(--ink-3)",
                 }}
               >
                 <option value="">Sin asignar</option>
@@ -188,10 +188,10 @@ function OrderCard({
 
         {/* Total + items */}
         <div className="flex items-center justify-between">
-          <span className="text-xs" style={{ color: "#94A3B8" }}>
+          <span className="text-xs" style={{ color: "var(--ink-3)" }}>
             {order.items_count} producto{order.items_count !== 1 ? "s" : ""}
           </span>
-          <span className="font-display font-extrabold text-sm" style={{ color: "#0F172A" }}>
+          <span className="font-display font-extrabold text-sm" style={{ color: "var(--ink)" }}>
             {formatPrice(order.total_cents)}
           </span>
         </div>
@@ -319,14 +319,14 @@ export default function DeliveryPage() {
   }
 
   return (
-    <div className="p-5 max-w-2xl lg:max-w-5xl mx-auto">
+    <div className="p-5 md:p-8 max-w-2xl md:max-w-4xl lg:max-w-6xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h1 className="font-display font-extrabold text-xl" style={{ color: "#0F172A" }}>
+          <h1 className="font-display font-extrabold text-xl" style={{ color: "var(--ink)" }}>
             Control de Delivery
           </h1>
-          <p className="text-xs mt-0.5" style={{ color: "#94A3B8" }}>
+          <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
             {preparing.length + on_the_way.length} pedido{preparing.length + on_the_way.length !== 1 ? "s" : ""} activo{preparing.length + on_the_way.length !== 1 ? "s" : ""}
             {" · "}se actualiza cada 60 s
           </p>
@@ -335,17 +335,17 @@ export default function DeliveryPage() {
           onClick={fetchOrders}
           disabled={loading}
           className="w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-90"
-          style={{ background: "#F1F5F9", border: "1.5px solid #E2E8F0" }}
+          style={{ background: "var(--line)", border: "1.5px solid var(--line-2)" }}
           aria-label="Actualizar"
         >
-          <RefreshCw size={16} className={loading ? "animate-spin" : ""} style={{ color: "#64748B" }} />
+          <RefreshCw size={16} className={loading ? "animate-spin" : ""} style={{ color: "var(--ink-2)" }} />
         </button>
       </div>
 
       {loading && orders.length === 0 ? (
         <div className="space-y-3">
           {[1, 2].map((i) => (
-            <div key={i} className="rounded-2xl h-48 animate-pulse" style={{ background: "#F1F5F9" }} />
+            <div key={i} className="rounded-2xl h-48 animate-pulse" style={{ background: "var(--line)" }} />
           ))}
         </div>
       ) : preparing.length === 0 && on_the_way.length === 0 ? (
@@ -358,7 +358,7 @@ export default function DeliveryPage() {
           <p className="text-sm text-slate-400 mt-1">Los pedidos en preparación o en camino aparecerán aquí.</p>
         </div>
       ) : (
-        <div className="space-y-6 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
+        <div className="space-y-6 md:space-y-0 md:grid md:grid-cols-2 md:gap-6 md:items-start">
           {preparing.length > 0 && (
             <section>
               <div className="flex items-center gap-2 mb-3">

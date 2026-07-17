@@ -131,7 +131,7 @@ function KpiTile({ label, value, sub, icon, color, bg }: {
   return (
     <div
       className="flex flex-col gap-2.5 p-3.5 rounded-2xl"
-      style={{ background: "var(--surface-0)", border: "1.5px solid #E2E8F0" }}
+      style={{ background: "var(--surface)", border: "1.5px solid var(--line-2)" }}
     >
       <div className="flex items-center justify-between">
         <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: bg }}>
@@ -164,11 +164,11 @@ function DailyChart({ data, loading }: { data: DailyPoint[]; loading: boolean })
   return (
     <div
       className="rounded-2xl p-4"
-      style={{ background: "var(--surface-0)", border: "1.5px solid #E2E8F0" }}
+      style={{ background: "var(--surface)", border: "1.5px solid var(--line-2)" }}
     >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-1.5">
-          <BarChart2 size={14} style={{ color: "var(--brand-600)" }} />
+          <BarChart2 size={14} style={{ color: "var(--ink)" }} />
           <span className="text-xs font-bold" style={{ color: "var(--ink)" }}>
             Tendencia diaria
           </span>
@@ -181,8 +181,8 @@ function DailyChart({ data, loading }: { data: DailyPoint[]; loading: boolean })
               className="text-[10px] font-semibold px-2.5 py-1 rounded-full transition-all"
               style={
                 mode === m
-                  ? { background: "var(--brand-600)", color: "#fff" }
-                  : { background: "var(--surface-1)", color: "var(--ink-3)" }
+                  ? { background: "var(--ink)", color: "#fff" }
+                  : { background: "var(--surface-2)", color: "var(--ink-3)" }
               }
             >
               {m === "revenue" ? "Ingresos" : "Pedidos"}
@@ -206,7 +206,7 @@ function DailyChart({ data, loading }: { data: DailyPoint[]; loading: boolean })
                   width: 14,
                   borderRadius: 4,
                   background: isToday
-                    ? "var(--brand-600)"
+                    ? "var(--ink)"
                     : `var(--brand-${pct > 0.6 ? "400" : "200"})`,
                   transition: "height 0.3s ease",
                 }}
@@ -214,7 +214,7 @@ function DailyChart({ data, loading }: { data: DailyPoint[]; loading: boolean })
               {data.length <= 14 && (
                 <span
                   className="text-[9px] leading-none"
-                  style={{ color: isToday ? "var(--brand-600)" : "var(--ink-4)" }}
+                  style={{ color: isToday ? "var(--ink)" : "var(--ink-4)" }}
                 >
                   {new Date(d.date + "T00:00:00").getDate()}
                 </span>
@@ -238,7 +238,7 @@ function PlanUsage({ sub, ordersThisMonth }: { sub: Subscription | null; ordersT
   return (
     <div
       className="rounded-2xl p-4"
-      style={{ background: full ? "#FEF2F2" : "var(--surface-0)", border: `1.5px solid ${full ? "#FECACA" : "#E2E8F0"}` }}
+      style={{ background: full ? "#FEF2F2" : "var(--surface)", border: `1.5px solid ${full ? "#FECACA" : "var(--line-2)"}` }}
     >
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-bold" style={{ color: "var(--ink)" }}>
@@ -251,13 +251,13 @@ function PlanUsage({ sub, ordersThisMonth }: { sub: Subscription | null; ordersT
           {ordersThisMonth} / {sub.max_orders_mo}
         </span>
       </div>
-      <div className="w-full rounded-full overflow-hidden" style={{ height: 6, background: "#E2E8F0" }}>
+      <div className="w-full rounded-full overflow-hidden" style={{ height: 6, background: "var(--line-2)" }}>
         <div
           style={{
             height: "100%",
             width: `${pct * 100}%`,
             borderRadius: 9999,
-            background: full ? "#DC2626" : warn ? "#F59E0B" : "var(--brand-600)",
+            background: full ? "#DC2626" : warn ? "#F59E0B" : "var(--ink)",
             transition: "width 0.5s ease",
           }}
         />
@@ -286,7 +286,7 @@ function PaymentBreakdown({ entries, loading }: { entries: PaymentEntry[]; loadi
   return (
     <div
       className="rounded-2xl p-4"
-      style={{ background: "var(--surface-0)", border: "1.5px solid #E2E8F0" }}
+      style={{ background: "var(--surface)", border: "1.5px solid var(--line-2)" }}
     >
       <p className="text-xs font-bold mb-3" style={{ color: "var(--ink)" }}>
         Por método de pago
@@ -316,7 +316,7 @@ function PaymentBreakdown({ entries, loading }: { entries: PaymentEntry[]; loadi
                   {formatPrice(e.revenue_cents)}
                 </span>
               </div>
-              <div className="w-full rounded-full overflow-hidden" style={{ height: 4, background: "#E2E8F0" }}>
+              <div className="w-full rounded-full overflow-hidden" style={{ height: 4, background: "var(--line-2)" }}>
                 <div
                   style={{
                     height: "100%",
@@ -430,8 +430,8 @@ export default function FinanzasPage() {
             className="flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all"
             style={
               period === p.key
-                ? { background: "var(--brand-600)", color: "#fff" }
-                : { background: "var(--surface-0)", color: "var(--ink-3)", border: "1.5px solid #E2E8F0" }
+                ? { background: "var(--ink)", color: "#fff" }
+                : { background: "var(--surface)", color: "var(--ink-3)", border: "1.5px solid var(--line-2)" }
             }
           >
             {p.label}
@@ -447,7 +447,7 @@ export default function FinanzasPage() {
         ) : (
           <div
             className="rounded-2xl p-5 animate-fade-up lg:flex lg:flex-col lg:justify-center"
-            style={{ background: "linear-gradient(135deg, var(--brand-700), #5B21B6)" }}
+            style={{ background: "linear-gradient(135deg, var(--ink), var(--accent-ink))" }}
           >
             <div className="flex items-center gap-2 mb-3">
               <div
@@ -532,8 +532,8 @@ export default function FinanzasPage() {
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="text-xs font-semibold appearance-none pl-3 pr-7 py-1.5 rounded-xl cursor-pointer"
                 style={{
-                  background: "var(--surface-0)",
-                  border: "1.5px solid #E2E8F0",
+                  background: "var(--surface)",
+                  border: "1.5px solid var(--line-2)",
                   color: "var(--ink-2)",
                 }}
               >
@@ -556,7 +556,7 @@ export default function FinanzasPage() {
           ) : orders.length === 0 ? (
             <div
               className="rounded-2xl py-10 text-center"
-              style={{ background: "var(--surface-0)", border: "1.5px solid #E2E8F0" }}
+              style={{ background: "var(--surface)", border: "1.5px solid var(--line-2)" }}
             >
               <p className="text-sm font-semibold" style={{ color: "var(--ink-3)" }}>
                 Sin movimientos
@@ -567,7 +567,7 @@ export default function FinanzasPage() {
             </div>
           ) : (
             <>
-              <div className="rounded-2xl overflow-hidden" style={{ border: "1.5px solid #E2E8F0" }}>
+              <div className="rounded-2xl overflow-hidden" style={{ border: "1.5px solid var(--line-2)" }}>
                 {orders.map((order, idx) => {
                   const cfg = STATUS_CFG[order.status] ?? STATUS_CFG.pending;
                   const isRevenue = order.status !== "cancelled" && order.status !== "pending";
@@ -576,8 +576,8 @@ export default function FinanzasPage() {
                       key={order.id}
                       className="flex items-center gap-3 px-4 py-3.5"
                       style={{
-                        background: "var(--surface-0)",
-                        borderTop: idx > 0 ? "1px solid #F1F5F9" : "none",
+                        background: "var(--surface)",
+                        borderTop: idx > 0 ? "1px solid var(--line)" : "none",
                       }}
                     >
                       <div
@@ -629,7 +629,7 @@ export default function FinanzasPage() {
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page === 1}
                     className="text-xs font-semibold px-4 py-2 rounded-xl transition-all disabled:opacity-30"
-                    style={{ background: "var(--surface-0)", border: "1.5px solid #E2E8F0", color: "var(--ink-2)" }}
+                    style={{ background: "var(--surface)", border: "1.5px solid var(--line-2)", color: "var(--ink-2)" }}
                   >
                     Anterior
                   </button>
@@ -640,7 +640,7 @@ export default function FinanzasPage() {
                     onClick={() => setPage((p) => p + 1)}
                     disabled={page * 20 >= totalOrders}
                     className="text-xs font-semibold px-4 py-2 rounded-xl transition-all disabled:opacity-30"
-                    style={{ background: "var(--surface-0)", border: "1.5px solid #E2E8F0", color: "var(--ink-2)" }}
+                    style={{ background: "var(--surface)", border: "1.5px solid var(--line-2)", color: "var(--ink-2)" }}
                   >
                     Siguiente
                   </button>

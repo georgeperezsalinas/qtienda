@@ -66,11 +66,11 @@ export default function LoginPage() {
       {/* ── Panel izquierdo (solo desktop) ── */}
       <div
         className="hidden lg:flex lg:w-[420px] xl:w-[480px] flex-col justify-between p-10 flex-shrink-0 relative overflow-hidden"
-        style={{ background: "linear-gradient(160deg, #0F172A 0%, #1E3A8A 50%, #312E81 100%)" }}
+        style={{ background: "linear-gradient(160deg, var(--ink) 0%, var(--accent-ink) 100%)" }}
       >
         {/* Grid decorativo */}
         <div
-          className="absolute inset-0 pointer-events-none opacity-[0.04]"
+          className="absolute inset-0 pointer-events-none opacity-[0.05]"
           style={{
             backgroundImage:
               "linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)",
@@ -81,7 +81,7 @@ export default function LoginPage() {
           className="absolute inset-0 pointer-events-none"
           style={{
             background:
-              "radial-gradient(ellipse 60% 50% at 80% 20%, rgba(99,102,241,.25) 0%, transparent 70%)",
+              "radial-gradient(ellipse 60% 50% at 80% 20%, rgba(197,97,59,.35) 0%, transparent 70%)",
           }}
         />
 
@@ -96,14 +96,26 @@ export default function LoginPage() {
           <ul className="space-y-3">
             {["Tu tienda siempre activa", "Pedidos en tiempo real", "Sin comisiones"].map((f) => (
               <li key={f} className="flex items-center gap-3">
-                <CheckCircle2 size={17} style={{ color: "#A5F3FC", flexShrink: 0 }} />
+                <CheckCircle2 size={17} style={{ color: "#F4E5D8", flexShrink: 0 }} />
                 <span className="text-sm font-medium" style={{ color: "rgba(255,255,255,.75)" }}>{f}</span>
               </li>
             ))}
           </ul>
+
+          {/* Vitrina de ejemplo */}
+          <div className="rounded-2xl p-4 mt-2" style={{ background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.12)" }}>
+            <div className="grid grid-cols-3 gap-2">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="rounded-lg" style={{ aspectRatio: "1", background: "rgba(255,255,255,.1)" }} />
+              ))}
+            </div>
+            <p className="text-xs mt-3" style={{ color: "rgba(255,255,255,.5)" }}>
+              Así se ve tu vitrina — lista en 2 minutos
+            </p>
+          </div>
         </div>
 
-        <p className="relative text-xs" style={{ color: "rgba(255,255,255,.3)" }}>© 2025 qtienda.shop</p>
+        <p className="relative text-xs" style={{ color: "rgba(255,255,255,.35)" }}>© 2026 qtienda.shop</p>
       </div>
 
       {/* ── Panel derecho (formulario) ── */}
@@ -117,9 +129,9 @@ export default function LoginPage() {
         <div
           className="w-full max-w-md rounded-3xl p-8"
           style={{
-            background: "var(--surface-0)",
-            border: "1.5px solid #E2E8F0",
-            boxShadow: "0 8px 48px rgba(15,23,42,.10)",
+            background: "var(--surface)",
+            border: "1.5px solid var(--line-2)",
+            boxShadow: "var(--shadow-lg)",
           }}
         >
           <div className="mb-7">
@@ -151,7 +163,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   className="text-xs font-semibold transition-colors"
-                  style={{ color: "var(--brand-600)" }}
+                  style={{ color: "var(--ink)" }}
                 >
                   ¿La olvidaste?
                 </button>
@@ -183,27 +195,27 @@ export default function LoginPage() {
           {/* Registro por rol */}
           <div
             className="mt-7 pt-6 grid grid-cols-2 gap-3"
-            style={{ borderTop: "1.5px solid #F1F5F9" }}
+            style={{ borderTop: "1.5px solid var(--line)" }}
           >
             <Link
               href="/auth/register"
               className="flex flex-col items-center gap-2.5 p-4 rounded-2xl text-center transition-all active:scale-95 hover:shadow-md"
               style={{
-                background: "var(--brand-50)",
-                border: "1.5px solid var(--brand-100)",
+                background: "var(--tint)",
+                border: "1.5px solid var(--line-2)",
               }}
             >
               <div
                 className="w-10 h-10 rounded-xl flex items-center justify-center"
-                style={{ background: "var(--brand-600)" }}
+                style={{ background: "var(--ink)" }}
               >
                 <Store size={17} color="white" />
               </div>
               <div>
-                <p className="font-display font-bold text-xs" style={{ color: "var(--brand-700)" }}>
+                <p className="font-display font-bold text-xs" style={{ color: "var(--ink)" }}>
                   Crear tienda
                 </p>
-                <p className="text-[10px] mt-0.5" style={{ color: "var(--brand-400)" }}>
+                <p className="text-[10px] mt-0.5" style={{ color: "var(--ink-3)" }}>
                   Soy vendedor
                 </p>
               </div>
@@ -212,19 +224,19 @@ export default function LoginPage() {
             <Link
               href="/registro"
               className="flex flex-col items-center gap-2.5 p-4 rounded-2xl text-center transition-all active:scale-95 hover:shadow-md"
-              style={{ background: "#F5F3FF", border: "1.5px solid #DDD6FE" }}
+              style={{ background: "var(--accent-soft)", border: "1.5px solid var(--line-2)" }}
             >
               <div
                 className="w-10 h-10 rounded-xl flex items-center justify-center"
-                style={{ background: "#7C3AED" }}
+                style={{ background: "var(--accent)" }}
               >
                 <ShoppingBag size={17} color="white" />
               </div>
               <div>
-                <p className="font-display font-bold text-xs" style={{ color: "#5B21B6" }}>
+                <p className="font-display font-bold text-xs" style={{ color: "var(--accent-ink)" }}>
                   Crear cuenta
                 </p>
-                <p className="text-[10px] mt-0.5" style={{ color: "#7C3AED" }}>
+                <p className="text-[10px] mt-0.5" style={{ color: "var(--accent-ink)" }}>
                   Soy comprador
                 </p>
               </div>

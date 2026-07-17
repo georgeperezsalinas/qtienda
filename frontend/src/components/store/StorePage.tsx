@@ -5,7 +5,7 @@ import Image from "next/image";
 import {
   ShoppingCart, Search, ChevronRight, Zap,
   MapPin, X, MessageCircle, Share2, Download,
-  LayoutGrid, List,
+  LayoutGrid, List, Clock, Truck, ShieldCheck,
 } from "lucide-react";
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
 import ProductCard from "./ProductCard";
@@ -70,7 +70,7 @@ function SearchBox({ value, onChange, focused, setFocused, color, inputRef }: {
       <Search
         size={15}
         className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
-        style={{ color: focused ? color : "#94A3B8" }}
+        style={{ color: focused ? color : "var(--ink-4)" }}
       />
       <input
         ref={inputRef}
@@ -83,10 +83,10 @@ function SearchBox({ value, onChange, focused, setFocused, color, inputRef }: {
         onBlur={() => setFocused(false)}
         className="w-full text-sm rounded-2xl pl-10 pr-9 py-2.5 outline-none transition-all"
         style={{
-          background: focused ? "#fff" : "#F1F5F9",
+          background: focused ? "var(--surface)" : "var(--surface-2)",
           border:     `1.5px solid ${focused ? color : "transparent"}`,
           boxShadow:  focused ? `0 0 0 3px ${color}18` : "none",
-          color:      "#0F172A",
+          color:      "var(--ink)",
         }}
       />
       {value && (
@@ -94,7 +94,7 @@ function SearchBox({ value, onChange, focused, setFocused, color, inputRef }: {
           onClick={() => onChange("")}
           className="absolute right-3 top-1/2 -translate-y-1/2"
         >
-          <X size={14} style={{ color: "#94A3B8" }} />
+          <X size={14} style={{ color: "var(--ink-4)" }} />
         </button>
       )}
     </div>
@@ -137,20 +137,20 @@ function BannerCarousel({ banners, storeName }: {
         onMouseEnter={() => { pausedRef.current = true; }}
         onMouseLeave={() => { pausedRef.current = false; }}
         className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide rounded-2xl"
-        style={{ boxShadow: "0 2px 12px rgba(15,23,42,.08)" }}
+        style={{ boxShadow: "var(--shadow-md)" }}
       >
         {banners.map((b, i) => {
           // Solo http(s) o rutas internas: nunca javascript: en el href
           const link = b.link && /^(https?:\/\/|\/)/.test(b.link) ? b.link : undefined;
           const isExternal = !!link && link.startsWith("http") && !link.includes("qtienda.shop");
           const img = (
-            <div className="relative w-full aspect-[3/1] md:aspect-[4/1]">
+            <div className="relative w-full aspect-[3/1] lg:aspect-[3.4/1]">
               <Image
                 src={b.url}
                 alt={`Banner ${i + 1} de ${storeName}`}
                 fill
                 className="object-cover"
-                sizes="(max-width: 640px) 100vw, 1024px"
+                sizes="(max-width: 640px) 100vw, 1100px"
               />
             </div>
           );
@@ -218,6 +218,79 @@ function getOpenStatus(hours?: Record<string, { open: string; close: string }> |
     if (cur < open) return { open: false, label: `Cerrado · abre ${today.open}` };
   }
   return { open: false, label: "Cerrado" };
+}
+
+/* Lista de categorías: chips horizontales (móvil/tablet) o rail vertical (desktop) */
+function CategoryList({ store, activeCategory, setActiveCategory, color, vertical }: {
+  store: StoreData;
+  activeCategory: string | null;
+  setActiveCategory: (v: string | null) => void;
+  color: string;
+  vertical?: boolean;
+}) {
+  if (!store.categories?.length) return null;
+  if (vertical) {
+    return (
+      <div className="flex flex-col gap-0.5">
+        <button
+          onClick={() => setActiveCategory(null)}
+          className="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-semibold transition-all text-left"
+          style={
+            !activeCategory
+              ? { background: color, color: "#fff" }
+              : { background: "transparent", color: "var(--ink-2)" }
+          }
+        >
+          Todo
+        </button>
+        {store.categories.map((cat) => (
+          <button
+            key={cat.id}
+            onClick={() => setActiveCategory(cat.id === activeCategory ? null : cat.id)}
+            className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all text-left"
+            style={
+              activeCategory === cat.id
+                ? { background: color, color: "#fff" }
+                : { background: "transparent", color: "var(--ink-2)" }
+            }
+          >
+            {cat.icon && <span>{cat.icon}</span>}
+            <span className="truncate">{cat.name}</span>
+          </button>
+        ))}
+      </div>
+    );
+  }
+  return (
+    <div className="flex gap-2 overflow-x-auto px-4 pb-3 scrollbar-hide lg:px-6">
+      <button
+        onClick={() => setActiveCategory(null)}
+        className="flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+        style={
+          !activeCategory
+            ? { background: color, color: "#fff" }
+            : { background: "var(--surface-2)", color: "var(--ink-2)" }
+        }
+      >
+        Todo
+      </button>
+      {store.categories.map((cat) => (
+        <button
+          key={cat.id}
+          onClick={() => setActiveCategory(cat.id === activeCategory ? null : cat.id)}
+          className="flex-shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+          style={
+            activeCategory === cat.id
+              ? { background: color, color: "#fff" }
+              : { background: "var(--surface-2)", color: "var(--ink-2)" }
+          }
+        >
+          {cat.icon && <span>{cat.icon}</span>}
+          {cat.name}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 /* ════════════════════════════════════════
@@ -321,7 +394,7 @@ export default function StorePage({ store, initialProducts }: Props) {
   const isFiltering   = !!search || !!activeCategory;
 
   return (
-    <div className="min-h-dvh" style={{ background: "#F8FAFC" }}>
+    <div className="min-h-dvh" style={{ background: "var(--bg)" }}>
 
       {/* Franja de marca (color del vendedor) */}
       <div
@@ -336,25 +409,25 @@ export default function StorePage({ store, initialProducts }: Props) {
       <header
         className="sticky top-0 z-30 transition-all duration-300"
         style={{
-          background:           "rgba(255,255,255,.97)",
+          background:           "color-mix(in srgb, var(--surface) 97%, transparent)",
           backdropFilter:       "blur(16px)",
           WebkitBackdropFilter: "blur(16px)",
-          borderBottom:         `1px solid ${headerScrolled ? "#E2E8F0" : "transparent"}`,
-          boxShadow:            headerScrolled ? "0 2px 16px rgba(15,23,42,.07)" : "none",
+          borderBottom:         `1px solid ${headerScrolled ? "var(--line)" : "transparent"}`,
+          boxShadow:            headerScrolled ? "var(--shadow-md)" : "none",
         }}
       >
-        <div className="max-w-xl md:max-w-3xl lg:max-w-5xl xl:max-w-7xl mx-auto">
+        <div className="max-w-xl md:max-w-3xl lg:max-w-[1360px] mx-auto">
 
           {/* Row 1: logo + name (+ búsqueda inline en desktop) + actions */}
-          <div className="flex items-center gap-3 px-4 pt-3 pb-2 lg:px-6 lg:py-3.5">
+          <div className="flex items-center gap-3 px-4 pt-3 pb-2 lg:px-8 lg:py-4">
             {/* Logo */}
             <div className="flex-shrink-0">
               {store.logo_url ? (
                 <Image src={store.logo_url} alt={store.name} width={36} height={36}
-                  className="rounded-[12px] object-cover lg:w-10 lg:h-10" />
+                  className="rounded-[12px] object-cover lg:w-11 lg:h-11" />
               ) : (
                 <div
-                  className="w-9 h-9 lg:w-10 lg:h-10 rounded-[12px] flex items-center justify-center font-bold text-sm text-white"
+                  className="w-9 h-9 lg:w-11 lg:h-11 rounded-[12px] flex items-center justify-center font-bold text-sm lg:text-base text-white"
                   style={{ background: color }}
                 >
                   {store.name[0]?.toUpperCase()}
@@ -363,12 +436,12 @@ export default function StorePage({ store, initialProducts }: Props) {
             </div>
 
             {/* Store name */}
-            <div className="flex-1 min-w-0 lg:flex-none lg:max-w-[300px]">
-              <p className="font-bold text-sm lg:text-base leading-tight truncate" style={{ color: "#0F172A" }}>
+            <div className="flex-1 min-w-0 lg:flex-none lg:max-w-[280px]">
+              <p className="font-bold text-sm lg:text-lg leading-tight truncate" style={{ color: "var(--ink)" }}>
                 {store.name}
               </p>
               {(store.city || (mounted && openStatus)) && (
-                <p className="flex items-center gap-1 text-[11px] mt-0.5 truncate" style={{ color: "#94A3B8" }}>
+                <p className="flex items-center gap-1 text-[11px] lg:text-xs mt-0.5 truncate" style={{ color: "var(--ink-3)" }}>
                   {store.city && (
                     <>
                       <MapPin size={9} className="flex-shrink-0" /> {store.city}
@@ -379,11 +452,11 @@ export default function StorePage({ store, initialProducts }: Props) {
                       {store.city && <span>·</span>}
                       <span
                         className="flex items-center gap-1 font-bold flex-shrink-0"
-                        style={{ color: openStatus.open ? "#16A34A" : "#94A3B8" }}
+                        style={{ color: openStatus.open ? "var(--success)" : "var(--ink-3)" }}
                       >
                         <span
                           className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                          style={{ background: openStatus.open ? "#22C55E" : "#CBD5E1" }}
+                          style={{ background: openStatus.open ? "var(--success)" : "var(--ink-4)" }}
                         />
                         {openStatus.label}
                       </span>
@@ -394,7 +467,7 @@ export default function StorePage({ store, initialProducts }: Props) {
             </div>
 
             {/* Búsqueda inline (solo desktop) */}
-            <div className="hidden lg:block flex-1 max-w-xl mx-auto px-4">
+            <div className="hidden lg:block flex-1 max-w-xl mx-auto px-6">
               <SearchBox
                 value={search}
                 onChange={setSearch}
@@ -407,7 +480,7 @@ export default function StorePage({ store, initialProducts }: Props) {
             {/* Share */}
             <button
               onClick={() => navigator.share?.({ title: store.name, url: location.href })}
-              className="w-9 h-9 rounded-xl flex items-center justify-center"
+              className="w-9 h-9 lg:w-10 lg:h-10 rounded-xl flex items-center justify-center flex-shrink-0"
               style={{ background: `${color}12` }}
               aria-label="Compartir"
             >
@@ -418,7 +491,7 @@ export default function StorePage({ store, initialProducts }: Props) {
             {mounted && isLoggedIn && user && (
               <button
                 onClick={() => setAccountOpen(true)}
-                className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs text-white overflow-hidden"
+                className="w-9 h-9 lg:w-10 lg:h-10 rounded-xl flex items-center justify-center font-bold text-xs text-white overflow-hidden flex-shrink-0"
                 style={{ background: `${color}cc` }}
               >
                 {user.avatar_url ? (
@@ -432,7 +505,7 @@ export default function StorePage({ store, initialProducts }: Props) {
             {/* Cart */}
             <button
               onClick={() => setCartOpen(true)}
-              className="relative w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-90"
+              className="relative w-9 h-9 lg:w-10 lg:h-10 rounded-xl flex items-center justify-center transition-all active:scale-90 flex-shrink-0"
               style={{ background: color }}
               aria-label="Ver carrito"
             >
@@ -444,7 +517,7 @@ export default function StorePage({ store, initialProducts }: Props) {
                     initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
                     className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full
                                text-white text-[10px] font-extrabold flex items-center justify-center"
-                    style={{ background: "#EF4444", border: "2px solid #fff" }}
+                    style={{ background: "var(--danger)", border: "2px solid var(--surface)" }}
                   >
                     {cartCount > 9 ? "9+" : cartCount}
                   </motion.span>
@@ -465,51 +538,30 @@ export default function StorePage({ store, initialProducts }: Props) {
             />
           </div>
 
-          {/* Row 3: Category chips */}
+          {/* Row 3: Category chips — solo móvil/tablet (en desktop van al rail lateral) */}
           {hasCategories && (
-            <div className="flex gap-2 overflow-x-auto px-4 pb-3 scrollbar-hide lg:px-6">
-              <button
-                onClick={() => setActiveCategory(null)}
-                className="flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
-                style={
-                  !activeCategory
-                    ? { background: color, color: "#fff" }
-                    : { background: "#F1F5F9", color: "#64748B" }
-                }
-              >
-                Todo
-              </button>
-              {store.categories!.map((cat) => (
-                <button
-                  key={cat.id}
-                  onClick={() => setActiveCategory(cat.id === activeCategory ? null : cat.id)}
-                  className="flex-shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
-                  style={
-                    activeCategory === cat.id
-                      ? { background: color, color: "#fff" }
-                      : { background: "#F1F5F9", color: "#64748B" }
-                  }
-                >
-                  {cat.icon && <span>{cat.icon}</span>}
-                  {cat.name}
-                </button>
-              ))}
+            <div className="lg:hidden">
+              <CategoryList store={store} activeCategory={activeCategory} setActiveCategory={setActiveCategory} color={color} />
             </div>
           )}
         </div>
       </header>
 
-      {/* ══════════════════════════════════
-          BANNERS DEL VENDEDOR (carrusel, se desliza al hacer scroll)
-      ══════════════════════════════════ */}
-      {effectiveBanners.length > 0 && (
-        <motion.div
-          className="max-w-xl md:max-w-3xl lg:max-w-5xl xl:max-w-7xl mx-auto px-4 pt-3 pb-1 lg:px-6 lg:pt-5"
-          style={{ y: bannerY, opacity: bannerOpacity, scale: bannerScale }}
-        >
-          <BannerCarousel banners={effectiveBanners} storeName={store.name} />
-        </motion.div>
-      )}
+      {/* Franja de confianza */}
+      <div className="border-b" style={{ borderColor: "var(--line)", background: "var(--surface)" }}>
+        <div className="max-w-xl md:max-w-3xl lg:max-w-[1360px] mx-auto flex items-center gap-5 overflow-x-auto scrollbar-hide px-4 py-2 lg:px-8">
+          {[
+            { icon: Truck, label: "Coordinas la entrega con el vendedor" },
+            { icon: ShieldCheck, label: "Pago seguro por Yape, Plin o efectivo" },
+            { icon: MessageCircle, label: "Atención directa por WhatsApp" },
+          ].map(({ icon: Icon, label }) => (
+            <div key={label} className="flex items-center gap-1.5 flex-shrink-0">
+              <Icon size={13} style={{ color: "var(--ink-3)" }} />
+              <span className="text-[11px] font-medium whitespace-nowrap" style={{ color: "var(--ink-3)" }}>{label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* ══════════════════════════════════
           BANNERS (PWA + buyer)
@@ -518,11 +570,11 @@ export default function StorePage({ store, initialProducts }: Props) {
         {mounted && installPrompt && !installDismissed && (
           <motion.div
             initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-            className="flex items-center gap-3 px-4 py-2.5 max-w-xl md:max-w-3xl lg:max-w-5xl xl:max-w-7xl mx-auto"
+            className="flex items-center gap-3 px-4 py-2.5 max-w-xl md:max-w-3xl lg:max-w-[1360px] mx-auto lg:px-8"
             style={{ background: `${color}10`, borderBottom: `1px solid ${color}18` }}
           >
             <span className="text-lg flex-shrink-0">📲</span>
-            <p className="flex-1 text-xs font-medium" style={{ color: "#475569" }}>
+            <p className="flex-1 text-xs font-medium" style={{ color: "var(--ink-2)" }}>
               Instala la tienda para acceso rápido
             </p>
             <button
@@ -532,7 +584,7 @@ export default function StorePage({ store, initialProducts }: Props) {
             >
               <Download size={11} /> Instalar
             </button>
-            <button onClick={() => { setInstallDismissed(true); localStorage.setItem("pwa-banner-dismissed", "1"); }}><X size={14} style={{ color: "#94A3B8" }} /></button>
+            <button onClick={() => { setInstallDismissed(true); localStorage.setItem("pwa-banner-dismissed", "1"); }}><X size={14} style={{ color: "var(--ink-4)" }} /></button>
           </motion.div>
         )}
       </AnimatePresence>
@@ -541,248 +593,326 @@ export default function StorePage({ store, initialProducts }: Props) {
         {mounted && !isLoggedIn && !buyerBannerDismissed && (
           <motion.div
             initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-            className="flex items-center gap-3 px-4 py-2.5 max-w-xl md:max-w-3xl lg:max-w-5xl xl:max-w-7xl mx-auto"
-            style={{ background: "#F0FDF4", borderBottom: "1px solid #BBF7D0" }}
+            className="flex items-center gap-3 px-4 py-2.5 max-w-xl md:max-w-3xl lg:max-w-[1360px] mx-auto lg:px-8"
+            style={{ background: "var(--success-soft)", borderBottom: "1px solid var(--line-2)" }}
           >
             <span className="text-lg flex-shrink-0">🛍️</span>
-            <p className="flex-1 text-xs font-medium leading-snug" style={{ color: "#166534" }}>
+            <p className="flex-1 text-xs font-medium leading-snug" style={{ color: "var(--success)" }}>
               ¿Compras aquí seguido? Crea una cuenta para ver tus pedidos
             </p>
             <a href="/registro"
               className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-full text-white whitespace-nowrap"
-              style={{ background: "#16A34A" }}>
+              style={{ background: "var(--success)" }}>
               Crear cuenta
             </a>
-            <button onClick={dismissBuyerBanner}><X size={14} style={{ color: "#86EFAC" }} /></button>
+            <button onClick={dismissBuyerBanner}><X size={14} style={{ color: "var(--ink-3)" }} /></button>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Descripción de la tienda (si existe) */}
-      {store.description && (
-        <div
-          className="max-w-xl md:max-w-3xl lg:max-w-5xl xl:max-w-7xl mx-auto px-4 py-3"
-          style={{ background: `${color}07`, borderBottom: `1px solid ${color}15` }}
-        >
-          <p className="text-xs leading-snug" style={{ color: "#475569" }}>
-            {store.description}
-          </p>
-        </div>
-      )}
-
       {/* ══════════════════════════════════
-          FEATURED CAROUSEL
+          LAYOUT: rail lateral (desktop) + contenido
       ══════════════════════════════════ */}
-      <AnimatePresence>
-        {featured.length > 0 && !isFiltering && (
-          <motion.section
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="max-w-xl md:max-w-3xl lg:max-w-5xl xl:max-w-7xl mx-auto pt-4 pb-5 lg:rounded-2xl lg:mt-3"
-            style={{ background: `${color}07` }}
+      <div className="max-w-xl md:max-w-3xl lg:max-w-[1360px] mx-auto lg:flex lg:items-start lg:gap-8 lg:px-8 lg:pt-6">
+
+        {/* ── Rail lateral (solo desktop) ── */}
+        <aside className="hidden lg:block flex-shrink-0 sticky top-[104px]" style={{ width: 264 }}>
+          <div
+            className="rounded-2xl p-5 mb-4"
+            style={{ background: "var(--surface)", border: "1px solid var(--line)" }}
           >
-            <div className="flex items-center gap-2 px-4 mb-3 lg:px-6">
-              <div
-                className="w-6 h-6 rounded-lg flex items-center justify-center"
-                style={{ background: color }}
-              >
-                <Zap size={13} color="white" fill="white" />
+            <div className="flex items-center gap-3 mb-3">
+              {store.logo_url ? (
+                <Image src={store.logo_url} alt={store.name} width={48} height={48} className="rounded-xl object-cover" />
+              ) : (
+                <div
+                  className="w-12 h-12 rounded-xl flex items-center justify-center font-bold text-white text-lg"
+                  style={{ background: color }}
+                >
+                  {store.name[0]?.toUpperCase()}
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className="font-bold text-sm leading-tight truncate" style={{ color: "var(--ink)" }}>{store.name}</p>
+                {store.city && (
+                  <p className="flex items-center gap-1 text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
+                    <MapPin size={10} /> {store.city}
+                  </p>
+                )}
               </div>
-              <span className="text-xs font-extrabold uppercase tracking-widest" style={{ color }}>
-                Destacados
+            </div>
+            {store.description && (
+              <p className="text-xs leading-relaxed mb-3" style={{ color: "var(--ink-2)" }}>
+                {store.description}
+              </p>
+            )}
+            {mounted && openStatus && (
+              <div className="flex items-center gap-1.5 text-xs font-bold mb-3" style={{ color: openStatus.open ? "var(--success)" : "var(--ink-3)" }}>
+                <Clock size={12} />
+                {openStatus.label}
+              </div>
+            )}
+            <div className="flex flex-col gap-2">
+              {store.whatsapp && (
+                <a
+                  href={`https://wa.me/${store.whatsapp.replace(/\D/g, "")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-1.5 text-xs font-bold px-3 py-2.5 rounded-xl"
+                  style={{ background: "var(--success-soft)", color: "var(--success)" }}
+                >
+                  <MessageCircle size={14} /> WhatsApp
+                </a>
+              )}
+              <button
+                onClick={() => navigator.share?.({ title: store.name, url: location.href })}
+                className="flex items-center justify-center gap-1.5 text-xs font-bold px-3 py-2.5 rounded-xl"
+                style={{ background: "var(--surface-2)", color: "var(--ink-2)" }}
+              >
+                <Share2 size={13} /> Compartir tienda
+              </button>
+            </div>
+          </div>
+
+          {hasCategories && (
+            <div className="rounded-2xl p-3" style={{ background: "var(--surface)", border: "1px solid var(--line)" }}>
+              <p className="eyebrow px-3 pt-1 pb-2">Categorías</p>
+              <CategoryList store={store} activeCategory={activeCategory} setActiveCategory={setActiveCategory} color={color} vertical />
+            </div>
+          )}
+        </aside>
+
+        {/* ── Contenido principal ── */}
+        <div className="flex-1 min-w-0">
+
+          {/* Banners del vendedor (carrusel, se desliza al hacer scroll) */}
+          {effectiveBanners.length > 0 && (
+            <motion.div
+              className="px-4 pt-3 pb-1 lg:px-0 lg:pt-0"
+              style={{ y: bannerY, opacity: bannerOpacity, scale: bannerScale }}
+            >
+              <BannerCarousel banners={effectiveBanners} storeName={store.name} />
+            </motion.div>
+          )}
+
+          {/* Descripción de la tienda (solo móvil/tablet — en desktop va en el rail) */}
+          {store.description && (
+            <div
+              className="lg:hidden px-4 py-3 mt-1"
+              style={{ background: `${color}07`, borderRadius: 16 }}
+            >
+              <p className="text-xs leading-snug" style={{ color: "var(--ink-2)" }}>
+                {store.description}
+              </p>
+            </div>
+          )}
+
+          {/* Featured carousel */}
+          <AnimatePresence>
+            {featured.length > 0 && !isFiltering && (
+              <motion.section
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="pt-4 pb-5 lg:rounded-2xl lg:mt-5"
+                style={{ background: `${color}07` }}
+              >
+                <div className="flex items-center gap-2 px-4 mb-3 lg:px-6">
+                  <div
+                    className="w-6 h-6 rounded-lg flex items-center justify-center"
+                    style={{ background: color }}
+                  >
+                    <Zap size={13} color="white" fill="white" />
+                  </div>
+                  <span className="text-xs font-extrabold uppercase tracking-widest" style={{ color }}>
+                    Destacados
+                  </span>
+                </div>
+
+                <div className="flex gap-3 overflow-x-auto px-4 pb-1 snap-x snap-mandatory scrollbar-hide lg:px-6">
+                  {featured.map((p) => (
+                    <ProductCard
+                      key={p.id}
+                      product={p}
+                      storeColor={color}
+                      storeSlug={store.slug}
+                      featured
+                      onTap={() => setViewProduct(p)}
+                    />
+                  ))}
+                </div>
+              </motion.section>
+            )}
+          </AnimatePresence>
+
+          {/* Section header */}
+          <div className="flex items-center justify-between px-4 pt-4 pb-2 lg:px-0 lg:pt-6 lg:pb-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm lg:text-xl font-bold" style={{ color: "var(--ink)" }}>
+                {isFiltering ? "Resultados" : "Productos"}
+              </span>
+              <span
+                className="text-[11px] font-bold px-2 py-0.5 rounded-full"
+                style={{ background: `${color}15`, color }}
+              >
+                {filtered.length}
               </span>
             </div>
 
-            <div className="flex gap-3 overflow-x-auto px-4 pb-1 snap-x snap-mandatory scrollbar-hide lg:px-6">
-              {featured.map((p) => (
-                <ProductCard
-                  key={p.id}
-                  product={p}
-                  storeColor={color}
-                  storeSlug={store.slug}
-                  featured
-                  onTap={() => setViewProduct(p)}
-                />
-              ))}
-            </div>
-          </motion.section>
-        )}
-      </AnimatePresence>
-
-
-      {/* ══════════════════════════════════
-          PRODUCT SECTION
-      ══════════════════════════════════ */}
-      <div className="max-w-xl md:max-w-3xl lg:max-w-5xl xl:max-w-7xl mx-auto">
-
-        {/* Section header */}
-        <div className="flex items-center justify-between px-4 pt-4 pb-2 lg:px-6 lg:pt-6 lg:pb-3">
-          <div className="flex items-center gap-2">
-            <span className="text-sm lg:text-lg font-bold" style={{ color: "#0F172A" }}>
-              {isFiltering ? "Resultados" : "Productos"}
-            </span>
-            <span
-              className="text-[11px] font-bold px-2 py-0.5 rounded-full"
-              style={{ background: `${color}15`, color }}
+            {/* Layout toggle */}
+            <div
+              className="flex items-center rounded-xl p-0.5"
+              style={{ background: "var(--surface-2)" }}
             >
-              {filtered.length}
-            </span>
-          </div>
-
-          {/* Layout toggle */}
-          <div
-            className="flex items-center rounded-xl p-0.5"
-            style={{ background: "#EEF2F6" }}
-          >
-            <button
-              onClick={() => setListView(true)}
-              className="flex items-center justify-center w-8 h-7 rounded-lg transition-all"
-              style={{
-                background: listView ? "#fff" : "transparent",
-                boxShadow:  listView ? "0 1px 4px rgba(15,23,42,.1)" : "none",
-                color:      listView ? "#0F172A" : "#94A3B8",
-              }}
-              aria-label="Vista lista"
-            >
-              <List size={15} />
-            </button>
-            <button
-              onClick={() => setListView(false)}
-              className="flex items-center justify-center w-8 h-7 rounded-lg transition-all"
-              style={{
-                background: !listView ? "#fff" : "transparent",
-                boxShadow:  !listView ? "0 1px 4px rgba(15,23,42,.1)" : "none",
-                color:      !listView ? "#0F172A" : "#94A3B8",
-              }}
-              aria-label="Vista cuadrícula"
-            >
-              <LayoutGrid size={15} />
-            </button>
-          </div>
-        </div>
-
-        {/* Products */}
-        <main className="px-4 pb-40 lg:px-6">
-          <AnimatePresence mode="wait">
-            {filtered.length === 0 ? (
-              <motion.div
-                key="empty"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex flex-col items-center py-20 text-center"
+              <button
+                onClick={() => setListView(true)}
+                className="flex items-center justify-center w-8 h-7 rounded-lg transition-all"
+                style={{
+                  background: listView ? "var(--surface)" : "transparent",
+                  boxShadow:  listView ? "var(--shadow-sm)" : "none",
+                  color:      listView ? "var(--ink)" : "var(--ink-3)",
+                }}
+                aria-label="Vista lista"
               >
-                <div className="text-5xl mb-4">🔍</div>
-                <p className="font-bold text-base mb-1" style={{ color: "#0F172A", fontFamily: "var(--font-display)" }}>
-                  Sin resultados
-                </p>
-                <p className="text-sm" style={{ color: "#94A3B8" }}>
-                  Prueba con otro término o categoría
-                </p>
-                <button
-                  onClick={() => { setSearch(""); setActiveCategory(null); }}
-                  className="mt-4 text-xs font-bold px-4 py-2 rounded-full"
-                  style={{ background: `${color}15`, color }}
+                <List size={15} />
+              </button>
+              <button
+                onClick={() => setListView(false)}
+                className="flex items-center justify-center w-8 h-7 rounded-lg transition-all"
+                style={{
+                  background: !listView ? "var(--surface)" : "transparent",
+                  boxShadow:  !listView ? "var(--shadow-sm)" : "none",
+                  color:      !listView ? "var(--ink)" : "var(--ink-3)",
+                }}
+                aria-label="Vista cuadrícula"
+              >
+                <LayoutGrid size={15} />
+              </button>
+            </div>
+          </div>
+
+          {/* Products */}
+          <main className="px-4 pb-40 lg:px-0">
+            <AnimatePresence mode="wait">
+              {filtered.length === 0 ? (
+                <motion.div
+                  key="empty"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex flex-col items-center py-20 text-center"
                 >
-                  Ver todo
-                </button>
-              </motion.div>
-            ) : listView ? (
-              /* ── LISTA ── */
-              <motion.div
-                key={`list-${activeCategory}-${search}`}
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.18 }}
-                className="space-y-2 md:space-y-0 md:grid md:grid-cols-2 md:gap-3 xl:grid-cols-3"
-              >
-                {filtered.map((product, i) => (
-                  <motion.div
-                    key={product.id}
-                    className="h-full"
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: Math.min(i * 0.03, 0.2) }}
+                  <div className="text-5xl mb-4">🔍</div>
+                  <p className="font-bold text-base mb-1" style={{ color: "var(--ink)" }}>
+                    Sin resultados
+                  </p>
+                  <p className="text-sm" style={{ color: "var(--ink-3)" }}>
+                    Prueba con otro término o categoría
+                  </p>
+                  <button
+                    onClick={() => { setSearch(""); setActiveCategory(null); }}
+                    className="mt-4 text-xs font-bold px-4 py-2 rounded-full"
+                    style={{ background: `${color}15`, color }}
                   >
-                    <ProductCard
-                      product={product}
-                      storeColor={color}
-                      storeSlug={store.slug}
-                      compact
-                      onTap={() => setViewProduct(product)}
-                    />
-                  </motion.div>
-                ))}
-              </motion.div>
-            ) : (
-              /* ── GRID ── */
-              <motion.div
-                key={`grid-${activeCategory}-${search}`}
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.18 }}
-                className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 lg:gap-4 xl:grid-cols-5 xl:gap-5"
-              >
-                {filtered.map((product, i) => (
-                  <motion.div
-                    key={product.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: Math.min(i * 0.04, 0.3) }}
-                  >
-                    <ProductCard
-                      product={product}
-                      storeColor={color}
-                      storeSlug={store.slug}
-                      onTap={() => setViewProduct(product)}
-                    />
-                  </motion.div>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </main>
+                    Ver todo
+                  </button>
+                </motion.div>
+              ) : listView ? (
+                /* ── LISTA ── */
+                <motion.div
+                  key={`list-${activeCategory}-${search}`}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className="space-y-2 md:space-y-0 md:grid md:grid-cols-2 md:gap-3 lg:grid-cols-2 xl:grid-cols-3"
+                >
+                  {filtered.map((product, i) => (
+                    <motion.div
+                      key={product.id}
+                      className="h-full"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: Math.min(i * 0.03, 0.2) }}
+                    >
+                      <ProductCard
+                        product={product}
+                        storeColor={color}
+                        storeSlug={store.slug}
+                        compact
+                        onTap={() => setViewProduct(product)}
+                      />
+                    </motion.div>
+                  ))}
+                </motion.div>
+              ) : (
+                /* ── GRID ── */
+                <motion.div
+                  key={`grid-${activeCategory}-${search}`}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-3 lg:gap-4 xl:grid-cols-4 xl:gap-5"
+                >
+                  {filtered.map((product, i) => (
+                    <motion.div
+                      key={product.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: Math.min(i * 0.04, 0.3) }}
+                    >
+                      <ProductCard
+                        product={product}
+                        storeColor={color}
+                        storeSlug={store.slug}
+                        onTap={() => setViewProduct(product)}
+                      />
+                    </motion.div>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </main>
 
-        {/* Footer con identidad de la tienda */}
-        <footer className="px-4 pt-8 pb-6 lg:px-6" style={{ borderTop: "1px solid #EEF2F6" }}>
-          <div className="flex items-center gap-3 mb-4">
-            {store.logo_url ? (
-              <Image src={store.logo_url} alt={store.name} width={40} height={40}
-                className="rounded-xl object-cover" />
-            ) : (
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white"
-                style={{ background: color }}
-              >
-                {store.name[0]?.toUpperCase()}
+          {/* Footer con identidad de la tienda */}
+          <footer className="px-4 pt-8 pb-6 lg:px-0" style={{ borderTop: "1px solid var(--line)" }}>
+            <div className="flex items-center gap-3 mb-4">
+              {store.logo_url ? (
+                <Image src={store.logo_url} alt={store.name} width={40} height={40}
+                  className="rounded-xl object-cover" />
+              ) : (
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white"
+                  style={{ background: color }}
+                >
+                  {store.name[0]?.toUpperCase()}
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className="font-bold text-sm" style={{ color: "var(--ink)" }}>{store.name}</p>
+                <p className="text-[11px]" style={{ color: "var(--ink-3)" }}>
+                  {[store.city, mounted && openStatus ? openStatus.label : null].filter(Boolean).join(" · ")}
+                </p>
               </div>
-            )}
-            <div className="min-w-0">
-              <p className="font-bold text-sm" style={{ color: "#0F172A" }}>{store.name}</p>
-              <p className="text-[11px]" style={{ color: "#94A3B8" }}>
-                {[store.city, mounted && openStatus ? openStatus.label : null].filter(Boolean).join(" · ")}
-              </p>
+              {store.whatsapp && (
+                <a
+                  href={`https://wa.me/${store.whatsapp.replace(/\D/g, "")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ml-auto flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-full flex-shrink-0"
+                  style={{ background: "var(--success-soft)", color: "var(--success)" }}
+                >
+                  <MessageCircle size={13} /> WhatsApp
+                </a>
+              )}
             </div>
-            {store.whatsapp && (
-              <a
-                href={`https://wa.me/${store.whatsapp.replace(/\D/g, "")}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="ml-auto flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-full flex-shrink-0"
-                style={{ background: "#F0FDF4", color: "#16A34A", border: "1px solid #BBF7D0" }}
-              >
-                <MessageCircle size={13} /> WhatsApp
+            <div className="flex justify-center items-center gap-2 pt-4" style={{ borderTop: "1px solid var(--line)" }}>
+              <span className="text-[11px] font-medium" style={{ color: "var(--ink-4)" }}>Powered by</span>
+              <a href="https://qtienda.shop" target="_blank" rel="noopener noreferrer">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/brand/qtienda-wordmark.svg" alt="qtienda" style={{ height: 16, width: "auto", opacity: 0.4 }} />
               </a>
-            )}
-          </div>
-          <div className="flex justify-center items-center gap-2 pt-4" style={{ borderTop: "1px solid #F1F5F9" }}>
-            <span className="text-[11px] font-medium" style={{ color: "#CBD5E1" }}>Powered by</span>
-            <a href="https://qtienda.shop" target="_blank" rel="noopener noreferrer">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/brand/qtienda-wordmark.svg" alt="qtienda" style={{ height: 16, width: "auto", opacity: 0.4 }} />
-            </a>
-          </div>
-        </footer>
+            </div>
+          </footer>
+        </div>
       </div>
 
       {/* ══════════════════════════════════
@@ -796,7 +926,7 @@ export default function StorePage({ store, initialProducts }: Props) {
             animate={{ y: 0,   opacity: 1 }}
             exit={{   y: 120, opacity: 0 }}
             transition={{ type: "spring", damping: 20, stiffness: 260 }}
-            className="fixed bottom-0 left-0 right-0 px-4 z-20 max-w-xl mx-auto"
+            className="fixed bottom-0 left-0 right-0 px-4 z-20 max-w-xl mx-auto lg:max-w-sm lg:left-auto lg:right-8 lg:bottom-6"
             style={{ paddingBottom: "max(20px, env(safe-area-inset-bottom))" }}
           >
             <button
@@ -851,17 +981,17 @@ export default function StorePage({ store, initialProducts }: Props) {
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="fixed inset-0 z-[59]"
-              style={{ background: "rgba(15,23,42,.45)" }}
+              style={{ background: "rgba(20,19,15,.45)" }}
               onClick={() => setAccountOpen(false)}
             />
             <motion.div
               initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 28, stiffness: 320 }}
               className="fixed bottom-0 left-0 right-0 z-[60] max-w-xl mx-auto"
-              style={{ background: "#fff", borderRadius: "24px 24px 0 0", boxShadow: "0 -8px 40px rgba(15,23,42,.18)" }}
+              style={{ background: "var(--surface)", borderRadius: "24px 24px 0 0", boxShadow: "var(--shadow-float)" }}
             >
               <div className="flex justify-center pt-3 pb-1">
-                <div className="w-10 h-1 rounded-full bg-gray-200" />
+                <div className="w-10 h-1 rounded-full" style={{ background: "var(--line-2)" }} />
               </div>
               <div className="px-5 pt-3 pb-8" style={{ paddingBottom: "max(32px, env(safe-area-inset-bottom))" }}>
                 <div className="flex items-center gap-3 mb-5">
@@ -876,10 +1006,10 @@ export default function StorePage({ store, initialProducts }: Props) {
                     )}
                   </div>
                   <div className="min-w-0">
-                    <p className="font-bold text-base leading-tight truncate" style={{ color: "#0F172A" }}>
+                    <p className="font-bold text-base leading-tight truncate" style={{ color: "var(--ink)" }}>
                       {user.full_name}
                     </p>
-                    <p className="text-xs truncate mt-0.5" style={{ color: "#94A3B8" }}>{user.email}</p>
+                    <p className="text-xs truncate mt-0.5" style={{ color: "var(--ink-3)" }}>{user.email}</p>
                   </div>
                 </div>
                 <div className="space-y-2.5">
@@ -890,18 +1020,18 @@ export default function StorePage({ store, initialProducts }: Props) {
                   >
                     <span className="text-xl">📦</span>
                     <div className="flex-1">
-                      <p className="text-sm font-bold" style={{ color: "#0F172A" }}>Mis pedidos</p>
-                      <p className="text-xs mt-0.5" style={{ color: "#94A3B8" }}>Ver historial en todas las tiendas</p>
+                      <p className="text-sm font-bold" style={{ color: "var(--ink)" }}>Mis pedidos</p>
+                      <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>Ver historial en todas las tiendas</p>
                     </div>
-                    <ChevronRight size={16} style={{ color: "#CBD5E1" }} />
+                    <ChevronRight size={16} style={{ color: "var(--ink-4)" }} />
                   </a>
                   <button
                     onClick={() => { logout(); setAccountOpen(false); }}
                     className="flex items-center gap-3 w-full rounded-2xl px-4 py-3.5"
-                    style={{ background: "#FEF2F2", border: "1.5px solid #FECACA" }}
+                    style={{ background: "var(--danger-soft)", border: "1.5px solid var(--line-2)" }}
                   >
                     <span className="text-xl">👋</span>
-                    <p className="text-sm font-bold" style={{ color: "#DC2626" }}>Cerrar sesión</p>
+                    <p className="text-sm font-bold" style={{ color: "var(--danger)" }}>Cerrar sesión</p>
                   </button>
                 </div>
               </div>

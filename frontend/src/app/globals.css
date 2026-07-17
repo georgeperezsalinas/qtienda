@@ -165,6 +165,20 @@
   }
   .btn-ghost:hover { background: var(--surface-2); }
 
+  /* Social login button (Google, etc.) */
+  .btn-social {
+    @apply w-full inline-flex items-center justify-center gap-2.5
+           rounded-full px-5 py-3
+           text-sm font-medium
+           transition-all duration-150
+           disabled:opacity-50 disabled:cursor-not-allowed
+           active:scale-[.985];
+    background: var(--surface);
+    color: var(--ink);
+    border: 1.5px solid var(--line-2);
+  }
+  .btn-social:hover:not(:disabled) { background: var(--surface-2); }
+
   /* Card */
   .card {
     background: var(--surface);
@@ -352,6 +366,23 @@
 .delay-150 { animation-delay: .15s; }
 .delay-200 { animation-delay: .20s; }
 .delay-300 { animation-delay: .30s; }
+
+/* ─── Compat: neutraliza clases gray-* de Tailwind usadas en pantallas
+   heredadas para que respeten la paleta papel-cálido en vez del gris azulado
+   por defecto. No toca blue/green/red semánticos (badges de estado). ─── */
+@layer utilities {
+  .text-gray-900, .text-gray-800 { color: var(--ink) !important; }
+  .text-gray-700, .text-gray-600 { color: var(--ink-2) !important; }
+  .text-gray-500 { color: var(--ink-3) !important; }
+  .text-gray-400, .text-gray-300 { color: var(--ink-4) !important; }
+  .border-gray-100 { border-color: var(--line) !important; }
+  .border-gray-200, .border-gray-300 { border-color: var(--line-2) !important; }
+  .bg-gray-50 { background-color: var(--bg) !important; }
+  .bg-gray-100, .bg-gray-200 { background-color: var(--surface-2) !important; }
+  .hover\:border-gray-400:hover { border-color: var(--ink-4) !important; }
+  .hover\:text-gray-600:hover, .hover\:text-gray-800:hover { color: var(--ink-2) !important; }
+  .text-red-400 { color: var(--danger) !important; }
+}
 
 /* ─── Product description (TipTap output) ─── */
 .product-description {

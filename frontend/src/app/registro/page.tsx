@@ -131,8 +131,8 @@ export default function RegistroPage() {
         <div
           className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
           style={{
-            background: "linear-gradient(135deg, #7C3AED, #5B21B6)",
-            boxShadow: "0 6px 24px rgba(124,58,237,.3)",
+            background: "linear-gradient(135deg, var(--accent), var(--accent-ink))",
+            boxShadow: "var(--shadow-md)",
           }}
         >
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
@@ -237,8 +237,8 @@ export default function RegistroPage() {
         <div className="pt-2 animate-fade-up delay-250">
           <button type="submit" disabled={loading} className="btn-primary"
             style={{
-              background: "linear-gradient(135deg, #7C3AED, #5B21B6)",
-              boxShadow: "0 4px 16px rgba(124,58,237,.35)",
+              background: "linear-gradient(135deg, var(--accent), var(--accent-ink))",
+              boxShadow: "0 4px 16px var(--accent-ink)40",
             }}>
             {loading ? (
               <span className="flex items-center gap-2">
@@ -253,7 +253,7 @@ export default function RegistroPage() {
 
         <p className="text-center text-sm animate-fade-up delay-300" style={{ color: "var(--ink-3)" }}>
           ¿Ya tienes cuenta?{" "}
-          <Link href="/auth/login" className="font-bold transition-colors" style={{ color: "#7C3AED" }}>
+          <Link href="/auth/login" className="font-bold transition-colors" style={{ color: "var(--accent-ink)" }}>
             Iniciar sesión
           </Link>
         </p>

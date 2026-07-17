@@ -2,7 +2,10 @@
 // Reemplaza completo. Mantiene fetch de StoresSection.
 
 import Link from "next/link";
-import { ArrowRight, ChevronRight, Check, Package } from "lucide-react";
+import {
+  ArrowRight, ChevronRight, Package, Store, Share2, Wallet,
+  MessageCircle, Percent, Truck,
+} from "lucide-react";
 import Logo from "@/components/ui/Logo";
 
 interface StoreCard {
@@ -30,7 +33,7 @@ async function StoresSection() {
   const stores = await getStores();
   if (!stores.length) return null;
   return (
-    <section className="px-5 md:px-10 py-14 max-w-5xl mx-auto w-full">
+    <section className="px-5 md:px-10 py-14 max-w-6xl mx-auto w-full">
       <div className="flex items-end justify-between mb-6">
         <div>
           <p className="eyebrow">Tiendas activas</p>
@@ -39,12 +42,13 @@ async function StoresSection() {
           </p>
         </div>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
         {stores.map((s) => (
           <Link
             key={s.slug}
             href={`/tienda/${s.slug}`}
-            className="card p-4 flex flex-col items-center text-center gap-3 transition-colors hover:bg-[var(--tint)]"
+            className="card p-4 flex flex-col items-center text-center gap-3 transition-all hover:-translate-y-0.5"
+            style={{ boxShadow: "var(--shadow-sm)" }}
           >
             {s.logo_url ? (
               <img src={s.logo_url} alt={s.name} style={{ width: 48, height: 48, borderRadius: 10, objectFit: "cover" }} />
@@ -80,13 +84,21 @@ async function StoresSection() {
   );
 }
 
+const STEPS = [
+  [Store, "Crea tu tienda", "Nombre, logo y color. Sin tarjeta, sin pasos técnicos — 2 minutos."],
+  [Share2, "Sube tus productos y comparte", "Foto, precio y descripción. Tu link qtienda.shop/tu-nombre queda listo para difundir."],
+  [MessageCircle, "Recibe pedidos por WhatsApp", "Cada venta cae a tu chat. Cobras por Yape, Plin, transferencia o efectivo."],
+] as const;
+
 const FEATURES = [
-  ["01", "Link propio", "qtienda.shop/tu-nombre, listo al crear tu cuenta."],
-  ["02", "WhatsApp directo", "Cada pedido cae a tu chat, sin intermediarios."],
-  ["03", "Pagos como vendes", "Tarjeta, Yape/Plin, transferencia o efectivo."],
-  ["04", "Envíos sin calculadora", "Costo por zona o gratis sobre cierto monto."],
-  ["05", "Sin comisión", "Cobras todo. El plan free dura para siempre."],
-];
+  [Share2, "Link propio", "qtienda.shop/tu-nombre, listo al crear tu cuenta."],
+  [MessageCircle, "WhatsApp directo", "Cada pedido cae a tu chat, sin intermediarios."],
+  [Wallet, "Pagos como vendes", "Tarjeta, Yape/Plin, transferencia o efectivo."],
+  [Truck, "Envíos sin calculadora", "Costo por zona o gratis sobre cierto monto."],
+  [Percent, "Sin comisión", "Cobras todo. El plan free dura para siempre."],
+] as const;
+
+const PAYMENT_METHODS = ["Yape", "Plin", "Transferencia", "Efectivo", "Tarjeta"];
 
 export default function LandingPage() {
   return (
@@ -114,8 +126,8 @@ export default function LandingPage() {
       </header>
 
       {/* ── Hero ── */}
-      <section className="px-5 md:px-10 pt-14 md:pt-20 pb-10 max-w-5xl mx-auto w-full">
-        <div className="md:max-w-3xl">
+      <section className="px-5 md:px-10 pt-14 md:pt-20 pb-10 max-w-6xl mx-auto w-full lg:grid lg:grid-cols-[1.1fr_0.9fr] lg:gap-12 lg:items-center">
+        <div className="md:max-w-3xl lg:max-w-none">
           <div className="flex items-center gap-2 mb-6 animate-fade-up">
             <span className="dot dot-success animate-pulse-soft" />
             <span className="eyebrow">Gratis para siempre · sin tarjeta</span>
@@ -165,8 +177,16 @@ export default function LandingPage() {
             </Link>
           </div>
 
+          {/* Métodos de pago */}
+          <div className="flex flex-wrap items-center gap-2 mt-8 animate-fade-up delay-150">
+            <span className="eyebrow mr-1">Cobra con</span>
+            {PAYMENT_METHODS.map((m) => (
+              <span key={m} className="chip chip-outline">{m}</span>
+            ))}
+          </div>
+
           {/* Social proof */}
-          <div className="flex items-center gap-4 mt-10 animate-fade-up delay-200">
+          <div className="flex items-center gap-4 mt-8 animate-fade-up delay-200">
             <div className="flex">
               {["ML", "CR", "ST", "JV", "RH"].map((n, i) => (
                 <div
@@ -197,16 +217,71 @@ export default function LandingPage() {
             </div>
           </div>
         </div>
+
+        {/* Vitrina de ejemplo (solo desktop) */}
+        <div className="hidden lg:block animate-fade-up delay-200">
+          <div className="card p-5" style={{ borderRadius: 24, boxShadow: "var(--shadow-lg)" }}>
+            <div className="flex items-center gap-2.5 mb-4">
+              <div
+                className="flex items-center justify-center flex-shrink-0"
+                style={{ width: 34, height: 34, borderRadius: 10, background: "var(--accent)", color: "#fff", fontWeight: 600, fontSize: 14 }}
+              >
+                M
+              </div>
+              <div style={{ flex: 1 }}>
+                <div className="placeholder" style={{ height: 9, width: "55%", borderRadius: 4, marginBottom: 6 }} />
+                <div className="placeholder" style={{ height: 7, width: "35%", borderRadius: 4 }} />
+              </div>
+              <span className="badge badge-success">Abierto</span>
+            </div>
+            <div style={{ height: 110, borderRadius: 14, marginBottom: 12, overflow: "hidden" }}>
+              <img src="/placeholders/banner-promo.svg" alt="Banner promocional de ejemplo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            </div>
+            <div className="grid grid-cols-3 gap-2.5">
+              {["Torta", "Brownie", "Cupcake", "Alfajor", "Cheesecake", "Galletas"].map((name, i) => (
+                <div key={name}>
+                  <div style={{ aspectRatio: "1", borderRadius: 10, marginBottom: 6, overflow: "hidden" }}>
+                    <img src="/placeholders/product-photo.svg" alt={`Foto de ${name}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  </div>
+                  <p className="text-[9px] font-medium truncate" style={{ color: "var(--ink-2)" }}>{name}</p>
+                  <p className="mono" style={{ fontSize: 9, color: "var(--accent-ink)", fontWeight: 600 }}>S/ {12 + i * 3}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Cómo funciona ── */}
+      <section className="px-5 md:px-10 max-w-6xl mx-auto w-full pb-14">
+        <p className="eyebrow mb-5">Cómo funciona</p>
+        <div className="grid md:grid-cols-3 gap-4">
+          {STEPS.map(([Icon, t, d], i) => (
+            <div key={t} className="card p-6" style={{ borderRadius: 20 }}>
+              <div className="flex items-center justify-between mb-5">
+                <div
+                  className="flex items-center justify-center rounded-xl"
+                  style={{ width: 40, height: 40, background: "var(--accent-soft)", color: "var(--accent-ink)" }}
+                >
+                  <Icon size={19} strokeWidth={1.7} />
+                </div>
+                <span className="mono text-xs" style={{ color: "var(--ink-4)" }}>0{i + 1}</span>
+              </div>
+              <p className="text-base font-medium mb-1.5">{t}</p>
+              <p className="text-sm" style={{ color: "var(--ink-2)", lineHeight: 1.55 }}>{d}</p>
+            </div>
+          ))}
+        </div>
       </section>
 
       {/* ── Demo strip ── */}
-      <section className="px-5 md:px-10 max-w-5xl mx-auto w-full pb-14">
+      <section className="px-5 md:px-10 max-w-6xl mx-auto w-full pb-14">
         <div className="card p-5 md:p-7 animate-fade-up delay-200">
           <p className="eyebrow mb-3">Cómo se ve tu link</p>
           <p className="mono mb-5" style={{ fontSize: 22, fontWeight: 500, letterSpacing: "-0.01em" }}>
             qtienda.shop/<span style={{ color: "var(--accent)" }}>tu-nombre</span>
           </p>
-          <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+          <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
             {Array.from({ length: 8 }).map((_, i) => (
               <div
                 key={i}
@@ -219,21 +294,21 @@ export default function LandingPage() {
       </section>
 
       {/* ── Features ── */}
-      <section className="px-5 md:px-10 max-w-5xl mx-auto w-full pb-14">
+      <section className="px-5 md:px-10 max-w-6xl mx-auto w-full pb-14">
         <p className="eyebrow mb-5">Lo que incluye</p>
-        <div className="grid md:grid-cols-2 gap-x-12">
-          {FEATURES.map(([n, t, d]) => (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {FEATURES.map(([Icon, t, d]) => (
             <div
-              key={n}
-              className="flex gap-5"
-              style={{ padding: "16px 0", borderTop: "1px solid var(--line)" }}
+              key={t}
+              className="flex flex-col gap-3 p-5"
+              style={{ border: "1px solid var(--line)", borderRadius: 16 }}
             >
-              <span
-                className="mono text-xs"
-                style={{ color: "var(--ink-3)", width: 22, flexShrink: 0, paddingTop: 2 }}
+              <div
+                className="flex items-center justify-center rounded-lg"
+                style={{ width: 34, height: 34, background: "var(--surface-2)", color: "var(--ink-2)" }}
               >
-                {n}
-              </span>
+                <Icon size={16} strokeWidth={1.7} />
+              </div>
               <div>
                 <p className="text-base font-medium">{t}</p>
                 <p className="text-sm mt-1" style={{ color: "var(--ink-2)" }}>
@@ -246,7 +321,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── Buyer card ── */}
-      <section className="px-5 md:px-10 max-w-5xl mx-auto w-full pb-14">
+      <section className="px-5 md:px-10 max-w-6xl mx-auto w-full pb-14">
         <div
           className="card flex flex-col sm:flex-row items-start sm:items-center gap-6"
           style={{
@@ -274,13 +349,41 @@ export default function LandingPage() {
       {/* ── Stores section (server) ── */}
       <StoresSection />
 
+      {/* ── CTA final ── */}
+      <section className="px-5 md:px-10 max-w-6xl mx-auto w-full pb-16">
+        <div
+          className="flex flex-col items-center text-center gap-4 py-14 px-6"
+          style={{ background: "var(--ink)", color: "var(--bg)", borderRadius: 24 }}
+        >
+          <p className="text-2xl md:text-3xl font-medium" style={{ letterSpacing: "-0.018em" }}>
+            Tu vitrina profesional, lista hoy.
+          </p>
+          <p className="text-sm max-w-md" style={{ color: "var(--ink-5)" }}>
+            Sin tarjeta, sin comisiones, sin curva de aprendizaje.
+          </p>
+          <Link
+            href="/auth/register"
+            className="inline-flex items-center gap-2 rounded-full font-medium mt-2"
+            style={{ padding: "14px 24px", fontSize: 15, background: "var(--bg)", color: "var(--ink)" }}
+          >
+            Crear tienda gratis
+            <ArrowRight size={16} />
+          </Link>
+        </div>
+      </section>
+
       {/* ── Footer ── */}
       <footer
-        className="px-5 md:px-10 py-6 mt-auto"
+        className="px-5 md:px-10 py-8 mt-auto"
         style={{ borderTop: "1px solid var(--line)" }}
       >
-        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <Logo size="sm" />
+          <div className="flex items-center gap-5 text-xs" style={{ color: "var(--ink-3)" }}>
+            <Link href="/auth/login" className="hover:underline">Ingresar</Link>
+            <Link href="/auth/register" className="hover:underline">Crear tienda</Link>
+            <Link href="/mis-pedidos" className="hover:underline">Mis pedidos</Link>
+          </div>
           <p className="text-xs" style={{ color: "var(--ink-3)" }}>
             © 2026 qtienda · Hecho en LatAm
           </p>

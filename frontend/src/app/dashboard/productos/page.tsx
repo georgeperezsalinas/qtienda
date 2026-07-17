@@ -71,8 +71,8 @@ function ProductCard({
     <div
       className="rounded-2xl flex items-center gap-3.5 p-3 transition-all"
       style={{
-        background: "var(--surface-0)",
-        border: "1.5px solid #E2E8F0",
+        background: "var(--surface)",
+        border: "1.5px solid var(--line-2)",
         boxShadow: "var(--shadow-sm)",
         opacity: active ? 1 : 0.65,
       }}
@@ -80,7 +80,7 @@ function ProductCard({
       {/* Thumbnail */}
       <div
         className="w-16 h-16 rounded-xl flex-shrink-0 overflow-hidden relative"
-        style={{ background: "var(--surface-1)" }}
+        style={{ background: "var(--surface-2)" }}
       >
         {img && !imgError ? (
           <Image
@@ -105,7 +105,7 @@ function ProductCard({
         {product.is_featured && (
           <span
             className="absolute bottom-1 right-1 w-4 h-4 rounded-full flex items-center justify-center"
-            style={{ background: "#F59E0B" }}
+            style={{ background: "var(--warn)" }}
           >
             <Star size={8} fill="white" color="white" />
           </span>
@@ -141,8 +141,8 @@ function ProductCard({
             <span
               className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
               style={{
-                background: product.stock > 0 ? "#D1FAE5" : "#FEE2E2",
-                color: product.stock > 0 ? "#065F46" : "#991B1B",
+                background: product.stock > 0 ? "var(--success-soft)" : "var(--danger-soft)",
+                color: product.stock > 0 ? "var(--success)" : "var(--danger)",
               }}
             >
               {product.stock > 0 ? `${product.stock} en stock` : "Agotado"}
@@ -158,9 +158,9 @@ function ProductCard({
           title={active ? "Desactivar" : "Activar"}
           className="w-8 h-8 rounded-xl flex items-center justify-center transition-all"
           style={{
-            background: active ? "#D1FAE5" : "var(--surface-1)",
-            color: active ? "#059669" : "var(--ink-3)",
-            border: `1.5px solid ${active ? "#A7F3D0" : "#E2E8F0"}`,
+            background: active ? "var(--success-soft)" : "var(--surface-2)",
+            color: active ? "var(--success)" : "var(--ink-3)",
+            border: `1.5px solid ${active ? "var(--line-2)" : "var(--line-2)"}`,
           }}
         >
           {active ? <Eye size={14} /> : <EyeOff size={14} />}
@@ -169,9 +169,9 @@ function ProductCard({
           onClick={onEdit}
           className="w-8 h-8 rounded-xl flex items-center justify-center transition-all"
           style={{
-            background: "var(--surface-1)",
+            background: "var(--surface-2)",
             color: "var(--ink-2)",
-            border: "1.5px solid #E2E8F0",
+            border: "1.5px solid var(--line-2)",
           }}
         >
           <Pencil size={13} />
@@ -180,9 +180,9 @@ function ProductCard({
           onClick={onDelete}
           className="w-8 h-8 rounded-xl flex items-center justify-center transition-all"
           style={{
-            background: "#FEF2F2",
+            background: "var(--danger-soft)",
             color: "var(--danger)",
-            border: "1.5px solid #FECACA",
+            border: "1.5px solid var(--line-2)",
           }}
         >
           <Trash2 size={13} />
@@ -200,7 +200,7 @@ function Toggle({ checked, onChange, label, sub }: {
 }) {
   return (
     <div className="flex items-center justify-between py-3.5"
-      style={{ borderBottom: "1px solid #F1F5F9" }}>
+      style={{ borderBottom: "1px solid var(--line)" }}>
       <div>
         <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{label}</p>
         {sub && <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>{sub}</p>}
@@ -209,7 +209,7 @@ function Toggle({ checked, onChange, label, sub }: {
         type="button"
         onClick={onChange}
         className="relative w-11 h-6 rounded-full transition-colors flex-shrink-0"
-        style={{ background: checked ? "var(--brand-600)" : "#E2E8F0" }}
+        style={{ background: checked ? "var(--ink)" : "var(--line-2)" }}
         aria-checked={checked}
         role="switch"
       >
@@ -408,13 +408,13 @@ export default function ProductosPage() {
   return (
     <div
       className="max-w-2xl lg:max-w-6xl xl:max-w-7xl mx-auto pb-8"
-      style={{ background: "var(--surface-2)", minHeight: "100%" }}
+      style={{ background: "var(--bg)", minHeight: "100%" }}
     >
 
       {/* ── Header ── */}
       <div
         className="sticky top-0 z-10 px-5 pt-safe pt-5 md:pt-7 pb-4"
-        style={{ background: "var(--surface-0)", borderBottom: "1px solid #F1F5F9" }}
+        style={{ background: "var(--surface)", borderBottom: "1px solid var(--line)" }}
       >
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -456,9 +456,9 @@ export default function ProductosPage() {
                 onClick={() => setFilter(f)}
                 className="px-3 py-2.5 rounded-xl text-xs font-bold transition-all"
                 style={{
-                  background: filter === f ? "var(--brand-600)" : "var(--surface-0)",
-                  color: filter === f ? "#fff" : "var(--ink-3)",
-                  border: `1.5px solid ${filter === f ? "var(--brand-600)" : "#E2E8F0"}`,
+                  background: filter === f ? "var(--ink)" : "var(--surface)",
+                  color: filter === f ? "var(--bg)" : "var(--ink-3)",
+                  border: `1.5px solid ${filter === f ? "var(--ink)" : "var(--line-2)"}`,
                 }}
               >
                 {f === "all" ? "Todos" : f === "active" ? "Activos" : "Inactivos"}
@@ -476,7 +476,7 @@ export default function ProductosPage() {
           <div className="py-20 flex flex-col items-center text-center animate-fade-in lg:col-span-2 xl:col-span-3">
             <div
               className="w-20 h-20 rounded-2xl flex items-center justify-center mb-4"
-              style={{ background: "var(--surface-1)" }}
+              style={{ background: "var(--surface-2)" }}
             >
               <Package size={36} style={{ color: "var(--ink-4)" }} />
             </div>
@@ -515,31 +515,30 @@ export default function ProductosPage() {
           {/* Backdrop */}
           <div
             className="fixed inset-0 z-40"
-            style={{ background: "rgba(15,23,42,.5)", backdropFilter: "blur(2px)" }}
+            style={{ background: "rgba(20,19,15,.5)", backdropFilter: "blur(2px)" }}
             onClick={() => setShowForm(false)}
           />
 
-          {/* Sheet */}
+          {/* Sheet (móvil/tablet) / Modal centrado (desktop) */}
           <div
             ref={drawerRef}
-            className="fixed bottom-0 left-0 right-0 z-50 animate-fade-up"
+            className="fixed bottom-0 left-0 right-0 z-50 animate-fade-up rounded-t-[28px] lg:inset-0 lg:bottom-auto lg:m-auto lg:h-fit lg:max-h-[85vh] lg:w-[560px] lg:rounded-[24px]"
             style={{
-              background: "var(--surface-0)",
-              borderRadius: "28px 28px 0 0",
-              boxShadow: "0 -8px 40px rgba(15,23,42,.2)",
+              background: "var(--surface)",
+              boxShadow: "var(--shadow-float)",
               maxHeight: "94dvh",
               overflowY: "auto",
             }}
           >
-            {/* Handle */}
-            <div className="flex justify-center pt-3 pb-2">
+            {/* Handle (solo móvil) */}
+            <div className="flex justify-center pt-3 pb-2 lg:hidden">
               <div className="w-10 h-1 rounded-full" style={{ background: "var(--ink-4)" }} />
             </div>
 
             {/* Sheet header */}
             <div
               className="flex items-center justify-between px-5 pb-4"
-              style={{ borderBottom: "1px solid #F1F5F9" }}
+              style={{ borderBottom: "1px solid var(--line)" }}
             >
               <div>
                 <h2 className="font-display font-extrabold text-lg" style={{ color: "var(--ink)" }}>
@@ -552,7 +551,7 @@ export default function ProductosPage() {
               <button
                 onClick={() => setShowForm(false)}
                 className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors"
-                style={{ background: "var(--surface-1)", border: "1.5px solid #E2E8F0" }}
+                style={{ background: "var(--surface-2)", border: "1.5px solid var(--line-2)" }}
               >
                 <X size={17} style={{ color: "var(--ink-2)" }} />
               </button>
@@ -611,11 +610,11 @@ export default function ProductosPage() {
                   <div>
                     <div
                       className="flex items-center rounded-xl overflow-hidden"
-                      style={{ border: "1.5px solid #E2E8F0", background: "var(--surface-1)" }}
+                      style={{ border: "1.5px solid var(--line-2)", background: "var(--surface-2)" }}
                     >
                       <span
                         className="px-3 font-bold text-sm"
-                        style={{ color: "var(--ink-2)", borderRight: "1px solid #E2E8F0" }}
+                        style={{ color: "var(--ink-2)", borderRight: "1px solid var(--line-2)" }}
                       >
                         S/
                       </span>
@@ -635,11 +634,11 @@ export default function ProductosPage() {
                   <div>
                     <div
                       className="flex items-center rounded-xl overflow-hidden"
-                      style={{ border: "1.5px solid #E2E8F0", background: "var(--surface-1)" }}
+                      style={{ border: "1.5px solid var(--line-2)", background: "var(--surface-2)" }}
                     >
                       <span
                         className="px-3 font-bold text-sm"
-                        style={{ color: "var(--ink-2)", borderRight: "1px solid #E2E8F0" }}
+                        style={{ color: "var(--ink-2)", borderRight: "1px solid var(--line-2)" }}
                       >
                         S/
                       </span>
@@ -700,7 +699,7 @@ export default function ProductosPage() {
               </div>
 
               {/* Toggles */}
-              <div style={{ borderTop: "1px solid #F1F5F9" }}>
+              <div style={{ borderTop: "1px solid var(--line)" }}>
                 <Toggle
                   checked={form.is_featured}
                   onChange={() => setForm((f) => ({ ...f, is_featured: !f.is_featured }))}
@@ -714,12 +713,12 @@ export default function ProductosPage() {
                 parseFloat(form.compare_price) > parseFloat(form.price_cents) && (
                   <div
                     className="rounded-2xl p-3 flex items-center gap-3"
-                    style={{ background: "#FEF3C7", border: "1.5px solid #FDE68A" }}
+                    style={{ background: "var(--warn-soft)", border: "1.5px solid var(--line-2)" }}
                   >
-                    <Tag size={16} style={{ color: "#D97706", flexShrink: 0 }} />
-                    <p className="text-xs font-semibold" style={{ color: "#92400E" }}>
+                    <Tag size={16} style={{ color: "var(--warn)", flexShrink: 0 }} />
+                    <p className="text-xs font-semibold" style={{ color: "var(--warn)" }}>
                       Descuento activo: clientes verán{" "}
-                      <strong style={{ color: "#D97706" }}>
+                      <strong style={{ color: "var(--warn)" }}>
                         {formatPrice(Math.round(parseFloat(form.price_cents) * 100))}
                       </strong>{" "}
                       en lugar de{" "}

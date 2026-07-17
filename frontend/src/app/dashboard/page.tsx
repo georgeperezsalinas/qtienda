@@ -310,6 +310,9 @@ export default function DashboardPage() {
           </h1>
         </div>
 
+        <div className="lg:grid lg:grid-cols-[1fr_340px] lg:gap-8 lg:items-start">
+        <div className="min-w-0">
+
         {/* Store strip */}
         <Link
           href="/dashboard/configuracion"
@@ -497,11 +500,11 @@ export default function DashboardPage() {
           )
         }
 
-        <div className="lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
+        <div className="md:grid md:grid-cols-2 md:gap-6 md:items-start">
         {/* Today — typographic, no boxes */}
         {
           !loadingStats && (
-            <div className={`animate-fade-up mb-7 ${analytics && analytics.store_views > 0 ? "" : "lg:col-span-2"}`}>
+            <div className={`animate-fade-up mb-7 ${analytics && analytics.store_views > 0 ? "" : "md:col-span-2"}`}>
               <p className="eyebrow mb-3">Hoy</p>
               <div
                 className="grid grid-cols-3"
@@ -589,6 +592,11 @@ export default function DashboardPage() {
 
         </div>
 
+        </div>{/* /col izquierda */}
+
+        {/* ── Columna derecha (sticky, solo desktop): pedidos recientes + plan ── */}
+        <div className="lg:sticky lg:top-6">
+
         {/* Recent orders */}
         {
           recent.length > 0 && (
@@ -660,6 +668,9 @@ export default function DashboardPage() {
             </Link>
           )
         }
+        </div>{/* /col derecha */}
+
+      </div >{/* /grid principal */}
       </div >
     </div >
   );

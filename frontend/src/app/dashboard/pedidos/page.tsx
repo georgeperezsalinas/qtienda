@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
-import { Search, ChevronDown, Phone, MapPin, Package } from "lucide-react";
+import { Search, Phone, MapPin, Package } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
@@ -17,13 +17,13 @@ const STATUSES = [
   { value: "cancelled", label: "Cancelado" },
 ];
 
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  pending:    { label: "Pendiente",  color: "bg-yellow-100 text-yellow-700" },
-  confirmed:  { label: "Confirmado", color: "bg-blue-100 text-blue-700" },
-  preparing:  { label: "Preparando", color: "bg-purple-100 text-purple-700" },
-  on_the_way: { label: "En camino",  color: "bg-indigo-100 text-indigo-700" },
-  delivered:  { label: "Entregado",  color: "bg-green-100 text-green-700" },
-  cancelled:  { label: "Cancelado",  color: "bg-red-100 text-red-700" },
+const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
+  pending:    { label: "Pendiente",  cls: "badge-warn" },
+  confirmed:  { label: "Confirmado", cls: "badge-mute" },
+  preparing:  { label: "Preparando", cls: "badge-mute" },
+  on_the_way: { label: "En camino",  cls: "badge-mute" },
+  delivered:  { label: "Entregado",  cls: "badge-success" },
+  cancelled:  { label: "Cancelado",  cls: "badge-danger" },
 };
 
 const TRANSITIONS: Record<string, { value: string; label: string }[]> = {
@@ -69,6 +69,26 @@ const DATE_RANGES = [
 
 function toISODate(d: Date) {
   return d.toISOString().slice(0, 10);
+}
+
+/* Botón de transición de estado — estilo consistente con tokens */
+function TransitionButton({ t, onClick, disabled }: { t: { value: string; label: string }; onClick: () => void; disabled: boolean }) {
+  const style =
+    t.value === "cancelled"
+      ? { background: "var(--danger-soft)", color: "var(--danger)" }
+      : t.value === "pending"
+      ? { background: "var(--warn-soft)", color: "var(--warn)" }
+      : { background: "var(--ink)", color: "var(--bg)" };
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-opacity disabled:opacity-50"
+      style={style}
+    >
+      {t.label}
+    </button>
+  );
 }
 
 export default function PedidosPage() {
@@ -137,12 +157,12 @@ export default function PedidosPage() {
                 rel="noopener noreferrer"
                 onClick={() => toast.dismiss(t.id)}
                 className="text-xs font-bold px-3 py-1.5 rounded-lg text-white"
-                style={{ background: "#16A34A" }}
+                style={{ background: "var(--success)" }}
               >
                 WhatsApp
               </a>
               <button onClick={() => toast.dismiss(t.id)}
-                      className="text-xs text-slate-400 hover:text-slate-600">
+                      className="text-xs" style={{ color: "var(--ink-3)" }}>
                 Omitir
               </button>
             </span>
@@ -167,27 +187,27 @@ export default function PedidosPage() {
   const detailContent = selected && (
     <>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="font-display font-bold text-lg">Pedido #{selected.order_number}</h2>
-        <span className={`badge ${STATUS_LABELS[selected.status]?.color}`}>
+        <h2 className="font-display font-bold text-lg" style={{ color: "var(--ink)" }}>Pedido #{selected.order_number}</h2>
+        <span className={`badge ${STATUS_LABELS[selected.status]?.cls}`}>
           {STATUS_LABELS[selected.status]?.label}
         </span>
       </div>
 
       <div className="space-y-3 mb-4">
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <Phone size={14} className="text-gray-400" />
-          <a href={`tel:${selected.buyer_phone}`} className="hover:text-brand-600">
+        <div className="flex items-center gap-2 text-sm" style={{ color: "var(--ink-2)" }}>
+          <Phone size={14} style={{ color: "var(--ink-4)" }} />
+          <a href={`tel:${selected.buyer_phone}`} className="hover:underline">
             {selected.buyer_name} — {selected.buyer_phone}
           </a>
         </div>
         {selected.buyer_address && (
-          <div className="flex items-start gap-2 text-sm text-gray-600">
-            <MapPin size={14} className="text-gray-400 mt-0.5" />
+          <div className="flex items-start gap-2 text-sm" style={{ color: "var(--ink-2)" }}>
+            <MapPin size={14} className="mt-0.5" style={{ color: "var(--ink-4)" }} />
             {selected.buyer_address}
           </div>
         )}
         {selected.notes && (
-          <p className="text-sm text-gray-500 italic">"{selected.notes}"</p>
+          <p className="text-sm italic" style={{ color: "var(--ink-3)" }}>"{selected.notes}"</p>
         )}
       </div>
 
@@ -195,25 +215,25 @@ export default function PedidosPage() {
         {selected.items.map((item, i) => (
           <div key={i} className="flex items-center gap-3">
             {item.image_url && (
-              <img src={item.image_url} alt={item.product_name} className="w-10 h-10 rounded-lg object-cover bg-gray-50" />
+              <img src={item.image_url} alt={item.product_name} className="w-10 h-10 rounded-lg object-cover" style={{ background: "var(--surface-2)" }} />
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">{item.product_name}</p>
-              <p className="text-xs text-gray-500">x{item.quantity} · {formatPrice(item.unit_price)}</p>
+              <p className="text-sm font-medium truncate" style={{ color: "var(--ink)" }}>{item.product_name}</p>
+              <p className="text-xs" style={{ color: "var(--ink-3)" }}>x{item.quantity} · {formatPrice(item.unit_price)}</p>
             </div>
-            <p className="text-sm font-bold">{formatPrice(item.unit_price * item.quantity)}</p>
+            <p className="text-sm font-bold" style={{ color: "var(--ink)" }}>{formatPrice(item.unit_price * item.quantity)}</p>
           </div>
         ))}
       </div>
 
-      <div className="rounded-xl bg-gray-50 p-3 space-y-1 text-sm mb-4">
-        <div className="flex justify-between text-gray-600">
+      <div className="rounded-xl p-3 space-y-1 text-sm mb-4" style={{ background: "var(--bg)" }}>
+        <div className="flex justify-between" style={{ color: "var(--ink-2)" }}>
           <span>Subtotal</span><span>{formatPrice(selected.subtotal_cents)}</span>
         </div>
-        <div className="flex justify-between text-gray-600">
+        <div className="flex justify-between" style={{ color: "var(--ink-2)" }}>
           <span>Delivery</span><span>{formatPrice(selected.delivery_cents)}</span>
         </div>
-        <div className="flex justify-between font-bold text-gray-900 border-t border-gray-200 pt-1">
+        <div className="flex justify-between font-bold pt-1" style={{ color: "var(--ink)", borderTop: "1px solid var(--line-2)" }}>
           <span>Total</span><span>{formatPrice(selected.total_cents)}</span>
         </div>
       </div>
@@ -225,13 +245,14 @@ export default function PedidosPage() {
               key={t.value}
               onClick={() => changeStatus(selected.id, t.value)}
               disabled={updating}
-              className={`flex-1 font-semibold py-3 rounded-xl text-sm transition-colors ${
+              className="flex-1 font-semibold py-3 rounded-xl text-sm transition-opacity disabled:opacity-50"
+              style={
                 t.value === "cancelled"
-                  ? "bg-red-50 text-red-600"
+                  ? { background: "var(--danger-soft)", color: "var(--danger)" }
                   : t.value === "pending"
-                  ? "bg-yellow-50 text-yellow-700"
-                  : "bg-brand-600 text-white"
-              }`}
+                  ? { background: "var(--warn-soft)", color: "var(--warn)" }
+                  : { background: "var(--ink)", color: "var(--bg)" }
+              }
             >
               {t.label}
             </button>
@@ -242,8 +263,8 @@ export default function PedidosPage() {
   );
 
   return (
-    <div className="p-5 max-w-2xl lg:max-w-6xl mx-auto">
-      <h1 className="font-display font-bold text-xl text-gray-900 mb-4">Pedidos</h1>
+    <div className="p-5 md:p-8 max-w-2xl lg:max-w-6xl mx-auto">
+      <h1 className="font-display font-bold text-xl lg:text-2xl mb-4 lg:mb-6" style={{ color: "var(--ink)" }}>Pedidos</h1>
 
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-6 lg:items-start">
       <div>
@@ -251,7 +272,7 @@ export default function PedidosPage() {
       {/* Filters */}
       <div className="flex flex-wrap gap-2 mb-4">
         <div className="relative flex-1 min-w-[180px]">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--ink-4)" }} />
           <input
             className="input pl-9 py-2.5"
             placeholder="Buscar nombre, teléfono..."
@@ -285,58 +306,49 @@ export default function PedidosPage() {
           {[...Array(5)].map((_, i) => <div key={i} className="skeleton h-20 rounded-2xl" />)}
         </div>
       ) : orders.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
+        <div className="text-center py-16" style={{ color: "var(--ink-4)" }}>
           <Package size={48} className="mx-auto mb-3 opacity-40" />
           <p>No hay pedidos</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
           {orders.map((order) => {
-            const s = STATUS_LABELS[order.status] || { label: order.status, color: "bg-gray-100 text-gray-600" };
+            const s = STATUS_LABELS[order.status] ?? { label: order.status, cls: "badge-mute" };
+            const isSelected = selected?.id === order.id;
             return (
               <div
                 key={order.id}
                 onClick={() => loadDetail(order.id)}
-                className={`card p-4 cursor-pointer hover:border-brand-200 transition-colors ${
-                  selected?.id === order.id ? "ring-2 ring-brand-200 border-brand-300" : ""
-                }`}
+                className="card p-4 cursor-pointer transition-all h-fit"
+                style={{
+                  borderColor: isSelected ? "var(--ink)" : "var(--line)",
+                  boxShadow: isSelected ? "0 0 0 1.5px var(--ink)" : "none",
+                }}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="font-bold text-sm text-gray-900">#{order.order_number}</span>
-                      <span className={`badge text-xs ${s.color}`}>{s.label}</span>
+                      <span className="font-bold text-sm" style={{ color: "var(--ink)" }}>#{order.order_number}</span>
+                      <span className={`badge ${s.cls}`}>{s.label}</span>
                     </div>
-                    <p className="text-sm font-medium text-gray-700 truncate">{order.buyer_name}</p>
-                    <p className="text-xs text-gray-400">{order.buyer_phone} · {order.items_count} ítem{order.items_count !== 1 ? "s" : ""}</p>
+                    <p className="text-sm font-medium truncate" style={{ color: "var(--ink-2)" }}>{order.buyer_name}</p>
+                    <p className="text-xs" style={{ color: "var(--ink-4)" }}>{order.buyer_phone} · {order.items_count} ítem{order.items_count !== 1 ? "s" : ""}</p>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <p className="font-bold text-gray-900">{formatPrice(order.total_cents)}</p>
-                    <p className="text-xs text-gray-400">{formatDate(order.created_at)}</p>
+                    <p className="font-bold" style={{ color: "var(--ink)" }}>{formatPrice(order.total_cents)}</p>
+                    <p className="text-xs" style={{ color: "var(--ink-4)" }}>{formatDate(order.created_at)}</p>
                   </div>
                 </div>
 
                 {/* Inline quick actions */}
                 {TRANSITIONS[order.status]?.length > 0 && (
                   <div
-                    className="flex gap-2 mt-3 pt-3 border-t border-gray-100"
+                    className="flex gap-2 mt-3 pt-3"
+                    style={{ borderTop: "1px solid var(--line)" }}
                     onClick={(e) => e.stopPropagation()}
                   >
                     {TRANSITIONS[order.status].map((t) => (
-                      <button
-                        key={t.value}
-                        onClick={() => changeStatus(order.id, t.value)}
-                        disabled={updating}
-                        className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${
-                          t.value === "cancelled"
-                            ? "bg-red-50 text-red-600 hover:bg-red-100"
-                            : t.value === "pending"
-                            ? "bg-yellow-50 text-yellow-700 hover:bg-yellow-100"
-                            : "bg-brand-50 text-brand-700 hover:bg-brand-100"
-                        }`}
-                      >
-                        {t.label}
-                      </button>
+                      <TransitionButton key={t.value} t={t} disabled={updating} onClick={() => changeStatus(order.id, t.value)} />
                     ))}
                   </div>
                 )}
@@ -356,7 +368,7 @@ export default function PedidosPage() {
           >
             Anterior
           </button>
-          <span className="text-sm text-gray-500 self-center">
+          <span className="text-sm self-center" style={{ color: "var(--ink-3)" }}>
             {page} / {Math.ceil(total / 20)}
           </span>
           <button
@@ -376,7 +388,7 @@ export default function PedidosPage() {
         {selected ? (
           <div className="card p-5">{detailContent}</div>
         ) : (
-          <div className="card p-10 text-center text-gray-400">
+          <div className="card p-10 text-center" style={{ color: "var(--ink-4)" }}>
             <Package size={40} className="mx-auto mb-3 opacity-40" />
             <p className="text-sm">Selecciona un pedido para ver el detalle</p>
           </div>
@@ -388,12 +400,13 @@ export default function PedidosPage() {
       {selected && (
         <div className="lg:hidden">
           <div
-            className="fixed inset-0 bg-black/40 z-40"
+            className="fixed inset-0 z-40"
+            style={{ background: "rgba(20,19,15,.4)" }}
             onClick={() => setSelected(null)}
           />
-          <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl z-50 max-h-[85vh] overflow-y-auto">
+          <div className="fixed bottom-0 left-0 right-0 rounded-t-3xl z-50 max-h-[85vh] overflow-y-auto" style={{ background: "var(--surface)" }}>
             <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 rounded-full bg-gray-200" />
+              <div className="w-10 h-1 rounded-full" style={{ background: "var(--line-2)" }} />
             </div>
             <div className="px-5 pb-8">{detailContent}</div>
           </div>

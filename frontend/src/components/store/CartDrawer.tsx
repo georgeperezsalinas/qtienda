@@ -47,8 +47,8 @@ function Stepper({ step, color }: { step: Step; color: string }) {
               <div
                 className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300"
                 style={{
-                  background: done || active ? color : "#E2E8F0",
-                  color: done || active ? "#fff" : "#94A3B8",
+                  background: done || active ? color : "var(--line-2)",
+                  color: done || active ? "#fff" : "var(--ink-3)",
                   transform: active ? "scale(1.1)" : "scale(1)",
                 }}
               >
@@ -56,7 +56,7 @@ function Stepper({ step, color }: { step: Step; color: string }) {
               </div>
               <span
                 className="text-[10px] font-semibold transition-colors"
-                style={{ color: active ? color : done ? "#94A3B8" : "#CBD5E1" }}
+                style={{ color: active ? color : done ? "var(--ink-3)" : "var(--ink-4)" }}
               >
                 {s.label}
               </span>
@@ -65,7 +65,7 @@ function Stepper({ step, color }: { step: Step; color: string }) {
             {i < STEPS.length - 1 && (
               <div
                 className="w-16 h-0.5 mb-4 mx-1 transition-all duration-300"
-                style={{ background: done ? color : "#E2E8F0" }}
+                style={{ background: done ? color : "var(--line-2)" }}
               />
             )}
           </div>
@@ -79,7 +79,7 @@ function Stepper({ step, color }: { step: Step; color: string }) {
 function Field({ label, icon, children }: { label: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
     <div>
-      <label className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#94A3B8" }}>
+      <label className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "var(--ink-3)" }}>
         {icon}
         {label}
       </label>
@@ -189,26 +189,25 @@ export default function CartDrawer({ open, onClose, store }: Props) {
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             onClick={handleClose}
             className="fixed inset-0 z-40"
-            style={{ background: "rgba(15,23,42,.5)", backdropFilter: "blur(4px)" }}
+            style={{ background: "rgba(20,19,15,.5)", backdropFilter: "blur(4px)" }}
           />
 
-          {/* Sheet */}
+          {/* Sheet (m\u00f3vil/tablet) / Modal centrado (desktop) */}
           <motion.div
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 30, stiffness: 320 }}
-            className="fixed bottom-0 left-0 right-0 z-50 flex flex-col"
+            className="fixed bottom-0 left-0 right-0 z-50 flex flex-col rounded-t-[28px] lg:inset-0 lg:bottom-auto lg:m-auto lg:h-fit lg:max-w-[480px] lg:rounded-[24px]"
             style={{
-              background: "#fff",
-              borderRadius: "28px 28px 0 0",
-              maxHeight: "94dvh",
-              boxShadow: "0 -8px 48px rgba(15,23,42,.2)",
+              background: "var(--surface)",
+              maxHeight: "90dvh",
+              boxShadow: "0 -8px 48px rgba(20,19,15,.2)",
             }}
           >
             {/* Handle */}
             <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
-              <div className="w-10 h-1 rounded-full" style={{ background: "#E2E8F0" }} />
+              <div className="w-10 h-1 rounded-full" style={{ background: "var(--line-2)" }} />
             </div>
 
             {/* Header */}
@@ -217,12 +216,12 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                 <button
                   onClick={() => go(step === "payment" ? "info" : "cart", -1)}
                   className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors"
-                  style={{ background: "#F1F5F9" }}
+                  style={{ background: "var(--surface-2)" }}
                 >
-                  <ArrowLeft size={18} style={{ color: "#475569" }} />
+                  <ArrowLeft size={18} style={{ color: "var(--ink-2)" }} />
                 </button>
               )}
-              <h2 className="font-extrabold text-lg flex-1" style={{ color: "#0F172A", fontFamily: "var(--font-display)" }}>
+              <h2 className="font-extrabold text-lg flex-1" style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}>
                 {step === "cart" && `Mi pedido (${items.length})`}
                 {step === "info" && "¿A dónde enviamos?"}
                 {step === "payment" && "¿Cómo pagas?"}
@@ -231,9 +230,9 @@ export default function CartDrawer({ open, onClose, store }: Props) {
               <button
                 onClick={handleClose}
                 className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ background: "#F1F5F9" }}
+                style={{ background: "var(--surface-2)" }}
               >
-                <X size={17} style={{ color: "#475569" }} />
+                <X size={17} style={{ color: "var(--ink-2)" }} />
               </button>
             </div>
 
@@ -243,7 +242,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
             </div>
 
             {/* Divider */}
-            <div className="flex-shrink-0" style={{ borderTop: "1px solid #F1F5F9" }} />
+            <div className="flex-shrink-0" style={{ borderTop: "1px solid var(--line)" }} />
 
             {/* Scrollable content */}
             <div className="flex-1 overflow-y-auto overscroll-contain">
@@ -265,12 +264,12 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                         <div className="py-16 flex flex-col items-center text-center">
                           <div
                             className="w-20 h-20 rounded-3xl flex items-center justify-center mb-4"
-                            style={{ background: "#F1F5F9" }}
+                            style={{ background: "var(--surface-2)" }}
                           >
-                            <ShoppingBag size={36} style={{ color: "#CBD5E1" }} />
+                            <ShoppingBag size={36} style={{ color: "var(--ink-4)" }} />
                           </div>
-                          <p className="font-bold text-base" style={{ color: "#0F172A" }}>Tu carrito está vacío</p>
-                          <p className="text-sm mt-1" style={{ color: "#94A3B8" }}>
+                          <p className="font-bold text-base" style={{ color: "var(--ink)" }}>Tu carrito está vacío</p>
+                          <p className="text-sm mt-1" style={{ color: "var(--ink-3)" }}>
                             Agrega productos para continuar
                           </p>
                         </div>
@@ -280,7 +279,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                             <div
                               key={item.id}
                               className="flex items-center gap-3 p-3 rounded-2xl"
-                              style={{ background: "#F8FAFC", border: "1px solid #F1F5F9" }}
+                              style={{ background: "var(--bg)", border: "1px solid var(--line)" }}
                             >
                               {/* Image */}
                               {item.image_url ? (
@@ -292,7 +291,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                               ) : (
                                 <div
                                   className="w-16 h-16 rounded-xl flex items-center justify-center flex-shrink-0 text-2xl"
-                                  style={{ background: "#E2E8F0" }}
+                                  style={{ background: "var(--surface-2)" }}
                                 >
                                   🛍️
                                 </div>
@@ -300,10 +299,10 @@ export default function CartDrawer({ open, onClose, store }: Props) {
 
                               {/* Info */}
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-bold leading-tight line-clamp-2" style={{ color: "#0F172A" }}>
+                                <p className="text-sm font-bold leading-tight line-clamp-2" style={{ color: "var(--ink)" }}>
                                   {item.name}
                                 </p>
-                                <p className="text-xs mt-0.5" style={{ color: "#94A3B8" }}>
+                                <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
                                   {formatPrice(item.price_cents)} c/u
                                 </p>
                                 <p className="text-sm font-extrabold mt-1" style={{ color }}>
@@ -314,16 +313,16 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                               {/* Qty controls */}
                               <div
                                 className="flex items-center gap-2 rounded-xl p-1 flex-shrink-0"
-                                style={{ background: "#fff", border: "1.5px solid #E2E8F0" }}
+                                style={{ background: "var(--surface)", border: "1.5px solid var(--line-2)" }}
                               >
                                 <button
                                   onClick={() => item.quantity === 1 ? removeItem(item.id) : updateQty(item.id, item.quantity - 1)}
                                   className="w-7 h-7 rounded-lg flex items-center justify-center transition-all active:scale-90"
-                                  style={{ background: item.quantity === 1 ? "#FEE2E2" : "#F1F5F9" }}
+                                  style={{ background: item.quantity === 1 ? "var(--danger-soft)" : "var(--surface-2)" }}
                                 >
-                                  <Minus size={12} style={{ color: item.quantity === 1 ? "#EF4444" : "#475569" }} />
+                                  <Minus size={12} style={{ color: item.quantity === 1 ? "var(--danger)" : "var(--ink-2)" }} />
                                 </button>
-                                <span className="text-sm font-extrabold w-5 text-center" style={{ color: "#0F172A" }}>
+                                <span className="text-sm font-extrabold w-5 text-center" style={{ color: "var(--ink)" }}>
                                   {item.quantity}
                                 </span>
                                 <button
@@ -340,30 +339,30 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                           {/* Order summary */}
                           <div
                             className="rounded-2xl p-4 mt-3 space-y-2"
-                            style={{ background: "#F8FAFC", border: "1px solid #F1F5F9" }}
+                            style={{ background: "var(--bg)", border: "1px solid var(--line)" }}
                           >
-                            <div className="flex justify-between text-sm" style={{ color: "#64748B" }}>
+                            <div className="flex justify-between text-sm" style={{ color: "var(--ink-2)" }}>
                               <span>Subtotal</span>
                               <span className="font-semibold">{formatPrice(subtotal)}</span>
                             </div>
                             {deliveryFee > 0 && (
-                              <div className="flex justify-between text-sm" style={{ color: "#64748B" }}>
+                              <div className="flex justify-between text-sm" style={{ color: "var(--ink-2)" }}>
                                 <span>Delivery</span>
                                 <span className="font-semibold">
                                   {effectiveDel === 0 ? (
-                                    <span style={{ color: "#059669" }}>Gratis 🎉</span>
+                                    <span style={{ color: "var(--success)" }}>Gratis 🎉</span>
                                   ) : formatPrice(effectiveDel)}
                                 </span>
                               </div>
                             )}
                             {freeAbove && effectiveDel > 0 && (
-                              <p className="text-xs" style={{ color: "#94A3B8" }}>
+                              <p className="text-xs" style={{ color: "var(--ink-3)" }}>
                                 Delivery gratis desde {formatPrice(freeAbove)}
                               </p>
                             )}
                             <div
                               className="flex justify-between font-extrabold text-base pt-2"
-                              style={{ borderTop: "1px solid #E2E8F0", color: "#0F172A" }}
+                              style={{ borderTop: "1px solid var(--line-2)", color: "var(--ink)" }}
                             >
                               <span>Total</span>
                               <span style={{ color }}>{formatPrice(total)}</span>
@@ -404,10 +403,10 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                           value={form.buyer_email}
                           readOnly={!!user?.email}
                           onChange={(e) => setForm({ ...form, buyer_email: e.target.value })}
-                          style={user?.email ? { background: "#F8FAFC", color: "#94A3B8" } : {}}
+                          style={user?.email ? { background: "var(--bg)", color: "var(--ink-3)" } : {}}
                         />
                         {user?.email && (
-                          <p className="text-[11px] mt-1" style={{ color: "#CBD5E1" }}>
+                          <p className="text-[11px] mt-1" style={{ color: "var(--ink-4)" }}>
                             Tu pedido se vinculará a tu cuenta automáticamente
                           </p>
                         )}
@@ -444,7 +443,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                         style={{ background: `${color}0d`, border: `1.5px solid ${color}22` }}
                       >
                         <div>
-                          <p className="text-xs font-semibold" style={{ color: "#64748B" }}>Total a pagar</p>
+                          <p className="text-xs font-semibold" style={{ color: "var(--ink-2)" }}>Total a pagar</p>
                           <p className="font-extrabold text-2xl mt-0.5" style={{ color, fontFamily: "var(--font-display)" }}>
                             {formatPrice(total)}
                           </p>
@@ -452,7 +451,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                         {deliveryFee > 0 && effectiveDel === 0 && (
                           <span
                             className="text-xs font-bold px-3 py-1.5 rounded-full"
-                            style={{ background: "#D1FAE5", color: "#059669" }}
+                            style={{ background: "var(--success-soft)", color: "var(--success)" }}
                           >
                             Delivery gratis 🎉
                           </span>
@@ -462,20 +461,20 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                       {store.settings?.require_prepayment && (
                         <div
                           className="rounded-xl px-4 py-3 text-xs font-medium"
-                          style={{ background: "#FFF7ED", border: "1px solid #FED7AA", color: "#92400E" }}
+                          style={{ background: "var(--warn-soft)", border: "1px solid var(--line-2)", color: "var(--warn)" }}
                         >
                           ⚠️ Esta tienda requiere pago anticipado antes de preparar tu pedido.
                         </div>
                       )}
 
-                      <p className="text-xs font-bold uppercase tracking-wider px-0.5" style={{ color: "#94A3B8" }}>
+                      <p className="text-xs font-bold uppercase tracking-wider px-0.5" style={{ color: "var(--ink-3)" }}>
                         Elige cómo pagar
                       </p>
 
                       {paymentOptions.length === 0 ? (
                         <div
                           className="rounded-2xl p-4 text-center text-sm"
-                          style={{ background: "#F8FAFC", color: "#94A3B8" }}
+                          style={{ background: "var(--bg)", color: "var(--ink-3)" }}
                         >
                           La tienda no tiene métodos de pago configurados
                         </div>
@@ -488,22 +487,22 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                               onClick={() => setForm({ ...form, payment_method: opt.value })}
                               className="w-full flex items-center gap-4 rounded-2xl px-4 py-3.5 text-left transition-all active:scale-[.98]"
                               style={{
-                                border: `2px solid ${selected ? color : "#E2E8F0"}`,
-                                background: selected ? `${color}09` : "#fff",
+                                border: `2px solid ${selected ? color : "var(--line-2)"}`,
+                                background: selected ? `${color}09` : "var(--surface)",
                                 boxShadow: selected ? `0 0 0 3px ${color}18` : "none",
                               }}
                             >
                               <span className="text-2xl flex-shrink-0">{opt.icon}</span>
                               <div className="flex-1 min-w-0">
-                                <p className="font-bold text-sm" style={{ color: "#0F172A" }}>{opt.label}</p>
+                                <p className="font-bold text-sm" style={{ color: "var(--ink)" }}>{opt.label}</p>
                                 {opt.sub && (
-                                  <p className="text-xs mt-0.5 truncate" style={{ color: "#94A3B8" }}>{opt.sub}</p>
+                                  <p className="text-xs mt-0.5 truncate" style={{ color: "var(--ink-3)" }}>{opt.sub}</p>
                                 )}
                               </div>
                               <div
                                 className="w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all"
                                 style={{
-                                  borderColor: selected ? color : "#CBD5E1",
+                                  borderColor: selected ? color : "var(--ink-4)",
                                   background: selected ? color : "transparent",
                                 }}
                               >
@@ -512,6 +511,12 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                             </button>
                           );
                         })
+                      )}
+
+                      {paymentOptions.length > 0 && (
+                        <p className="text-[11px] text-center pt-1" style={{ color: "var(--ink-4)" }}>
+                          🔒 Tu pedido se coordina directo con la tienda — nunca compartimos tus datos
+                        </p>
                       )}
                     </div>
                   )}
@@ -535,25 +540,25 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.25 }}
                       >
-                        <h3 className="font-extrabold text-2xl" style={{ color: "#0F172A", fontFamily: "var(--font-display)" }}>
+                        <h3 className="font-extrabold text-2xl" style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}>
                           ¡Pedido enviado!
                         </h3>
-                        <p className="text-sm mt-1.5" style={{ color: "#64748B" }}>
+                        <p className="text-sm mt-1.5" style={{ color: "var(--ink-2)" }}>
                           El vendedor está revisando tu pedido
                         </p>
 
                         {/* Order number badge */}
                         <div
                           className="inline-flex items-center gap-2 rounded-2xl px-5 py-3 mt-4"
-                          style={{ background: "#F8FAFC", border: "1.5px solid #E2E8F0" }}
+                          style={{ background: "var(--bg)", border: "1.5px solid var(--line-2)" }}
                         >
-                          <span className="text-xs font-semibold" style={{ color: "#94A3B8" }}>Pedido</span>
-                          <span className="font-extrabold text-lg" style={{ color: "#0F172A" }}>
+                          <span className="text-xs font-semibold" style={{ color: "var(--ink-3)" }}>Pedido</span>
+                          <span className="font-extrabold text-lg" style={{ color: "var(--ink)" }}>
                             #{orderResult.order_number}
                           </span>
                         </div>
 
-                        <p className="text-xs mt-3 leading-relaxed" style={{ color: "#94A3B8" }}>
+                        <p className="text-xs mt-3 leading-relaxed" style={{ color: "var(--ink-3)" }}>
                           Te contactarán al {form.buyer_phone} para coordinar la entrega
                         </p>
                       </motion.div>
@@ -587,7 +592,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                         <button
                           onClick={handleClose}
                           className="w-full rounded-2xl py-3.5 font-semibold text-sm transition-all"
-                          style={{ background: "#F1F5F9", color: "#64748B" }}
+                          style={{ background: "var(--surface-2)", color: "var(--ink-2)" }}
                         >
                           Seguir comprando
                         </button>
@@ -604,14 +609,14 @@ export default function CartDrawer({ open, onClose, store }: Props) {
               <div
                 className="flex-shrink-0 px-4 pt-3 pb-safe"
                 style={{
-                  borderTop: "1px solid #F1F5F9",
+                  borderTop: "1px solid var(--line)",
                   paddingBottom: "max(16px, env(safe-area-inset-bottom))",
                 }}
               >
                 {step === "cart" && (
                   <>
                     {belowMin && items.length > 0 && (
-                      <p className="text-xs text-center mb-2 font-medium" style={{ color: "#D97706" }}>
+                      <p className="text-xs text-center mb-2 font-medium" style={{ color: "var(--warn)" }}>
                         Agrega <strong>{formatPrice(minOrder - total)}</strong> más para el pedido mínimo
                       </p>
                     )}

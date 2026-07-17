@@ -34,7 +34,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       openGraph: {
         title: store.name,
         description,
-        images: store.banner_url ? [{ url: store.banner_url }] : [],
+        images: store.banner_url ? [{ url: store.banner_url }] : store.logo_url ? [{ url: store.logo_url }] : [],
         type: "website",
         locale: "es_PE",
         url: `https://qtienda.shop/tienda/${params.slug}`,
@@ -44,7 +44,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         card: "summary_large_image",
         title: store.name,
         description,
-        images: store.banner_url ? [store.banner_url] : [],
+        images: store.banner_url ? [store.banner_url] : store.logo_url ? [store.logo_url] : [],
       },
     };
   } catch {

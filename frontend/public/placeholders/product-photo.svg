@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="300" height="300">
+  <defs>
+    <pattern id="stripes" width="14" height="14" patternTransform="rotate(-45)" patternUnits="userSpaceOnUse">
+      <rect width="14" height="14" fill="#F0EDE5"></rect>
+      <rect width="7" height="14" fill="#E7E3D6"></rect>
+    </pattern>
+  </defs>
+  <rect width="300" height="300" rx="10" fill="url(#stripes)"></rect>
+  <rect x="0.5" y="0.5" width="299" height="299" rx="9.5" fill="none" stroke="#D8D2C0"></rect>
+  <text x="150" y="158" font-size="12" text-anchor="middle" fill="#8B887F" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">foto de producto</text>
+</svg>
