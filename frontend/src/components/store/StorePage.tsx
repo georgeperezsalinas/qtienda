@@ -548,19 +548,24 @@ export default function StorePage({ store, initialProducts }: Props) {
       </header>
 
       {/* Franja de confianza */}
-      <div className="border-b" style={{ borderColor: "var(--line)", background: "var(--surface)" }}>
+      <div className="border-b relative" style={{ borderColor: "var(--line)", background: "var(--surface)" }}>
         <div className="max-w-xl md:max-w-3xl lg:max-w-[1360px] mx-auto flex items-center gap-5 overflow-x-auto scrollbar-hide px-4 py-2 lg:px-8">
           {[
-            { icon: Truck, label: "Coordinas la entrega con el vendedor" },
-            { icon: ShieldCheck, label: "Pago seguro por Yape, Plin o efectivo" },
-            { icon: MessageCircle, label: "Atención directa por WhatsApp" },
-          ].map(({ icon: Icon, label }) => (
+            { icon: Truck, label: "Coordinas la entrega con el vendedor", short: "Entrega coordinada" },
+            { icon: ShieldCheck, label: "Pago seguro por Yape, Plin o efectivo", short: "Pago seguro" },
+            { icon: MessageCircle, label: "Atención directa por WhatsApp", short: "Atención por WhatsApp" },
+          ].map(({ icon: Icon, label, short }) => (
             <div key={label} className="flex items-center gap-1.5 flex-shrink-0">
               <Icon size={13} style={{ color: "var(--ink-3)" }} />
-              <span className="text-[11px] font-medium whitespace-nowrap" style={{ color: "var(--ink-3)" }}>{label}</span>
+              <span className="text-[11px] font-medium whitespace-nowrap lg:hidden" style={{ color: "var(--ink-3)" }}>{short}</span>
+              <span className="text-[11px] font-medium whitespace-nowrap hidden lg:inline" style={{ color: "var(--ink-3)" }}>{label}</span>
             </div>
           ))}
         </div>
+        <div
+          className="lg:hidden absolute right-0 top-0 bottom-0 w-8 pointer-events-none"
+          style={{ background: "linear-gradient(90deg, transparent, var(--surface))" }}
+        />
       </div>
 
       {/* ══════════════════════════════════
