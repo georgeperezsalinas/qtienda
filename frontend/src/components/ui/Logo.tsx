@@ -6,7 +6,7 @@
 import Link from "next/link";
 
 type Size = "sm" | "md" | "lg" | "xl";
-type Variant = "default" | "white" | "mark-only";
+type Variant = "default" | "white" | "mark-only" | "brand";
 
 interface LogoProps {
   size?: Size;
@@ -30,8 +30,11 @@ export default function Logo({
 }: LogoProps) {
   const { mark, text } = SIZES[size];
   const isWhite = variant === "white";
+  const isBrand = variant === "brand";
+  // "brand": la lupa va en color de marca y el texto en negrita — para headers
   const color = isWhite ? "#FFFFFF" : "var(--ink)";
-  const accent = isWhite ? "#FFFFFF" : "var(--accent)";
+  const markColor = isWhite ? "#FFFFFF" : isBrand ? "var(--accent)" : "var(--ink)";
+  const accent = isWhite ? "#FFFFFF" : isBrand ? "var(--accent-ink)" : "var(--accent)";
 
   const inner = (
     <span
@@ -46,10 +49,10 @@ export default function Logo({
         fill="none"
         aria-hidden="true"
       >
-        <circle cx="38" cy="38" r="28" stroke="currentColor" strokeWidth="8" />
+        <circle cx="38" cy="38" r="28" stroke={markColor} strokeWidth="8" />
         <path
           d="M58 58 L82 82"
-          stroke="currentColor"
+          stroke={markColor}
           strokeWidth="8"
           strokeLinecap="round"
         />
@@ -59,7 +62,7 @@ export default function Logo({
         <span
           style={{
             fontFamily: "var(--font-sans)",
-            fontWeight: 500,
+            fontWeight: isBrand ? 700 : 500,
             fontSize: text,
             letterSpacing: "-0.035em",
             lineHeight: 1,

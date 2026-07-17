@@ -5,7 +5,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import Logo from "@/components/ui/Logo";
@@ -70,18 +70,19 @@ function VerifyBanner({ email }: { email: string }) {
   );
 }
 
-/* ─── Bottom nav: solo 4 items (lo importante) ─── */
+/* ─── Bottom nav: solo 4 items (lo importante) ───
+   El ítem activo se muestra como botón elevado con color de acento */
 const BOTTOM_NAV = [
   { href: "/dashboard", label: "Inicio", icon: LayoutDashboard, exact: true },
   { href: "/dashboard/pedidos", label: "Pedidos", icon: ShoppingBag, exact: false },
-  { href: "/dashboard/productos", label: "Catálogo", icon: Package, exact: false },
+  { href: "/dashboard/productos", label: "Productos", icon: Package, exact: false },
 ] as const;
 
 /* ─── Sidebar desktop: nav completo (5 items) ─── */
 const SIDE_NAV = [
   { href: "/dashboard", label: "Inicio", icon: LayoutDashboard, exact: true },
   { href: "/dashboard/pedidos", label: "Pedidos", icon: ShoppingBag, exact: false },
-  { href: "/dashboard/productos", label: "Catálogo", icon: Package, exact: false },
+  { href: "/dashboard/productos", label: "Productos", icon: Package, exact: false },
   { href: "/dashboard/delivery", label: "Delivery", icon: Bike, exact: false },
   { href: "/dashboard/finanzas", label: "Finanzas", icon: BarChart2, exact: false },
   { href: "/dashboard/configuracion", label: "Ajustes", icon: Settings, exact: false },
@@ -113,12 +114,14 @@ export default function DashboardLayout({
   const [hydrated, setHydrated] = useState(false);
   const [storeSlug, setStoreSlug] = useState<string | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
+  const loggingOut = useRef(false);
 
   useSellerPushSubscription(user?.email);
 
   useEffect(() => setHydrated(true), []);
   useEffect(() => {
-    if (hydrated && !accessToken) router.replace("/auth/login");
+    // El guard no debe pisar la redirección a "/" cuando el logout es voluntario
+    if (hydrated && !accessToken && !loggingOut.current) router.replace("/auth/login");
   }, [hydrated, accessToken, router]);
   useEffect(() => {
     if (hydrated && accessToken)
@@ -140,8 +143,10 @@ export default function DashboardLayout({
   if (!hydrated || !accessToken) return null;
 
   function handleLogout() {
+    loggingOut.current = true;
     logout();
-    router.push("/auth/login");
+    // Al salir se vuelve a la página principal, no al login
+    router.push("/");
   }
 
   const initials = getInitials(user?.full_name);
@@ -161,7 +166,7 @@ export default function DashboardLayout({
         }}
       >
         <div style={{ padding: "4px 8px 22px" }}>
-          <Logo size="md" />
+          <Logo size="md" variant="brand" />
         </div>
 
         <nav className="flex-1 flex flex-col gap-0.5">
@@ -173,14 +178,14 @@ export default function DashboardLayout({
                 href={href}
                 className="flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl text-sm font-medium transition-colors"
                 style={{
-                  background: active ? "var(--tint)" : "transparent",
-                  color: active ? "var(--ink)" : "var(--ink-2)",
+                  background: active ? "var(--accent-soft)" : "transparent",
+                  color: active ? "var(--accent-ink)" : "var(--ink-2)",
                 }}
               >
                 <Icon
                   size={16}
                   strokeWidth={1.7}
-                  style={{ color: active ? "var(--ink)" : "var(--ink-3)" }}
+                  style={{ color: active ? "var(--accent)" : "var(--ink-3)" }}
                 />
                 <span style={{ flex: 1 }}>{label}</span>
               </Link>
@@ -262,14 +267,16 @@ export default function DashboardLayout({
         <div
           className="md:hidden"
           style={{
-            background: "var(--bg)",
+            // Superficie propia + sombra: que se lea como header, no como fondo
+            background: "var(--surface)",
             padding: "12px 22px",
             borderBottom: "1px solid var(--line)",
+            boxShadow: "0 2px 12px rgba(20,19,15,.06)",
           }}
         >
           <div className="flex items-center justify-between">
             <Link href="/dashboard" aria-label="Ir al inicio">
-              <Logo size="sm" />
+              <Logo size="md" variant="brand" href={null} />
             </Link>
             <div className="flex items-center gap-2.5">
               <Link
@@ -340,26 +347,35 @@ export default function DashboardLayout({
                 className="flex-1 flex flex-col items-center"
                 style={{ gap: 4 }}
               >
-                <Icon
-                  size={20}
-                  strokeWidth={active ? 2 : 1.6}
-                  style={{ color: active ? "var(--ink)" : "var(--ink-3)" }}
-                />
+                {active ? (
+                  /* Ítem activo: botón elevado con color de acento */
+                  <span
+                    className="flex items-center justify-center rounded-2xl transition-transform active:scale-95"
+                    style={{
+                      width: 46,
+                      height: 46,
+                      marginTop: -22,
+                      background: "var(--accent)",
+                      border: "3px solid var(--bg)",
+                      boxShadow: "0 6px 16px rgba(197,97,59,.4)",
+                    }}
+                  >
+                    <Icon size={22} strokeWidth={2} style={{ color: "#fff" }} />
+                  </span>
+                ) : (
+                  <Icon size={20} strokeWidth={1.6} style={{ color: "var(--ink-3)" }} />
+                )}
                 <span
-                  className="text-[10px] font-medium leading-none"
-                  style={{ color: active ? "var(--ink)" : "var(--ink-3)" }}
+                  className="text-[10px] leading-none"
+                  style={{
+                    color: active ? "var(--accent)" : "var(--ink-3)",
+                    fontWeight: active ? 700 : 500,
+                    marginTop: active ? -1 : 0,
+                  }}
                 >
                   {label}
                 </span>
-                <span
-                  className="rounded-full"
-                  style={{
-                    width: 4,
-                    height: 4,
-                    background: active ? "var(--ink)" : "transparent",
-                    marginTop: 2,
-                  }}
-                />
+                <span style={{ width: 4, height: 4, marginTop: 2 }} />
               </Link>
             );
           })}
@@ -369,10 +385,30 @@ export default function DashboardLayout({
             style={{ gap: 4 }}
             aria-label="Cuenta y más"
           >
-            <UserCircle size={20} strokeWidth={1.6} style={{ color: "var(--ink-3)" }} />
+            {drawerOpen ? (
+              <span
+                className="flex items-center justify-center rounded-2xl transition-transform active:scale-95"
+                style={{
+                  width: 46,
+                  height: 46,
+                  marginTop: -22,
+                  background: "var(--accent)",
+                  border: "3px solid var(--bg)",
+                  boxShadow: "0 6px 16px rgba(197,97,59,.4)",
+                }}
+              >
+                <UserCircle size={22} strokeWidth={2} style={{ color: "#fff" }} />
+              </span>
+            ) : (
+              <UserCircle size={20} strokeWidth={1.6} style={{ color: "var(--ink-3)" }} />
+            )}
             <span
-              className="text-[10px] font-medium leading-none"
-              style={{ color: "var(--ink-3)" }}
+              className="text-[10px] leading-none"
+              style={{
+                color: drawerOpen ? "var(--accent)" : "var(--ink-3)",
+                fontWeight: drawerOpen ? 700 : 500,
+                marginTop: drawerOpen ? -1 : 0,
+              }}
             >
               Cuenta
             </span>

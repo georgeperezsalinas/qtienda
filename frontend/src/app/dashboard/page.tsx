@@ -14,6 +14,9 @@ import {
   RefreshCw,
   CheckCircle2,
   Store,
+  ExternalLink,
+  ShoppingBag,
+  TrendingUp,
 } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
@@ -289,9 +292,18 @@ export default function DashboardPage() {
             <p className="text-sm font-medium truncate" style={{ color: "var(--ink)" }}>
               {store.name}
             </p>
-            <p className="mono text-[11px] truncate" style={{ color: "var(--ink-3)", marginTop: 2 }}>
-              qtienda.shop/{store.slug}
-            </p>
+            {/* Link de la tienda: chip visible que abre la tienda pública */}
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                window.open(`/tienda/${store.slug}`, "_blank", "noopener");
+              }}
+              className="mono inline-flex items-center gap-1.5 mt-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold max-w-full"
+              style={{ background: "var(--accent-soft)", color: "var(--accent-ink)" }}
+            >
+              <ExternalLink size={11} strokeWidth={2.2} className="flex-shrink-0" />
+              <span className="truncate">qtienda.shop/{store.slug}</span>
+            </button>
           </div>
           <button
             onClick={(e) => {
@@ -438,32 +450,26 @@ export default function DashboardPage() {
           !loadingStats && (
             <div className={`animate-fade-up mb-7 ${analytics && analytics.store_views > 0 ? "" : "md:col-span-2"}`}>
               <p className="eyebrow mb-3">Hoy</p>
-              <div
-                className="grid grid-cols-3"
-                style={{
-                  borderTop: "1px solid var(--line)",
-                  borderBottom: "1px solid var(--line)",
-                }}
-              >
+              {/* Tarjetas con color: pedidos (terracota), vendido (verde), entregados (ámbar) */}
+              <div className="grid grid-cols-3 gap-2.5">
                 {[
-                  { value: total.toString(), label: "pedidos" },
-                  { value: formatMoney(revenue), label: "vendido" },
-                  { value: delivered.toString(), label: "entregados" },
+                  { value: total.toString(), label: "pedidos", icon: ShoppingBag, bg: "var(--accent-soft)", fg: "var(--accent-ink)", ic: "var(--accent)" },
+                  { value: formatMoney(revenue), label: "vendido", icon: TrendingUp, bg: "var(--success-soft)", fg: "var(--success)", ic: "var(--success)" },
+                  { value: delivered.toString(), label: "entregados", icon: CheckCircle2, bg: "var(--warn-soft)", fg: "var(--warn)", ic: "var(--warn)" },
                 ].map((s, i) => (
                   <div
                     key={i}
-                    style={{
-                      padding: "16px 14px",
-                      borderRight: i < 2 ? "1px solid var(--line)" : "0",
-                    }}
+                    className="rounded-2xl"
+                    style={{ background: s.bg, padding: "14px 12px" }}
                   >
+                    <s.icon size={15} strokeWidth={2} style={{ color: s.ic }} />
                     <div
-                      className="mono num"
-                      style={{ fontSize: 22, fontWeight: 500, lineHeight: 1 }}
+                      className="mono num truncate"
+                      style={{ fontSize: 21, fontWeight: 600, lineHeight: 1, color: s.fg, marginTop: 8 }}
                     >
                       {s.value}
                     </div>
-                    <div className="text-xs mt-1.5" style={{ color: "var(--ink-3)" }}>
+                    <div className="text-xs mt-1.5 font-medium" style={{ color: s.fg, opacity: 0.75 }}>
                       {s.label}
                     </div>
                   </div>

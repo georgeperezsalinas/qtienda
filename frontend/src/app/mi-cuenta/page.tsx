@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -65,11 +65,13 @@ export default function MiCuentaPage() {
   const [saving,   setSaving]   = useState(false);
   const [dirty,    setDirty]    = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  const loggingOut = useRef(false);
 
   useEffect(() => { setHydrated(true); }, []);
 
   useEffect(() => {
-    if (hydrated && !isLoggedIn) {
+    // El guard no debe pisar la redirección a "/" cuando el logout es voluntario
+    if (hydrated && !isLoggedIn && !loggingOut.current) {
       router.replace("/auth/login");
     }
   }, [hydrated, isLoggedIn, router]);
@@ -122,8 +124,10 @@ export default function MiCuentaPage() {
   }
 
   function handleLogout() {
+    loggingOut.current = true;
     logout();
-    router.push("/auth/login");
+    // Al salir se vuelve a la página principal, no al login
+    router.push("/");
   }
 
   if (!hydrated || !isLoggedIn || !user) return null;
