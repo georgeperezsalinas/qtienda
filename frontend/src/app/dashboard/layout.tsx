@@ -22,6 +22,7 @@ import {
   BarChart2,
   Search,
   ShoppingCart,
+  Bell,
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { useSellerPushSubscription } from "@/hooks/usePushSubscription";
@@ -111,6 +112,7 @@ export default function DashboardLayout({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [storeSlug, setStoreSlug] = useState<string | null>(null);
+  const [pendingCount, setPendingCount] = useState(0);
 
   useSellerPushSubscription(user?.email);
 
@@ -120,7 +122,18 @@ export default function DashboardLayout({
   }, [hydrated, accessToken, router]);
   useEffect(() => {
     if (hydrated && accessToken)
-      apiClient.get("/stores/me").then(({ data }) => setStoreSlug(data.slug)).catch(() => {});
+      apiClient
+        .get("/stores/me")
+        .then(({ data }) => {
+          setStoreSlug(data.slug);
+          // Pedidos pendientes de hoy → badge de la campanita del top bar
+          const today = new Date().toISOString().slice(0, 10);
+          apiClient
+            .get("/orders/stats/summary", { params: { from_date: today, to_date: today } })
+            .then(({ data: s }) => setPendingCount(s.this_month?.pending ?? 0))
+            .catch(() => {});
+        })
+        .catch(() => {});
   }, [hydrated, accessToken]);
   useEffect(() => setDrawerOpen(false), [pathname]);
 
@@ -245,6 +258,65 @@ export default function DashboardLayout({
         className="flex-1 min-w-0 pb-24 md:pb-0"
         style={{ minHeight: "100dvh" }}
       >
+        {/* ═════════ Top bar (mobile) — visible en todas las páginas ═════════ */}
+        <div
+          className="md:hidden"
+          style={{
+            background: "var(--bg)",
+            padding: "12px 22px",
+            borderBottom: "1px solid var(--line)",
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <Link href="/dashboard" aria-label="Ir al inicio">
+              <Logo size="sm" />
+            </Link>
+            <div className="flex items-center gap-2.5">
+              <Link
+                href={pendingCount > 0 ? "/dashboard/pedidos?status=pending" : "/dashboard/pedidos"}
+                className="relative flex items-center justify-center rounded-full"
+                style={{
+                  width: 36,
+                  height: 36,
+                  background: "var(--surface)",
+                  border: "1px solid var(--line)",
+                }}
+                aria-label="Pedidos pendientes"
+              >
+                <Bell size={16} strokeWidth={1.7} style={{ color: "var(--ink-2)" }} />
+                {pendingCount > 0 && (
+                  <span
+                    className="absolute rounded-full"
+                    style={{
+                      top: 8,
+                      right: 8,
+                      width: 7,
+                      height: 7,
+                      background: "var(--accent)",
+                      border: "2px solid var(--bg)",
+                    }}
+                  />
+                )}
+              </Link>
+              <button
+                onClick={() => setDrawerOpen(true)}
+                className="flex items-center justify-center rounded-full"
+                style={{
+                  width: 36,
+                  height: 36,
+                  background: "var(--ink)",
+                  color: "var(--bg)",
+                  fontSize: 12,
+                  fontWeight: 500,
+                }}
+                aria-label="Cuenta y más"
+              >
+                {initials}
+              </button>
+            </div>
+          </div>
+        </div>
+
         {user && user.is_verified === false && <VerifyBanner email={user.email} />}
         {children}
       </main>

@@ -2,6 +2,7 @@
 Public endpoints — accessed by buyers via /tienda/{slug}
 No authentication required.
 """
+import re
 from datetime import date, datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request
 from urllib.parse import quote
@@ -80,6 +81,7 @@ async def get_store(request: Request, slug: str, db: AsyncSession = Depends(get_
         "whatsapp": store.whatsapp,
         "primary_color": store.primary_color,
         "city": store.city,
+        "country": store.country,
         "categories": [
             {"id": c.id, "name": c.name, "slug": c.slug, "icon": c.icon}
             for c in sorted(store.categories, key=lambda x: x.sort_order)
@@ -212,6 +214,11 @@ async def create_order(
     if store.status != "active":
         raise HTTPException(status_code=403, detail="Esta tienda no está disponible en este momento")
 
+    # El schema valida el documento de forma genérica (multi-país);
+    # para tiendas peruanas el DNI debe ser exactamente 8 dígitos.
+    if store.country == "PE" and payload.buyer_dni and not re.fullmatch(r"\d{8}", payload.buyer_dni):
+        raise HTTPException(status_code=422, detail="El DNI debe tener 8 dígitos")
+
     # Plan limit: max orders per month
     await _check_order_limit(store, db)
 
@@ -299,7 +306,11 @@ async def create_order(
         order_number=order_number,
         buyer_name=payload.buyer_name,
         buyer_phone=payload.buyer_phone,
+        buyer_dni=payload.buyer_dni,
         buyer_email=payload.buyer_email,
+        buyer_department=payload.buyer_department,
+        buyer_province=payload.buyer_province,
+        buyer_district=payload.buyer_district,
         buyer_address=payload.buyer_address,
         buyer_reference=payload.buyer_reference,
         subtotal_cents=subtotal,
@@ -375,8 +386,15 @@ async def create_order(
             f"👤 *Cliente:* {payload.buyer_name}",
             f"📱 *Cel:* +{payload.buyer_phone}",
         ]
+        if payload.buyer_dni:
+            lines.append(f"🪪 *DNI:* {payload.buyer_dni}")
         if payload.buyer_address:
             lines.append(f"📍 *Dirección:* {payload.buyer_address}")
+        _ubigeo = " / ".join(
+            p for p in [payload.buyer_district, payload.buyer_province, payload.buyer_department] if p
+        )
+        if _ubigeo:
+            lines.append(f"🗺️ *Zona:* {_ubigeo}")
         if payload.buyer_reference:
             lines.append(f"🏠 *Ref:* {payload.buyer_reference}")
         if payload.notes:

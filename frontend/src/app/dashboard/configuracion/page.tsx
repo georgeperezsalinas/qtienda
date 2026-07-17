@@ -34,6 +34,31 @@ interface CategoryForm { name: string; icon: string }
 
 const COLORS = ["#6366f1", "#ec4899", "#f97316", "#10b981", "#3b82f6", "#8b5cf6", "#ef4444", "#14b8a6"];
 
+// País de la tienda: define los campos de dirección y documento en el checkout
+// (Perú usa DNI + departamento/provincia/distrito; el resto, campos genéricos)
+const COUNTRIES = [
+  { code: "PE", name: "🇵🇪 Perú" },
+  { code: "CL", name: "🇨🇱 Chile" },
+  { code: "CO", name: "🇨🇴 Colombia" },
+  { code: "MX", name: "🇲🇽 México" },
+  { code: "AR", name: "🇦🇷 Argentina" },
+  { code: "EC", name: "🇪🇨 Ecuador" },
+  { code: "BO", name: "🇧🇴 Bolivia" },
+  { code: "PY", name: "🇵🇾 Paraguay" },
+  { code: "UY", name: "🇺🇾 Uruguay" },
+  { code: "VE", name: "🇻🇪 Venezuela" },
+  { code: "PA", name: "🇵🇦 Panamá" },
+  { code: "GT", name: "🇬🇹 Guatemala" },
+  { code: "SV", name: "🇸🇻 El Salvador" },
+  { code: "HN", name: "🇭🇳 Honduras" },
+  { code: "NI", name: "🇳🇮 Nicaragua" },
+  { code: "CR", name: "🇨🇷 Costa Rica" },
+  { code: "DO", name: "🇩🇴 Rep. Dominicana" },
+  { code: "CU", name: "🇨🇺 Cuba" },
+  { code: "ES", name: "🇪🇸 España" },
+  { code: "US", name: "🇺🇸 EE.UU." },
+];
+
 const WEEK_DAYS = [
   { key: "mon", label: "Lunes" },
   { key: "tue", label: "Martes" },
@@ -100,6 +125,7 @@ export default function ConfiguracionPage() {
   const [info, setInfo] = useState({
     name: "", description: "", whatsapp: "",
     primary_color: "#6366f1", logo_url: "", banner_url: "", banner_link: "", city: "",
+    country: "PE",
   });
 
   const [settings, setSettings] = useState({
@@ -142,6 +168,7 @@ export default function ConfiguracionPage() {
           banner_url: storeData.banner_url || "",
           banner_link: storeData.banner_link || "",
           city: storeData.city || "",
+          country: storeData.country || "PE",
         });
         setPlanSlug(storeData.plan_slug || "free");
         setBanners(
@@ -217,6 +244,7 @@ export default function ConfiguracionPage() {
         primary_color: info.primary_color,
         logo_url: info.logo_url || undefined,
         city: info.city || undefined,
+        country: info.country || undefined,
       });
       await apiClient.put("/stores/me/banners", {
         banners: banners
@@ -494,6 +522,22 @@ export default function ConfiguracionPage() {
                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Ciudad</label>
                 <input className="input" placeholder="Lima" value={info.city} onChange={(e) => setInfo({ ...info, city: e.target.value })} />
               </div>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">País</label>
+              <select
+                className="input"
+                value={info.country}
+                onChange={(e) => setInfo({ ...info, country: e.target.value })}
+              >
+                {COUNTRIES.map((c) => (
+                  <option key={c.code} value={c.code}>{c.name}</option>
+                ))}
+              </select>
+              <p className="text-[11px] mt-1 text-gray-400">
+                Define los campos de dirección y documento que se piden al comprar
+                {info.country === "PE" ? " (DNI, departamento, provincia y distrito)" : " (documento, región y ciudad)"}
+              </p>
             </div>
             <div>
               <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Color principal</label>

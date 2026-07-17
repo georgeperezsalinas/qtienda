@@ -26,14 +26,29 @@ const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
   cancelled:  { label: "Cancelado",  cls: "badge-danger" },
 };
 
-const TRANSITIONS: Record<string, { value: string; label: string }[]> = {
-  pending:    [{ value: "confirmed", label: "Confirmar" }, { value: "cancelled", label: "Cancelar" }],
-  confirmed:  [{ value: "preparing", label: "Preparando" }, { value: "cancelled", label: "Cancelar" }],
-  preparing:  [{ value: "on_the_way", label: "En camino" }, { value: "cancelled", label: "Cancelar" }],
-  on_the_way: [{ value: "delivered", label: "Entregado" }],
-  delivered:  [],
-  cancelled:  [{ value: "pending", label: "Reactivar" }],
+/* Hoja de ruta del pedido: el vendedor ve en qué paso está y cuál sigue */
+const FLOW = [
+  { key: "pending",    label: "Pendiente",  desc: "Nuevo pedido, esperando tu confirmación" },
+  { key: "confirmed",  label: "Confirmado", desc: "Aceptaste el pedido" },
+  { key: "preparing",  label: "Preparando", desc: "Estás alistando los productos" },
+  { key: "on_the_way", label: "En camino",  desc: "El pedido salió a entrega" },
+  { key: "delivered",  label: "Entregado",  desc: "El cliente recibió su pedido" },
+] as const;
+
+const FLOW_IDX: Record<string, number> = {
+  pending: 0, confirmed: 1, preparing: 2, on_the_way: 3, delivered: 4,
 };
+
+/* Siguiente paso explícito por estado */
+const NEXT_ACTION: Record<string, { next: string; label: string } | undefined> = {
+  pending:    { next: "confirmed",  label: "Confirmar pedido" },
+  confirmed:  { next: "preparing",  label: "Empezar preparación" },
+  preparing:  { next: "on_the_way", label: "Enviar pedido (en camino)" },
+  on_the_way: { next: "delivered",  label: "Marcar como entregado" },
+};
+
+/* Estados desde los que aún se puede cancelar */
+const CAN_CANCEL = new Set(["pending", "confirmed", "preparing", "on_the_way"]);
 
 interface Order {
   id: string;
@@ -44,10 +59,23 @@ interface Order {
   total_cents: number;
   items_count: number;
   created_at: string;
+  assigned_to_id?: string | null;
+  assigned_to_name?: string | null;
+}
+
+interface Staff {
+  id: string;
+  full_name: string;
+  is_active: boolean;
 }
 
 interface OrderDetail extends Order {
+  buyer_dni?: string;
+  buyer_department?: string;
+  buyer_province?: string;
+  buyer_district?: string;
   buyer_address?: string;
+  buyer_reference?: string;
   buyer_email?: string;
   notes?: string;
   subtotal_cents: number;
@@ -71,23 +99,214 @@ function toISODate(d: Date) {
   return d.toISOString().slice(0, 10);
 }
 
-/* Botón de transición de estado — estilo consistente con tokens */
-function TransitionButton({ t, onClick, disabled }: { t: { value: string; label: string }; onClick: () => void; disabled: boolean }) {
-  const style =
-    t.value === "cancelled"
-      ? { background: "var(--danger-soft)", color: "var(--danger)" }
-      : t.value === "pending"
-      ? { background: "var(--warn-soft)", color: "var(--warn)" }
-      : { background: "var(--ink)", color: "var(--bg)" };
+/* Hoja de ruta visual: pasos del pedido con el actual resaltado y la acción siguiente.
+   Integra la entrega: al enviar, el vendedor decide explícitamente quién reparte
+   (un repartidor de su equipo o él mismo). Sin repartidores registrados no hay fricción. */
+function StatusRoadmap({
+  status,
+  updating,
+  staff,
+  assignedToId,
+  assignedToName,
+  onAdvance,
+  onSend,
+  onCancel,
+  onReactivate,
+}: {
+  status: string;
+  updating: boolean;
+  staff: Staff[];
+  assignedToId: string | null;
+  assignedToName: string | null;
+  onAdvance: (next: string) => void;
+  onSend: (staffId: string | null) => void;
+  onCancel: () => void;
+  onReactivate: () => void;
+}) {
+  const [choosing, setChoosing] = useState(false);
+  if (status === "cancelled") {
+    return (
+      <div className="rounded-xl p-4 mb-4 text-center" style={{ background: "var(--danger-soft)" }}>
+        <p className="text-sm font-bold" style={{ color: "var(--danger)" }}>Pedido cancelado</p>
+        <p className="text-xs mt-1 mb-3" style={{ color: "var(--ink-2)" }}>
+          Si fue un error, puedes reactivarlo y volverá a &ldquo;Pendiente&rdquo;.
+        </p>
+        <button
+          onClick={onReactivate}
+          disabled={updating}
+          className="text-xs font-bold px-4 py-2 rounded-lg disabled:opacity-50"
+          style={{ background: "var(--warn-soft)", color: "var(--warn)" }}
+        >
+          Reactivar pedido
+        </button>
+      </div>
+    );
+  }
+
+  const currentIdx = FLOW_IDX[status] ?? 0;
+  const action = NEXT_ACTION[status];
+
   return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-opacity disabled:opacity-50"
-      style={style}
-    >
-      {t.label}
-    </button>
+    <div className="rounded-xl p-4 mb-4" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
+      <p className="text-[11px] font-bold uppercase tracking-wider mb-3" style={{ color: "var(--ink-3)" }}>
+        Ruta del pedido
+      </p>
+
+      {FLOW.map((step, i) => {
+        const done   = i < currentIdx;
+        const active = i === currentIdx;
+        const isNext = i === currentIdx + 1;
+        return (
+          <div key={step.key} className="flex gap-3">
+            {/* Punto + conector */}
+            <div className="flex flex-col items-center">
+              <div
+                className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-bold transition-all"
+                style={{
+                  background: done ? "var(--ink)" : active ? "var(--warn)" : "transparent",
+                  border: done || active ? "none" : "1.5px solid var(--line-2)",
+                  color: done || active ? "var(--bg)" : "var(--ink-4)",
+                }}
+              >
+                {done ? "✓" : i + 1}
+              </div>
+              {i < FLOW.length - 1 && (
+                <div
+                  className="w-0.5 flex-1"
+                  style={{ background: done ? "var(--ink)" : "var(--line-2)", minHeight: 12 }}
+                />
+              )}
+            </div>
+            {/* Texto del paso */}
+            <div className={i < FLOW.length - 1 ? "pb-2.5" : ""} style={{ minWidth: 0 }}>
+              <p
+                className="text-sm font-semibold leading-5"
+                style={{ color: done || active ? "var(--ink)" : "var(--ink-4)" }}
+              >
+                {step.label}
+                {active && (
+                  <span
+                    className="ml-2 text-[10px] font-bold px-2 py-0.5 rounded-full align-middle"
+                    style={{ background: "var(--warn-soft)", color: "var(--warn)" }}
+                  >
+                    Estado actual
+                  </span>
+                )}
+              </p>
+              {active && (
+                <p className="text-xs" style={{ color: "var(--ink-3)" }}>{step.desc}</p>
+              )}
+
+              {/* Entrega: alerta de repartidor pendiente mientras se prepara */}
+              {active && step.key === "preparing" && staff.length > 0 && (
+                <span
+                  className="inline-block mt-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full"
+                  style={
+                    assignedToName
+                      ? { background: "var(--tint)", color: "var(--ink-2)" }
+                      : { background: "var(--warn-soft)", color: "var(--warn)" }
+                  }
+                >
+                  {assignedToName
+                    ? `🛵 Entregará: ${assignedToName}`
+                    : "⚠️ Repartidor por asignar — lo eliges al enviar"}
+                </span>
+              )}
+
+              {/* Entrega en curso: quién lleva el pedido */}
+              {active && step.key === "on_the_way" && (
+                <span
+                  className="inline-block mt-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full"
+                  style={{ background: "var(--tint)", color: "var(--ink-2)" }}
+                >
+                  {assignedToName ? `🛵 ${assignedToName} lleva este pedido` : "🙋 Tú llevas este pedido"}
+                </span>
+              )}
+
+              {/* La acción vive junto al paso al que lleva: queda claro qué pasará */}
+              {isNext && action && !choosing && (
+                <button
+                  onClick={() => {
+                    // El envío exige decidir quién entrega (si hay repartidores)
+                    if (action.next === "on_the_way" && staff.length > 0) setChoosing(true);
+                    else onAdvance(action.next);
+                  }}
+                  disabled={updating}
+                  className="mt-1.5 mb-1 flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-lg transition-opacity disabled:opacity-50"
+                  style={{ background: "var(--ink)", color: "var(--bg)" }}
+                >
+                  {updating ? "Guardando…" : `${action.label} →`}
+                </button>
+              )}
+
+              {/* Selector explícito de quién entrega, al momento de enviar */}
+              {isNext && action?.next === "on_the_way" && choosing && (
+                <div
+                  className="mt-2 mb-1 rounded-xl p-3"
+                  style={{ background: "var(--surface)", border: "1px solid var(--line-2)" }}
+                >
+                  <p className="text-xs font-bold mb-2" style={{ color: "var(--ink)" }}>
+                    ¿Quién entrega este pedido?
+                  </p>
+                  <div className="flex flex-col gap-1.5">
+                    {staff.map((s) => (
+                      <button
+                        key={s.id}
+                        onClick={() => { setChoosing(false); onSend(s.id); }}
+                        disabled={updating}
+                        className="text-left text-xs font-semibold px-3 py-2.5 rounded-lg disabled:opacity-50"
+                        style={{
+                          background: "var(--bg)",
+                          border: assignedToId === s.id ? "1.5px solid var(--ink)" : "1px solid var(--line-2)",
+                          color: "var(--ink-2)",
+                        }}
+                      >
+                        🛵 {s.full_name}
+                        {assignedToId === s.id && (
+                          <span className="ml-1.5 text-[10px]" style={{ color: "var(--ink-3)" }}>· ya asignado</span>
+                        )}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => { setChoosing(false); onSend(null); }}
+                      disabled={updating}
+                      className="text-left text-xs font-semibold px-3 py-2.5 rounded-lg disabled:opacity-50"
+                      style={{ background: "var(--bg)", border: "1px solid var(--line-2)", color: "var(--ink-2)" }}
+                    >
+                      🙋 Yo mismo lo entrego
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => setChoosing(false)}
+                    className="w-full mt-2 text-[11px] font-medium py-1"
+                    style={{ color: "var(--ink-3)" }}
+                  >
+                    Volver
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+
+      {status === "delivered" ? (
+        <p className="text-xs font-medium mt-2 text-center" style={{ color: "var(--success)" }}>
+          ✓ Pedido completado
+        </p>
+      ) : (
+        CAN_CANCEL.has(status) && (
+          <button
+            onClick={onCancel}
+            disabled={updating}
+            className="w-full mt-2 text-xs font-semibold py-2 rounded-lg disabled:opacity-50"
+            style={{ color: "var(--danger)", background: "transparent" }}
+          >
+            Cancelar pedido
+          </button>
+        )
+      )}
+    </div>
   );
 }
 
@@ -102,6 +321,15 @@ export default function PedidosPage() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<OrderDetail | null>(null);
   const [updating, setUpdating] = useState(false);
+  const [staff, setStaff] = useState<Staff[]>([]);
+
+  // Repartidores activos: integran la entrega al flujo del pedido
+  useEffect(() => {
+    apiClient
+      .get("/delivery/staff")
+      .then(({ data }) => setStaff((data ?? []).filter((s: Staff) => s.is_active)))
+      .catch(() => {});
+  }, []);
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -133,6 +361,20 @@ export default function PedidosPage() {
     }
   }
 
+  /* Enviar pedido: asigna (o desasigna) el repartidor elegido y pasa a "En camino" */
+  async function sendOrder(orderId: string, staffId: string | null) {
+    const current = selected?.assigned_to_id ?? null;
+    if (staffId !== current) {
+      try {
+        await apiClient.patch(`/orders/${orderId}/assign`, { staff_id: staffId });
+      } catch {
+        toast.error("No se pudo asignar el repartidor");
+        return;
+      }
+    }
+    await changeStatus(orderId, "on_the_way");
+  }
+
   async function changeStatus(orderId: string, newStatus: string) {
     if (newStatus === "cancelled") {
       if (!window.confirm("¿Seguro que deseas cancelar este pedido?\nPodrás reactivarlo después si fue un error.")) return;
@@ -140,7 +382,7 @@ export default function PedidosPage() {
     setUpdating(true);
     try {
       const res = await apiClient.patch(`/orders/${orderId}/status`, { status: newStatus });
-      toast.success("Estado actualizado");
+      toast.success(`Pedido → ${STATUS_LABELS[newStatus]?.label ?? newStatus}`);
       await fetchOrders();
       if (selected?.id === orderId) {
         await loadDetail(orderId);
@@ -193,6 +435,19 @@ export default function PedidosPage() {
         </span>
       </div>
 
+      <StatusRoadmap
+        key={selected.id}
+        status={selected.status}
+        updating={updating}
+        staff={staff}
+        assignedToId={selected.assigned_to_id ?? null}
+        assignedToName={selected.assigned_to_name ?? null}
+        onAdvance={(next) => changeStatus(selected.id, next)}
+        onSend={(staffId) => sendOrder(selected.id, staffId)}
+        onCancel={() => changeStatus(selected.id, "cancelled")}
+        onReactivate={() => changeStatus(selected.id, "pending")}
+      />
+
       <div className="space-y-3 mb-4">
         <div className="flex items-center gap-2 text-sm" style={{ color: "var(--ink-2)" }}>
           <Phone size={14} style={{ color: "var(--ink-4)" }} />
@@ -200,10 +455,30 @@ export default function PedidosPage() {
             {selected.buyer_name} — {selected.buyer_phone}
           </a>
         </div>
-        {selected.buyer_address && (
+        {selected.buyer_dni && (
+          <div className="flex items-center gap-2 text-sm" style={{ color: "var(--ink-2)" }}>
+            <span className="text-xs font-semibold" style={{ color: "var(--ink-4)" }}>DNI</span>
+            {selected.buyer_dni}
+          </div>
+        )}
+        {(selected.buyer_address || selected.buyer_district) && (
           <div className="flex items-start gap-2 text-sm" style={{ color: "var(--ink-2)" }}>
             <MapPin size={14} className="mt-0.5" style={{ color: "var(--ink-4)" }} />
-            {selected.buyer_address}
+            <div>
+              {selected.buyer_address}
+              {(selected.buyer_district || selected.buyer_province || selected.buyer_department) && (
+                <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
+                  {[selected.buyer_district, selected.buyer_province, selected.buyer_department]
+                    .filter(Boolean)
+                    .join(", ")}
+                </p>
+              )}
+              {selected.buyer_reference && (
+                <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
+                  Ref: {selected.buyer_reference}
+                </p>
+              )}
+            </div>
           </div>
         )}
         {selected.notes && (
@@ -238,27 +513,6 @@ export default function PedidosPage() {
         </div>
       </div>
 
-      {TRANSITIONS[selected.status]?.length > 0 && (
-        <div className="flex gap-3">
-          {TRANSITIONS[selected.status].map((t) => (
-            <button
-              key={t.value}
-              onClick={() => changeStatus(selected.id, t.value)}
-              disabled={updating}
-              className="flex-1 font-semibold py-3 rounded-xl text-sm transition-opacity disabled:opacity-50"
-              style={
-                t.value === "cancelled"
-                  ? { background: "var(--danger-soft)", color: "var(--danger)" }
-                  : t.value === "pending"
-                  ? { background: "var(--warn-soft)", color: "var(--warn)" }
-                  : { background: "var(--ink)", color: "var(--bg)" }
-              }
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-      )}
     </>
   );
 
@@ -340,16 +594,23 @@ export default function PedidosPage() {
                   </div>
                 </div>
 
-                {/* Inline quick actions */}
-                {TRANSITIONS[order.status]?.length > 0 && (
+                {/* La gestión del estado se hace en el detalle (hoja de ruta),
+                    aquí solo se invita a abrirlo — evita cambios accidentales */}
+                {NEXT_ACTION[order.status] && (
                   <div
-                    className="flex gap-2 mt-3 pt-3"
-                    style={{ borderTop: "1px solid var(--line)" }}
-                    onClick={(e) => e.stopPropagation()}
+                    className="flex items-center justify-between mt-3 pt-2.5 text-xs font-semibold"
+                    style={{ borderTop: "1px solid var(--line)", color: "var(--ink-3)" }}
                   >
-                    {TRANSITIONS[order.status].map((t) => (
-                      <TransitionButton key={t.value} t={t} disabled={updating} onClick={() => changeStatus(order.id, t.value)} />
-                    ))}
+                    <span>
+                      {order.status === "preparing" && staff.length > 0 && !order.assigned_to_id ? (
+                        <span style={{ color: "var(--warn)" }}>⚠️ Falta asignar repartidor</span>
+                      ) : order.status === "on_the_way" ? (
+                        <>🛵 {order.assigned_to_name ?? "Entregas tú"}</>
+                      ) : (
+                        <>Siguiente paso: {STATUS_LABELS[NEXT_ACTION[order.status]!.next]?.label}</>
+                      )}
+                    </span>
+                    <span style={{ color: "var(--ink-2)" }}>Gestionar →</span>
                   </div>
                 )}
               </div>

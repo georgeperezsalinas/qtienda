@@ -61,8 +61,19 @@ class StoreUpdate(BaseModel):
     banner_link: Optional[str] = None
     primary_color: Optional[str] = None
     city: Optional[str] = None
+    country: Optional[str] = None
     meta_title: Optional[str] = None
     meta_desc: Optional[str] = None
+
+    @field_validator("country")
+    @classmethod
+    def valid_country(cls, v):
+        if v is None:
+            return v
+        v = v.strip().upper()
+        if not re.match(r"^[A-Z]{2}$", v):
+            raise ValueError("País inválido (código ISO de 2 letras)")
+        return v
 
     @field_validator("banner_link")
     @classmethod
@@ -156,7 +167,13 @@ class OrderItemIn(BaseModel):
 class PublicOrderCreate(BaseModel):
     buyer_name: str
     buyer_phone: str
+    # Opcionales a nivel API para no romper clientes viejos (app móvil);
+    # la web los exige en el formulario de checkout.
+    buyer_dni: Optional[str] = None
     buyer_email: Optional[EmailStr] = None
+    buyer_department: Optional[str] = None
+    buyer_province: Optional[str] = None
+    buyer_district: Optional[str] = None
     buyer_address: Optional[str] = None
     buyer_reference: Optional[str] = None
     items: List[OrderItemIn]
@@ -179,6 +196,19 @@ class PublicOrderCreate(BaseModel):
         cleaned = re.sub(r"\D", "", v)
         if len(cleaned) < 7:
             raise ValueError("Teléfono inválido")
+        return cleaned
+
+    @field_validator("buyer_dni")
+    @classmethod
+    def clean_dni(cls, v):
+        # Genérico multi-país: DNI (PE/AR), CI, CC, cédula… El formato estricto
+        # (8 dígitos para Perú) lo valida el frontend según el país de la tienda.
+        if v is None or not v.strip():
+            return None
+        cleaned = re.sub(r"[^A-Za-z0-9]", "", v).upper()
+        # Máx 15: la columna orders.buyer_dni es VARCHAR(15)
+        if not 5 <= len(cleaned) <= 15:
+            raise ValueError("Documento de identidad inválido")
         return cleaned
 
 

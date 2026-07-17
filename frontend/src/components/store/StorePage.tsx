@@ -2,10 +2,11 @@
 
 import { useState, useMemo, useEffect, useRef } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   ShoppingCart, Search, ChevronRight, Zap,
   MapPin, X, MessageCircle, Share2, Download,
-  LayoutGrid, List, Clock, Truck, ShieldCheck,
+  LayoutGrid, List, Clock, Truck, ShieldCheck, PackageSearch,
 } from "lucide-react";
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
 import ProductCard from "./ProductCard";
@@ -15,6 +16,7 @@ import { useCartStore } from "@/store/cartStore";
 import { useAuthStore } from "@/store/authStore";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
 import { trackStoreEvent } from "@/lib/storeAnalytics";
+import { apiClient } from "@/lib/api";
 
 interface StoreData {
   slug:          string;
@@ -84,8 +86,9 @@ function SearchBox({ value, onChange, focused, setFocused, color, inputRef }: {
         className="w-full text-sm rounded-2xl pl-10 pr-9 py-2.5 outline-none transition-all"
         style={{
           background: focused ? "var(--surface)" : "var(--surface-2)",
-          border:     `1.5px solid ${focused ? color : "transparent"}`,
-          boxShadow:  focused ? `0 0 0 3px ${color}18` : "none",
+          // Borde siempre visible: sin él, el buscador parece texto suelto
+          border:     `1.5px solid ${focused ? color : "var(--line-2)"}`,
+          boxShadow:  focused ? `0 0 0 3px ${color}18` : "inset 0 1px 2px rgba(20,19,15,.04)",
           color:      "var(--ink)",
         }}
       />
@@ -309,6 +312,11 @@ export default function StorePage({ store, initialProducts }: Props) {
   const [installPrompt,       setInstallPrompt]       = useState<BeforeInstallPromptEvent | null>(null);
   const [installDismissed,    setInstallDismissed]    = useState(false);
   const [buyerBannerDismissed,setBuyerBannerDismissed]= useState(false);
+  const [isOwner,             setIsOwner]             = useState(false);
+  const [trackOpen,           setTrackOpen]           = useState(false);
+  const [trackNum,            setTrackNum]            = useState("");
+
+  const router = useRouter();
 
   const cartCount  = useCartStore((s) => s.totalItems());
   const isLoggedIn = useAuthStore((s) => s.isAuthenticated());
@@ -344,6 +352,16 @@ export default function StorePage({ store, initialProducts }: Props) {
     localStorage.setItem("qtienda_buyer_banner_dismissed", "1");
   }
 
+  function goTrack(e: React.FormEvent) {
+    e.preventDefault();
+    let num = trackNum.trim().toUpperCase();
+    if (!num) return;
+    // Acepta "42", "00042" o "QT-00042" — normaliza al formato QT-#####
+    if (/^\d+$/.test(num)) num = `QT-${num.padStart(5, "0")}`;
+    setTrackOpen(false);
+    router.push(`/tienda/${store.slug}/pedido/${num}`);
+  }
+
   useEffect(() => {
     setMounted(true);
     if (localStorage.getItem("qtienda_buyer_banner_dismissed") === "1")
@@ -363,6 +381,15 @@ export default function StorePage({ store, initialProducts }: Props) {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  /* ¿El usuario logueado es el dueño de esta tienda? → barra de regreso al panel */
+  useEffect(() => {
+    if (!isLoggedIn || !user || (user.role !== "vendor" && user.role !== "admin")) return;
+    apiClient
+      .get("/stores/me")
+      .then(({ data }) => setIsOwner(data?.slug === store.slug))
+      .catch(() => {});
+  }, [isLoggedIn, user, store.slug]);
 
   /* Analytics (QT-008) */
   useEffect(() => {
@@ -402,6 +429,31 @@ export default function StorePage({ store, initialProducts }: Props) {
         className="h-1"
         style={{ background: `linear-gradient(90deg, ${color}, ${color}66)` }}
       />
+
+      {/* Barra de dueño: así el vendedor no se pierde al ver su tienda pública */}
+      {mounted && isOwner && (
+        <div style={{ background: "var(--ink)", color: "var(--bg)" }}>
+          <div className="max-w-xl md:max-w-3xl lg:max-w-[1360px] mx-auto flex items-center gap-3 px-4 py-2 lg:px-8">
+            <span className="text-[11px] lg:text-xs font-medium flex-1 min-w-0 truncate">
+              👀 Estás viendo tu tienda como la ven tus clientes
+            </span>
+            <a
+              href="/dashboard/productos"
+              className="flex-shrink-0 text-[11px] lg:text-xs font-bold px-3 py-1.5 rounded-full"
+              style={{ background: "rgba(255,255,255,.16)", color: "var(--bg)" }}
+            >
+              + Productos
+            </a>
+            <a
+              href="/dashboard"
+              className="flex-shrink-0 text-[11px] lg:text-xs font-bold px-3 py-1.5 rounded-full"
+              style={{ background: "var(--bg)", color: "var(--ink)" }}
+            >
+              ← Volver al panel
+            </a>
+          </div>
+        </div>
+      )}
 
       {/* ══════════════════════════════════
           STICKY HEADER (logo + search + categorías)
@@ -550,6 +602,16 @@ export default function StorePage({ store, initialProducts }: Props) {
       {/* Franja de confianza */}
       <div className="border-b relative" style={{ borderColor: "var(--line)", background: "var(--surface)" }}>
         <div className="max-w-xl md:max-w-3xl lg:max-w-[1360px] mx-auto flex items-center gap-5 overflow-x-auto scrollbar-hide px-4 py-2 lg:px-8">
+          <button
+            onClick={() => setTrackOpen(true)}
+            className="flex items-center gap-1.5 flex-shrink-0 px-2.5 py-1 rounded-full transition-all active:scale-95"
+            style={{ background: `${color}10` }}
+          >
+            <PackageSearch size={13} style={{ color }} />
+            <span className="text-[11px] font-bold whitespace-nowrap" style={{ color }}>
+              Sigue tu pedido
+            </span>
+          </button>
           {[
             { icon: Truck, label: "Coordinas la entrega con el vendedor", short: "Entrega coordinada" },
             { icon: ShieldCheck, label: "Pago seguro por Yape, Plin o efectivo", short: "Pago seguro" },
@@ -897,17 +959,26 @@ export default function StorePage({ store, initialProducts }: Props) {
                   {[store.city, mounted && openStatus ? openStatus.label : null].filter(Boolean).join(" · ")}
                 </p>
               </div>
-              {store.whatsapp && (
-                <a
-                  href={`https://wa.me/${store.whatsapp.replace(/\D/g, "")}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="ml-auto flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-full flex-shrink-0"
-                  style={{ background: "var(--success-soft)", color: "var(--success)" }}
+              <div className="ml-auto flex items-center gap-2 flex-shrink-0">
+                <button
+                  onClick={() => setTrackOpen(true)}
+                  className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-full"
+                  style={{ background: `${color}12`, color }}
                 >
-                  <MessageCircle size={13} /> WhatsApp
-                </a>
-              )}
+                  <PackageSearch size={13} /> Mi pedido
+                </button>
+                {store.whatsapp && (
+                  <a
+                    href={`https://wa.me/${store.whatsapp.replace(/\D/g, "")}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-full"
+                    style={{ background: "var(--success-soft)", color: "var(--success)" }}
+                  >
+                    <MessageCircle size={13} /> WhatsApp
+                  </a>
+                )}
+              </div>
             </div>
             <div className="flex justify-center items-center gap-2 pt-4" style={{ borderTop: "1px solid var(--line)" }}>
               <span className="text-[11px] font-medium" style={{ color: "var(--ink-4)" }}>Powered by</span>
@@ -973,6 +1044,69 @@ export default function StorePage({ store, initialProducts }: Props) {
           >
             <MessageCircle size={26} fill="white" color="white" />
           </motion.a>
+        )}
+      </AnimatePresence>
+
+      {/* Modal: seguimiento de pedido por número */}
+      <AnimatePresence>
+        {trackOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[59]"
+              style={{ background: "rgba(20,19,15,.45)", backdropFilter: "blur(4px)" }}
+              onClick={() => setTrackOpen(false)}
+            />
+            <motion.div
+              initial={{ y: 24, opacity: 0, scale: 0.97 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 24, opacity: 0, scale: 0.97 }}
+              transition={{ type: "spring", damping: 26, stiffness: 320 }}
+              className="fixed left-4 right-4 top-1/2 -translate-y-1/2 z-[60] max-w-sm mx-auto rounded-3xl p-6"
+              style={{ background: "var(--surface)", boxShadow: "var(--shadow-float)" }}
+            >
+              <div
+                className="w-12 h-12 rounded-2xl flex items-center justify-center mb-4"
+                style={{ background: `${color}12` }}
+              >
+                <PackageSearch size={22} style={{ color }} />
+              </div>
+              <h3 className="font-extrabold text-lg" style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}>
+                Sigue tu pedido
+              </h3>
+              <p className="text-xs mt-1 mb-4" style={{ color: "var(--ink-3)" }}>
+                Ingresa el número que recibiste al confirmar tu compra (también está en el WhatsApp de la tienda).
+              </p>
+              <form onSubmit={goTrack}>
+                <input
+                  className="input"
+                  placeholder="Ej: QT-00042"
+                  value={trackNum}
+                  onChange={(e) => setTrackNum(e.target.value)}
+                  autoFocus
+                  autoCapitalize="characters"
+                  autoCorrect="off"
+                  spellCheck={false}
+                />
+                <button
+                  type="submit"
+                  disabled={!trackNum.trim()}
+                  className="w-full mt-3 rounded-2xl py-3.5 font-bold text-sm text-white transition-all active:scale-[.98] disabled:opacity-40"
+                  style={{ background: color }}
+                >
+                  Ver seguimiento
+                </button>
+              </form>
+              <button
+                onClick={() => setTrackOpen(false)}
+                className="absolute top-4 right-4 w-8 h-8 rounded-xl flex items-center justify-center"
+                style={{ background: "var(--surface-2)" }}
+                aria-label="Cerrar"
+              >
+                <X size={15} style={{ color: "var(--ink-2)" }} />
+              </button>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
 

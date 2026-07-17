@@ -7,23 +7,16 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
-  Bell,
   Plus,
-  Eye,
   Share2,
   ChevronRight,
-  AlertCircle,
-  Package,
   Mail,
   RefreshCw,
   CheckCircle2,
   Store,
-  CreditCard,
-  ExternalLink,
 } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
-import Logo from "@/components/ui/Logo";
 import ReferralBanner from "@/components/ui/ReferralBanner";
 import PlanStatusBanner from "@/components/ui/PlanStatusBanner";
 import toast from "react-hot-toast";
@@ -112,12 +105,6 @@ export default function DashboardPage() {
   const [resent, setResent] = useState(false);
 
   const firstName = user?.full_name?.split(" ")[0] ?? "vendedor";
-  const initials = (user?.full_name ?? "U")
-    .split(" ")
-    .slice(0, 2)
-    .map((w: string) => w[0])
-    .join("")
-    .toUpperCase();
 
   useEffect(() => {
     apiClient
@@ -239,61 +226,6 @@ export default function DashboardPage() {
   /* ── Main dashboard ── */
   return (
     <div style={{ background: "var(--bg)", minHeight: "100%" }}>
-      {/* Mobile sticky header */}
-      <div
-        className="md:hidden sticky top-0 z-10"
-        style={{
-          background: "var(--bg)",
-          padding: "12px 22px",
-          borderBottom: "1px solid var(--line)",
-        }}
-      >
-        <div className="flex items-center justify-between">
-          <Logo size="sm" />
-          <div className="flex items-center gap-2.5">
-            <Link
-              href={pending > 0 ? "/dashboard/pedidos?status=pending" : "/dashboard/pedidos"}
-              className="relative flex items-center justify-center rounded-full"
-              style={{
-                width: 36,
-                height: 36,
-                background: "var(--surface)",
-                border: "1px solid var(--line)",
-              }}
-              aria-label="Pedidos pendientes"
-            >
-              <Bell size={16} strokeWidth={1.7} style={{ color: "var(--ink-2)" }} />
-              {pending > 0 && (
-                <span
-                  className="absolute rounded-full"
-                  style={{
-                    top: 8,
-                    right: 8,
-                    width: 7,
-                    height: 7,
-                    background: "var(--accent)",
-                    border: "2px solid var(--bg)",
-                  }}
-                />
-              )}
-            </Link>
-            <div
-              className="flex items-center justify-center rounded-full"
-              style={{
-                width: 36,
-                height: 36,
-                background: "var(--ink)",
-                color: "var(--bg)",
-                fontSize: 12,
-                fontWeight: 500,
-              }}
-            >
-              {initials}
-            </div>
-          </div>
-        </div>
-      </div>
-
       <div className="px-5 md:px-10 pt-5 md:pt-8 pb-8 mx-auto max-w-[760px] lg:max-w-6xl">
         {/* Greeting */}
         <div className="animate-fade-up mb-5">

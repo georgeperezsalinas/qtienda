@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   X, Minus, Plus, ShoppingBag, MessageCircle,
   CheckCircle2, ChevronRight, MapPin, User, Phone,
-  Mail, FileText, ArrowLeft,
+  Mail, FileText, ArrowLeft, CreditCard, Landmark,
 } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
 import { useAuthStore } from "@/store/authStore";
@@ -30,6 +30,13 @@ const STEPS: { key: Step; label: string }[] = [
 ];
 
 const STEP_IDX: Record<Step, number> = { cart: 0, info: 1, payment: 2, success: 3 };
+
+const DEPARTAMENTOS = [
+  "Amazonas", "Áncash", "Apurímac", "Arequipa", "Ayacucho", "Cajamarca",
+  "Callao", "Cusco", "Huancavelica", "Huánuco", "Ica", "Junín",
+  "La Libertad", "Lambayeque", "Lima", "Loreto", "Madre de Dios", "Moquegua",
+  "Pasco", "Piura", "Puno", "San Martín", "Tacna", "Tumbes", "Ucayali",
+];
 
 /* ── Step indicator ── */
 function Stepper({ step, color }: { step: Step; color: string }) {
@@ -102,13 +109,21 @@ export default function CartDrawer({ open, onClose, store }: Props) {
   const [form, setForm] = useState({
     buyer_name: user?.full_name || "",
     buyer_phone: "",
+    buyer_dni: "",
     buyer_email: user?.email || "",
+    buyer_department: "",
+    buyer_province: "",
+    buyer_district: "",
     buyer_address: "",
+    buyer_reference: "",
     notes: "",
     payment_method: "",
   });
 
   const color = store.primary_color || "#2563EB";
+  // Checkout adaptado al país de la tienda: Perú usa DNI + ubigeo;
+  // otros países ven etiquetas y validaciones genéricas.
+  const isPE = (store.country || "PE") === "PE";
   const deliveryFee = store.settings?.delivery_fee_cents || 0;
   const freeAbove = store.settings?.free_delivery_above;
   const subtotal = totalCents();
@@ -130,11 +145,39 @@ export default function CartDrawer({ open, onClose, store }: Props) {
     setStep(next);
   }
 
-  async function placeOrder() {
+  function validateInfo(): boolean {
     if (!form.buyer_name.trim() || !form.buyer_phone.trim()) {
       toast.error("Nombre y teléfono son requeridos");
-      return;
+      return false;
     }
+    if (isPE) {
+      if (!/^\d{8}$/.test(form.buyer_dni.trim())) {
+        toast.error("Ingresa tu DNI (8 dígitos)");
+        return false;
+      }
+      if (!form.buyer_department || !form.buyer_province.trim() || !form.buyer_district.trim()) {
+        toast.error("Completa departamento, provincia y distrito");
+        return false;
+      }
+    } else {
+      if (form.buyer_dni.trim().length < 5) {
+        toast.error("Ingresa tu documento de identidad");
+        return false;
+      }
+      if (!form.buyer_department.trim() || !form.buyer_province.trim()) {
+        toast.error("Completa región/estado y ciudad");
+        return false;
+      }
+    }
+    if (!form.buyer_address.trim()) {
+      toast.error("Ingresa la dirección de entrega");
+      return false;
+    }
+    return true;
+  }
+
+  async function placeOrder() {
+    if (!validateInfo()) return;
     if (!form.payment_method) {
       toast.error("Selecciona un método de pago");
       return;
@@ -144,8 +187,13 @@ export default function CartDrawer({ open, onClose, store }: Props) {
       const result = await apiClient.post(`/public/store/${store.slug}/orders`, {
         buyer_name: form.buyer_name.trim(),
         buyer_phone: form.buyer_phone.trim(),
+        buyer_dni: form.buyer_dni.trim(),
         buyer_email: form.buyer_email.trim() || undefined,
+        buyer_department: form.buyer_department || undefined,
+        buyer_province: form.buyer_province.trim() || undefined,
+        buyer_district: form.buyer_district.trim() || undefined,
         buyer_address: form.buyer_address.trim() || undefined,
+        buyer_reference: form.buyer_reference.trim() || undefined,
         notes: form.notes.trim() || undefined,
         payment_method: form.payment_method,
         source: "tiktok",
@@ -393,6 +441,24 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                         />
                       </Field>
 
+                      <Field label={isPE ? "DNI *" : "Documento de identidad *"} icon={<CreditCard size={11} />}>
+                        <input
+                          className="input"
+                          inputMode={isPE ? "numeric" : "text"}
+                          maxLength={isPE ? 8 : 15}
+                          placeholder={isPE ? "8 dígitos" : "DNI / CI / CC / cédula"}
+                          value={form.buyer_dni}
+                          onChange={(e) =>
+                            setForm({
+                              ...form,
+                              buyer_dni: isPE
+                                ? e.target.value.replace(/\D/g, "").slice(0, 8)
+                                : e.target.value.replace(/[^A-Za-z0-9]/g, "").slice(0, 15),
+                            })
+                          }
+                        />
+                      </Field>
+
                       <Field label={user ? "Email (tu cuenta)" : "Email (opcional)"} icon={<Mail size={11} />}>
                         <input
                           className="input"
@@ -412,13 +478,89 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                         )}
                       </Field>
 
-                      <Field label="Dirección de entrega" icon={<MapPin size={11} />}>
+                      {isPE ? (
+                        <>
+                          <Field label="Departamento *" icon={<Landmark size={11} />}>
+                            <select
+                              className="input"
+                              value={form.buyer_department}
+                              onChange={(e) => setForm({ ...form, buyer_department: e.target.value })}
+                              style={{ color: form.buyer_department ? undefined : "var(--ink-3)" }}
+                            >
+                              <option value="">Selecciona…</option>
+                              {DEPARTAMENTOS.map((d) => (
+                                <option key={d} value={d}>{d}</option>
+                              ))}
+                            </select>
+                          </Field>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <Field label="Provincia *" icon={<MapPin size={11} />}>
+                              <input
+                                className="input"
+                                placeholder="Ej: Lima"
+                                value={form.buyer_province}
+                                onChange={(e) => setForm({ ...form, buyer_province: e.target.value })}
+                              />
+                            </Field>
+                            <Field label="Distrito *" icon={<MapPin size={11} />}>
+                              <input
+                                className="input"
+                                placeholder="Ej: Comas"
+                                value={form.buyer_district}
+                                onChange={(e) => setForm({ ...form, buyer_district: e.target.value })}
+                              />
+                            </Field>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <Field label="Región / Estado *" icon={<Landmark size={11} />}>
+                            <input
+                              className="input"
+                              placeholder="Ej: Antioquia, Jalisco…"
+                              value={form.buyer_department}
+                              onChange={(e) => setForm({ ...form, buyer_department: e.target.value })}
+                            />
+                          </Field>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <Field label="Ciudad *" icon={<MapPin size={11} />}>
+                              <input
+                                className="input"
+                                placeholder="Ej: Medellín"
+                                value={form.buyer_province}
+                                onChange={(e) => setForm({ ...form, buyer_province: e.target.value })}
+                              />
+                            </Field>
+                            <Field label="Zona / Barrio" icon={<MapPin size={11} />}>
+                              <input
+                                className="input"
+                                placeholder="Opcional"
+                                value={form.buyer_district}
+                                onChange={(e) => setForm({ ...form, buyer_district: e.target.value })}
+                              />
+                            </Field>
+                          </div>
+                        </>
+                      )}
+
+                      <Field label="Dirección de entrega *" icon={<MapPin size={11} />}>
                         <input
                           className="input"
-                          placeholder="Calle, número, distrito…"
+                          placeholder="Calle, número, urbanización…"
                           autoComplete="street-address"
                           value={form.buyer_address}
                           onChange={(e) => setForm({ ...form, buyer_address: e.target.value })}
+                        />
+                      </Field>
+
+                      <Field label="Referencia de la dirección" icon={<MapPin size={11} />}>
+                        <input
+                          className="input"
+                          placeholder="Ej: frente al parque, casa de portón azul…"
+                          value={form.buyer_reference}
+                          onChange={(e) => setForm({ ...form, buyer_reference: e.target.value })}
                         />
                       </Field>
 
@@ -426,7 +568,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                         <textarea
                           className="input resize-none"
                           rows={2}
-                          placeholder="Indicaciones especiales, referencias…"
+                          placeholder="Indicaciones especiales…"
                           value={form.notes}
                           onChange={(e) => setForm({ ...form, notes: e.target.value })}
                         />
@@ -582,13 +724,23 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                           </a>
                         )}
                         <a
-                          href="/mis-pedidos"
+                          href={`/tienda/${store.slug}/pedido/${orderResult.order_number}`}
                           className="flex items-center justify-center gap-2 w-full rounded-2xl py-3.5 font-bold text-sm transition-all active:scale-[.98]"
                           style={{ background: `${color}12`, color, border: `1.5px solid ${color}25` }}
                         >
-                          Ver mis pedidos
+                          📍 Seguir mi pedido
                           <ChevronRight size={15} />
                         </a>
+                        {user && (
+                          <a
+                            href="/mis-pedidos"
+                            className="flex items-center justify-center gap-2 w-full rounded-2xl py-3.5 font-bold text-sm transition-all active:scale-[.98]"
+                            style={{ background: "var(--surface-2)", color: "var(--ink-2)" }}
+                          >
+                            Ver mis pedidos
+                            <ChevronRight size={15} />
+                          </a>
+                        )}
                         <button
                           onClick={handleClose}
                           className="w-full rounded-2xl py-3.5 font-semibold text-sm transition-all"
@@ -641,10 +793,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                 {step === "info" && (
                   <button
                     onClick={() => {
-                      if (!form.buyer_name.trim() || !form.buyer_phone.trim()) {
-                        toast.error("Nombre y teléfono son requeridos");
-                        return;
-                      }
+                      if (!validateInfo()) return;
                       if (paymentOptions.length === 1 && !form.payment_method) {
                         setForm((f) => ({ ...f, payment_method: paymentOptions[0].value }));
                       }

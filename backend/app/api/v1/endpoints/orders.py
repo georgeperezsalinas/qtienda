@@ -24,6 +24,9 @@ class OrderStatusUpdate(BaseModel):
 router = APIRouter()
 
 
+# Solo se ofrece notificar por WhatsApp en los hitos clave (confirmar y entregar).
+# Los pasos intermedios (preparando, en camino) los ve el comprador en su página
+# de seguimiento: qtienda.shop/tienda/{slug}/pedido/{num}
 _BUYER_MESSAGES = {
     "confirmed": (
         "✅ *¡Tu pedido fue confirmado!*\n"
@@ -31,31 +34,10 @@ _BUYER_MESSAGES = {
         "📋 Pedido: *#{num}*\n"
         "🏪 Tienda: {store}\n\n"
         "Ya recibimos tu pedido y lo estamos alistando 🙌\n\n"
-        "📍 Sigue tu pedido aquí:\n"
+        "📍 Sigue el avance de tu pedido aquí:\n"
         "qtienda.shop/tienda/{slug}/pedido/{num}\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n"
         "Gracias por tu compra 🙏"
-    ),
-    "preparing": (
-        "🛠️ *¡Estamos preparando tu pedido!*\n"
-        "━━━━━━━━━━━━━━━━━━━━━━\n"
-        "📋 Pedido: *#{num}*\n"
-        "🏪 Tienda: {store}\n\n"
-        "Tu pedido está en preparación. ¡Pronto estará listo! 🚀\n\n"
-        "📍 Sigue tu pedido aquí:\n"
-        "qtienda.shop/tienda/{slug}/pedido/{num}"
-    ),
-    "on_the_way": (
-        "🚀 *¡Tu pedido está en camino!*\n"
-        "━━━━━━━━━━━━━━━━━━━━━━\n"
-        "📋 Pedido: *#{num}*\n"
-        "🏪 Tienda: {store}\n\n"
-        "Nuestro repartidor ya lleva tu pedido.\n"
-        "¡Prepárate para recibirlo! 📦\n\n"
-        "📍 Rastrea tu pedido aquí:\n"
-        "qtienda.shop/tienda/{slug}/pedido/{num}\n"
-        "━━━━━━━━━━━━━━━━━━━━━━\n"
-        "¿Alguna consulta? Responde este mensaje 💬"
     ),
     "delivered": (
         "📦 *¡Tu pedido llegó!*\n"
@@ -66,15 +48,6 @@ _BUYER_MESSAGES = {
         "¡Gracias por elegirnos! 🙏\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n"
         "¿Todo bien con tu pedido? Cuéntanos aquí 💬"
-    ),
-    "cancelled": (
-        "❌ *Tu pedido fue cancelado*\n"
-        "━━━━━━━━━━━━━━━━━━━━━━\n"
-        "📋 Pedido: *#{num}*\n"
-        "🏪 Tienda: {store}\n\n"
-        "Lamentamos el inconveniente.\n"
-        "━━━━━━━━━━━━━━━━━━━━━━\n"
-        "¿Tienes preguntas? Responde este mensaje y te ayudamos 💬"
     ),
 }
 
@@ -330,7 +303,11 @@ async def get_order(
         "status": order.status,
         "buyer_name": order.buyer_name,
         "buyer_phone": order.buyer_phone,
+        "buyer_dni": order.buyer_dni,
         "buyer_email": order.buyer_email,
+        "buyer_department": order.buyer_department,
+        "buyer_province": order.buyer_province,
+        "buyer_district": order.buyer_district,
         "buyer_address": order.buyer_address,
         "buyer_reference": order.buyer_reference,
         "subtotal_cents": order.subtotal_cents,
