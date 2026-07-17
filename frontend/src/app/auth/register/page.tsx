@@ -201,28 +201,40 @@ function RegisterForm() {
   return (
     <div
       className="min-h-dvh flex flex-col"
-      style={{ background: "var(--surface-2)" }}
+      style={{
+        // Mismo fondo cálido del login: resplandor terracota sobre neutro
+        background:
+          "radial-gradient(ellipse 90% 45% at 50% 0%, var(--accent-soft) 0%, var(--surface-2) 60%)",
+      }}
     >
+      {/* Franja de marca */}
+      <div
+        aria-hidden
+        className="h-1"
+        style={{ background: "linear-gradient(90deg, var(--accent), var(--accent-soft))" }}
+      />
+
       {/* ── Top nav ── */}
       <nav
         className="flex items-center justify-between px-5 pt-safe py-3.5 animate-fade-in"
         style={{
-          background: "rgba(255,255,255,0.88)",
+          background: "color-mix(in srgb, var(--surface) 92%, transparent)",
           backdropFilter: "blur(16px)",
           WebkitBackdropFilter: "blur(16px)",
-          borderBottom: "1px solid rgba(226,232,240,0.6)",
+          borderBottom: "1px solid var(--line)",
+          boxShadow: "0 2px 12px rgba(20,19,15,.05)",
         }}
       >
         <Link
           href="/"
           className="flex items-center gap-1 text-sm font-semibold transition-colors"
-          style={{ color: "var(--ink-3)" }}
+          style={{ color: "var(--accent)" }}
           aria-label="Volver al inicio"
         >
           <ChevronLeft size={18} />
           Inicio
         </Link>
-        <Logo size="sm" />
+        <Logo size="sm" variant="brand" />
         <div className="w-16" aria-hidden />
       </nav>
 
@@ -231,8 +243,8 @@ function RegisterForm() {
         <div
           className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
           style={{
-            background: "linear-gradient(135deg, var(--ink), var(--accent-ink))",
-            boxShadow: "var(--shadow-md)",
+            background: "linear-gradient(135deg, var(--accent), var(--accent-ink))",
+            boxShadow: "0 6px 18px rgba(197,97,59,.35)",
           }}
         >
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" aria-hidden>
@@ -264,10 +276,10 @@ function RegisterForm() {
                 <div
                   className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300"
                   style={{
-                    background: i <= currentStep ? "var(--ink)" : "var(--surface)",
+                    background: i <= currentStep ? "var(--accent)" : "var(--surface)",
                     color: i <= currentStep ? "white" : "var(--ink-3)",
                     border: i <= currentStep ? "none" : "1.5px solid var(--line-2)",
-                    boxShadow: i === currentStep ? "var(--shadow-sm)" : "none",
+                    boxShadow: i === currentStep ? "0 2px 8px rgba(197,97,59,.35)" : "none",
                   }}
                 >
                   {i < currentStep ? <CheckCircle2 size={14} /> : i + 1}

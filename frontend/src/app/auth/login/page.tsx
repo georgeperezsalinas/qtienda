@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Logo from "@/components/ui/Logo";
-import { Eye, EyeOff, ArrowRight, CheckCircle2, Store, ShoppingBag } from "lucide-react";
+import { Eye, EyeOff, ArrowRight, CheckCircle2, Store, ShoppingBag, ChevronLeft } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
@@ -61,7 +61,20 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-dvh flex" style={{ background: "var(--surface-2)" }}>
+    <div
+      className="min-h-dvh flex flex-col lg:flex-row"
+      style={{
+        // Fondo cálido: brillo terracota que baja hacia el tono neutro
+        background:
+          "radial-gradient(ellipse 90% 45% at 50% 0%, var(--accent-soft) 0%, var(--surface-2) 60%)",
+      }}
+    >
+      {/* Franja de marca */}
+      <div
+        aria-hidden
+        className="h-1 w-full lg:hidden"
+        style={{ background: "linear-gradient(90deg, var(--accent), var(--accent-soft))" }}
+      />
 
       {/* ── Panel izquierdo (solo desktop) ── */}
       <div
@@ -119,11 +132,22 @@ export default function LoginPage() {
       </div>
 
       {/* ── Panel derecho (formulario) ── */}
-      <div className="flex-1 flex flex-col items-center justify-center px-5 py-10">
+      <div className="flex-1 flex flex-col items-center justify-center px-5 py-10 relative">
+
+        {/* Volver a la página principal */}
+        <Link
+          href="/"
+          className="absolute top-5 left-5 flex items-center gap-1 text-sm font-semibold transition-colors"
+          style={{ color: "var(--accent)" }}
+          aria-label="Volver al inicio"
+        >
+          <ChevronLeft size={18} />
+          Inicio
+        </Link>
 
         {/* Logo mobile */}
-        <div className="lg:hidden mb-8">
-          <Logo size="md" />
+        <div className="lg:hidden mb-6">
+          <Logo size="lg" variant="brand" />
         </div>
 
         <div
@@ -136,10 +160,10 @@ export default function LoginPage() {
         >
           <div className="mb-7">
             <h1 className="font-display font-extrabold text-2xl" style={{ color: "var(--ink)" }}>
-              Iniciar sesión
+              ¡Hola de nuevo! 👋
             </h1>
             <p className="text-sm mt-1" style={{ color: "var(--ink-3)" }}>
-              Accede a tu cuenta de qtienda
+              Qué bueno verte por aquí. Entra a tu cuenta.
             </p>
           </div>
 
@@ -163,7 +187,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   className="text-xs font-semibold transition-colors"
-                  style={{ color: "var(--ink)" }}
+                  style={{ color: "var(--accent)" }}
                 >
                   ¿La olvidaste?
                 </button>
@@ -187,7 +211,15 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <button type="submit" disabled={loading} className="btn-primary !mt-6">
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn-primary !mt-6"
+              style={{
+                background: "var(--accent)",
+                boxShadow: "0 6px 18px rgba(197,97,59,.35)",
+              }}
+            >
               {loading ? <><Spinner /> Ingresando...</> : <>Entrar <ArrowRight size={16} /></>}
             </button>
           </form>
@@ -243,6 +275,20 @@ export default function LoginPage() {
             </Link>
           </div>
         </div>
+
+        {/* Crédito QSD Soft */}
+        <a
+          href="https://qsdsoft.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 mt-6 opacity-70 hover:opacity-100 transition-opacity"
+        >
+          <span className="text-[11px]" style={{ color: "var(--ink-3)" }}>
+            Un producto de
+          </span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo_qsd_soft.png" alt="QSD Soft" style={{ height: 20, width: "auto" }} />
+        </a>
       </div>
     </div>
   );

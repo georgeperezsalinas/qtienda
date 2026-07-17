@@ -102,24 +102,49 @@ const PAYMENT_METHODS = ["Yape", "Plin", "Transferencia", "Efectivo", "Tarjeta"]
 
 export default function LandingPage() {
   return (
-    <div className="min-h-dvh flex flex-col" style={{ background: "var(--bg)" }}>
+    <div
+      className="min-h-dvh flex flex-col"
+      style={{
+        // Resplandor terracota que baja del hero hacia el fondo neutro
+        background:
+          "radial-gradient(ellipse 90% 38% at 50% 0%, var(--accent-soft) 0%, var(--bg) 55%)",
+      }}
+    >
+      {/* Franja de marca */}
+      <div
+        aria-hidden
+        className="h-1"
+        style={{ background: "linear-gradient(90deg, var(--accent), var(--accent-soft))" }}
+      />
+
       {/* ── Header ── */}
       <header
         className="sticky top-0 z-30 flex items-center justify-between animate-fade-in"
         style={{
           padding: "14px 22px",
-          background: "rgba(247,245,240,0.85)",
+          // Superficie propia + sombra: el header no debe fundirse con el fondo
+          background: "color-mix(in srgb, var(--surface) 92%, transparent)",
           backdropFilter: "blur(16px)",
           WebkitBackdropFilter: "blur(16px)",
           borderBottom: "1px solid var(--line)",
+          boxShadow: "0 2px 14px rgba(20,19,15,.06)",
         }}
       >
-        <Logo size="md" />
+        <Logo size="md" variant="brand" />
         <div className="flex items-center gap-2">
           <Link href="/auth/login" className="btn-ghost" style={{ padding: "8px 14px", fontSize: 13 }}>
             Ingresar
           </Link>
-          <Link href="/auth/register" className="btn-primary" style={{ padding: "8px 14px", fontSize: 13 }}>
+          <Link
+            href="/auth/register"
+            className="btn-primary"
+            style={{
+              padding: "8px 14px",
+              fontSize: 13,
+              background: "var(--accent)",
+              boxShadow: "0 4px 12px rgba(197,97,59,.3)",
+            }}
+          >
             Crear tienda
           </Link>
         </div>
@@ -162,7 +187,12 @@ export default function LandingPage() {
             <Link
               href="/auth/register"
               className="btn-primary"
-              style={{ padding: "14px 22px", fontSize: 15 }}
+              style={{
+                padding: "14px 22px",
+                fontSize: 15,
+                background: "var(--accent)",
+                boxShadow: "0 6px 18px rgba(197,97,59,.35)",
+              }}
             >
               Crear tienda gratis
               <ArrowRight size={16} />
@@ -196,10 +226,10 @@ export default function LandingPage() {
                     marginLeft: i === 0 ? 0 : -8,
                     width: 32,
                     height: 32,
-                    background: i % 2 === 0 ? "var(--ink)" : "var(--surface-2)",
-                    color: i % 2 === 0 ? "var(--bg)" : "var(--ink)",
+                    background: i % 2 === 0 ? "var(--accent)" : "var(--accent-soft)",
+                    color: i % 2 === 0 ? "#fff" : "var(--accent-ink)",
                     fontSize: 11,
-                    fontWeight: 500,
+                    fontWeight: 600,
                     border: "2px solid var(--bg)",
                   }}
                 >
@@ -305,7 +335,7 @@ export default function LandingPage() {
             >
               <div
                 className="flex items-center justify-center rounded-lg"
-                style={{ width: 34, height: 34, background: "var(--surface-2)", color: "var(--ink-2)" }}
+                style={{ width: 34, height: 34, background: "var(--accent-soft)", color: "var(--accent-ink)" }}
               >
                 <Icon size={16} strokeWidth={1.7} />
               </div>
@@ -352,19 +382,38 @@ export default function LandingPage() {
       {/* ── CTA final ── */}
       <section className="px-5 md:px-10 max-w-6xl mx-auto w-full pb-16">
         <div
-          className="flex flex-col items-center text-center gap-4 py-14 px-6"
-          style={{ background: "var(--ink)", color: "var(--bg)", borderRadius: 24 }}
+          className="flex flex-col items-center text-center gap-4 py-14 px-6 relative overflow-hidden"
+          style={{
+            // Mismo degradado cálido del panel de login: coherencia de marca
+            background: "linear-gradient(160deg, var(--ink) 0%, var(--accent-ink) 100%)",
+            color: "var(--bg)",
+            borderRadius: 24,
+          }}
         >
-          <p className="text-2xl md:text-3xl font-medium" style={{ letterSpacing: "-0.018em" }}>
+          <div
+            aria-hidden
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background:
+                "radial-gradient(ellipse 60% 50% at 80% 15%, rgba(197,97,59,.4) 0%, transparent 70%)",
+            }}
+          />
+          <p className="relative text-2xl md:text-3xl font-medium" style={{ letterSpacing: "-0.018em" }}>
             Tu vitrina profesional, lista hoy.
           </p>
-          <p className="text-sm max-w-md" style={{ color: "var(--ink-5)" }}>
+          <p className="relative text-sm max-w-md" style={{ color: "rgba(255,255,255,.65)" }}>
             Sin tarjeta, sin comisiones, sin curva de aprendizaje.
           </p>
           <Link
             href="/auth/register"
-            className="inline-flex items-center gap-2 rounded-full font-medium mt-2"
-            style={{ padding: "14px 24px", fontSize: 15, background: "var(--bg)", color: "var(--ink)" }}
+            className="relative inline-flex items-center gap-2 rounded-full font-bold mt-2"
+            style={{
+              padding: "14px 24px",
+              fontSize: 15,
+              background: "var(--accent)",
+              color: "#fff",
+              boxShadow: "0 6px 20px rgba(0,0,0,.3)",
+            }}
           >
             Crear tienda gratis
             <ArrowRight size={16} />
@@ -378,15 +427,29 @@ export default function LandingPage() {
         style={{ borderTop: "1px solid var(--line)" }}
       >
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <Logo size="sm" />
+          <Logo size="sm" variant="brand" />
           <div className="flex items-center gap-5 text-xs" style={{ color: "var(--ink-3)" }}>
             <Link href="/auth/login" className="hover:underline">Ingresar</Link>
             <Link href="/auth/register" className="hover:underline">Crear tienda</Link>
             <Link href="/mis-pedidos" className="hover:underline">Mis pedidos</Link>
           </div>
-          <p className="text-xs" style={{ color: "var(--ink-3)" }}>
-            © 2026 qtienda · Hecho en LatAm
-          </p>
+          <div className="flex flex-col sm:items-end items-center gap-1.5">
+            <p className="text-xs" style={{ color: "var(--ink-3)" }}>
+              © 2026 qtienda · Hecho en LatAm
+            </p>
+            <a
+              href="https://qsdsoft.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 opacity-70 hover:opacity-100 transition-opacity"
+            >
+              <span className="text-[10px]" style={{ color: "var(--ink-4)" }}>
+                Un producto de
+              </span>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo_qsd_soft.png" alt="QSD Soft" style={{ height: 16, width: "auto" }} />
+            </a>
+          </div>
         </div>
       </footer>
     </div>
