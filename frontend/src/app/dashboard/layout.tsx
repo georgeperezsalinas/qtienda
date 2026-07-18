@@ -23,8 +23,10 @@ import {
   Search,
   ShoppingCart,
   Bell,
+  HelpCircle,
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
+import DashboardTour, { restartQtiendaTour } from "@/components/onboarding/DashboardTour";
 import { useSellerPushSubscription } from "@/hooks/usePushSubscription";
 import { apiClient } from "@/lib/api";
 import toast from "react-hot-toast";
@@ -151,6 +153,17 @@ export default function DashboardLayout({
 
   const initials = getInitials(user?.full_name);
   const firstName = user?.full_name?.split(" ")[0] ?? "vendedor";
+
+  /* Relanza el tour; si no estamos en el inicio, navega primero
+     (los elementos resaltados viven en /dashboard) */
+  function handleRestartTour() {
+    if (pathname === "/dashboard") {
+      restartQtiendaTour();
+    } else {
+      router.push("/dashboard");
+      setTimeout(restartQtiendaTour, 700);
+    }
+  }
 
   return (
     <div className="min-h-dvh md:flex" style={{ background: "var(--bg)" }}>
@@ -279,6 +292,19 @@ export default function DashboardLayout({
               <Logo size="md" variant="brand" href={null} />
             </Link>
             <div className="flex items-center gap-2.5">
+              <button
+                onClick={handleRestartTour}
+                className="flex items-center justify-center rounded-full"
+                style={{
+                  width: 36,
+                  height: 36,
+                  background: "var(--surface)",
+                  border: "1px solid var(--line)",
+                }}
+                aria-label="Ver recorrido del panel"
+              >
+                <HelpCircle size={16} strokeWidth={1.7} style={{ color: "var(--ink-2)" }} />
+              </button>
               <Link
                 href={pendingCount > 0 ? "/dashboard/pedidos?status=pending" : "/dashboard/pedidos"}
                 className="relative flex items-center justify-center rounded-full"
@@ -326,6 +352,9 @@ export default function DashboardLayout({
 
         {user && user.is_verified === false && <VerifyBanner email={user.email} />}
         {children}
+
+        {/* Tour de bienvenida: solo en el inicio, donde están sus targets */}
+        {pathname === "/dashboard" && <DashboardTour firstName={firstName} />}
       </main>
 
       {/* ═════════ Bottom nav (mobile) ═════════ */}

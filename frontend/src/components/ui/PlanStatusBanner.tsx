@@ -45,6 +45,7 @@ export default function PlanStatusBanner() {
   if (days > 7) {
     return (
       <Link
+        id="tour-plan"
         href="/dashboard/planes"
         className="card flex items-center gap-3 mb-5 animate-fade-up"
         style={{ padding: "12px 16px" }}
@@ -71,6 +72,7 @@ export default function PlanStatusBanner() {
   const expired = days <= 0;
   return (
     <div
+      id="tour-plan"
       className="rounded-2xl p-4 mb-5 animate-fade-up"
       style={{
         background: expired ? "#FEF2F2" : "#FFFBEB",

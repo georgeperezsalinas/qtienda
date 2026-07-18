@@ -17,6 +17,7 @@ import {
   ExternalLink,
   ShoppingBag,
   TrendingUp,
+  Package,
 } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
@@ -250,6 +251,7 @@ export default function DashboardPage() {
 
         {/* Store strip */}
         <Link
+          id="tour-store"
           href="/dashboard/configuracion"
           className="card flex items-center gap-3 mb-5 animate-fade-up"
           style={{ padding: "14px 16px" }}
@@ -322,6 +324,34 @@ export default function DashboardPage() {
           </button>
         </Link>
 
+        {/* Productos y categorías: acceso directo (target del tour) */}
+        <Link
+          id="tour-products"
+          href="/dashboard/productos"
+          className="card flex items-center gap-3 mb-5 animate-fade-up"
+          style={{ padding: "14px 16px" }}
+        >
+          <div
+            className="flex items-center justify-center rounded-xl flex-shrink-0"
+            style={{ width: 38, height: 38, background: "var(--accent-soft)", color: "var(--accent-ink)" }}
+          >
+            <Package size={17} strokeWidth={1.8} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>
+              Productos y categorías
+            </p>
+            <p className="text-xs" style={{ color: "var(--ink-3)", marginTop: 2 }}>
+              {productCount === null
+                ? "Gestiona tu catálogo"
+                : productCount === 0
+                ? "Sube tu primer producto con foto y precio"
+                : `${productCount} producto${productCount !== 1 ? "s" : ""} publicado${productCount !== 1 ? "s" : ""}`}
+            </p>
+          </div>
+          <ChevronRight size={16} style={{ color: "var(--ink-3)" }} />
+        </Link>
+
         {/* Plan actual y aviso de renovación */}
         <PlanStatusBanner />
 
@@ -353,7 +383,7 @@ export default function DashboardPage() {
         {/* Onboarding checklist */}
         {
           !loadingStats && productCount !== null && productCount === 0 && (
-            <div className="card mb-5 p-4 animate-fade-up">
+            <div id="tour-checklist" className="card mb-5 p-4 animate-fade-up">
               <p className="eyebrow mb-3">Para que tu tienda esté lista</p>
               {(
                 [
@@ -448,7 +478,7 @@ export default function DashboardPage() {
         {/* Today — typographic, no boxes */}
         {
           !loadingStats && (
-            <div className={`animate-fade-up mb-7 ${analytics && analytics.store_views > 0 ? "" : "md:col-span-2"}`}>
+            <div id="tour-stats" className={`animate-fade-up mb-7 ${analytics && analytics.store_views > 0 ? "" : "md:col-span-2"}`}>
               <p className="eyebrow mb-3">Hoy</p>
               {/* Tarjetas con color: pedidos (terracota), vendido (verde), entregados (ámbar) */}
               <div className="grid grid-cols-3 gap-2.5">
@@ -538,7 +568,7 @@ export default function DashboardPage() {
         {/* Recent orders */}
         {
           recent.length > 0 && (
-            <div className="animate-fade-up mb-5">
+            <div id="tour-orders" className="animate-fade-up mb-5">
               <div className="flex items-center justify-between mb-3">
                 <p className="eyebrow">Últimos pedidos</p>
                 <Link
