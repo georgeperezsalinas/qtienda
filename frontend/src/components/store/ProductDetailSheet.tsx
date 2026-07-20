@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Image from "next/image";
 import { X, ChevronLeft, ChevronRight, Check, ShoppingCart, ZoomIn, Share2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCartStore } from "@/store/cartStore";
 import { formatPrice, stripHtml } from "@/lib/utils";
 import toast from "react-hot-toast";
+import ProductCard from "./ProductCard";
 
 interface ProductForSheet {
   id: string;
@@ -15,6 +16,9 @@ interface ProductForSheet {
   price_cents: number;
   compare_price?: number;
   stock?: number;
+  category_id?: string;
+  sold_count?: number;
+  created_at?: string;
   images: { url: string; is_primary: boolean }[];
 }
 
@@ -23,6 +27,24 @@ interface Props {
   storeColor: string;
   storeSlug: string;
   onClose: () => void;
+  /** Catálogo completo de la tienda, ya cargado en StorePage — sin fetch extra */
+  allProducts?: ProductForSheet[];
+  /** Navega el sheet a otro producto sin cerrarlo (tap en un cross-sell) */
+  onSelectRelated?: (product: ProductForSheet) => void;
+  onOpenCart?: () => void;
+}
+
+const RELATED_LIMIT = 4;
+
+/** Misma categoría primero; si faltan, completa con otros productos de la tienda.
+ *  Nunca inventa relación — solo reordena lo que ya existe en el catálogo. */
+function getRelatedProducts(current: ProductForSheet, all: ProductForSheet[]): ProductForSheet[] {
+  const others = all.filter((p) => p.id !== current.id);
+  const sameCategory = current.category_id
+    ? others.filter((p) => p.category_id === current.category_id)
+    : [];
+  const rest = others.filter((p) => !sameCategory.includes(p));
+  return [...sameCategory, ...rest].slice(0, RELATED_LIMIT);
 }
 
 function isHTML(str?: string) {
@@ -30,7 +52,7 @@ function isHTML(str?: string) {
 }
 
 export default function ProductDetailSheet({
-  product, storeColor, storeSlug, onClose,
+  product, storeColor, storeSlug, onClose, allProducts, onSelectRelated, onOpenCart,
 }: Props) {
   const [current, setCurrent] = useState(
     () => Math.max(0, product.images.findIndex((i) => i.is_primary))
@@ -38,6 +60,7 @@ export default function ProductDetailSheet({
   const [added, setAdded] = useState(false);
   const [zoomOpen, setZoomOpen] = useState(false);
   const touchStartX = useRef(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const addItem = useCartStore((s) => s.addItem);
 
   const primaryImage =
@@ -53,10 +76,24 @@ export default function ProductDetailSheet({
   const hasDescription = !!product.description?.trim();
   const displayName = stripHtml(product.name);
 
+  const related = useMemo(
+    () => (allProducts ? getRelatedProducts(product, allProducts) : []),
+    [product, allProducts]
+  );
+
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = ""; };
   }, []);
+
+  // Al saltar a un producto relacionado el sheet no se desmonta (misma
+  // instancia) — hay que resetear la galería e ítems de estado por producto.
+  useEffect(() => {
+    setCurrent(Math.max(0, product.images.findIndex((i) => i.is_primary)));
+    setZoomOpen(false);
+    setAdded(false);
+    scrollRef.current?.scrollTo({ top: 0 });
+  }, [product.id]);
 
   function prev() { setCurrent((c) => Math.max(0, c - 1)); }
   function next() { setCurrent((c) => Math.min(product.images.length - 1, c + 1)); }
@@ -207,7 +244,7 @@ export default function ProductDetailSheet({
           {hasImages && (
             <button
               onClick={() => {
-                const url = `${location.origin}/tienda/${storeSlug}`;
+                const url = `${location.origin}/tienda/${storeSlug}?p=${product.id}`;
                 if (navigator.share) {
                   navigator.share({ title: displayName, text: `Mira ${displayName}`, url });
                 } else {
@@ -234,7 +271,7 @@ export default function ProductDetailSheet({
         </div>
 
         {/* ── Contenido scrollable ── */}
-        <div className="flex-1 overflow-y-auto overscroll-contain">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain">
           <div className="px-5 pt-4 pb-28">
 
             {/* Nombre */}
@@ -326,6 +363,31 @@ export default function ProductDetailSheet({
                     {product.description}
                   </p>
                 )}
+              </div>
+            )}
+
+            {/* Cross-sell: mismo catálogo, sin datos inventados */}
+            {related.length > 0 && (
+              <div className="mt-6">
+                <p
+                  className="text-[11px] font-bold uppercase tracking-wider mb-2.5"
+                  style={{ color: "var(--ink-3)" }}
+                >
+                  Otros también compraron
+                </p>
+                <div className="flex gap-3 overflow-x-auto pb-1 -mx-5 px-5 snap-x snap-mandatory scrollbar-hide">
+                  {related.map((p) => (
+                    <ProductCard
+                      key={p.id}
+                      product={p}
+                      storeColor={storeColor}
+                      storeSlug={storeSlug}
+                      featured
+                      onTap={() => onSelectRelated?.(p)}
+                      onOpenCart={onOpenCart}
+                    />
+                  ))}
+                </div>
               </div>
             )}
           </div>

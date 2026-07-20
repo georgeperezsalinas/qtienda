@@ -55,9 +55,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 // ── Página principal con JSON-LD ─────────────────────────────
 export default async function TiendaPage({ params }: Props) {
   try {
+    // Revalidación corta (20s): precios, envío y demás Ajustes del vendedor
+    // afectan el checkout directamente y deben reflejarse casi al instante.
     const [store, products] = await Promise.all([
-      apiServer(`/public/store/${params.slug}`),
-      apiServer(`/public/store/${params.slug}/products`),
+      apiServer(`/public/store/${params.slug}`, { revalidate: 20 }),
+      apiServer(`/public/store/${params.slug}/products`, { revalidate: 20 }),
     ]);
 
     // ── JSON-LD: LocalBusiness / Store ────────────────────

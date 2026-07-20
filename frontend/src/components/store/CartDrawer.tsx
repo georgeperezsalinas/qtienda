@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, Minus, Plus, ShoppingBag, MessageCircle,
@@ -8,6 +8,7 @@ import {
   Mail, FileText, ArrowLeft, CreditCard, Landmark,
 } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
+import { useRecentPurchasesStore } from "@/store/recentPurchasesStore";
 import { useAuthStore } from "@/store/authStore";
 import { formatPrice } from "@/lib/utils";
 import { apiClient } from "@/lib/api";
@@ -82,6 +83,44 @@ function Stepper({ step, color }: { step: Step; color: string }) {
   );
 }
 
+/* ── Barra de progreso hacia el envío gratis ── */
+function FreeShippingBar({ subtotal, freeAbove, color }: { subtotal: number; freeAbove: number; color: string }) {
+  const qualifies = subtotal >= freeAbove;
+  const pct = Math.min(100, Math.round((subtotal / freeAbove) * 100));
+  const missing = freeAbove - subtotal;
+
+  return (
+    <div
+      className="rounded-2xl p-3.5 mb-3"
+      style={{
+        background: qualifies ? "var(--success-soft)" : `${color}0d`,
+        border: `1.5px solid ${qualifies ? "var(--success)" : color}22`,
+      }}
+    >
+      <p
+        className="text-xs font-bold mb-2"
+        style={{ color: qualifies ? "var(--success)" : "var(--ink)" }}
+      >
+        {qualifies
+          ? "¡Envío gratis desbloqueado! 🎉"
+          : <>Te faltan <strong>{formatPrice(missing)}</strong> para envío gratis</>}
+      </p>
+      <div
+        className="h-2 rounded-full overflow-hidden"
+        style={{ background: "var(--surface)" }}
+      >
+        <motion.div
+          className="h-full rounded-full"
+          style={{ background: qualifies ? "var(--success)" : color }}
+          initial={false}
+          animate={{ width: `${pct}%` }}
+          transition={{ type: "spring", stiffness: 200, damping: 25 }}
+        />
+      </div>
+    </div>
+  );
+}
+
 /* ── Field wrapper ── */
 function Field({ label, icon, children }: { label: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -100,25 +139,46 @@ function Field({ label, icon, children }: { label: string; icon: React.ReactNode
 ════════════════════════════════════════ */
 export default function CartDrawer({ open, onClose, store }: Props) {
   const { items, updateQty, removeItem, clearCart, totalCents } = useCartStore();
+  const recordPurchase = useRecentPurchasesStore((s) => s.record);
   const { user } = useAuthStore();
   const [step, setStep] = useState<Step>("cart");
   const [loading, setLoading] = useState(false);
   const [orderResult, setOrderResult] = useState<any>(null);
   const [direction, setDirection] = useState(1); // 1 = forward, -1 = back
 
-  const [form, setForm] = useState({
-    buyer_name: user?.full_name || "",
-    buyer_phone: "",
-    buyer_dni: "",
-    buyer_email: user?.email || "",
-    buyer_department: "",
-    buyer_province: "",
-    buyer_district: "",
-    buyer_address: "",
-    buyer_reference: "",
-    notes: "",
-    payment_method: "",
+  // Recuerda los datos del comprador entre compras (misma persona, distinta tienda)
+  const BUYER_INFO_KEY = "qtienda_buyer_info";
+  function loadSavedBuyerInfo() {
+    try {
+      const raw = localStorage.getItem(BUYER_INFO_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  }
+
+  const [form, setForm] = useState(() => {
+    const saved = loadSavedBuyerInfo();
+    return {
+      buyer_name: user?.full_name || saved.buyer_name || "",
+      buyer_phone: saved.buyer_phone || "",
+      buyer_dni: saved.buyer_dni || "",
+      buyer_email: user?.email || saved.buyer_email || "",
+      buyer_department: saved.buyer_department || "",
+      buyer_province: saved.buyer_province || "",
+      buyer_district: saved.buyer_district || "",
+      buyer_address: saved.buyer_address || "",
+      buyer_reference: saved.buyer_reference || "",
+      notes: "",
+      payment_method: "",
+    };
   });
+
+  // Persiste los datos (menos notas/pago, que son por pedido) en cada cambio
+  useEffect(() => {
+    const { notes, payment_method, ...buyerInfo } = form;
+    localStorage.setItem(BUYER_INFO_KEY, JSON.stringify(buyerInfo));
+  }, [form]);
 
   const color = store.primary_color || "#2563EB";
   // Checkout adaptado al país de la tienda: Perú usa DNI + ubigeo;
@@ -201,6 +261,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
       });
 
       setOrderResult(result.data);
+      recordPurchase(store.slug, items.map((i) => i.id));
       clearCart();
       track("order_placed", {
         store_slug: store.slug,
@@ -323,6 +384,9 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                         </div>
                       ) : (
                         <div className="space-y-2">
+                          {!!freeAbove && deliveryFee > 0 && (
+                            <FreeShippingBar subtotal={subtotal} freeAbove={freeAbove} color={color} />
+                          )}
                           {items.map((item) => (
                             <div
                               key={item.id}
@@ -402,11 +466,6 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                                   ) : formatPrice(effectiveDel)}
                                 </span>
                               </div>
-                            )}
-                            {freeAbove && effectiveDel > 0 && (
-                              <p className="text-xs" style={{ color: "var(--ink-3)" }}>
-                                Delivery gratis desde {formatPrice(freeAbove)}
-                              </p>
                             )}
                             <div
                               className="flex justify-between font-extrabold text-base pt-2"

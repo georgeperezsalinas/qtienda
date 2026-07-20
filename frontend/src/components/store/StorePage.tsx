@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
-  ShoppingCart, Search, ChevronRight, Zap,
+  ShoppingCart, Search, ChevronRight, Zap, Heart,
   MapPin, X, MessageCircle, Share2, Download,
   LayoutGrid, List, Clock, Truck, ShieldCheck, PackageSearch,
   HelpCircle,
@@ -15,6 +15,8 @@ import ProductDetailSheet from "./ProductDetailSheet";
 import CartDrawer from "./CartDrawer";
 import StoreTour, { restartStoreTour } from "./StoreTour";
 import { useCartStore } from "@/store/cartStore";
+import { useFavoritesStore } from "@/store/favoritesStore";
+import { useRecentPurchasesStore } from "@/store/recentPurchasesStore";
 import { useAuthStore } from "@/store/authStore";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
 import { trackStoreEvent } from "@/lib/storeAnalytics";
@@ -317,10 +319,14 @@ export default function StorePage({ store, initialProducts }: Props) {
   const [isOwner,             setIsOwner]             = useState(false);
   const [trackOpen,           setTrackOpen]           = useState(false);
   const [trackNum,            setTrackNum]            = useState("");
+  const [showFavorites,       setShowFavorites]       = useState(false);
 
   const router = useRouter();
 
-  const cartCount  = useCartStore((s) => s.totalItems());
+  const cartCount     = useCartStore((s) => s.totalItems());
+  const favoriteIds    = useFavoritesStore((s) => s.ids);
+  const favoritesCount = useFavoritesStore((s) => s.countForStore(store.slug));
+  const recentIds      = useRecentPurchasesStore((s) => s.getRecent(store.slug));
   const isLoggedIn = useAuthStore((s) => s.isAuthenticated());
   const user       = useAuthStore((s) => s.user);
   const logout     = useAuthStore((s) => s.logout);
@@ -402,12 +408,24 @@ export default function StorePage({ store, initialProducts }: Props) {
     if (viewProduct) trackStoreEvent(store.slug, "product_view", viewProduct.id);
   }, [viewProduct, store.slug]);
 
+  // Abre la ficha directo si llegan por un link compartido (?p=productId)
+  useEffect(() => {
+    const id = new URLSearchParams(location.search).get("p");
+    if (id) {
+      const p = initialProducts.find((pr) => pr.id === id);
+      if (p) setViewProduct(p);
+    }
+  }, [initialProducts]);
+
   useEffect(() => {
     if (cartOpen) trackStoreEvent(store.slug, "checkout_start");
   }, [cartOpen, store.slug]);
 
   const filtered = useMemo(() => {
     let items = initialProducts;
+    if (showFavorites) {
+      items = items.filter((p) => favoriteIds.includes(`${store.slug}:${p.id}`));
+    }
     if (activeCategory) items = items.filter((p) => p.category_id === activeCategory);
     if (search) {
       const q = search.toLowerCase();
@@ -416,11 +434,12 @@ export default function StorePage({ store, initialProducts }: Props) {
       );
     }
     return items;
-  }, [initialProducts, activeCategory, search]);
+  }, [initialProducts, activeCategory, search, showFavorites, favoriteIds, store.slug]);
 
-  const featured     = initialProducts.filter((p) => p.is_featured).slice(0, 8);
-  const hasCategories = (store.categories?.length ?? 0) > 0;
-  const isFiltering   = !!search || !!activeCategory;
+  const featured        = initialProducts.filter((p) => p.is_featured).slice(0, 8);
+  const recentPurchases = recentIds.map((id) => initialProducts.find((p) => p.id === id)).filter(Boolean) as ProductData[];
+  const hasCategories    = (store.categories?.length ?? 0) > 0;
+  const isFiltering      = !!search || !!activeCategory || showFavorites;
 
   return (
     <div className="min-h-dvh" style={{ background: "var(--bg)" }}>
@@ -549,6 +568,24 @@ export default function StorePage({ store, initialProducts }: Props) {
               aria-label="Compartir"
             >
               <Share2 size={16} style={{ color }} />
+            </button>
+
+            {/* Favoritos */}
+            <button
+              onClick={() => setShowFavorites((v) => !v)}
+              className="relative w-9 h-9 lg:w-10 lg:h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: showFavorites ? "var(--danger-soft)" : `${color}12` }}
+              aria-label="Favoritos"
+            >
+              <Heart size={16} fill={showFavorites ? "var(--danger)" : "none"} style={{ color: showFavorites ? "var(--danger)" : color }} />
+              {mounted && favoritesCount > 0 && (
+                <span
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full text-white text-[10px] font-extrabold flex items-center justify-center"
+                  style={{ background: "var(--danger)", border: "2px solid var(--surface)" }}
+                >
+                  {favoritesCount > 9 ? "9+" : favoritesCount}
+                </span>
+              )}
             </button>
 
             {/* Cuenta comprador */}
@@ -822,6 +859,7 @@ export default function StorePage({ store, initialProducts }: Props) {
                       storeSlug={store.slug}
                       featured
                       onTap={() => setViewProduct(p)}
+                      onOpenCart={() => setCartOpen(true)}
                     />
                   ))}
                 </div>
@@ -829,11 +867,35 @@ export default function StorePage({ store, initialProducts }: Props) {
             )}
           </AnimatePresence>
 
+          {/* Comprar de nuevo */}
+          {recentPurchases.length > 0 && !isFiltering && (
+            <section className="pt-4 pb-1">
+              <div className="flex items-center gap-2 px-4 mb-3 lg:px-6">
+                <span className="text-xs font-extrabold uppercase tracking-widest" style={{ color: "var(--ink-3)" }}>
+                  Comprar de nuevo
+                </span>
+              </div>
+              <div className="flex gap-3 overflow-x-auto px-4 pb-1 snap-x snap-mandatory scrollbar-hide lg:px-6">
+                {recentPurchases.map((p) => (
+                  <ProductCard
+                    key={p.id}
+                    product={p}
+                    storeColor={color}
+                    storeSlug={store.slug}
+                    featured
+                    onTap={() => setViewProduct(p)}
+                    onOpenCart={() => setCartOpen(true)}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
           {/* Section header */}
           <div className="flex items-center justify-between px-4 pt-4 pb-2 lg:px-0 lg:pt-6 lg:pb-4">
             <div className="flex items-center gap-2">
               <span className="text-sm lg:text-xl font-bold" style={{ color: "var(--ink)" }}>
-                {isFiltering ? "Resultados" : "Productos"}
+                {showFavorites ? "Favoritos" : isFiltering ? "Resultados" : "Productos"}
               </span>
               <span
                 className="text-[11px] font-bold px-2 py-0.5 rounded-full"
@@ -924,6 +986,7 @@ export default function StorePage({ store, initialProducts }: Props) {
                         storeSlug={store.slug}
                         compact
                         onTap={() => setViewProduct(product)}
+                        onOpenCart={() => setCartOpen(true)}
                       />
                     </motion.div>
                   ))}
@@ -950,6 +1013,7 @@ export default function StorePage({ store, initialProducts }: Props) {
                         storeColor={color}
                         storeSlug={store.slug}
                         onTap={() => setViewProduct(product)}
+                        onOpenCart={() => setCartOpen(true)}
                       />
                     </motion.div>
                   ))}
@@ -1211,6 +1275,9 @@ export default function StorePage({ store, initialProducts }: Props) {
             storeColor={color}
             storeSlug={store.slug}
             onClose={() => setViewProduct(null)}
+            allProducts={initialProducts}
+            onSelectRelated={(p) => setViewProduct(p as ProductData)}
+            onOpenCart={() => setCartOpen(true)}
           />
         )}
       </AnimatePresence>

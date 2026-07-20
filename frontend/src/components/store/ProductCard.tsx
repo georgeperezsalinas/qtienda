@@ -1,9 +1,10 @@
 "use client";
 
 import Image from "next/image";
-import { Plus, Check, Images } from "lucide-react";
+import { Plus, Check, Images, Heart } from "lucide-react";
 import { useState } from "react";
 import { useCartStore } from "@/store/cartStore";
+import { useFavoritesStore } from "@/store/favoritesStore";
 import { formatPrice, stripHtml } from "@/lib/utils";
 import { trackStoreEvent } from "@/lib/storeAnalytics";
 import { motion } from "framer-motion";
@@ -26,6 +27,7 @@ interface Props {
   featured?: boolean;
   compact?: boolean;   // list-view mode
   onTap?: () => void;
+  onOpenCart?: () => void;
 }
 
 const NEW_PRODUCT_DAYS = 14;
@@ -53,10 +55,28 @@ function CardImage({ src, alt }: { src: string; alt: string }) {
 }
 
 export default function ProductCard({
-  product, storeColor, storeSlug, featured, compact, onTap,
+  product, storeColor, storeSlug, featured, compact, onTap, onOpenCart,
 }: Props) {
   const [added, setAdded] = useState(false);
   const addItem = useCartStore((s) => s.addItem);
+  const isFavorite = useFavoritesStore((s) => s.isFavorite(storeSlug, product.id));
+  const toggleFavorite = useFavoritesStore((s) => s.toggle);
+
+  function handleFavorite(e: React.MouseEvent) {
+    e.stopPropagation();
+    toggleFavorite(storeSlug, product.id);
+  }
+
+  const favoriteButton = (
+    <button
+      onClick={handleFavorite}
+      aria-label={isFavorite ? "Quitar de favoritos" : "Agregar a favoritos"}
+      className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center z-10"
+      style={{ background: "rgba(255,255,255,.85)" }}
+    >
+      <Heart size={14} fill={isFavorite ? "var(--danger)" : "none"} style={{ color: isFavorite ? "var(--danger)" : "var(--ink-3)" }} />
+    </button>
+  );
 
   const primaryImage =
     product.images?.find((i) => i.is_primary)?.url || product.images?.[0]?.url;
@@ -102,7 +122,23 @@ export default function ProductCard({
     );
     setAdded(true);
     trackStoreEvent(storeSlug, "add_to_cart", product.id);
-    toast.success("Agregado al carrito", { duration: 1500 });
+    toast.custom(
+      (t) => (
+        <div
+          className="flex items-center gap-3 px-4 py-3 rounded-2xl"
+          style={{ background: "var(--ink)", color: "var(--bg)", boxShadow: "var(--shadow-md)", opacity: t.visible ? 1 : 0 }}
+        >
+          <span className="text-sm font-semibold">Agregado — sigue comprando</span>
+          <button
+            onClick={() => { toast.dismiss(t.id); onOpenCart?.(); }}
+            className="text-sm font-bold underline flex-shrink-0"
+          >
+            Ver carrito
+          </button>
+        </div>
+      ),
+      { duration: 2000 }
+    );
     setTimeout(() => setAdded(false), 2000);
   }
 
@@ -118,6 +154,7 @@ export default function ProductCard({
           style={{ background: "var(--surface)", boxShadow: "var(--shadow-md), 0 0 0 1px var(--line)" }}
         >
           <div className="relative h-40 lg:h-48" style={{ background: "var(--surface-2)" }}>
+            {favoriteButton}
             {primaryImage ? (
               <CardImage src={primaryImage} alt={displayName} />
             ) : (
@@ -195,6 +232,7 @@ export default function ProductCard({
       >
         {/* Image */}
         <div className="relative w-[76px] h-[76px] lg:w-[92px] lg:h-[92px] rounded-xl overflow-hidden flex-shrink-0" style={{ background: "var(--surface-2)" }}>
+          {favoriteButton}
           {primaryImage ? (
             <CardImage src={primaryImage} alt={displayName} />
           ) : (
@@ -273,6 +311,7 @@ export default function ProductCard({
       onClick={onTap}
     >
       <div className="relative aspect-square" style={{ background: "var(--surface-2)" }}>
+        {favoriteButton}
         {primaryImage ? (
           <CardImage src={primaryImage} alt={displayName} />
         ) : (
