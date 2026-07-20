@@ -90,7 +90,7 @@ function Toggle({ value, onChange, label }: { value: boolean; onChange: (v: bool
           width: 40,
           height: 24,
           borderRadius: 12,
-          background: value ? "var(--ink)" : "var(--line-2)",
+          background: value ? "var(--accent)" : "var(--line-2)",
           position: "relative",
           transition: "background 0.2s",
           flexShrink: 0,
@@ -369,17 +369,17 @@ export default function ConfiguracionPage() {
   if (noStore) {
     return (
       <div className="p-5 max-w-sm mx-auto">
-        <h1 className="font-display font-bold text-xl text-gray-900 mb-1">Crear tienda</h1>
-        <p className="text-sm text-gray-500 mb-5">Configura tu tienda para empezar a recibir pedidos</p>
+        <h1 className="font-display font-bold text-xl text-[var(--ink)] mb-1">Crear tienda</h1>
+        <p className="text-sm text-[var(--ink-3)] mb-5">Configura tu tienda para empezar a recibir pedidos</p>
         <form onSubmit={createStore} className="space-y-4">
           <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Nombre *</label>
+            <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">Nombre *</label>
             <input className="input" placeholder="Ej: Postres de Ana" value={newStore.name} onChange={(e) => setNewStore({ ...newStore, name: e.target.value })} />
           </div>
           <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">URL *</label>
+            <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">URL *</label>
             <div className="flex items-center gap-1">
-              <span className="text-xs text-gray-400 whitespace-nowrap">qtienda.shop/tienda/</span>
+              <span className="text-xs text-[var(--ink-4)] whitespace-nowrap">qtienda.shop/tienda/</span>
               <input
                 className="input"
                 placeholder="anapostres"
@@ -389,11 +389,11 @@ export default function ConfiguracionPage() {
             </div>
           </div>
           <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">WhatsApp</label>
+            <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">WhatsApp</label>
             <input className="input" type="tel" placeholder="51987654321" value={newStore.whatsapp} onChange={(e) => setNewStore({ ...newStore, whatsapp: e.target.value })} />
           </div>
           <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Ciudad</label>
+            <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">Ciudad</label>
             <input className="input" placeholder="Lima" value={newStore.city} onChange={(e) => setNewStore({ ...newStore, city: e.target.value })} />
           </div>
           <button
@@ -401,8 +401,8 @@ export default function ConfiguracionPage() {
             disabled={saving}
             style={{
               width: "100%",
-              background: "var(--ink)",
-              color: "var(--bg)",
+              background: "var(--accent)",
+              color: "#fff",
               border: "none",
               borderRadius: 12,
               padding: "12px 16px",
@@ -410,6 +410,7 @@ export default function ConfiguracionPage() {
               fontWeight: 600,
               cursor: creating ? "not-allowed" : "pointer",
               opacity: creating ? 0.6 : 1,
+              boxShadow: creating ? "none" : "0 4px 14px rgba(197,97,59,.3)",
               transition: "opacity 0.15s",
               fontFamily: "var(--font-sans)",
             }}
@@ -438,71 +439,78 @@ export default function ConfiguracionPage() {
             href={`/tienda/${store.slug}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-xs font-medium text-brand-600 hover:text-brand-700"
+            className="flex items-center gap-1.5 text-xs font-bold"
+            style={{ color: "var(--accent)" }}
           >
             Ver tienda <ExternalLink size={12} />
           </a>
         )}
       </div>
 
-      {/* Tabs — fila de pills en móvil/tablet */}
+      {/* Tabs — fila de pills en móvil/tablet: activo = capsula solida de color,
+          inactivo = con borde propio para que se lea como boton, no como texto suelto */}
       <div
-        className="md:hidden"
+        className="flex md:hidden"
         style={{
-          display: "flex",
-          gap: 4,
-          background: "var(--surface-2)",
-          borderRadius: 14,
-          padding: 4,
+          gap: 6,
           marginBottom: 20,
         }}
       >
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setActiveTab(t.id)}
-            style={{
-              flex: 1,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
-              padding: "8px 4px",
-              borderRadius: 10,
-              fontSize: 12,
-              fontWeight: 600,
-              border: "none",
-              cursor: "pointer",
-              transition: "all 0.15s",
-              background: activeTab === t.id ? "var(--surface)" : "transparent",
-              color: activeTab === t.id ? "var(--ink)" : "var(--ink-3)",
-              boxShadow: activeTab === t.id ? "0 1px 4px rgba(0,0,0,0.08)" : "none",
-            }}
-          >
-            {t.icon}
-            <span className="hidden sm:inline">{t.label}</span>
-          </button>
-        ))}
+        {tabs.map((t) => {
+          const active = activeTab === t.id;
+          return (
+            <button
+              key={t.id}
+              onClick={() => setActiveTab(t.id)}
+              style={{
+                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                padding: "9px 4px",
+                borderRadius: 12,
+                fontSize: 12,
+                fontWeight: 700,
+                border: active ? "none" : "1.5px solid var(--line-2)",
+                cursor: "pointer",
+                transition: "all 0.15s",
+                background: active ? "var(--accent)" : "var(--surface)",
+                color: active ? "#fff" : "var(--ink-2)",
+                boxShadow: active ? "0 3px 10px rgba(197,97,59,.35)" : "none",
+              }}
+            >
+              {t.icon}
+              <span className="hidden sm:inline">{t.label}</span>
+            </button>
+          );
+        })}
       </div>
 
       <div className="md:flex md:gap-8 md:items-start">
 
-      {/* Tabs — rail vertical en desktop */}
-      <nav className="hidden md:flex md:flex-col md:gap-1 md:w-52 md:flex-shrink-0 md:sticky md:top-6">
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setActiveTab(t.id)}
-            className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold text-left transition-all"
-            style={{
-              background: activeTab === t.id ? "var(--tint)" : "transparent",
-              color: activeTab === t.id ? "var(--ink)" : "var(--ink-2)",
-            }}
-          >
-            {t.icon}
-            {t.label}
-          </button>
-        ))}
+      {/* Tabs — rail vertical en desktop: activo = capsula solida de color con
+          sombra; inactivo = con borde propio para que se lea como boton */}
+      <nav className="hidden md:flex md:flex-col md:gap-1.5 md:w-52 md:flex-shrink-0 md:sticky md:top-6">
+        {tabs.map((t) => {
+          const active = activeTab === t.id;
+          return (
+            <button
+              key={t.id}
+              onClick={() => setActiveTab(t.id)}
+              className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-sm font-bold text-left transition-all"
+              style={{
+                background: active ? "var(--accent)" : "var(--surface)",
+                color: active ? "#fff" : "var(--ink-2)",
+                border: active ? "none" : "1.5px solid var(--line-2)",
+                boxShadow: active ? "0 4px 14px rgba(197,97,59,.3)" : "none",
+              }}
+            >
+              {t.icon}
+              {t.label}
+            </button>
+          );
+        })}
       </nav>
 
       <div className="md:flex-1 md:min-w-0">
@@ -510,28 +518,28 @@ export default function ConfiguracionPage() {
       {/* Tab: Tienda */}
       {activeTab === "tienda" && (
         <section className="card p-5">
-          <h2 className="font-semibold text-gray-900 mb-4">Información de tienda</h2>
+          <h2 className="font-semibold text-[var(--ink)] mb-4">Información de tienda</h2>
           <form onSubmit={saveInfo} className="space-y-3">
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Nombre</label>
+              <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">Nombre</label>
               <input className="input" value={info.name} onChange={(e) => setInfo({ ...info, name: e.target.value })} />
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Descripción</label>
+              <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">Descripción</label>
               <textarea className="input resize-none" rows={2} value={info.description} onChange={(e) => setInfo({ ...info, description: e.target.value })} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">WhatsApp</label>
+                <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">WhatsApp</label>
                 <input className="input" type="tel" placeholder="51987654321" value={info.whatsapp} onChange={(e) => setInfo({ ...info, whatsapp: e.target.value })} />
               </div>
               <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Ciudad</label>
+                <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">Ciudad</label>
                 <input className="input" placeholder="Lima" value={info.city} onChange={(e) => setInfo({ ...info, city: e.target.value })} />
               </div>
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">País</label>
+              <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">País</label>
               <select
                 className="input"
                 value={info.country}
@@ -541,13 +549,13 @@ export default function ConfiguracionPage() {
                   <option key={c.code} value={c.code}>{c.name}</option>
                 ))}
               </select>
-              <p className="text-[11px] mt-1 text-gray-400">
+              <p className="text-[11px] mt-1 text-[var(--ink-4)]">
                 Define los campos de dirección y documento que se piden al comprar
                 {info.country === "PE" ? " (DNI, departamento, provincia y distrito)" : " (documento, región y ciudad)"}
               </p>
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Color principal</label>
+              <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">Color principal</label>
               <div className="flex gap-2 flex-wrap">
                 {COLORS.map((c) => (
                   <button
@@ -575,10 +583,10 @@ export default function ConfiguracionPage() {
               const maxBanners = planSlug === "free" ? 1 : 3;
               return (
                 <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
+                  <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">
                     Banners de la tienda ({banners.length}/{maxBanners})
                   </label>
-                  <p className="text-[11px] text-gray-400 mb-2">
+                  <p className="text-[11px] text-[var(--ink-4)] mb-2">
                     {maxBanners > 1
                       ? "Hasta 3 banners que rotan automáticamente en tu tienda. Cada uno puede tener su enlace."
                       : "Tu plan incluye 1 banner. Mejora a Pro para usar hasta 3 banners rotando."}
@@ -599,7 +607,7 @@ export default function ConfiguracionPage() {
                           <button
                             type="button"
                             onClick={() => setBanners((prev) => prev.filter((_, j) => j !== i))}
-                            className="p-2 rounded-lg text-red-500 hover:bg-red-50 flex-shrink-0"
+                            className="p-2 rounded-lg text-[var(--danger)] hover:bg-red-50 flex-shrink-0"
                             aria-label="Quitar banner"
                           >
                             <Trash2 size={15} />
@@ -620,7 +628,7 @@ export default function ConfiguracionPage() {
                       <button
                         type="button"
                         onClick={() => setBanners((prev) => [...prev, { image_url: "", link_url: "" }])}
-                        className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 py-3 text-sm font-medium text-gray-500 hover:border-gray-400 hover:text-gray-600"
+                        className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 py-3 text-sm font-medium text-[var(--ink-3)] hover:border-gray-400 hover:text-[var(--ink-2)]"
                       >
                         <Plus size={15} /> Agregar banner
                       </button>
@@ -630,10 +638,10 @@ export default function ConfiguracionPage() {
               );
             })()}
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
+              <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">
                 Horario de atención
               </label>
-              <p className="text-[11px] text-gray-400 mb-2">
+              <p className="text-[11px] text-[var(--ink-4)] mb-2">
                 Tus clientes verán &quot;Abierto&quot; o &quot;Cerrado&quot; en la tienda. Si no marcas ningún día, no se muestra nada.
               </p>
               <div className="space-y-1.5">
@@ -667,7 +675,7 @@ export default function ConfiguracionPage() {
                             value={day.open}
                             onChange={(e) => setHours((prev) => ({ ...prev, [key]: { ...day, open: e.target.value } }))}
                           />
-                          <span className="text-xs text-gray-400">a</span>
+                          <span className="text-xs text-[var(--ink-4)]">a</span>
                           <input
                             type="time"
                             className="input"
@@ -677,7 +685,7 @@ export default function ConfiguracionPage() {
                           />
                         </div>
                       ) : (
-                        <span className="text-xs text-gray-400">Cerrado</span>
+                        <span className="text-xs text-[var(--ink-4)]">Cerrado</span>
                       )}
                     </div>
                   );
@@ -689,8 +697,8 @@ export default function ConfiguracionPage() {
               disabled={saving}
               style={{
                 width: "100%",
-                background: "var(--ink)",
-                color: "var(--bg)",
+                background: "var(--accent)",
+                color: "#fff",
                 border: "none",
                 borderRadius: 12,
                 padding: "12px 16px",
@@ -698,6 +706,7 @@ export default function ConfiguracionPage() {
                 fontWeight: 600,
                 cursor: creating ? "not-allowed" : "pointer",
                 opacity: creating ? 0.6 : 1,
+                boxShadow: "0 4px 14px rgba(197,97,59,.3)",
                 transition: "opacity 0.15s",
                 fontFamily: "var(--font-sans)",
               }}
@@ -712,7 +721,7 @@ export default function ConfiguracionPage() {
       {/* Tab: Pagos */}
       {activeTab === "pagos" && (
         <section className="card p-5">
-          <h2 className="font-semibold text-gray-900 mb-4">Métodos de pago y delivery</h2>
+          <h2 className="font-semibold text-[var(--ink)] mb-4">Métodos de pago y delivery</h2>
           <form onSubmit={saveSettings} className="space-y-4">
             <Toggle value={settings.accept_cash} onChange={(v) => setSettings({ ...settings, accept_cash: v })} label="Aceptar efectivo" />
             <Toggle value={settings.accept_yape} onChange={(v) => setSettings({ ...settings, accept_yape: v })} label="Aceptar Yape" />
@@ -739,25 +748,25 @@ export default function ConfiguracionPage() {
               )}
             </div>
             <div className="pt-2 border-t border-gray-100 space-y-3">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Costos de envío</p>
+              <p className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide">Costos de envío</p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Costo delivery (S/)</label>
+                  <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">Costo delivery (S/)</label>
                   <input className="input" type="number" min="0" step="0.50" value={settings.delivery_fee_cents} onChange={(e) => setSettings({ ...settings, delivery_fee_cents: e.target.value })} />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Pedido mínimo (S/)</label>
+                  <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">Pedido mínimo (S/)</label>
                   <input className="input" type="number" min="0" step="0.50" value={settings.min_order_cents} onChange={(e) => setSettings({ ...settings, min_order_cents: e.target.value })} />
                 </div>
               </div>
               <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Delivery gratis desde (S/)</label>
+                <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">Delivery gratis desde (S/)</label>
                 <input className="input" type="number" min="0" step="0.50" placeholder="0 = sin mínimo" value={settings.free_delivery_above} onChange={(e) => setSettings({ ...settings, free_delivery_above: e.target.value })} />
               </div>
             </div>
 
             <div className="pt-2 border-t border-gray-100 space-y-3">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Descuento de bienvenida</p>
+              <p className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide">Descuento de bienvenida</p>
               <Toggle
                 value={settings.welcome_discount_enabled}
                 onChange={(v) => setSettings({ ...settings, welcome_discount_enabled: v })}
@@ -765,7 +774,7 @@ export default function ConfiguracionPage() {
               />
               {settings.welcome_discount_enabled && (
                 <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Monto del descuento (S/)</label>
+                  <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">Monto del descuento (S/)</label>
                   <input
                     className="input"
                     type="number"
@@ -786,8 +795,8 @@ export default function ConfiguracionPage() {
               disabled={saving}
               style={{
                 width: "100%",
-                background: "var(--ink)",
-                color: "var(--bg)",
+                background: "var(--accent)",
+                color: "#fff",
                 border: "none",
                 borderRadius: 12,
                 padding: "12px 16px",
@@ -795,6 +804,7 @@ export default function ConfiguracionPage() {
                 fontWeight: 600,
                 cursor: creating ? "not-allowed" : "pointer",
                 opacity: creating ? 0.6 : 1,
+                boxShadow: "0 4px 14px rgba(197,97,59,.3)",
                 transition: "opacity 0.15s",
                 fontFamily: "var(--font-sans)",
               }}
@@ -809,8 +819,11 @@ export default function ConfiguracionPage() {
       {/* Tab: Categorías */}
       {activeTab === "categorias" && (
         <section className="card p-5">
-          <h2 className="font-semibold text-gray-900 mb-1">Categorías de productos</h2>
-          <p className="text-xs text-gray-400 mb-4">
+          <div className="flex items-center gap-2 mb-1">
+            <Tag size={18} style={{ color: "var(--accent)" }} />
+            <h2 className="font-semibold" style={{ color: "var(--ink)" }}>Categorías de productos</h2>
+          </div>
+          <p className="text-xs mb-4" style={{ color: "var(--ink-3)" }}>
             Agrupa tus productos por categoría para que los clientes encuentren más fácil lo que buscan.
           </p>
 
@@ -819,16 +832,21 @@ export default function ConfiguracionPage() {
             {categories.map((c) => (
               <div
                 key={c.id}
-                className="flex items-center justify-between rounded-xl px-3 py-2.5"
+                className="flex items-center gap-3 rounded-xl px-3 py-2.5"
                 style={{ background: "var(--bg)", border: "1px solid var(--line-2)" }}
               >
-                <span className="text-sm font-medium" style={{ color: "var(--ink-2)" }}>
-                  {c.icon && <span className="mr-2">{c.icon}</span>}
+                <div
+                  className="flex items-center justify-center rounded-lg flex-shrink-0"
+                  style={{ width: 32, height: 32, background: "var(--accent-soft)", fontSize: 15 }}
+                >
+                  {c.icon || <Tag size={14} style={{ color: "var(--accent-ink)" }} />}
+                </div>
+                <span className="text-sm font-medium flex-1 min-w-0 truncate" style={{ color: "var(--ink-2)" }}>
                   {c.name}
                 </span>
                 <button
                   onClick={() => deleteCategory(c.id)}
-                  className="ml-3 flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
+                  className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
                   style={{ background: "var(--danger-soft)", border: "1.5px solid var(--line-2)" }}
                   title="Eliminar categoría"
                 >
@@ -837,7 +855,7 @@ export default function ConfiguracionPage() {
               </div>
             ))}
             {categories.length === 0 && (
-              <p className="text-sm text-gray-400 py-1">Sin categorías aún</p>
+              <p className="text-sm py-1" style={{ color: "var(--ink-3)" }}>Sin categorías aún</p>
             )}
           </div>
 
@@ -849,8 +867,8 @@ export default function ConfiguracionPage() {
             <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)" }}>Nueva categoría</p>
             <form onSubmit={addCategory} className="space-y-3">
               <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
-                  Nombre <span className="text-red-400">*</span>
+                <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">
+                  Nombre <span className="text-[var(--danger)]">*</span>
                 </label>
                 <input
                   className="input"
@@ -861,7 +879,7 @@ export default function ConfiguracionPage() {
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
+                <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">
                   Emoji (opcional)
                 </label>
                 <input
@@ -871,7 +889,7 @@ export default function ConfiguracionPage() {
                   onChange={(e) => setCatForm({ ...catForm, icon: e.target.value })}
                   autoComplete="off"
                 />
-                <p className="text-[11px] text-gray-400 mt-1">
+                <p className="text-[11px] text-[var(--ink-4)] mt-1">
                   Copia y pega un emoji para identificar la categoría visualmente.
                 </p>
               </div>
@@ -881,8 +899,8 @@ export default function ConfiguracionPage() {
                 disabled={addingCat || !catForm.name.trim()}
                 style={{
                   width: "100%",
-                  background: "var(--ink)",
-                  color: "var(--bg)",
+                  background: "var(--accent)",
+                  color: "#fff",
                   border: "none",
                   borderRadius: 12,
                   padding: "12px 16px",
@@ -890,6 +908,7 @@ export default function ConfiguracionPage() {
                   fontWeight: 600,
                   cursor: creating ? "not-allowed" : "pointer",
                   opacity: creating ? 0.6 : 1,
+                  boxShadow: "0 4px 14px rgba(197,97,59,.3)",
                   transition: "opacity 0.15s",
                   fontFamily: "var(--font-sans)",
                 }}
@@ -907,19 +926,25 @@ export default function ConfiguracionPage() {
         <section className="card p-5">
           <div className="flex items-center gap-2 mb-4">
             <Bike size={18} style={{ color: "var(--accent)" }} />
-            <h2 className="font-semibold text-gray-900">Repartidores</h2>
+            <h2 className="font-semibold" style={{ color: "var(--ink)" }}>Repartidores</h2>
           </div>
 
           <div className="space-y-2 mb-5">
             {staff.map((s) => (
               <div
                 key={s.id}
-                className="flex items-center justify-between rounded-xl px-3 py-2.5"
+                className="flex items-center gap-3 rounded-xl px-3 py-2.5"
                 style={{ background: "var(--bg)", border: "1px solid var(--line-2)" }}
               >
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-gray-800 truncate">{s.full_name}</p>
-                  <p className="text-xs text-gray-400 truncate">
+                <div
+                  className="flex items-center justify-center rounded-full flex-shrink-0 font-bold"
+                  style={{ width: 32, height: 32, background: "var(--accent)", color: "#fff", fontSize: 12 }}
+                >
+                  {s.full_name.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{s.full_name}</p>
+                  <p className="text-xs truncate" style={{ color: "var(--ink-3)" }}>
                     {s.email}
                     {s.phone ? ` · ${s.phone}` : ""}
                     {s.vehicle_type ? ` · ${VEHICLE_TYPES.find(v => v.value === s.vehicle_type)?.label ?? s.vehicle_type}` : ""}
@@ -928,7 +953,7 @@ export default function ConfiguracionPage() {
                 </div>
                 <button
                   onClick={() => removeStaff(s.id)}
-                  className="ml-3 flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
+                  className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
                   style={{ background: "var(--danger-soft)", border: "1.5px solid var(--line-2)" }}
                   title="Desactivar repartidor"
                 >
@@ -936,11 +961,11 @@ export default function ConfiguracionPage() {
                 </button>
               </div>
             ))}
-            {staff.length === 0 && <p className="text-sm text-gray-400 py-1">Sin repartidores aún</p>}
+            {staff.length === 0 && <p className="text-sm py-1" style={{ color: "var(--ink-3)" }}>Sin repartidores aún</p>}
           </div>
 
           <form onSubmit={addStaff} className="space-y-3">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Agregar repartidor</p>
+            <p className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide">Agregar repartidor</p>
             <div className="grid grid-cols-2 gap-3">
               <input
                 className="input"
@@ -975,7 +1000,7 @@ export default function ConfiguracionPage() {
               <button
                 type="button"
                 onClick={() => setShowPass((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--ink-4)]"
                 aria-label="Mostrar contraseña"
               >
                 {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -983,7 +1008,7 @@ export default function ConfiguracionPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Tipo de vehículo</label>
+                <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">Tipo de vehículo</label>
                 <select
                   className="input"
                   value={staffForm.vehicle_type}
@@ -996,7 +1021,7 @@ export default function ConfiguracionPage() {
                 </select>
               </div>
               <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Placa</label>
+                <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">Placa</label>
                 <input
                   className="input uppercase"
                   placeholder="ABC-123"
@@ -1010,8 +1035,8 @@ export default function ConfiguracionPage() {
               disabled={addingStaff}
               style={{
                 width: "100%",
-                background: "var(--ink)",
-                color: "var(--bg)",
+                background: "var(--accent)",
+                color: "#fff",
                 border: "none",
                 borderRadius: 12,
                 padding: "12px 16px",
@@ -1019,6 +1044,7 @@ export default function ConfiguracionPage() {
                 fontWeight: 600,
                 cursor: creating ? "not-allowed" : "pointer",
                 opacity: creating ? 0.6 : 1,
+                boxShadow: "0 4px 14px rgba(197,97,59,.3)",
                 transition: "opacity 0.15s",
                 fontFamily: "var(--font-sans)",
               }}
