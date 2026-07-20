@@ -7,11 +7,13 @@ import {
   ShoppingCart, Search, ChevronRight, Zap,
   MapPin, X, MessageCircle, Share2, Download,
   LayoutGrid, List, Clock, Truck, ShieldCheck, PackageSearch,
+  HelpCircle,
 } from "lucide-react";
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
 import ProductCard from "./ProductCard";
 import ProductDetailSheet from "./ProductDetailSheet";
 import CartDrawer from "./CartDrawer";
+import StoreTour, { restartStoreTour } from "./StoreTour";
 import { useCartStore } from "@/store/cartStore";
 import { useAuthStore } from "@/store/authStore";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
@@ -529,6 +531,16 @@ export default function StorePage({ store, initialProducts }: Props) {
               />
             </div>
 
+            {/* Ayuda: relanza el tour guiado de la tienda */}
+            <button
+              onClick={() => restartStoreTour()}
+              className="w-9 h-9 lg:w-10 lg:h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: `${color}12` }}
+              aria-label="Ver guía de la tienda"
+            >
+              <HelpCircle size={16} style={{ color }} />
+            </button>
+
             {/* Share */}
             <button
               onClick={() => navigator.share?.({ title: store.name, url: location.href })}
@@ -556,6 +568,7 @@ export default function StorePage({ store, initialProducts }: Props) {
 
             {/* Cart */}
             <button
+              id="tour-cart"
               onClick={() => setCartOpen(true)}
               className="relative w-9 h-9 lg:w-10 lg:h-10 rounded-xl flex items-center justify-center transition-all active:scale-90 flex-shrink-0"
               style={{ background: color }}
@@ -592,7 +605,7 @@ export default function StorePage({ store, initialProducts }: Props) {
 
           {/* Row 3: Category chips — solo móvil/tablet (en desktop van al rail lateral) */}
           {hasCategories && (
-            <div className="lg:hidden">
+            <div id="tour-categories" className="lg:hidden">
               <CategoryList store={store} activeCategory={activeCategory} setActiveCategory={setActiveCategory} color={color} />
             </div>
           )}
@@ -617,7 +630,11 @@ export default function StorePage({ store, initialProducts }: Props) {
             { icon: ShieldCheck, label: "Pago seguro por Yape, Plin o efectivo", short: "Pago seguro" },
             { icon: MessageCircle, label: "Atención directa por WhatsApp", short: "Atención por WhatsApp" },
           ].map(({ icon: Icon, label, short }) => (
-            <div key={label} className="flex items-center gap-1.5 flex-shrink-0">
+            <div
+              key={label}
+              id={label === "Pago seguro por Yape, Plin o efectivo" ? "tour-payment" : undefined}
+              className="flex items-center gap-1.5 flex-shrink-0"
+            >
               <Icon size={13} style={{ color: "var(--ink-3)" }} />
               <span className="text-[11px] font-medium whitespace-nowrap lg:hidden" style={{ color: "var(--ink-3)" }}>{short}</span>
               <span className="text-[11px] font-medium whitespace-nowrap hidden lg:inline" style={{ color: "var(--ink-3)" }}>{label}</span>
@@ -895,6 +912,7 @@ export default function StorePage({ store, initialProducts }: Props) {
                   {filtered.map((product, i) => (
                     <motion.div
                       key={product.id}
+                      id={i === 0 ? "tour-product-1" : undefined}
                       className="h-full"
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -922,6 +940,7 @@ export default function StorePage({ store, initialProducts }: Props) {
                   {filtered.map((product, i) => (
                     <motion.div
                       key={product.id}
+                      id={i === 0 ? "tour-product-1" : undefined}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: Math.min(i * 0.04, 0.3) }}
@@ -961,6 +980,7 @@ export default function StorePage({ store, initialProducts }: Props) {
               </div>
               <div className="ml-auto flex items-center gap-2 flex-shrink-0">
                 <button
+                  id="tour-orderstatus"
                   onClick={() => setTrackOpen(true)}
                   className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-full"
                   style={{ background: `${color}12`, color }}
@@ -969,6 +989,7 @@ export default function StorePage({ store, initialProducts }: Props) {
                 </button>
                 {store.whatsapp && (
                   <a
+                    id="tour-whatsapp"
                     href={`https://wa.me/${store.whatsapp.replace(/\D/g, "")}`}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -1112,6 +1133,9 @@ export default function StorePage({ store, initialProducts }: Props) {
 
       {/* Cart drawer */}
       <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} store={store as any} />
+
+      {/* Tour de bienvenida para compradores */}
+      <StoreTour storeSlug={store.slug} storeName={store.name} />
 
       {/* Panel cuenta comprador */}
       <AnimatePresence>
