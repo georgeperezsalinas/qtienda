@@ -152,6 +152,8 @@ async def my_store(
             "min_order_cents": store.settings.min_order_cents,
             "delivery_fee_cents": store.settings.delivery_fee_cents,
             "free_delivery_above": store.settings.free_delivery_above,
+            "welcome_discount_enabled": store.settings.welcome_discount_enabled,
+            "welcome_discount_cents": store.settings.welcome_discount_cents,
             "delivery_zones": store.settings.delivery_zones,
             "store_hours": store.settings.store_hours,
         } if store.settings else None,

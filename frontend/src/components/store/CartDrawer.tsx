@@ -192,6 +192,31 @@ export default function CartDrawer({ open, onClose, store }: Props) {
   const minOrder = store.settings?.min_order_cents || 0;
   const belowMin = minOrder > 0 && total < minOrder;
 
+  // Descuento de bienvenida: solo se sabe si aplica una vez el comprador
+  // escribió su teléfono (paso "info"). Nunca se muestra como aplicado
+  // hasta que el backend lo confirma — evita prometer algo que luego no se cumpla.
+  const welcomeEnabled = !!store.settings?.welcome_discount_enabled && !!store.settings?.welcome_discount_cents;
+  const welcomeDiscountCents = store.settings?.welcome_discount_cents || 0;
+  const [isFirstOrder, setIsFirstOrder] = useState<boolean | null>(null);
+  const [checkingWelcome, setCheckingWelcome] = useState(false);
+  const appliedDiscount = welcomeEnabled && isFirstOrder ? Math.min(welcomeDiscountCents, subtotal) : 0;
+  const displayTotal = total - appliedDiscount;
+
+  useEffect(() => {
+    if (step !== "payment" || !welcomeEnabled || isFirstOrder !== null || !form.buyer_phone.trim()) return;
+    setCheckingWelcome(true);
+    apiClient
+      .get(`/public/store/${store.slug}/buyer-first-order`, { params: { phone: form.buyer_phone.trim() } })
+      .then(({ data }) => setIsFirstOrder(!!data.is_first_order))
+      .catch(() => setIsFirstOrder(false))
+      .finally(() => setCheckingWelcome(false));
+  }, [step, welcomeEnabled, form.buyer_phone, isFirstOrder, store.slug]);
+
+  // Si vuelve atrás y cambia el teléfono, se re-verifica en el próximo paso "payment"
+  useEffect(() => {
+    setIsFirstOrder(null);
+  }, [form.buyer_phone]);
+
   const paymentOptions = [
     store.settings?.accept_cash && { value: "cash", label: "Efectivo", icon: "💵", sub: "Pago contra entrega" },
     store.settings?.accept_yape && { value: "yape", label: "Yape", icon: "💜", sub: store.settings?.yape_phone ? `Yape: ${store.settings.yape_phone}` : "Te enviamos el número" },
@@ -266,7 +291,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
       track("order_placed", {
         store_slug: store.slug,
         payment_method: form.payment_method,
-        total_cents: total,
+        total_cents: result.data.total_cents ?? total,
         items_count: items.length,
       });
       go("success");
@@ -645,18 +670,38 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                       >
                         <div>
                           <p className="text-xs font-semibold" style={{ color: "var(--ink-2)" }}>Total a pagar</p>
+                          {appliedDiscount > 0 && (
+                            <p className="text-xs line-through" style={{ color: "var(--ink-4)" }}>
+                              {formatPrice(total)}
+                            </p>
+                          )}
                           <p className="font-extrabold text-2xl mt-0.5" style={{ color, fontFamily: "var(--font-display)" }}>
-                            {formatPrice(total)}
+                            {formatPrice(displayTotal)}
                           </p>
                         </div>
-                        {deliveryFee > 0 && effectiveDel === 0 && (
-                          <span
-                            className="text-xs font-bold px-3 py-1.5 rounded-full"
-                            style={{ background: "var(--success-soft)", color: "var(--success)" }}
-                          >
-                            Delivery gratis 🎉
-                          </span>
-                        )}
+                        <div className="flex flex-col items-end gap-1.5">
+                          {deliveryFee > 0 && effectiveDel === 0 && (
+                            <span
+                              className="text-xs font-bold px-3 py-1.5 rounded-full"
+                              style={{ background: "var(--success-soft)", color: "var(--success)" }}
+                            >
+                              Delivery gratis 🎉
+                            </span>
+                          )}
+                          {appliedDiscount > 0 && (
+                            <span
+                              className="text-xs font-bold px-3 py-1.5 rounded-full whitespace-nowrap"
+                              style={{ background: "var(--success-soft)", color: "var(--success)" }}
+                            >
+                              🎁 -{formatPrice(appliedDiscount)} bienvenida
+                            </span>
+                          )}
+                          {checkingWelcome && (
+                            <span className="text-[11px] font-medium" style={{ color: "var(--ink-4)" }}>
+                              Verificando descuento…
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       {store.settings?.require_prepayment && (
@@ -758,6 +803,12 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                             #{orderResult.order_number}
                           </span>
                         </div>
+
+                        {orderResult.discount_cents > 0 && (
+                          <p className="text-xs font-bold mt-3" style={{ color: "var(--success)" }}>
+                            🎁 Se aplicó tu descuento de bienvenida: -{formatPrice(orderResult.discount_cents)}
+                          </p>
+                        )}
 
                         <p className="text-xs mt-3 leading-relaxed" style={{ color: "var(--ink-3)" }}>
                           Te contactarán al {form.buyer_phone} para coordinar la entrega
@@ -875,7 +926,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                   >
                     <span>{loading ? "Procesando…" : "Confirmar pedido"}</span>
                     <div className="flex items-center gap-2">
-                      <span className="font-extrabold">{formatPrice(total)}</span>
+                      <span className="font-extrabold">{formatPrice(displayTotal)}</span>
                       <ChevronRight size={18} />
                     </div>
                   </button>

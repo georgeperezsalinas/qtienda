@@ -99,6 +99,8 @@ async def get_store(request: Request, slug: str, db: AsyncSession = Depends(get_
             "delivery_fee_cents": store.settings.delivery_fee_cents if store.settings else 0,
             "min_order_cents": store.settings.min_order_cents if store.settings else 0,
             "free_delivery_above": store.settings.free_delivery_above if store.settings else None,
+            "welcome_discount_enabled": store.settings.welcome_discount_enabled if store.settings else False,
+            "welcome_discount_cents": store.settings.welcome_discount_cents if store.settings else 0,
         } if store.settings else {},
         "meta_title": store.meta_title or store.name,
         "meta_desc": store.meta_desc,
@@ -183,6 +185,40 @@ async def get_store_products(
         }
         for p in products
     ]
+
+
+@router.get("/store/{slug}/buyer-first-order")
+@limiter.limit("20/minute")
+async def check_first_order(
+    request: Request,
+    slug: str,
+    phone: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    ¿Es la primera compra de este teléfono en esta tienda? Usado en el
+    checkout para mostrar (con honestidad) si el descuento de bienvenida
+    se va a aplicar, antes de confirmar el pedido. La validación real y
+    autoritativa vuelve a ocurrir en create_order — este endpoint es solo
+    para la vista previa, nunca la fuente de verdad del descuento.
+    """
+    store_q = await db.execute(select(Store.id).where(Store.slug == slug))
+    store_id = store_q.scalar_one_or_none()
+    if not store_id:
+        raise HTTPException(status_code=404, detail="Tienda no encontrada")
+
+    cleaned_phone = re.sub(r"\D", "", phone)
+    if len(cleaned_phone) < 7:
+        return {"is_first_order": False}
+
+    count_q = await db.execute(
+        select(func.count()).select_from(Order).where(
+            Order.store_id == store_id,
+            Order.buyer_phone == cleaned_phone,
+        )
+    )
+    is_first = (count_q.scalar() or 0) == 0
+    return {"is_first_order": is_first}
 
 
 @router.post("/store/{slug}/orders", status_code=201)
@@ -274,13 +310,28 @@ async def create_order(
 
     total = subtotal + delivery_cents
 
-    # Min order check — validate against total (subtotal + delivery) so the buyer
-    # isn't confused by an order that meets the visible total but fails silently.
+    # Min order check — validate against total (subtotal + delivery) ANTES del
+    # descuento de bienvenida: el mínimo aplica siempre, el descuento no lo esquiva.
     if settings and settings.min_order_cents and total < settings.min_order_cents:
         raise HTTPException(
             status_code=422,
             detail=f"Monto mínimo S/ {settings.min_order_cents / 100:.2f}",
         )
+
+    # Descuento de bienvenida: auto-aplicado si es el primer pedido de este
+    # teléfono en esta tienda. La autoridad es siempre el backend — nunca se
+    # confía en nada que el cliente haya calculado o enviado.
+    discount_cents = 0
+    if settings and settings.welcome_discount_enabled and settings.welcome_discount_cents > 0:
+        prior_q = await db.execute(
+            select(func.count()).select_from(Order).where(
+                Order.store_id == store.id,
+                Order.buyer_phone == payload.buyer_phone,
+            )
+        )
+        if (prior_q.scalar() or 0) == 0:
+            discount_cents = min(settings.welcome_discount_cents, subtotal)
+            total -= discount_cents
 
     # Validate payment method
     _method = (payload.payment_method or "cash").lower().strip()
@@ -315,6 +366,7 @@ async def create_order(
         buyer_reference=payload.buyer_reference,
         subtotal_cents=subtotal,
         delivery_cents=delivery_cents,
+        discount_cents=discount_cents,
         total_cents=total,
         payment_method=_method,
         notes=payload.notes,
@@ -416,6 +468,8 @@ async def create_order(
         ]
         if delivery_cents > 0:
             lines.append(f"🚚 Delivery: S/ {delivery_cents/100:.2f}")
+        if discount_cents > 0:
+            lines.append(f"🎁 Descuento de bienvenida: -S/ {discount_cents/100:.2f}")
         lines += [
             f"💵 *TOTAL: S/ {total/100:.2f}*",
             "━━━━━━━━━━━━━━━━━━━━━━",
@@ -430,6 +484,7 @@ async def create_order(
         "total_cents": order.total_cents,
         "subtotal_cents": order.subtotal_cents,
         "delivery_cents": order.delivery_cents,
+        "discount_cents": order.discount_cents,
         "whatsapp_link": wa_link,
         "payment_methods": {
             "cash": settings.accept_cash if settings else True,

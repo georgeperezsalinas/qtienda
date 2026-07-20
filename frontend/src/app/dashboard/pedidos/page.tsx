@@ -80,6 +80,7 @@ interface OrderDetail extends Order {
   notes?: string;
   subtotal_cents: number;
   delivery_cents: number;
+  discount_cents?: number;
   items: {
     product_name: string;
     quantity: number;
@@ -508,6 +509,11 @@ export default function PedidosPage() {
         <div className="flex justify-between" style={{ color: "var(--ink-2)" }}>
           <span>Delivery</span><span>{formatPrice(selected.delivery_cents)}</span>
         </div>
+        {!!selected.discount_cents && (
+          <div className="flex justify-between" style={{ color: "var(--success)" }}>
+            <span>🎁 Descuento de bienvenida</span><span>-{formatPrice(selected.discount_cents)}</span>
+          </div>
+        )}
         <div className="flex justify-between font-bold pt-1" style={{ color: "var(--ink)", borderTop: "1px solid var(--line-2)" }}>
           <span>Total</span><span>{formatPrice(selected.total_cents)}</span>
         </div>

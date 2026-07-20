@@ -133,6 +133,7 @@ export default function ConfiguracionPage() {
     accept_transfer: false, accept_card: false, require_prepayment: false,
     yape_phone: "", plin_phone: "", bank_account: "",
     delivery_fee_cents: "0", min_order_cents: "0", free_delivery_above: "",
+    welcome_discount_enabled: false, welcome_discount_cents: "5",
   });
 
   const [hours, setHours] = useState<Record<string, DayHours>>({});
@@ -194,6 +195,10 @@ export default function ConfiguracionPage() {
             free_delivery_above: storeData.settings.free_delivery_above
               ? String(storeData.settings.free_delivery_above / 100)
               : "",
+            welcome_discount_enabled: storeData.settings.welcome_discount_enabled ?? false,
+            welcome_discount_cents: storeData.settings.welcome_discount_cents
+              ? String(storeData.settings.welcome_discount_cents / 100)
+              : "5",
           });
           if (storeData.settings.store_hours) setHours(storeData.settings.store_hours);
         }
@@ -279,6 +284,8 @@ export default function ConfiguracionPage() {
         free_delivery_above: settings.free_delivery_above
           ? Math.round(parseFloat(settings.free_delivery_above) * 100)
           : null,
+        welcome_discount_enabled: settings.welcome_discount_enabled,
+        welcome_discount_cents: Math.round(parseFloat(settings.welcome_discount_cents || "0") * 100),
       });
       toast.success("Configuración guardada");
     } catch {
@@ -747,6 +754,31 @@ export default function ConfiguracionPage() {
                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Delivery gratis desde (S/)</label>
                 <input className="input" type="number" min="0" step="0.50" placeholder="0 = sin mínimo" value={settings.free_delivery_above} onChange={(e) => setSettings({ ...settings, free_delivery_above: e.target.value })} />
               </div>
+            </div>
+
+            <div className="pt-2 border-t border-gray-100 space-y-3">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Descuento de bienvenida</p>
+              <Toggle
+                value={settings.welcome_discount_enabled}
+                onChange={(v) => setSettings({ ...settings, welcome_discount_enabled: v })}
+                label="Descuento automático en el primer pedido"
+              />
+              {settings.welcome_discount_enabled && (
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Monto del descuento (S/)</label>
+                  <input
+                    className="input"
+                    type="number"
+                    min="0"
+                    step="0.50"
+                    value={settings.welcome_discount_cents}
+                    onChange={(e) => setSettings({ ...settings, welcome_discount_cents: e.target.value })}
+                  />
+                  <p className="text-xs mt-1.5" style={{ color: "var(--ink-3)" }}>
+                    Se aplica solo si el número de WhatsApp del comprador nunca hizo un pedido en tu tienda. Sin código — se descuenta automático al confirmar.
+                  </p>
+                </div>
+              )}
             </div>
 
             <button

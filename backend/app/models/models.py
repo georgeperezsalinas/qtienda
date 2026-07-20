@@ -147,6 +147,8 @@ class StoreSettings(Base):
     min_order_cents: Mapped[int]         = mapped_column(Integer, default=0)
     delivery_fee_cents: Mapped[int]      = mapped_column(Integer, default=0)
     free_delivery_above: Mapped[Optional[int]] = mapped_column(Integer)
+    welcome_discount_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    welcome_discount_cents: Mapped[int]    = mapped_column(Integer, default=0)
     delivery_zones: Mapped[list]         = mapped_column(JSONB, default=list)
     store_hours: Mapped[dict]            = mapped_column(JSONB, default=dict)
     custom_css: Mapped[Optional[str]]    = mapped_column(Text)

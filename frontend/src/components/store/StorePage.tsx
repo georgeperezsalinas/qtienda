@@ -21,6 +21,7 @@ import { useAuthStore } from "@/store/authStore";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
 import { trackStoreEvent } from "@/lib/storeAnalytics";
 import { apiClient } from "@/lib/api";
+import { formatPrice } from "@/lib/utils";
 
 interface StoreData {
   slug:          string;
@@ -36,6 +37,10 @@ interface StoreData {
   categories?:   { id: string; name: string; icon?: string }[];
   whatsapp?:     string;
   meta_title?:   string;
+  settings?: {
+    welcome_discount_enabled?: boolean;
+    welcome_discount_cents?:   number;
+  };
 }
 
 interface ProductData {
@@ -316,6 +321,7 @@ export default function StorePage({ store, initialProducts }: Props) {
   const [installPrompt,       setInstallPrompt]       = useState<BeforeInstallPromptEvent | null>(null);
   const [installDismissed,    setInstallDismissed]    = useState(false);
   const [buyerBannerDismissed,setBuyerBannerDismissed]= useState(false);
+  const [welcomeBannerDismissed, setWelcomeBannerDismissed] = useState(false);
   const [isOwner,             setIsOwner]             = useState(false);
   const [trackOpen,           setTrackOpen]           = useState(false);
   const [trackNum,            setTrackNum]            = useState("");
@@ -360,6 +366,11 @@ export default function StorePage({ store, initialProducts }: Props) {
     localStorage.setItem("qtienda_buyer_banner_dismissed", "1");
   }
 
+  function dismissWelcomeBanner() {
+    setWelcomeBannerDismissed(true);
+    localStorage.setItem(`qtienda_welcome_banner_dismissed_${store.slug}`, "1");
+  }
+
   function goTrack(e: React.FormEvent) {
     e.preventDefault();
     let num = trackNum.trim().toUpperCase();
@@ -374,6 +385,8 @@ export default function StorePage({ store, initialProducts }: Props) {
     setMounted(true);
     if (localStorage.getItem("qtienda_buyer_banner_dismissed") === "1")
       setBuyerBannerDismissed(true);
+    if (localStorage.getItem(`qtienda_welcome_banner_dismissed_${store.slug}`) === "1")
+      setWelcomeBannerDismissed(true);
     // En pantallas grandes la grilla aprovecha mejor el espacio que la lista
     if (window.innerWidth >= 1024) setListView(false);
   }, []);
@@ -687,6 +700,22 @@ export default function StorePage({ store, initialProducts }: Props) {
       {/* ══════════════════════════════════
           BANNERS (PWA + buyer)
       ══════════════════════════════════ */}
+      <AnimatePresence>
+        {mounted && store.settings?.welcome_discount_enabled && !!store.settings?.welcome_discount_cents && !welcomeBannerDismissed && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+            className="flex items-center gap-3 px-4 py-2.5 max-w-xl md:max-w-3xl lg:max-w-[1360px] mx-auto lg:px-8"
+            style={{ background: `${color}12`, borderBottom: `1px solid ${color}22` }}
+          >
+            <span className="text-lg flex-shrink-0">🎁</span>
+            <p className="flex-1 text-xs font-bold leading-snug" style={{ color: "var(--ink)" }}>
+              {formatPrice(store.settings.welcome_discount_cents)} de descuento en tu primera compra aquí
+            </p>
+            <button onClick={dismissWelcomeBanner}><X size={14} style={{ color: "var(--ink-4)" }} /></button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {mounted && installPrompt && !installDismissed && (
           <motion.div

@@ -113,8 +113,17 @@ class StoreSettingsUpdate(BaseModel):
     min_order_cents: Optional[int] = None
     delivery_fee_cents: Optional[int] = None
     free_delivery_above: Optional[int] = None
+    welcome_discount_enabled: Optional[bool] = None
+    welcome_discount_cents: Optional[int] = None
     delivery_zones: Optional[list] = None
     store_hours: Optional[dict] = None
+
+    @field_validator("welcome_discount_cents")
+    @classmethod
+    def non_negative_discount(cls, v):
+        if v is not None and v < 0:
+            raise ValueError("El descuento no puede ser negativo")
+        return v
 
 
 # ── Products ──────────────────────────────────────────────────
