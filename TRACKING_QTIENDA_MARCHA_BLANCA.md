@@ -1,9 +1,29 @@
 # QTIENDA - Tracking Marcha Blanca
 
 Fecha de analisis: 2026-07-09  
-Ultima actualizacion: 2026-07-20  
+Ultima actualizacion: 2026-07-21  
 Estado del producto: marcha blanca desplegada en VPS con Docker  
 Contexto operativo: ya existen usuarios reales creando tiendas desde web responsive, principalmente celular y posiblemente laptop. A la fecha de esta actualizacion se reportan 3 tiendas creadas en los ultimos dias (dato del dueño del producto, no verificado contra el admin panel en esta revision).
+
+## Actualizacion 2026-07-21 — Panel Admin nivel "Pro" + trafico del sitio
+
+Ciclo enfocado exclusivamente en el panel Admin (`/admin/*`), que seguia con paleta fria/generica heredada de antes del rediseño cálido, `window.confirm()/prompt()` nativos en acciones destructivas, y huecos funcionales marcados como pendientes desde el analisis inicial (usuarios sin acciones, sin visor de auditoria, sin vista global de pedidos, sin datos de trafico). Tambien se agrego un guardrail de producto: los productos nuevos ya no se publican automaticamente en la tienda al crearlos.
+
+| Area | Que se hizo | Impacto esperado |
+|---|---|---|
+| Publicar producto | `ProductCreate.status` nace en `"inactive"` (borrador) por defecto en vez de `"active"`; toggle "Publicar en la tienda" explicito en el formulario de crear/editar, tanto en dashboard web como en la app movil. | El vendedor decide cuando un producto se hace visible al comprador, en vez de que se publique solo porque tiene stock cargado. |
+| Admin — pulido visual | Los 4 screens (`layout`, dashboard, tiendas, usuarios) migrados de hex hardcodeado (grises/azules/verdes genericos tipo Tailwind) a los tokens calidos del resto de la app (`--accent`, `--success`, `--warn`, `--danger` + variantes `-soft`). Avatares con degradado terracota en vez de rojo/morado. | El admin dejo de sentirse una app distinta pegada al resto de qtienda. |
+| Admin — modales propios | Nuevo `ConfirmModal` reutilizable (`admin/_components/`) con soporte de motivo y confirmacion tipeada ("escribe DELETE"); reemplaza todos los `window.confirm()/prompt()` nativos en suspender/eliminar tienda y aprobar/rechazar pago Yape. | Se ve como una app real, no como un prototipo con popups del navegador. |
+| Admin — usuarios | Accion suspender/activar usuario (`PATCH /admin/users/{id}`, usa la columna `is_active` que ya existia pero no tenia endpoint), con guardrail para no poder autosuspenderse. | Cierra el hueco "Admin Usuarios: sin acciones" del backlog original. |
+| Admin — auditoria | Nueva pantalla `/admin/auditoria`: visor paginado y filtrable por entidad de la tabla `audit_logs` (ya existia y se llenaba desde 2026-07-09, pero no habia UI para verla). Traduce cada `action` a texto legible en español. | Cierra "Admin Auditoria: base creada, sin pantalla" del backlog original. |
+| Admin — pedidos globales | Nueva pantalla `/admin/pedidos` + `GET /admin/orders`: lista de pedidos de **todas** las tiendas con filtro por estado y busqueda por comprador/celular/numero. | Cierra "Admin Pedidos" del backlog (ver detalle/exportar CSV quedan pendientes, ver mas abajo). |
+| Admin — tablas de escritorio | `/admin/tiendas` y `/admin/usuarios` ahora muestran tabla densa real en `lg:` (antes tarjetas moviles estiradas a lo ancho); tarjetas se mantienen en movil/tablet. Contenedor con scroll horizontal para no cortar la columna de acciones en laptops medianos. | Uso real en laptop deja de sentirse una app de celular estirada. |
+| Dashboard admin — datos de la app | Nuevas secciones: resumen (productos/pedidos historico/pendientes), sparklines de altas de tiendas/usuarios (14 dias), ranking de tiendas destacadas por ventas, panel "Datos tecnicos de qtienda" (version API, entorno, uptime del proceso, motor de BD, estado del watcher de vencimiento de planes). | El dashboard de inicio pasa de 4 tarjetas sueltas a un resumen operativo real. |
+| Trafico del sitio (nuevo) | Migracion `022_site_events.sql` + tabla `SiteEvent` + endpoint publico `POST /public/events` (IP real detras de nginx via `X-Forwarded-For`, mismo patron que el logging middleware) para trackear landing (`/`) y directorio (`/tiendas`), que antes no emitian ningun evento. Nuevo `GET /admin/site-traffic` agrega esto **mas** los `store_events` existentes (QT-008) mirados por primera vez a nivel global (todas las tiendas, no una por una). Superficie en el dashboard: vistas/visitantes unicos de landing+directorio, paginas mas vistas, y embudo de conversion agregado (vio tienda → vio producto → agrego carrito → fue a pagar) con datos reales que ya existian sin ser visibles en ningun panel (352 vistas de tienda / 39 inicios de checkout historicos al momento de este corte). | Primera vez que hay visibilidad de trafico a nivel dominio, no solo por tienda individual. |
+
+**Migraciones nuevas de este ciclo:** `022_site_events.sql` — aplicada en local; VPS actualizado el 2026-07-21 (confirmado por el dueño de producto, no reverificado en este ciclo contra la BD de produccion).
+
+**Deuda dejada explicitamente pendiente en este ciclo** (alcance decidido para no sobre-extender): `/admin/pedidos` no tiene "ver detalle" ni exportar CSV; `/admin/productos` (vista global de productos, cross-tienda) sigue sin construir; `/admin/usuarios` sigue sin poder cambiar rol ni ver la tienda asociada al vendedor. Ver filas actualizadas en "Backlog Especifico Admin".
 
 ## Actualizacion 2026-07-20 — Ciclo de conversion, checkout y calidez visual
 
@@ -19,10 +39,7 @@ Entre el 2026-07-11 y el 2026-07-20 se trabajo un ciclo enfocado en checkout, re
 | Calidez visual | Rediseno de landing, login, registro, header/logo, dashboard (menu inferior, tarjetas de inicio) y Configuracion (tabs, toggles, avatares, tokens de color) con la paleta de marca en vez de gris/negro plano. Se corrigio un bug preexistente donde un `display: flex` inline sobrescribia `md:hidden` de Tailwind y duplicaba la barra de tabs en escritorio. | La app dejo de sentirse "fria"/generica; queja explicita del dueño de producto durante este ciclo. |
 | Cache | Revalidacion de la pagina de tienda publica bajada de 60s a 20s. | Cambios de Ajustes (envio, precios, cupon) se reflejan casi al instante en vez de tardar hasta un minuto. |
 
-**Migraciones nuevas pendientes de aplicar en VPS** (correr `./Bdatos/apply_migrations.sh`, que solo ejecuta las que falten):
-- `019_order_buyer_dni_ubigeo.sql`
-- `020_welcome_discount.sql`
-- `021_product_sale_ends_at.sql`
+**Migraciones 019-021:** aplicadas en VPS (confirmado por el dueño de producto el 2026-07-21, junto con la 022 del ciclo siguiente).
 
 **Idea capturada, no implementada — evaluar mas adelante:** el dueño de producto propuso evolucionar qtienda hacia un "centro comercial virtual": una vitrina que vende el descubrimiento de tiendas, no solo la creacion de la tuya. Recomendacion dada en el momento: con 3 tiendas activas es prematuro para ser la historia principal del landing (el landing hoy le vende a *vendedores*, un mall le vende a *compradores* — son funnels distintos y mezclarlos ahora diluiria la captacion de vendedores, que sigue siendo la prioridad). Camino sugerido en dos pasos: (1) corto plazo, pulir `/tiendas` (que ya existe como directorio basico) como version embrionaria del "mall" sin tocar el hero del landing; (2) cuando haya 20-30+ tiendas activas reales, recien evaluar promoverlo a protagonista de la home. Ver QT-040 en la tabla de pendientes.
 
@@ -96,8 +113,8 @@ PostgreSQL compartido en VPS
 | Planes y pagos | Funcional | 80% | `plans.py`, `services/culqi.py`, `services/plan_expiry.py` | Culqi (tarjeta/Yape), Yape directo con aprobacion admin, expiracion automatica, renovacion que suma dias, aviso previo por email/push. | Webhook Culqi para tarjeta, facturacion. |
 | Referidos | Funcional | 85% | `referrals.py`, `services/referrals.py` | Codigo por usuario, registro con `?ref=`, bonus de limites en plan free (+5 prod/+50 pedidos por referido con tienda, tope 10). | Panel admin de referidos, antifraude (mismo IP/dispositivo). |
 | Push | Parcial | 65% | `push.py`, `devices.py` | WebPush y Expo Push. | Manejo de errores, limpieza tokens, metricas de entrega. |
-| Admin | Insuficiente para marcha blanca | 45% | `admin.py` | Lista tiendas/usuarios/metricas basicas, approve/suspend, reset test data. | Admin operativo completo, eliminacion controlada, auditoria visible. |
-| Auditoria | Base creada | 35% | `models.py`, `orders.py` | Tabla `audit_logs` usada en cambios de estado. | Extender a acciones admin, tienda, producto, usuario y eliminaciones. |
+| Admin | Funcional | 70% | `admin.py` | Tiendas/usuarios/metricas, approve/suspend/mark-test/delete tienda, suspender/activar usuario, pedidos globales (`/orders`), auditoria (`/audit-logs`), trafico del sitio (`/site-traffic`), reset test data. | Vista global de productos, ver detalle de pedido, exportar CSV, editar rol de usuario. |
+| Auditoria | Funcional | 65% | `models.py`, `orders.py`, `admin.py` | Tabla `audit_logs` usada en cambios de estado; visor propio en `/admin/auditoria` desde 2026-07-21 (filtro por entidad). | Filtro por tienda especifica, exportar. |
 
 ### Frontend Web
 
@@ -113,7 +130,7 @@ PostgreSQL compartido en VPS
 | Configuracion | Funcional | 78% | `dashboard/configuracion/page.tsx` | Tienda, pagos, categorias, delivery staff, cupon de bienvenida, pais de la tienda, rediseno visual calido (tabs, toggles, avatares). | Validaciones, preview tienda, gestion de zonas. |
 | Finanzas | Parcial | 60% | `dashboard/finanzas/page.tsx` | Estadisticas basicas. | Reportes descargables, ventas por metodo, conciliacion. |
 | Planes | Funcional | 85% | `dashboard/planes/page.tsx`, `admin/pagos/page.tsx` | Modal Yape directo/tarjeta, estado de pago en verificacion, renovacion visible al vencer, admin aprueba/rechaza Yapes. | Historial de pagos del vendedor. |
-| Admin web | Basico | 45% | `admin/*` | Vistas iniciales. | Herramientas de inspeccion, limpieza y soporte. |
+| Admin web | Funcional | 72% | `admin/*` | Dashboard con datos de app/trafico/tecnicos, tiendas y usuarios (tarjetas + tabla escritorio), pedidos globales, auditoria, pagos Yape — todo con la paleta calida y modales propios (`ConfirmModal`) desde 2026-07-21. | Vista global de productos, ver detalle de pedido, exportar CSV. |
 | PWA | Funcional | 80% | `public/sw.js`, `PWARegister.tsx` | Cache, push, banner "nueva version disponible" con versionado automatico por build Docker. | Revisar cache de datos dinamicos y estrategia offline. |
 
 ### Mobile App
@@ -226,18 +243,23 @@ PostgreSQL compartido en VPS
 | QT-038 | P1 | Conversion | Envio gratis con barra de progreso, cross-sell "otros tambien compraron", cupon de bienvenida en el primer pedido (por telefono, preview honesto pre-confirmacion), countdown real de oferta con fecha definida por el vendedor. | Palancas estandar de e-commerce para ticket promedio y abandono, sin urgencia falsa. | Hecho 2026-07-20 (migraciones 020 y 021, verificado e2e con Playwright incluyendo caso "no elegible") |
 | QT-039 | P2 | Frontend | Rediseno visual calido: landing, login, registro, dashboard y Configuracion migrados de gris/negro plano a la paleta de marca (terracota); fix de bug preexistente `display:flex` inline que duplicaba tabs en escritorio. | La app dejo de sentirse "fria"/generica — queja explicita del dueño de producto. | Hecho 2026-07-20 |
 | QT-040 | P2 | Producto | Evaluar "centro comercial virtual": vitrina de descubrimiento de tiendas como protagonista de la home, en vez de solo captacion de vendedores. Idea del dueño de producto, capturada 2026-07-20, no implementada. | Nuevo canal de crecimiento cuando haya masa critica de tiendas. | Backlog — revisar cuando haya 20-30+ tiendas activas reales; corto plazo, pulir `/tiendas` como version embrionaria sin tocar el hero del landing. |
+| QT-041 | P2 | Catalogo | Publicar producto deja de ser automatico: `ProductCreate.status` nace `"inactive"`, toggle "Publicar en la tienda" explicito en crear/editar (web y movil). | El vendedor controla cuando el producto se ve en la tienda, en vez de publicarse solo por tener stock. | Hecho 2026-07-21 |
+| QT-042 | P1 | Admin | Pulido visual completo del panel Admin (4 screens) a la paleta calida + reemplazo de `window.confirm/prompt` nativos por `ConfirmModal` propio. | El admin deja de sentirse una app distinta/generica pegada al resto de qtienda. | Hecho 2026-07-21 |
+| QT-043 | P1 | Admin | Suspender/activar usuario (`PATCH /admin/users/{id}`) y visor de auditoria (`/admin/auditoria`, tabla `audit_logs` que ya existia sin UI). | Cierra dos huecos P1 del backlog original de Admin. | Hecho 2026-07-21 |
+| QT-044 | P1 | Admin | Tablas densas de escritorio para `/admin/tiendas` y `/admin/usuarios` (antes tarjetas moviles estiradas); `/admin/pedidos` nuevo con vista global de pedidos de todas las tiendas, filtro por estado y busqueda. | El admin es usable en laptop y ya cubre pedidos globales, no solo por tienda. | Hecho 2026-07-21 (pendiente: ver detalle de pedido y exportar CSV) |
+| QT-045 | P1 | Analytics | Trafico a nivel dominio: migracion `022_site_events.sql`, tracking de landing/`tiendas` (antes sin instrumentar), y `GET /admin/site-traffic` que agrega esto mas los `store_events` existentes vistos por primera vez de forma global (no por tienda). Dashboard admin muestra vistas/visitantes unicos, paginas mas vistas y embudo de conversion agregado. | Primera vez con visibilidad real de trafico del sitio completo, no solo de una tienda a la vez. | Hecho 2026-07-21 |
 
 ## Backlog Especifico Admin
 
-| Pantalla | Campos minimos | Acciones minimas | Prioridad |
-|---|---|---|---:|
-| Admin Inicio | tiendas totales, activas, prueba, usuarios, pedidos, ventas, nuevos hoy | Ver tiendas, ver usuarios, exportar | P0 |
-| Admin Tiendas | slug, nombre, duenio, email, telefono, estado, productos, pedidos, fecha, ultima actividad | Ver, abrir publica, suspender, reactivar, marcar prueba, soft delete | P0 |
-| Admin Detalle Tienda | datos tienda, settings pagos, productos, pedidos recientes, imagenes, plan | Cambiar estado, editar nota admin, limpiar prueba | P0 |
-| Admin Usuarios | nombre, email, rol, telefono, verificado, activo, tienda, fecha | Suspender usuario, ver tienda, reset soporte | P1 |
-| Admin Productos | tienda, producto, precio, stock, estado, imagen | Revisar contenido, ocultar producto | P1 |
-| Admin Pedidos | tienda, cliente, estado, monto, fecha, metodo pago | Ver detalle, filtrar, exportar | P1 |
-| Admin Auditoria | admin, accion, entidad, fecha, old/new | Filtrar por tienda/usuario | P1 |
+| Pantalla | Campos minimos | Acciones minimas | Prioridad | Estado |
+|---|---|---|---:|---|
+| Admin Inicio | tiendas totales, activas, prueba, usuarios, pedidos, ventas, nuevos hoy | Ver tiendas, ver usuarios, exportar | P0 | Hecho salvo exportar (ver tambien trafico del sitio, altas 14d, tecnicos) |
+| Admin Tiendas | slug, nombre, duenio, email, telefono, estado, productos, pedidos, fecha, ultima actividad | Ver, abrir publica, suspender, reactivar, marcar prueba, soft delete | P0 | Hecho (tarjetas + tabla escritorio 2026-07-21) |
+| Admin Detalle Tienda | datos tienda, settings pagos, productos, pedidos recientes, imagenes, plan | Cambiar estado, editar nota admin, limpiar prueba | P0 | Hecho salvo "nota admin" |
+| Admin Usuarios | nombre, email, rol, telefono, verificado, activo, tienda, fecha | Suspender usuario, ver tienda, reset soporte | P1 | Suspender hecho 2026-07-21 (tarjetas + tabla); falta "ver tienda del vendedor" y "reset soporte" |
+| Admin Productos | tienda, producto, precio, stock, estado, imagen | Revisar contenido, ocultar producto | P1 | Backlog — sin construir |
+| Admin Pedidos | tienda, cliente, estado, monto, fecha, metodo pago | Ver detalle, filtrar, exportar | P1 | Lista + filtrar hecho 2026-07-21 (`/admin/pedidos`); falta ver detalle y exportar |
+| Admin Auditoria | admin, accion, entidad, fecha, old/new | Filtrar por tienda/usuario | P1 | Hecho 2026-07-21 (`/admin/auditoria`, filtro por entidad; falta filtro por tienda especifica) |
 
 ## Recomendaciones De Arquitecto Senior
 

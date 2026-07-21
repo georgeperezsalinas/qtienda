@@ -355,6 +355,66 @@ async def delete_store(
     return {"store_id": store.id, "deleted_at": store.deleted_at, "status": store.status}
 
 
+@router.get("/orders")
+async def list_orders(
+    status: Optional[str] = Query(None),
+    q: Optional[str] = Query(None),
+    store_id: Optional[UUID] = Query(None),
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, le=100),
+    _=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    filters = []
+    if status:
+        filters.append(Order.status == status)
+    if store_id:
+        filters.append(Order.store_id == store_id)
+    if q:
+        term = f"%{q.strip()}%"
+        filters.append(or_(
+            Order.buyer_name.ilike(term),
+            Order.buyer_phone.ilike(term),
+            Order.order_number.ilike(term),
+        ))
+    where_clause = and_(*filters) if filters else True
+
+    total = (
+        await db.execute(select(func.count()).select_from(Order).where(where_clause))
+    ).scalar()
+
+    result = await db.execute(
+        select(Order, Store.name, Store.slug)
+        .join(Store, Order.store_id == Store.id)
+        .where(where_clause)
+        .order_by(Order.created_at.desc())
+        .offset((page - 1) * limit)
+        .limit(limit)
+    )
+    rows = result.all()
+
+    return {
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "pages": -(-total // limit),
+        "items": [
+            {
+                "id": o.id,
+                "order_number": o.order_number,
+                "status": o.status,
+                "buyer_name": o.buyer_name,
+                "buyer_phone": o.buyer_phone,
+                "total_cents": o.total_cents,
+                "payment_method": o.payment_method,
+                "created_at": o.created_at,
+                "store": {"name": sname, "slug": sslug},
+            }
+            for o, sname, sslug in rows
+        ],
+    }
+
+
 @router.get("/users")
 async def list_users(
     page: int = Query(1, ge=1),
