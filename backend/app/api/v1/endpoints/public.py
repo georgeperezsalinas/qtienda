@@ -173,6 +173,7 @@ async def get_store_products(
             "description": p.description,
             "price_cents": p.price_cents,
             "compare_price": p.compare_price,
+            "sale_ends_at": p.sale_ends_at,
             "stock": p.stock,
             "is_featured": p.is_featured,
             "category_id": p.category_id,

@@ -5,11 +5,12 @@ import Image from "next/image";
 import {
   Plus, Pencil, Trash2, Package, X,
   Search,
-  Star, Eye, EyeOff, Tag, Images,
+  Star, Eye, EyeOff, Tag, Images, Clock,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
+import { useSaleCountdown } from "@/hooks/useSaleCountdown";
 import { MultiImageUpload, type FormImage } from "@/components/ui/MultiImageUpload";
 import { RichTextEditor } from "@/components/ui/RichTextEditor";
 
@@ -22,6 +23,7 @@ interface Product {
   description?: string;
   price_cents: number;
   compare_price?: number;
+  sale_ends_at?: string;
   stock?: number;
   status: string;
   is_featured: boolean;
@@ -34,10 +36,20 @@ const EMPTY_FORM = {
   description: "",
   price_cents: "",
   compare_price: "",
+  sale_ends_at: "",
   stock: "",
   category_id: "",
   is_featured: false,
 };
+
+/* datetime-local no acepta segundos/zona — recorta a "YYYY-MM-DDTHH:mm" en hora local */
+function toDatetimeLocal(iso?: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 type FilterStatus = "all" | "active" | "inactive";
 
@@ -65,6 +77,7 @@ function ProductCard({
   const img = getPrimaryImg(product);
   const discount = discountPct(product.price_cents, product.compare_price);
   const active = product.status === "active";
+  const countdown = useSaleCountdown(product.sale_ends_at);
   const [imgError, setImgError] = useState(false);
 
   return (
@@ -146,6 +159,14 @@ function ProductCard({
               }}
             >
               {product.stock > 0 ? `${product.stock} en stock` : "Agotado"}
+            </span>
+          )}
+          {countdown && (
+            <span
+              className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
+              style={{ background: "var(--warn-soft)", color: "var(--warn)" }}
+            >
+              <Clock size={10} /> Termina en {countdown}
             </span>
           )}
         </div>
@@ -314,6 +335,7 @@ export default function ProductosPage() {
       description: p.description ?? "",
       price_cents: String(p.price_cents / 100),
       compare_price: p.compare_price ? String(p.compare_price / 100) : "",
+      sale_ends_at: toDatetimeLocal(p.sale_ends_at),
       stock: p.stock != null ? String(p.stock) : "",
       category_id: p.category_id ?? "",
       is_featured: p.is_featured,
@@ -327,6 +349,10 @@ export default function ProductosPage() {
     if (!form.name.trim()) { toast.error("El nombre es requerido"); return; }
     const price = parseFloat(form.price_cents);
     if (!price || price <= 0) { toast.error("Precio inválido"); return; }
+    if (form.sale_ends_at && !form.compare_price) {
+      toast.error("Para poner fecha de fin de oferta, primero define el precio antes del descuento");
+      return;
+    }
 
     setSaving(true);
     try {
@@ -338,6 +364,8 @@ export default function ProductosPage() {
         description: cleanDesc || undefined,
         price_cents: Math.round(price * 100),
         compare_price: form.compare_price ? Math.round(parseFloat(form.compare_price) * 100) : undefined,
+        // null explicito (no undefined) para que se pueda borrar la fecha ya puesta
+        sale_ends_at: form.sale_ends_at ? new Date(form.sale_ends_at).toISOString() : null,
         stock: form.stock !== "" ? parseInt(form.stock) : undefined,
         category_id: form.category_id || undefined,
         is_featured: form.is_featured,
@@ -649,7 +677,14 @@ export default function ProductosPage() {
                         min="0"
                         placeholder="0.00"
                         value={form.compare_price}
-                        onChange={(e) => setForm((f) => ({ ...f, compare_price: e.target.value }))}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            compare_price: e.target.value,
+                            // Sin precio de oferta no tiene sentido un countdown
+                            sale_ends_at: e.target.value ? f.sale_ends_at : "",
+                          }))
+                        }
                         style={{ color: "var(--ink)" }}
                       />
                     </div>
@@ -668,6 +703,23 @@ export default function ProductosPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Countdown de oferta — solo tiene sentido si hay precio de descuento */}
+              {!!form.compare_price && (
+                <Field label="Oferta termina (opcional)">
+                  <input
+                    className="input"
+                    type="datetime-local"
+                    value={form.sale_ends_at}
+                    onChange={(e) => setForm((f) => ({ ...f, sale_ends_at: e.target.value }))}
+                  />
+                  <p className="text-[10px] mt-1" style={{ color: "var(--ink-3)" }}>
+                    {form.sale_ends_at
+                      ? "Se muestra un contador real en tu tienda hasta esta fecha."
+                      : "Déjalo vacío para un descuento sin fecha de vencimiento."}
+                  </p>
+                </Field>
+              )}
 
               {/* Stock + Category */}
               <div className="grid grid-cols-2 gap-3">

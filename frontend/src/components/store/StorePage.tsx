@@ -49,6 +49,7 @@ interface ProductData {
   description?:   string;
   price_cents:    number;
   compare_price?: number;
+  sale_ends_at?:  string;
   stock?:         number;
   is_featured:    boolean;
   category_id?:   string;

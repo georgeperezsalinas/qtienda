@@ -1,12 +1,13 @@
 "use client";
 
 import Image from "next/image";
-import { Plus, Check, Images, Heart } from "lucide-react";
+import { Plus, Check, Images, Heart, Clock } from "lucide-react";
 import { useState } from "react";
 import { useCartStore } from "@/store/cartStore";
 import { useFavoritesStore } from "@/store/favoritesStore";
 import { formatPrice, stripHtml } from "@/lib/utils";
 import { trackStoreEvent } from "@/lib/storeAnalytics";
+import { useSaleCountdown } from "@/hooks/useSaleCountdown";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 
@@ -17,6 +18,7 @@ interface Props {
     description?: string;
     price_cents: number;
     compare_price?: number;
+    sale_ends_at?: string;
     stock?: number;
     sold_count?: number;
     created_at?: string;
@@ -61,6 +63,7 @@ export default function ProductCard({
   const addItem = useCartStore((s) => s.addItem);
   const isFavorite = useFavoritesStore((s) => s.isFavorite(storeSlug, product.id));
   const toggleFavorite = useFavoritesStore((s) => s.toggle);
+  const countdown = useSaleCountdown(product.sale_ends_at);
 
   function handleFavorite(e: React.MouseEvent) {
     e.stopPropagation();
@@ -166,6 +169,14 @@ export default function ProductCard({
                 style={{ background: "var(--danger)" }}
               >
                 -{discount}%
+              </span>
+            )}
+            {countdown && (
+              <span
+                className="absolute bottom-2 left-2 flex items-center gap-1 text-[10px] font-bold text-white px-2 py-0.5 rounded-full"
+                style={{ background: "var(--warn)" }}
+              >
+                <Clock size={9} /> {countdown}
               </span>
             )}
             {multipleImages && primaryImage && (
@@ -282,6 +293,14 @@ export default function ProductCard({
                 {formatPrice(product.compare_price)}
               </span>
             )}
+            {countdown && (
+              <span
+                className="flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                style={{ background: "var(--warn-soft)", color: "var(--warn)" }}
+              >
+                <Clock size={9} /> {countdown}
+              </span>
+            )}
             {socialBadge}
           </div>
         </div>
@@ -323,6 +342,14 @@ export default function ProductCard({
             style={{ background: "var(--danger)" }}
           >
             -{discount}%
+          </span>
+        )}
+        {countdown && (
+          <span
+            className="absolute bottom-2 left-2 flex items-center gap-1 text-[10px] font-bold text-white px-2 py-0.5 rounded-full"
+            style={{ background: "var(--warn)" }}
+          >
+            <Clock size={9} /> {countdown}
           </span>
         )}
         {multipleImages && primaryImage && (

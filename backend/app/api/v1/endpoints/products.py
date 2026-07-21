@@ -33,6 +33,7 @@ def _serialize(p: Product) -> dict:
         "description": p.description,
         "price_cents": p.price_cents,
         "compare_price": p.compare_price,
+        "sale_ends_at": p.sale_ends_at,
         "sku": p.sku,
         "stock": p.stock,
         "status": p.status,
@@ -193,6 +194,7 @@ async def create_product(
         description=payload.description,
         price_cents=payload.price_cents,
         compare_price=payload.compare_price,
+        sale_ends_at=payload.sale_ends_at,
         sku=payload.sku,
         stock=payload.stock,
         is_featured=payload.is_featured,
@@ -265,6 +267,15 @@ async def update_product(
     update_data = payload.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(product, field, value)
+
+    # Un countdown sin precio de oferta real no tiene sentido — se valida
+    # sobre el estado final (no solo lo enviado) porque compare_price y
+    # sale_ends_at pueden llegar en requests de PATCH separados.
+    if product.sale_ends_at and not product.compare_price:
+        raise HTTPException(
+            status_code=422,
+            detail="Para poner fecha de fin de oferta, define primero el precio antes del descuento",
+        )
 
     await db.commit()
 

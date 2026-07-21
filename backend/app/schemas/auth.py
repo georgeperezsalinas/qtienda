@@ -1,4 +1,5 @@
 """Schemas — qtienda.shop"""
+from datetime import datetime
 from typing import Optional, List
 from uuid import UUID
 from pydantic import BaseModel, EmailStr, field_validator, model_validator
@@ -133,6 +134,7 @@ class ProductCreate(BaseModel):
     description: Optional[str] = None
     price_cents: int
     compare_price: Optional[int] = None
+    sale_ends_at: Optional[datetime] = None
     category_id: Optional[UUID] = None
     sku: Optional[str] = None
     stock: Optional[int] = None
@@ -145,12 +147,23 @@ class ProductCreate(BaseModel):
             raise ValueError("Precio debe ser mayor a 0")
         return v
 
+    @model_validator(mode="after")
+    def sale_end_needs_compare_price(self):
+        # Un countdown sin precio de oferta real no tiene sentido — nunca se
+        # inventa una fecha ni un descuento que el vendedor no configuró.
+        if self.sale_ends_at and not self.compare_price:
+            raise ValueError("Para poner fecha de fin de oferta, define primero el precio antes del descuento")
+        return self
+
 
 class ProductUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     price_cents: Optional[int] = None
     compare_price: Optional[int] = None
+    # Enviar null explicito borra la fecha (semantica estandar de PATCH con
+    # exclude_unset=True: solo se ignora si el campo no viene en el body).
+    sale_ends_at: Optional[datetime] = None
     category_id: Optional[UUID] = None
     sku: Optional[str] = None
     stock: Optional[int] = None

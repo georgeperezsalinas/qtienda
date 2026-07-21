@@ -189,6 +189,7 @@ class Product(Base):
     description: Mapped[Optional[str]] = mapped_column(Text)
     price_cents: Mapped[int]        = mapped_column(Integer)
     compare_price: Mapped[Optional[int]] = mapped_column(Integer)
+    sale_ends_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     sku: Mapped[Optional[str]]      = mapped_column(String(80))
     stock: Mapped[Optional[int]]    = mapped_column(Integer)
     status: Mapped[str]             = mapped_column(

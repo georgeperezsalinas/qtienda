@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import Image from "next/image";
-import { X, ChevronLeft, ChevronRight, Check, ShoppingCart, ZoomIn, Share2 } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Check, ShoppingCart, ZoomIn, Share2, Clock } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCartStore } from "@/store/cartStore";
 import { formatPrice, stripHtml } from "@/lib/utils";
+import { useSaleCountdown } from "@/hooks/useSaleCountdown";
 import toast from "react-hot-toast";
 import ProductCard from "./ProductCard";
 
@@ -15,6 +16,7 @@ interface ProductForSheet {
   description?: string;
   price_cents: number;
   compare_price?: number;
+  sale_ends_at?: string;
   stock?: number;
   category_id?: string;
   sold_count?: number;
@@ -72,6 +74,7 @@ export default function ProductDetailSheet({
   const discount = product.compare_price
     ? Math.round((1 - product.price_cents / product.compare_price) * 100)
     : null;
+  const countdown = useSaleCountdown(product.sale_ends_at);
   const hasImages = product.images.length > 0;
   const hasDescription = !!product.description?.trim();
   const displayName = stripHtml(product.name);
@@ -225,6 +228,16 @@ export default function ProductDetailSheet({
               style={{ background: "var(--danger)" }}
             >
               -{discount}%
+            </span>
+          )}
+
+          {/* Countdown real de oferta — solo si el vendedor definió fecha de fin */}
+          {countdown && (
+            <span
+              className="absolute bottom-3 left-3 z-10 flex items-center gap-1 text-white text-xs font-bold px-2.5 py-1 rounded-full"
+              style={{ background: "var(--warn)" }}
+            >
+              <Clock size={12} /> Termina en {countdown}
             </span>
           )}
 
