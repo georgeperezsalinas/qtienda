@@ -1,9 +1,30 @@
 # QTIENDA - Tracking Marcha Blanca
 
 Fecha de analisis: 2026-07-09  
-Ultima actualizacion: 2026-07-10  
+Ultima actualizacion: 2026-07-20  
 Estado del producto: marcha blanca desplegada en VPS con Docker  
-Contexto operativo: ya existen usuarios reales creando tiendas desde web responsive, principalmente celular y posiblemente laptop.
+Contexto operativo: ya existen usuarios reales creando tiendas desde web responsive, principalmente celular y posiblemente laptop. A la fecha de esta actualizacion se reportan 3 tiendas creadas en los ultimos dias (dato del dueño del producto, no verificado contra el admin panel en esta revision).
+
+## Actualizacion 2026-07-20 — Ciclo de conversion, checkout y calidez visual
+
+Entre el 2026-07-11 y el 2026-07-20 se trabajo un ciclo enfocado en checkout, retencion de compradores y percepcion visual (la marcha blanca seguia friccionando en UX "fria" y en datos de checkout incompletos para LATAM). Resumen de lo entregado (commits en `main`, ver detalle en cada mensaje de commit):
+
+| Area | Que se hizo | Impacto esperado |
+|---|---|---|
+| Checkout | DNI + direccion completa (departamento/provincia/distrito/referencia), formulario adaptado segun pais de la tienda (Peru estricto con DNI de 8 digitos y ubigeo; resto de paises con documento y region/ciudad genericos, configurable en Ajustes). | Pedidos con datos suficientes para entrega real; tiendas fuera de Peru dejan de ver campos que no aplican. |
+| Seguimiento de pedido | Pagina publica `/tienda/{slug}/pedido/{numero}` con linea de tiempo real, mas buscador de pedido por numero en la tienda (acepta "42", "00042" o "QT-00042"). Enlazada desde WhatsApp y desde la pantalla de exito del checkout. | Compradores dejan de escribirle al vendedor para preguntar "¿como va mi pedido?". |
+| Pedidos (vendedor) | Hoja de ruta explicita de estados (en vez de botones sueltos que confundian "como llegue aqui"), con seleccion de repartidor integrada al pasar a "en camino" (o "yo mismo lo entrego" si no hay repartidores registrados) y alerta cuando falta asignar. WhatsApp al comprador acotado solo a los hitos clave (confirmar y entregar) para no generar ruido. | El modulo de Delivery deja de sentirse aislado del flujo principal de pedidos. |
+| Conversion checkout | (1) Barra de progreso "Te faltan S/X para envio gratis" en el carrito. (2) Cross-sell "Otros tambien compraron" en la ficha de producto (misma categoria del catalogo real, nunca inventado). (3) Cupon de bienvenida automatico en el primer pedido por tienda (toggle + monto en Ajustes, aplicado por backend segun telefono unico, preview honesto en el checkout antes de confirmar). (4) Countdown real de oferta con fecha de fin definida por el vendedor (nunca fecha inventada; se autooculta al expirar). | Palancas estandar de e-commerce para subir ticket promedio y bajar abandono, sin inventar urgencia falsa. |
+| Onboarding | Tour guiado de bienvenida en el dashboard del vendedor y en la tienda publica del comprador (se puede relanzar con el boton "?"). | Menos soporte manual explicando donde esta cada cosa. |
+| Calidez visual | Rediseno de landing, login, registro, header/logo, dashboard (menu inferior, tarjetas de inicio) y Configuracion (tabs, toggles, avatares, tokens de color) con la paleta de marca en vez de gris/negro plano. Se corrigio un bug preexistente donde un `display: flex` inline sobrescribia `md:hidden` de Tailwind y duplicaba la barra de tabs en escritorio. | La app dejo de sentirse "fria"/generica; queja explicita del dueño de producto durante este ciclo. |
+| Cache | Revalidacion de la pagina de tienda publica bajada de 60s a 20s. | Cambios de Ajustes (envio, precios, cupon) se reflejan casi al instante en vez de tardar hasta un minuto. |
+
+**Migraciones nuevas pendientes de aplicar en VPS** (correr `./Bdatos/apply_migrations.sh`, que solo ejecuta las que falten):
+- `019_order_buyer_dni_ubigeo.sql`
+- `020_welcome_discount.sql`
+- `021_product_sale_ends_at.sql`
+
+**Idea capturada, no implementada — evaluar mas adelante:** el dueño de producto propuso evolucionar qtienda hacia un "centro comercial virtual": una vitrina que vende el descubrimiento de tiendas, no solo la creacion de la tuya. Recomendacion dada en el momento: con 3 tiendas activas es prematuro para ser la historia principal del landing (el landing hoy le vende a *vendedores*, un mall le vende a *compradores* — son funnels distintos y mezclarlos ahora diluiria la captacion de vendedores, que sigue siendo la prioridad). Camino sugerido en dos pasos: (1) corto plazo, pulir `/tiendas` (que ya existe como directorio basico) como version embrionaria del "mall" sin tocar el hero del landing; (2) cuando haya 20-30+ tiendas activas reales, recien evaluar promoverlo a protagonista de la home. Ver QT-040 en la tabla de pendientes.
 
 ## Resumen Ejecutivo
 
@@ -12,7 +33,7 @@ Qtienda es una plataforma ecommerce multi-tenant para vendedores que quieren cre
 | Superficie | Tecnologia | Estado | Notas |
 |---|---|---:|---|
 | Backend API | FastAPI, SQLAlchemy async, PostgreSQL | 78% | Funcional, pero con deuda de hardening, tests, migraciones y observabilidad. |
-| Web app | Next.js 14, App Router, Tailwind, Zustand | 75% | Cubre landing, tienda publica, dashboard vendedor, comprador y admin basico. |
+| Web app | Next.js 14, App Router, Tailwind, Zustand | 80% | Cubre landing, tienda publica, dashboard vendedor, comprador y admin basico. Actualizado 2026-07-20: checkout multi-pais, seguimiento de pedido, cross-sell, cupon de bienvenida, countdown de oferta, rediseno visual calido. |
 | Mobile app | Expo, React Native, Expo Router | 68% | Flujos comprador/vendedor/repartidor avanzados, pero requiere limpieza y QA de builds. |
 | Infraestructura | Docker Compose, Nginx, Postgres compartido | 65% | VPS operativo, pero falta estandarizar dominios, respaldos, monitoreo y despliegue. |
 | Admin/operacion | Endpoints + pantallas admin | 45% | Existe base admin, pero faltan herramientas clave para marcha blanca real. |
@@ -69,8 +90,8 @@ PostgreSQL compartido en VPS
 | Auth y roles | Funcional | 75% | `backend/app/core/security.py`, `backend/app/api/v1/endpoints/auth.py` | JWT access/refresh, Google login, roles admin/vendor/buyer/delivery. | Rotacion/revocacion refresh token, proteccion contra sesiones robadas. |
 | Tiendas | Funcional | 75% | `backend/app/api/v1/endpoints/stores.py` | Creacion, configuracion, settings, plan free. | Admin debe poder inspeccionar y eliminar/suspender tiendas de prueba. |
 | Catalogo | Funcional | 75% | `products.py`, `categories.py`, `uploads.py` | Productos, categorias, imagenes, R2/local fallback. | Operaciones de imagen mas atomicas, panel admin de productos por tienda. |
-| Checkout publico | Critico funcional | 78% | `public.py` | Crea pedidos sin login, valida productos, stock, metodo de pago y limites de plan. | Validar tienda activa al crear pedido; mas proteccion antifraude/spam. |
-| Pedidos vendedor | Funcional | 80% | `orders.py` | Estados, stats, detalle, asignacion delivery, WhatsApp link. | Mejorar filtros admin, historial y busqueda global. |
+| Checkout publico | Critico funcional | 85% | `public.py` | Crea pedidos sin login, valida productos, stock, metodo de pago, limites de plan, DNI/ubigeo multi-pais, cupon de bienvenida por telefono, countdown de oferta. | Mas proteccion antifraude/spam; webhook de pagos con tarjeta. |
+| Pedidos vendedor | Funcional | 85% | `orders.py` | Estados, stats, detalle, asignacion delivery, WhatsApp link, hoja de ruta con seleccion de repartidor integrada. | Mejorar filtros admin, historial y busqueda global. |
 | Delivery | Avanzado | 75% | `delivery.py` | Repartidores, asignacion, foto, GPS, pago cobrado. | Panel admin/tienda con evidencia, trazabilidad de entregas. |
 | Planes y pagos | Funcional | 80% | `plans.py`, `services/culqi.py`, `services/plan_expiry.py` | Culqi (tarjeta/Yape), Yape directo con aprobacion admin, expiracion automatica, renovacion que suma dias, aviso previo por email/push. | Webhook Culqi para tarjeta, facturacion. |
 | Referidos | Funcional | 85% | `referrals.py`, `services/referrals.py` | Codigo por usuario, registro con `?ref=`, bonus de limites en plan free (+5 prod/+50 pedidos por referido con tienda, tope 10). | Panel admin de referidos, antifraude (mismo IP/dispositivo). |
@@ -82,14 +103,14 @@ PostgreSQL compartido en VPS
 
 | Modulo | Estado | % | Archivos clave | Notas | Pendientes |
 |---|---|---:|---|---|---|
-| Landing | Funcional | 80% | `frontend/src/app/page.tsx` | Muestra tiendas activas y CTA. | Medir conversion real y origen de trafico. |
-| Tienda publica | Funcional | 80% | `frontend/src/app/tienda/[slug]/page.tsx`, `components/store/StorePage.tsx` | SEO, JSON-LD, busqueda, categorias, carrito, PWA. | Analytics por tienda, eventos de carrito/checkout. |
-| Carrito/checkout | Funcional | 75% | `CartDrawer.tsx`, `cartStore.ts` | Compra sin login. | Mejorar seguimiento post compra y recuperacion de carrito. |
-| Auth web | Funcional | 75% | `auth/*`, `authStore.ts`, `api.ts` | Zustand persist, refresh automatico. | Redireccion por rol mas robusta, expiracion visible. |
-| Dashboard vendedor | Funcional | 75% | `dashboard/page.tsx`, `layout.tsx` | Stats, pedidos recientes, tienda. | Onboarding guiado, checklist de tienda lista. |
-| Productos | Funcional | 70% | `dashboard/productos/page.tsx` | CRUD, imagenes, TipTap. | Edicion de imagenes mas segura; validaciones de plan visibles. |
-| Pedidos | Funcional | 75% | `dashboard/pedidos/page.tsx` | Lista, detalle, cambio estado, WhatsApp. | Mejor UX desktop/tablet, filtros por fecha/metodo/repartidor. |
-| Configuracion | Funcional | 70% | `dashboard/configuracion/page.tsx` | Tienda, pagos, categorias, delivery staff. | Validaciones, preview tienda, gestion de zonas. |
+| Landing | Funcional | 82% | `frontend/src/app/page.tsx` | Muestra tiendas activas y CTA; rediseno visual calido 2026-07-20 (header, hero, CTA final). Sigue orientado a captacion de vendedores. | Medir conversion real y origen de trafico; evaluar seccion de descubrimiento (ver QT-040). |
+| Tienda publica | Funcional | 85% | `frontend/src/app/tienda/[slug]/page.tsx`, `components/store/StorePage.tsx` | SEO, JSON-LD, busqueda, categorias, carrito, PWA, tour guiado, seguimiento de pedido, cross-sell, countdown de oferta, banner de cupon de bienvenida. | Analytics por tienda mas fino; revisar overlap de badges en `ProductDetailSheet` (bug preexistente menor, no bloqueante). |
+| Carrito/checkout | Funcional | 82% | `CartDrawer.tsx`, `cartStore.ts` | Compra sin login, DNI/ubigeo multi-pais, barra de envio gratis, preview de cupon de bienvenida. | Recuperacion de carrito abandonado. |
+| Auth web | Funcional | 78% | `auth/*`, `authStore.ts`, `api.ts` | Zustand persist, refresh automatico, rediseno visual calido, logout redirige a home. | Redireccion por rol mas robusta, expiracion visible, flujo real de "olvide mi contraseña" (boton hoy es decorativo). |
+| Dashboard vendedor | Funcional | 82% | `dashboard/page.tsx`, `layout.tsx` | Stats, pedidos recientes, tienda, tour guiado de onboarding, top bar consistente en todas las paginas, rediseno visual calido. | Checklist de tienda lista mas completo. |
+| Productos | Funcional | 75% | `dashboard/productos/page.tsx` | CRUD, imagenes, TipTap, precio de oferta con countdown de fecha real. | Edicion de imagenes mas segura; validaciones de plan visibles. |
+| Pedidos | Funcional | 82% | `dashboard/pedidos/page.tsx` | Lista, detalle, hoja de ruta de estados explicita, asignacion de repartidor integrada al envio. | Mejor UX desktop/tablet, filtros por fecha/metodo/repartidor. |
+| Configuracion | Funcional | 78% | `dashboard/configuracion/page.tsx` | Tienda, pagos, categorias, delivery staff, cupon de bienvenida, pais de la tienda, rediseno visual calido (tabs, toggles, avatares). | Validaciones, preview tienda, gestion de zonas. |
 | Finanzas | Parcial | 60% | `dashboard/finanzas/page.tsx` | Estadisticas basicas. | Reportes descargables, ventas por metodo, conciliacion. |
 | Planes | Funcional | 85% | `dashboard/planes/page.tsx`, `admin/pagos/page.tsx` | Modal Yape directo/tarjeta, estado de pago en verificacion, renovacion visible al vencer, admin aprueba/rechaza Yapes. | Historial de pagos del vendedor. |
 | Admin web | Basico | 45% | `admin/*` | Vistas iniciales. | Herramientas de inspeccion, limpieza y soporte. |
@@ -112,7 +133,7 @@ PostgreSQL compartido en VPS
 | Aspecto | Situacion actual | Riesgo | Recomendacion |
 |---|---|---|---|
 | Usuarios reales | Ya hay alrededor de 4 usuarios publicos usando web responsive | Falta visibilidad de comportamiento y soporte | Crear panel admin de actividad y tiendas creadas. |
-| Tiendas creadas | Hay tiendas reales y tiendas de prueba | Se mezclan datos reales con prueba | Agregar clasificacion, suspension y eliminacion controlada. |
+| Tiendas creadas | Hay tiendas reales y tiendas de prueba; ~3 tiendas creadas reportadas en los ultimos dias (2026-07-20, dato del dueño de producto, no verificado contra admin panel en esta revision) | Se mezclan datos reales con prueba; aun sin masa critica para justificar un cambio de posicionamiento tipo "mall" (ver QT-040) | Agregar clasificacion, suspension y eliminacion controlada. |
 | Dispositivos | Uso confirmado en celulares, posiblemente laptops | No hay medicion clara | Agregar analytics por dispositivo y navegador. |
 | Deploy | VPS Docker + Nginx | Riesgo operativo si no hay backup/monitoreo | Checklist diario y backups automatizados. |
 | Soporte | Manual | Dificil diagnosticar problemas de usuarios | Admin debe ver tienda, usuario, productos, pedidos y errores. |
@@ -199,6 +220,12 @@ PostgreSQL compartido en VPS
 | QT-033 | P1 | Frontend | Version laptop/tablet de toda la app: tienda publica hasta 1280px con grilla de 5 col (y grilla por defecto en desktop), dashboard inicio con stats+analytics lado a lado, catalogo hasta 1280px con 2-3 col, finanzas en 2 columnas (hero+KPIs, plan+pagos, grafico y movimientos a lo ancho), delivery en 2 columnas, ajustes/mis-pedidos/tiendas ensanchados. | App completa aprovecha pantallas grandes sin verse como celular centrado. | Hecho 2026-07-10 (tercera pasada: header desktop de una fila con buscador al centro estilo ecommerce, mas aire en grillas, vista lista con alturas iguales; build verificado; falta deploy) |
 | QT-034 | — | Producto | Tema oscuro: evaluado 2026-07-11 y descartado por decision de producto. Seria viable solo en dashboard (sistema de 44 variables CSS lo permite), pero la tienda publica debe seguir clara (colores de marca de vendedores, banners y conversion), y tener la app mitad oscura/mitad clara se sentiria inconsistente. Se mantiene todo en claro. | — | Descartado (no reabrir salvo pedido explicito) |
 | QT-032 | P1 | VPS | Housekeeping servidor (verificar 2026-07-11): (a) confirmar primer backup en /opt/qtienda/backups tras el cron de las 3:30am; (b) eliminar config nginx duplicada de qtienda.shop en sites-enabled (warns "conflicting server name"); (c) reinicio pendiente del VPS por kernel (verificar antes restart policy de contenedores y despues `curl /health`). | VPS limpio, backup verificado y kernel actualizado. | Pendiente (nginx /health ya aplicado, smoke test 10/10 el 2026-07-10) |
+| QT-035 | P1 | Checkout | DNI + ubigeo (departamento/provincia/distrito/referencia) en el pedido, adaptado segun pais de la tienda configurado en Ajustes. | Datos suficientes para coordinar entrega real; tiendas fuera de Peru no ven campos que no aplican. | Hecho 2026-07-20 (migracion 019, verificado e2e con Playwright) |
+| QT-036 | P1 | Checkout/Delivery | Pagina publica de seguimiento de pedido (linea de tiempo) + buscador por numero en la tienda; hoja de ruta de estados en el panel del vendedor con seleccion de repartidor integrada al pasar a "en camino". | Comprador deja de preguntarle al vendedor "¿como va mi pedido?"; Delivery deja de sentirse aislado del flujo de Pedidos. | Hecho 2026-07-20 (sin migracion nueva, usa columnas existentes) |
+| QT-037 | P2 | Producto | Onboarding guiado: tour en el dashboard del vendedor y en la tienda publica del comprador, relanzable con boton "?". | Menos soporte manual explicando la interfaz. | Hecho 2026-07-20 |
+| QT-038 | P1 | Conversion | Envio gratis con barra de progreso, cross-sell "otros tambien compraron", cupon de bienvenida en el primer pedido (por telefono, preview honesto pre-confirmacion), countdown real de oferta con fecha definida por el vendedor. | Palancas estandar de e-commerce para ticket promedio y abandono, sin urgencia falsa. | Hecho 2026-07-20 (migraciones 020 y 021, verificado e2e con Playwright incluyendo caso "no elegible") |
+| QT-039 | P2 | Frontend | Rediseno visual calido: landing, login, registro, dashboard y Configuracion migrados de gris/negro plano a la paleta de marca (terracota); fix de bug preexistente `display:flex` inline que duplicaba tabs en escritorio. | La app dejo de sentirse "fria"/generica — queja explicita del dueño de producto. | Hecho 2026-07-20 |
+| QT-040 | P2 | Producto | Evaluar "centro comercial virtual": vitrina de descubrimiento de tiendas como protagonista de la home, en vez de solo captacion de vendedores. Idea del dueño de producto, capturada 2026-07-20, no implementada. | Nuevo canal de crecimiento cuando haya masa critica de tiendas. | Backlog — revisar cuando haya 20-30+ tiendas activas reales; corto plazo, pulir `/tiendas` como version embrionaria sin tocar el hero del landing. |
 
 ## Backlog Especifico Admin
 
