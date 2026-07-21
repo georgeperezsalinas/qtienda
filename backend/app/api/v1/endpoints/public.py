@@ -22,9 +22,10 @@ router = APIRouter()
 @router.get("/stores")
 @limiter.limit("60/minute")
 async def list_stores(request: Request, db: AsyncSession = Depends(get_db)):
-    """Public store directory — returns active stores for the landing page."""
+    """Public store directory — returns active stores for /tiendas y la landing."""
     result = await db.execute(
         select(Store)
+        .options(selectinload(Store.settings))
         .where(
             Store.status == "active",
             Store.deleted_at.is_(None),
@@ -33,6 +34,21 @@ async def list_stores(request: Request, db: AsyncSession = Depends(get_db)):
         .limit(24)
     )
     stores = result.scalars().all()
+    store_ids = [s.id for s in stores]
+
+    # Productos activos por tienda — dato real del catálogo, no inventado
+    count_map: dict = {}
+    if store_ids:
+        counts = await db.execute(
+            select(Product.store_id, func.count())
+            .where(
+                Product.store_id.in_(store_ids),
+                Product.status == "active",
+                Product.deleted_at.is_(None),
+            )
+            .group_by(Product.store_id)
+        )
+        count_map = dict(counts.all())
 
     return [
         {
@@ -43,6 +59,8 @@ async def list_stores(request: Request, db: AsyncSession = Depends(get_db)):
             "banner_url": s.banner_url,
             "city": s.city,
             "primary_color": s.primary_color,
+            "product_count": count_map.get(s.id, 0),
+            "store_hours": s.settings.store_hours if s.settings else None,
         }
         for s in stores
     ]
