@@ -3,7 +3,7 @@ Public endpoints — accessed by buyers via /tienda/{slug}
 No authentication required.
 """
 import re
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request
 from urllib.parse import quote
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -646,6 +646,45 @@ async def track_event(
         device=device,
     ))
     await db.commit()
+
+
+VIEWERS_WINDOW_MINUTES = 10
+
+
+@router.get("/store/{slug}/products/{product_id}/viewers")
+@limiter.limit("60/minute")
+async def product_viewers(
+    request: Request,
+    slug: str,
+    product_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Cuantas sesiones distintas vieron este producto en los ultimos minutos.
+    Prueba social honesta: el frontend decide si el numero alcanza para mostrarse."""
+    store_q = await db.execute(
+        select(Store.id).where(
+            Store.slug == slug,
+            Store.status == "active",
+            Store.deleted_at.is_(None),
+        )
+    )
+    store_id = store_q.scalar_one_or_none()
+    if not store_id:
+        raise HTTPException(status_code=404, detail="Tienda no encontrada")
+
+    since = datetime.now(timezone.utc) - timedelta(minutes=VIEWERS_WINDOW_MINUTES)
+    count = (
+        await db.execute(
+            select(func.count(func.distinct(StoreEvent.session_id))).where(
+                StoreEvent.store_id == store_id,
+                StoreEvent.product_id == product_id,
+                StoreEvent.event == "product_view",
+                StoreEvent.created_at >= since,
+                StoreEvent.session_id.isnot(None),
+            )
+        )
+    ).scalar()
+    return {"count": count}
 
 
 # ── Trafico del sitio (landing, /tiendas) — sin tienda asociada ──

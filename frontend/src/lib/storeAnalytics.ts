@@ -36,3 +36,16 @@ export function trackStoreEvent(
     // nunca romper la tienda por analytics
   }
 }
+
+/** Cuantas sesiones distintas vieron este producto en los ultimos minutos.
+ * Best-effort: si falla, se asume 0 (el badge simplemente no se muestra). */
+export async function fetchProductViewers(storeSlug: string, productId: string): Promise<number> {
+  try {
+    const res = await fetch(`${BASE}/public/store/${storeSlug}/products/${productId}/viewers`);
+    if (!res.ok) return 0;
+    const data = await res.json();
+    return typeof data.count === "number" ? data.count : 0;
+  } catch {
+    return 0;
+  }
+}

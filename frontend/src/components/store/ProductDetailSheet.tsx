@@ -9,6 +9,10 @@ import { formatPrice, stripHtml } from "@/lib/utils";
 import { useSaleCountdown } from "@/hooks/useSaleCountdown";
 import toast from "react-hot-toast";
 import ProductCard from "./ProductCard";
+import { fetchProductViewers } from "@/lib/storeAnalytics";
+
+/** Umbral para no mostrar numeros bajos que se sienten peor que no mostrar nada */
+const VIEWERS_THRESHOLD = 3;
 
 interface ProductForSheet {
   id: string;
@@ -61,6 +65,7 @@ export default function ProductDetailSheet({
   );
   const [added, setAdded] = useState(false);
   const [zoomOpen, setZoomOpen] = useState(false);
+  const [viewers, setViewers] = useState(0);
   const touchStartX = useRef(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const addItem = useCartStore((s) => s.addItem);
@@ -88,6 +93,15 @@ export default function ProductDetailSheet({
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = ""; };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setViewers(0);
+    fetchProductViewers(storeSlug, product.id).then((n) => {
+      if (!cancelled) setViewers(n);
+    });
+    return () => { cancelled = true; };
+  }, [storeSlug, product.id]);
 
   // Al saltar a un producto relacionado el sheet no se desmonta (misma
   // instancia) — hay que resetear la galería e ítems de estado por producto.
@@ -317,6 +331,13 @@ export default function ProductDetailSheet({
                 </span>
               )}
             </div>
+
+            {/* Personas viendo esto ahora — solo si supera el umbral, nunca "1 viendo" */}
+            {viewers >= VIEWERS_THRESHOLD && (
+              <p className="text-xs font-bold mt-2" style={{ color: "var(--accent-ink)" }}>
+                🔥 {viewers} personas viendo esto ahora
+              </p>
+            )}
 
             {/* Agotado */}
             {outOfStock && (
