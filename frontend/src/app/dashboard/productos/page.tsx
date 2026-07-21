@@ -40,6 +40,7 @@ const EMPTY_FORM = {
   stock: "",
   category_id: "",
   is_featured: false,
+  is_published: false,
 };
 
 /* datetime-local no acepta segundos/zona — recorta a "YYYY-MM-DDTHH:mm" en hora local */
@@ -339,6 +340,7 @@ export default function ProductosPage() {
       stock: p.stock != null ? String(p.stock) : "",
       category_id: p.category_id ?? "",
       is_featured: p.is_featured,
+      is_published: p.status === "active",
     });
     setShowForm(true);
   }
@@ -369,6 +371,7 @@ export default function ProductosPage() {
         stock: form.stock !== "" ? parseInt(form.stock) : undefined,
         category_id: form.category_id || undefined,
         is_featured: form.is_featured,
+        status: form.is_published ? "active" : "inactive",
       };
 
       if (editId) {
@@ -400,7 +403,7 @@ export default function ProductosPage() {
             is_primary: i === 0,
           });
         }
-        toast.success("Producto creado ✓");
+        toast.success(form.is_published ? "Producto creado y publicado ✓" : "Producto guardado como borrador ✓");
       }
 
       setShowForm(false);
@@ -753,6 +756,12 @@ export default function ProductosPage() {
               {/* Toggles */}
               <div style={{ borderTop: "1px solid var(--line)" }}>
                 <Toggle
+                  checked={form.is_published}
+                  onChange={() => setForm((f) => ({ ...f, is_published: !f.is_published }))}
+                  label="Publicar en la tienda"
+                  sub={form.is_published ? "Visible para tus clientes" : "Guardado como borrador, no visible aún"}
+                />
+                <Toggle
                   checked={form.is_featured}
                   onChange={() => setForm((f) => ({ ...f, is_featured: !f.is_featured }))}
                   label="Producto destacado"
@@ -794,7 +803,7 @@ export default function ProductosPage() {
                     </svg>
                     Guardando...
                   </span>
-                ) : editId ? "Guardar cambios" : "Crear producto"}
+                ) : editId ? "Guardar cambios" : form.is_published ? "Crear y publicar" : "Guardar como borrador"}
               </button>
 
             </form>

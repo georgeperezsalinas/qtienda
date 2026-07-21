@@ -435,3 +435,18 @@ class StoreEvent(Base):
     session_id: Mapped[Optional[str]] = mapped_column(String(64))
     device: Mapped[Optional[str]] = mapped_column(String(10))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class SiteEvent(Base):
+    """Trafico a nivel dominio (landing, /tiendas) — store_events no sirve
+    porque su store_id es NOT NULL y no puede representar una visita sin tienda."""
+    __tablename__ = "site_events"
+
+    id: Mapped[int]             = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    event: Mapped[str]          = mapped_column(String(30))
+    path: Mapped[Optional[str]] = mapped_column(String(200))
+    referrer: Mapped[Optional[str]] = mapped_column(String(300))
+    session_id: Mapped[Optional[str]] = mapped_column(String(64))
+    device: Mapped[Optional[str]] = mapped_column(String(10))
+    ip_address: Mapped[Optional[str]] = mapped_column(INET)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

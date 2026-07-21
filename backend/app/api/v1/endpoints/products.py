@@ -198,6 +198,7 @@ async def create_product(
         sku=payload.sku,
         stock=payload.stock,
         is_featured=payload.is_featured,
+        status=payload.status,
     )
     db.add(product)
     await db.flush()

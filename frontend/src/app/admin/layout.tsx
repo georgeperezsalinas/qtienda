@@ -4,15 +4,16 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import {
-  LayoutDashboard, Store, Users, LogOut, ChevronRight, ShieldCheck, Smartphone,
+  LayoutDashboard, Store, Users, LogOut, ChevronRight, ShieldCheck, Smartphone, ScrollText,
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 
 const NAV = [
-  { href: "/admin",          label: "Dashboard", icon: LayoutDashboard, exact: true  },
-  { href: "/admin/tiendas",  label: "Tiendas",   icon: Store,            exact: false },
-  { href: "/admin/usuarios", label: "Usuarios",  icon: Users,            exact: false },
-  { href: "/admin/pagos",    label: "Pagos",     icon: Smartphone,       exact: false },
+  { href: "/admin",           label: "Dashboard",  icon: LayoutDashboard, exact: true  },
+  { href: "/admin/tiendas",   label: "Tiendas",    icon: Store,            exact: false },
+  { href: "/admin/usuarios",  label: "Usuarios",   icon: Users,            exact: false },
+  { href: "/admin/pagos",     label: "Pagos",      icon: Smartphone,       exact: false },
+  { href: "/admin/auditoria", label: "Auditoría",  icon: ScrollText,       exact: false },
 ];
 
 function isActive(pathname: string, href: string, exact?: boolean) {
@@ -56,12 +57,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         style={{
           width: 232,
           background: "var(--surface-0)",
-          borderRight: "1px solid #F1F5F9",
+          borderRight: "1px solid var(--line)",
           flexShrink: 0,
         }}
       >
         {/* Logo */}
-        <div className="px-5 py-5" style={{ borderBottom: "1px solid #F1F5F9" }}>
+        <div className="px-5 py-5" style={{ borderBottom: "1px solid var(--line)" }}>
           <div className="flex items-center gap-2">
             <ShieldCheck size={18} style={{ color: "var(--brand-600)" }} />
             <span className="font-display font-extrabold text-xl">
@@ -95,11 +96,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </nav>
 
         {/* User + logout */}
-        <div className="px-3 pb-5" style={{ borderTop: "1px solid #F1F5F9" }}>
+        <div className="px-3 pb-5" style={{ borderTop: "1px solid var(--line)" }}>
           <div className="flex items-center gap-3 px-3 py-3">
             <div
               className="w-8 h-8 rounded-xl flex items-center justify-center font-display font-bold text-xs text-white flex-shrink-0"
-              style={{ background: "linear-gradient(135deg, #DC2626, #9F1239)" }}
+              style={{ background: "linear-gradient(135deg, var(--danger), var(--accent-ink))" }}
             >
               {initials}
             </div>
@@ -127,7 +128,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Mobile top bar */}
         <div
           className="md:hidden flex items-center justify-between px-5 py-4 sticky top-0 z-10"
-          style={{ background: "var(--surface-0)", borderBottom: "1px solid #F1F5F9" }}
+          style={{ background: "var(--surface-0)", borderBottom: "1px solid var(--line)" }}
         >
           <div className="flex items-center gap-2">
             <ShieldCheck size={16} style={{ color: "var(--brand-600)" }} />
@@ -146,8 +147,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           className="md:hidden fixed bottom-0 left-0 right-0 pb-safe z-40 flex"
           style={{
             background: "var(--surface-0)",
-            borderTop: "1px solid #F1F5F9",
-            boxShadow: "0 -4px 16px rgba(15,23,42,.06)",
+            borderTop: "1px solid var(--line)",
+            boxShadow: "var(--shadow-md)",
           }}
         >
           {NAV.map(({ href, label, icon: Icon, exact }) => {

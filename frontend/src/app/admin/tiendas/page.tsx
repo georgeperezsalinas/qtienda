@@ -23,6 +23,7 @@ import {
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
+import { ConfirmModal } from "../_components/ConfirmModal";
 
 interface StoreItem {
   id: string;
@@ -100,10 +101,10 @@ const STATUS_TABS = [
 ];
 
 const STATUS_STYLES: Record<string, { bg: string; color: string; dot: string; label: string }> = {
-  active: { bg: "#D1FAE5", color: "#065F46", dot: "#10B981", label: "Activa" },
-  pending: { bg: "#FEF3C7", color: "#92400E", dot: "#F59E0B", label: "Pendiente" },
-  suspended: { bg: "#FEE2E2", color: "#991B1B", dot: "#EF4444", label: "Suspendida" },
-  banned: { bg: "#F3F4F6", color: "#374151", dot: "#6B7280", label: "Baneada" },
+  active: { bg: "var(--success-soft)", color: "var(--success)", dot: "var(--success)", label: "Activa" },
+  pending: { bg: "var(--warn-soft)", color: "var(--warn)", dot: "var(--warn)", label: "Pendiente" },
+  suspended: { bg: "var(--danger-soft)", color: "var(--danger)", dot: "var(--danger)", label: "Suspendida" },
+  banned: { bg: "var(--surface-2)", color: "var(--ink-3)", dot: "var(--ink-3)", label: "Baneada" },
 };
 
 function Skel({ h = 24 }: { h?: number }) {
@@ -114,7 +115,7 @@ function TestBadge() {
   return (
     <span
       className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
-      style={{ background: "#EDE9FE", color: "#5B21B6" }}
+      style={{ background: "var(--accent-soft)", color: "var(--accent-ink)" }}
     >
       <FlaskConical size={10} />
       Prueba
@@ -155,6 +156,8 @@ export default function AdminTiendasPage() {
   const [detail, setDetail] = useState<StoreDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [query, setQuery] = useState(searchParams.get("q") ?? "");
+  const [suspendTarget, setSuspendTarget] = useState<{ id: string; name: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const status = searchParams.get("status") ?? "";
   const page = Number(searchParams.get("page") ?? "1");
@@ -231,7 +234,6 @@ export default function AdminTiendasPage() {
   }
 
   async function suspend(id: string) {
-    if (!window.confirm("¿Suspender esta tienda? Dejará de estar operativa para el público.")) return;
     setActing(id);
     try {
       await apiClient.post(`/admin/stores/${id}/suspend`);
@@ -242,6 +244,7 @@ export default function AdminTiendasPage() {
       toast.error(err.response?.data?.detail ?? "No se pudo suspender");
     } finally {
       setActing(null);
+      setSuspendTarget(null);
     }
   }
 
@@ -259,16 +262,7 @@ export default function AdminTiendasPage() {
     }
   }
 
-  async function deleteStore(id: string, name: string) {
-    const reason = window.prompt(
-      `Eliminar tienda de prueba: ${name}\n\nEscribe el motivo. La tienda se ocultará con soft delete y quedará auditada.`
-    );
-    if (reason === null) return;
-    const confirmText = window.prompt("Para confirmar escribe DELETE");
-    if (confirmText !== "DELETE") {
-      toast.error("Eliminación cancelada");
-      return;
-    }
+  async function deleteStore(id: string, reason: string) {
     setActing(id);
     try {
       await apiClient.delete(`/admin/stores/${id}`, {
@@ -281,6 +275,7 @@ export default function AdminTiendasPage() {
       toast.error(err.response?.data?.detail ?? "No se pudo eliminar");
     } finally {
       setActing(null);
+      setDeleteTarget(null);
     }
   }
 
@@ -309,7 +304,7 @@ export default function AdminTiendasPage() {
         <button
           onClick={fetchStores}
           className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold"
-          style={{ background: "var(--surface-0)", color: "var(--ink-2)", border: "1.5px solid #E2E8F0" }}
+          style={{ background: "var(--surface-0)", color: "var(--ink-2)", border: "1.5px solid var(--line-2)" }}
         >
           <RefreshCw size={14} />
           Actualizar
@@ -317,15 +312,15 @@ export default function AdminTiendasPage() {
       </div>
 
       <div className="grid grid-cols-3 gap-2">
-        <div className="rounded-2xl p-3" style={{ background: "var(--surface-0)", border: "1.5px solid #E2E8F0" }}>
+        <div className="rounded-2xl p-3" style={{ background: "var(--surface-0)", border: "1.5px solid var(--line-2)" }}>
           <p className="text-[10px] font-bold uppercase" style={{ color: "var(--ink-3)" }}>Productos</p>
           <p className="font-display font-extrabold text-xl" style={{ color: "var(--ink)" }}>{totals.products}</p>
         </div>
-        <div className="rounded-2xl p-3" style={{ background: "var(--surface-0)", border: "1.5px solid #E2E8F0" }}>
+        <div className="rounded-2xl p-3" style={{ background: "var(--surface-0)", border: "1.5px solid var(--line-2)" }}>
           <p className="text-[10px] font-bold uppercase" style={{ color: "var(--ink-3)" }}>Pedidos</p>
           <p className="font-display font-extrabold text-xl" style={{ color: "var(--ink)" }}>{totals.orders}</p>
         </div>
-        <div className="rounded-2xl p-3" style={{ background: "var(--surface-0)", border: "1.5px solid #E2E8F0" }}>
+        <div className="rounded-2xl p-3" style={{ background: "var(--surface-0)", border: "1.5px solid var(--line-2)" }}>
           <p className="text-[10px] font-bold uppercase" style={{ color: "var(--ink-3)" }}>Ventas</p>
           <p className="font-display font-extrabold text-xl" style={{ color: "var(--ink)" }}>{formatPrice(totals.revenue)}</p>
         </div>
@@ -350,7 +345,7 @@ export default function AdminTiendasPage() {
             style={
               status === t.key
                 ? { background: "var(--brand-600)", color: "#fff" }
-                : { background: "var(--surface-0)", color: "var(--ink-3)", border: "1.5px solid #E2E8F0" }
+                : { background: "var(--surface-0)", color: "var(--ink-3)", border: "1.5px solid var(--line-2)" }
             }
           >
             {t.label}
@@ -358,27 +353,31 @@ export default function AdminTiendasPage() {
         ))}
       </div>
 
-      <div className="space-y-3">
-        {loading ? (
-          [...Array(5)].map((_, i) => <Skel key={i} h={118} />)
-        ) : stores.length === 0 ? (
-          <div className="rounded-2xl p-10 text-center" style={{ background: "var(--surface-0)", border: "1.5px solid #E2E8F0" }}>
-            <Store size={32} className="mx-auto mb-3" style={{ color: "var(--ink-4)" }} />
-            <p className="text-sm font-semibold" style={{ color: "var(--ink-3)" }}>
-              No hay tiendas {activeTab.label !== "Todas" ? activeTab.label.toLowerCase() : ""}
-            </p>
-          </div>
-        ) : (
-          stores.map((s) => (
+      {loading ? (
+        <div className="space-y-3">
+          {[...Array(5)].map((_, i) => <Skel key={i} h={118} />)}
+        </div>
+      ) : stores.length === 0 ? (
+        <div className="rounded-2xl p-10 text-center" style={{ background: "var(--surface-0)", border: "1.5px solid var(--line-2)" }}>
+          <Store size={32} className="mx-auto mb-3" style={{ color: "var(--ink-4)" }} />
+          <p className="text-sm font-semibold" style={{ color: "var(--ink-3)" }}>
+            No hay tiendas {activeTab.label !== "Todas" ? activeTab.label.toLowerCase() : ""}
+          </p>
+        </div>
+      ) : (
+        <>
+        {/* Tarjetas — móvil/tablet */}
+        <div className="lg:hidden space-y-3">
+          {stores.map((s) => (
             <div
               key={s.id}
               className="rounded-2xl p-4"
-              style={{ background: "var(--surface-0)", border: "1.5px solid #E2E8F0", boxShadow: "var(--shadow-sm)" }}
+              style={{ background: "var(--surface-0)", border: "1.5px solid var(--line-2)", boxShadow: "var(--shadow-sm)" }}
             >
               <div className="flex items-start gap-3">
                 <div
                   className="w-11 h-11 rounded-xl flex items-center justify-center font-display font-bold text-lg text-white flex-shrink-0"
-                  style={{ background: "var(--brand-600)" }}
+                  style={{ background: "linear-gradient(135deg, var(--accent), var(--accent-ink))" }}
                 >
                   {s.name[0]?.toUpperCase()}
                 </div>
@@ -439,7 +438,7 @@ export default function AdminTiendasPage() {
                     disabled={acting === s.id}
                     onClick={() => approve(s.id)}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold disabled:opacity-50"
-                    style={{ background: "#D1FAE5", color: "#065F46" }}
+                    style={{ background: "var(--success-soft)", color: "var(--success)" }}
                   >
                     <CheckCircle2 size={13} />
                     Activar
@@ -448,9 +447,9 @@ export default function AdminTiendasPage() {
                 {s.status !== "suspended" && s.status !== "banned" && (
                   <button
                     disabled={acting === s.id}
-                    onClick={() => suspend(s.id)}
+                    onClick={() => setSuspendTarget(s)}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold disabled:opacity-50"
-                    style={{ background: "#FEF3C7", color: "#92400E" }}
+                    style={{ background: "var(--warn-soft)", color: "var(--warn)" }}
                   >
                     <PauseCircle size={13} />
                     Suspender
@@ -460,25 +459,142 @@ export default function AdminTiendasPage() {
                   disabled={acting === s.id}
                   onClick={() => markTest(s.id, !s.is_test)}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold disabled:opacity-50"
-                  style={{ background: "#EDE9FE", color: "#5B21B6" }}
+                  style={{ background: "var(--accent-soft)", color: "var(--accent-ink)" }}
                 >
                   <FlaskConical size={13} />
                   {s.is_test ? "Quitar prueba" : "Marcar prueba"}
                 </button>
                 <button
                   disabled={acting === s.id}
-                  onClick={() => deleteStore(s.id, s.name)}
+                  onClick={() => setDeleteTarget(s)}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold disabled:opacity-50"
-                  style={{ background: "#FEE2E2", color: "#991B1B" }}
+                  style={{ background: "var(--danger-soft)", color: "var(--danger)" }}
                 >
                   <Trash2 size={13} />
                   Eliminar prueba
                 </button>
               </div>
             </div>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+
+        {/* Tabla — escritorio */}
+        <div
+          className="hidden lg:block rounded-2xl overflow-x-auto"
+          style={{ background: "var(--surface-0)", border: "1.5px solid var(--line-2)", boxShadow: "var(--shadow-sm)" }}
+        >
+          <table className="w-full text-sm" style={{ minWidth: 880 }}>
+            <thead>
+              <tr style={{ background: "var(--surface-2)", borderBottom: "1px solid var(--line-2)" }}>
+                <th className="text-left font-bold text-[11px] uppercase px-4 py-3" style={{ color: "var(--ink-3)" }}>Tienda</th>
+                <th className="text-left font-bold text-[11px] uppercase px-4 py-3" style={{ color: "var(--ink-3)" }}>Dueño</th>
+                <th className="text-left font-bold text-[11px] uppercase px-4 py-3" style={{ color: "var(--ink-3)" }}>Estado</th>
+                <th className="text-right font-bold text-[11px] uppercase px-4 py-3" style={{ color: "var(--ink-3)" }}>Productos</th>
+                <th className="text-right font-bold text-[11px] uppercase px-4 py-3" style={{ color: "var(--ink-3)" }}>Pedidos</th>
+                <th className="text-right font-bold text-[11px] uppercase px-4 py-3" style={{ color: "var(--ink-3)" }}>Ventas</th>
+                <th className="text-left font-bold text-[11px] uppercase px-4 py-3" style={{ color: "var(--ink-3)" }}>Creada</th>
+                <th className="text-right font-bold text-[11px] uppercase px-4 py-3" style={{ color: "var(--ink-3)" }}>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stores.map((s) => (
+                <tr key={s.id} style={{ borderTop: "1px solid var(--line)" }}>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className="w-8 h-8 rounded-lg flex items-center justify-center font-display font-bold text-xs text-white flex-shrink-0"
+                        style={{ background: "linear-gradient(135deg, var(--accent), var(--accent-ink))" }}
+                      >
+                        {s.name[0]?.toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <p className="font-semibold truncate max-w-[160px]" style={{ color: "var(--ink)" }}>{s.name}</p>
+                          {s.is_test && <TestBadge />}
+                        </div>
+                        <p className="text-xs truncate max-w-[180px]" style={{ color: "var(--ink-4)" }}>
+                          /{s.slug} · {s.city ?? "sin ciudad"}
+                        </p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <p className="truncate max-w-[160px]" style={{ color: "var(--ink-2)" }}>{s.owner_name ?? "Sin dueño"}</p>
+                    <p className="text-xs truncate max-w-[180px]" style={{ color: "var(--ink-4)" }}>{s.owner_email ?? "—"}</p>
+                  </td>
+                  <td className="px-4 py-3"><StatusBadge status={s.status} /></td>
+                  <td className="px-4 py-3 text-right font-semibold" style={{ color: "var(--ink)" }}>{s.products_count}</td>
+                  <td className="px-4 py-3 text-right font-semibold" style={{ color: "var(--ink)" }}>{s.orders_count}</td>
+                  <td className="px-4 py-3 text-right font-bold whitespace-nowrap" style={{ color: "var(--ink)" }}>{formatPrice(s.revenue_cents)}</td>
+                  <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: "var(--ink-3)" }}>{datePE(s.created_at)}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        title="Ver detalle"
+                        onClick={() => loadDetail(s.id)}
+                        className="w-7 h-7 rounded-lg flex items-center justify-center"
+                        style={{ background: "var(--brand-50)", color: "var(--brand-700)" }}
+                      >
+                        <Eye size={13} />
+                      </button>
+                      <a
+                        title="Ver tienda pública"
+                        href={`/tienda/${s.slug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-7 h-7 rounded-lg flex items-center justify-center"
+                        style={{ background: "var(--surface-2)", color: "var(--ink-2)" }}
+                      >
+                        <ExternalLink size={13} />
+                      </a>
+                      {s.status !== "active" ? (
+                        <button
+                          title="Activar"
+                          disabled={acting === s.id}
+                          onClick={() => approve(s.id)}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center disabled:opacity-50"
+                          style={{ background: "var(--success-soft)", color: "var(--success)" }}
+                        >
+                          <CheckCircle2 size={13} />
+                        </button>
+                      ) : (
+                        <button
+                          title="Suspender"
+                          disabled={acting === s.id}
+                          onClick={() => setSuspendTarget(s)}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center disabled:opacity-50"
+                          style={{ background: "var(--warn-soft)", color: "var(--warn)" }}
+                        >
+                          <PauseCircle size={13} />
+                        </button>
+                      )}
+                      <button
+                        title={s.is_test ? "Quitar marca de prueba" : "Marcar como prueba"}
+                        disabled={acting === s.id}
+                        onClick={() => markTest(s.id, !s.is_test)}
+                        className="w-7 h-7 rounded-lg flex items-center justify-center disabled:opacity-50"
+                        style={{ background: "var(--accent-soft)", color: "var(--accent-ink)" }}
+                      >
+                        <FlaskConical size={13} />
+                      </button>
+                      <button
+                        title="Eliminar tienda de prueba"
+                        disabled={acting === s.id}
+                        onClick={() => setDeleteTarget(s)}
+                        className="w-7 h-7 rounded-lg flex items-center justify-center disabled:opacity-50"
+                        style={{ background: "var(--danger-soft)", color: "var(--danger)" }}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        </>
+      )}
 
       {pages > 1 && (
         <div className="flex items-center justify-center gap-3 pt-2">
@@ -486,7 +602,7 @@ export default function AdminTiendasPage() {
             disabled={page <= 1}
             onClick={() => setPage(page - 1)}
             className="w-9 h-9 rounded-xl flex items-center justify-center transition-all disabled:opacity-30"
-            style={{ background: "var(--surface-0)", border: "1.5px solid #E2E8F0" }}
+            style={{ background: "var(--surface-0)", border: "1.5px solid var(--line-2)" }}
           >
             <ChevronLeft size={16} style={{ color: "var(--ink-2)" }} />
           </button>
@@ -497,7 +613,7 @@ export default function AdminTiendasPage() {
             disabled={page >= pages}
             onClick={() => setPage(page + 1)}
             className="w-9 h-9 rounded-xl flex items-center justify-center transition-all disabled:opacity-30"
-            style={{ background: "var(--surface-0)", border: "1.5px solid #E2E8F0" }}
+            style={{ background: "var(--surface-0)", border: "1.5px solid var(--line-2)" }}
           >
             <ChevronRightIcon size={16} style={{ color: "var(--ink-2)" }} />
           </button>
@@ -531,7 +647,7 @@ export default function AdminTiendasPage() {
               </div>
             ) : (
               <div className="p-5 space-y-4">
-                <div className="rounded-2xl p-4" style={{ background: "var(--surface-0)", border: "1.5px solid #E2E8F0" }}>
+                <div className="rounded-2xl p-4" style={{ background: "var(--surface-0)", border: "1.5px solid var(--line-2)" }}>
                   <div className="flex items-start gap-3">
                     <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold" style={{ background: detail.primary_color || "var(--brand-600)" }}>
                       {detail.name[0]?.toUpperCase()}
@@ -553,24 +669,24 @@ export default function AdminTiendasPage() {
                 </div>
 
                 <div className="grid grid-cols-3 gap-2">
-                  <div className="rounded-2xl p-3" style={{ background: "var(--surface-0)", border: "1.5px solid #E2E8F0" }}>
+                  <div className="rounded-2xl p-3" style={{ background: "var(--surface-0)", border: "1.5px solid var(--line-2)" }}>
                     <Package size={15} style={{ color: "var(--brand-600)" }} />
                     <p className="text-lg font-bold mt-1">{detail.product_count}</p>
                     <p className="text-[10px]" style={{ color: "var(--ink-3)" }}>productos</p>
                   </div>
-                  <div className="rounded-2xl p-3" style={{ background: "var(--surface-0)", border: "1.5px solid #E2E8F0" }}>
+                  <div className="rounded-2xl p-3" style={{ background: "var(--surface-0)", border: "1.5px solid var(--line-2)" }}>
                     <ShoppingBag size={15} style={{ color: "var(--brand-600)" }} />
                     <p className="text-lg font-bold mt-1">{detail.order_count}</p>
                     <p className="text-[10px]" style={{ color: "var(--ink-3)" }}>pedidos</p>
                   </div>
-                  <div className="rounded-2xl p-3" style={{ background: "var(--surface-0)", border: "1.5px solid #E2E8F0" }}>
+                  <div className="rounded-2xl p-3" style={{ background: "var(--surface-0)", border: "1.5px solid var(--line-2)" }}>
                     <Store size={15} style={{ color: "var(--brand-600)" }} />
                     <p className="text-lg font-bold mt-1">{formatPrice(detail.revenue_cents)}</p>
                     <p className="text-[10px]" style={{ color: "var(--ink-3)" }}>ventas</p>
                   </div>
                 </div>
 
-                <div className="rounded-2xl p-4" style={{ background: "var(--surface-0)", border: "1.5px solid #E2E8F0" }}>
+                <div className="rounded-2xl p-4" style={{ background: "var(--surface-0)", border: "1.5px solid var(--line-2)" }}>
                   <div className="flex items-center gap-2 mb-3">
                     <User size={15} style={{ color: "var(--ink-3)" }} />
                     <p className="text-sm font-bold" style={{ color: "var(--ink)" }}>Dueño</p>
@@ -580,7 +696,7 @@ export default function AdminTiendasPage() {
                   {detail.owner?.phone && <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>{detail.owner.phone}</p>}
                 </div>
 
-                <div className="rounded-2xl p-4" style={{ background: "var(--surface-0)", border: "1.5px solid #E2E8F0" }}>
+                <div className="rounded-2xl p-4" style={{ background: "var(--surface-0)", border: "1.5px solid var(--line-2)" }}>
                   <p className="text-sm font-bold mb-3" style={{ color: "var(--ink)" }}>Productos recientes</p>
                   {detail.products.length === 0 ? (
                     <p className="text-xs" style={{ color: "var(--ink-3)" }}>La tienda todavía no tiene productos.</p>
@@ -599,7 +715,7 @@ export default function AdminTiendasPage() {
                   )}
                 </div>
 
-                <div className="rounded-2xl p-4" style={{ background: "var(--surface-0)", border: "1.5px solid #E2E8F0" }}>
+                <div className="rounded-2xl p-4" style={{ background: "var(--surface-0)", border: "1.5px solid var(--line-2)" }}>
                   <p className="text-sm font-bold mb-3" style={{ color: "var(--ink)" }}>Pedidos recientes</p>
                   {detail.recent_orders.length === 0 ? (
                     <p className="text-xs" style={{ color: "var(--ink-3)" }}>Sin pedidos registrados.</p>
@@ -618,10 +734,10 @@ export default function AdminTiendasPage() {
                   )}
                 </div>
 
-                <div className="rounded-2xl p-4" style={{ background: "#FFFBEB", border: "1.5px solid #FDE68A" }}>
+                <div className="rounded-2xl p-4" style={{ background: "var(--warn-soft)", border: "1.5px solid var(--line-2)" }}>
                   <div className="flex items-start gap-2">
-                    <AlertTriangle size={16} style={{ color: "#B45309", marginTop: 2 }} />
-                    <p className="text-xs leading-relaxed" style={{ color: "#92400E" }}>
+                    <AlertTriangle size={16} style={{ color: "var(--warn)", marginTop: 2 }} />
+                    <p className="text-xs leading-relaxed" style={{ color: "var(--ink-2)" }}>
                       Para tiendas de prueba, usa eliminar solo cuando estés seguro. La acción es soft delete y queda registrada en auditoría.
                     </p>
                   </div>
@@ -638,7 +754,7 @@ export default function AdminTiendasPage() {
                       Activar
                     </button>
                   ) : (
-                    <button onClick={() => suspend(detail.id)} disabled={acting === detail.id} className="btn-secondary justify-center text-sm disabled:opacity-50">
+                    <button onClick={() => setSuspendTarget(detail)} disabled={acting === detail.id} className="btn-secondary justify-center text-sm disabled:opacity-50">
                       <PauseCircle size={15} />
                       Suspender
                     </button>
@@ -647,16 +763,16 @@ export default function AdminTiendasPage() {
                     onClick={() => markTest(detail.id, !detail.is_test)}
                     disabled={acting === detail.id}
                     className="col-span-2 flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold disabled:opacity-50"
-                    style={{ background: "#EDE9FE", color: "#5B21B6" }}
+                    style={{ background: "var(--accent-soft)", color: "var(--accent-ink)" }}
                   >
                     <FlaskConical size={15} />
                     {detail.is_test ? "Quitar marca de prueba" : "Marcar como prueba"}
                   </button>
                   <button
-                    onClick={() => deleteStore(detail.id, detail.name)}
+                    onClick={() => setDeleteTarget(detail)}
                     disabled={acting === detail.id}
                     className="col-span-2 flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold disabled:opacity-50"
-                    style={{ background: "#FEE2E2", color: "#991B1B" }}
+                    style={{ background: "var(--danger-soft)", color: "var(--danger)" }}
                   >
                     <Trash2 size={15} />
                     Eliminar tienda de prueba
@@ -667,6 +783,31 @@ export default function AdminTiendasPage() {
           </aside>
         </>
       )}
+
+      <ConfirmModal
+        open={!!suspendTarget}
+        variant="danger"
+        title="Suspender tienda"
+        message={suspendTarget && <>&quot;{suspendTarget.name}&quot; dejará de estar operativa para el público hasta que la reactives.</>}
+        confirmLabel="Suspender"
+        loading={!!suspendTarget && acting === suspendTarget.id}
+        onCancel={() => setSuspendTarget(null)}
+        onConfirm={() => suspendTarget && suspend(suspendTarget.id)}
+      />
+
+      <ConfirmModal
+        open={!!deleteTarget}
+        variant="danger"
+        title="Eliminar tienda de prueba"
+        message={deleteTarget && <>Se ocultará &quot;{deleteTarget.name}&quot; con soft delete (no se borra físicamente) y quedará registrado en auditoría.</>}
+        confirmLabel="Eliminar tienda"
+        reasonLabel="Motivo"
+        reasonPlaceholder="Tienda de prueba marcha blanca"
+        typedConfirmText="DELETE"
+        loading={!!deleteTarget && acting === deleteTarget.id}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={(reason) => deleteTarget && deleteStore(deleteTarget.id, reason)}
+      />
     </div>
   );
 }

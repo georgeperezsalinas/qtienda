@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import Logo from "@/components/ui/Logo";
 import HomeInstallBanner from "@/components/ui/HomeInstallBanner";
+import { PageViewTracker } from "@/components/analytics/PageViewTracker";
 
 interface StoreCard {
   slug: string;
@@ -111,6 +112,7 @@ export default function LandingPage() {
           "radial-gradient(ellipse 90% 38% at 50% 0%, var(--accent-soft) 0%, var(--bg) 55%)",
       }}
     >
+      <PageViewTracker path="/" />
       {/* Franja de marca */}
       <div
         aria-hidden

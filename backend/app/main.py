@@ -3,6 +3,7 @@ qtienda.shop — FastAPI Backend
 """
 
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -28,6 +29,7 @@ async def lifespan(app: FastAPI):
     # startup
     import asyncio
     from app.services.plan_expiry import expiry_watcher
+    app.state.started_at = datetime.now(timezone.utc)
     expiry_task = asyncio.create_task(expiry_watcher())
     yield
     # shutdown
@@ -68,5 +70,15 @@ app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "service": "qtienda-api"}
+    started_at = getattr(app.state, "started_at", None)
+    uptime_seconds = (
+        (datetime.now(timezone.utc) - started_at).total_seconds() if started_at else None
+    )
+    return {
+        "status": "ok",
+        "service": "qtienda-api",
+        "version": app.version,
+        "environment": "development" if settings.DEBUG else "production",
+        "uptime_seconds": uptime_seconds,
+    }
 

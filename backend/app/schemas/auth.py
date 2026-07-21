@@ -139,12 +139,22 @@ class ProductCreate(BaseModel):
     sku: Optional[str] = None
     stock: Optional[int] = None
     is_featured: bool = False
+    # Publicar es una decision explicita del vendedor, nunca automatica:
+    # el producto nace en borrador hasta que decide hacerlo visible.
+    status: str = "inactive"
 
     @field_validator("price_cents")
     @classmethod
     def positive_price(cls, v):
         if v <= 0:
             raise ValueError("Precio debe ser mayor a 0")
+        return v
+
+    @field_validator("status")
+    @classmethod
+    def valid_create_status(cls, v):
+        if v not in ("active", "inactive"):
+            raise ValueError("Estado inválido")
         return v
 
     @model_validator(mode="after")

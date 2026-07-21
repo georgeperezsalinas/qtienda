@@ -6,6 +6,7 @@ import { Search, Store, ChevronRight, MapPin, ArrowLeft, Package, Clock } from "
 import Logo from "@/components/ui/Logo";
 import { useAuthStore } from "@/store/authStore";
 import { getOpenStatus } from "@/lib/storeHours";
+import { trackPageView } from "@/lib/siteAnalytics";
 
 interface StoreCard {
   slug: string;
@@ -34,6 +35,7 @@ export default function TiendasPage() {
 
   useEffect(() => {
     setMounted(true);
+    trackPageView("/tiendas");
     fetch(`${API}/public/stores`)
       .then((r) => r.json())
       .then((data) => setStores(Array.isArray(data) ? data : []))

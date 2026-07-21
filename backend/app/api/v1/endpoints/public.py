@@ -11,7 +11,7 @@ from sqlalchemy import func, select, and_, or_
 from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
-from app.models.models import Plan, Store, Product, Order, OrderItem, Payment, StoreSettings, StoreEvent, Subscription
+from app.models.models import Plan, Store, Product, Order, OrderItem, Payment, StoreSettings, StoreEvent, SiteEvent, Subscription
 from app.schemas.orders import PublicOrderCreate, OrderResponse
 from app.core.limiter import limiter
 from app.core.config import settings as app_settings
@@ -644,5 +644,53 @@ async def track_event(
         product_id=product_id,
         session_id=session_id,
         device=device,
+    ))
+    await db.commit()
+
+
+# ── Trafico del sitio (landing, /tiendas) — sin tienda asociada ──
+
+ALLOWED_SITE_EVENTS = {"page_view"}
+
+
+@router.post("/events", status_code=204)
+@limiter.limit("120/minute")
+async def track_site_event(
+    request: Request,
+    payload: dict,
+    db: AsyncSession = Depends(get_db),
+):
+    """Registra una visita a nivel dominio (landing, /tiendas). Best-effort: nunca rompe la pagina."""
+    event = payload.get("event")
+    if event not in ALLOWED_SITE_EVENTS:
+        raise HTTPException(status_code=422, detail="Evento no valido")
+
+    device = payload.get("device")
+    if device not in ("mobile", "tablet", "desktop"):
+        device = None
+
+    session_id = payload.get("session_id")
+    if session_id is not None:
+        session_id = str(session_id)[:64]
+
+    path = payload.get("path")
+    if path is not None:
+        path = str(path)[:200]
+
+    referrer = payload.get("referrer")
+    if referrer is not None:
+        referrer = str(referrer)[:300]
+
+    # Detras de nginx la IP real viene en X-Forwarded-For (mismo patron que el logging middleware)
+    fwd = request.headers.get("x-forwarded-for")
+    ip_address = fwd.split(",")[0].strip() if fwd else (request.client.host if request.client else None)
+
+    db.add(SiteEvent(
+        event=event,
+        path=path,
+        referrer=referrer,
+        session_id=session_id,
+        device=device,
+        ip_address=ip_address,
     ))
     await db.commit()

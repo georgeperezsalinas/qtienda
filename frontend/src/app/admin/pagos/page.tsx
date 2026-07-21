@@ -11,6 +11,7 @@ import {
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
+import { ConfirmModal } from "../_components/ConfirmModal";
 
 interface PlanRequest {
   id: string;
@@ -40,9 +41,9 @@ const TABS = [
 ];
 
 const STATUS_STYLES: Record<string, { bg: string; color: string; label: string }> = {
-  pending: { bg: "#FEF3C7", color: "#92400E", label: "Pendiente" },
-  approved: { bg: "#D1FAE5", color: "#065F46", label: "Aprobado" },
-  rejected: { bg: "#FEE2E2", color: "#991B1B", label: "Rechazado" },
+  pending: { bg: "var(--warn-soft)", color: "var(--warn)", label: "Pendiente" },
+  approved: { bg: "var(--success-soft)", color: "var(--success)", label: "Aprobado" },
+  rejected: { bg: "var(--danger-soft)", color: "var(--danger)", label: "Rechazado" },
 };
 
 function dateTimePE(iso: string) {
@@ -60,6 +61,8 @@ export default function AdminPagosPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState<string | null>(null);
+  const [confirmTarget, setConfirmTarget] = useState<PlanRequest | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<PlanRequest | null>(null);
 
   const fetchRequests = useCallback(async () => {
     setLoading(true);
@@ -81,12 +84,6 @@ export default function AdminPagosPage() {
   }, [fetchRequests]);
 
   async function approve(req: PlanRequest) {
-    if (
-      !window.confirm(
-        `¿Confirmar que recibiste el Yape de ${formatPrice(req.amount_cents)} (op. ${req.operation_number ?? "—"})?\n\nSe activará el plan ${req.plan?.name} por 30 días para "${req.store?.name}".`
-      )
-    )
-      return;
     setActing(req.id);
     try {
       await apiClient.post(`/admin/plan-requests/${req.id}/approve`);
@@ -96,15 +93,11 @@ export default function AdminPagosPage() {
       toast.error(err.response?.data?.detail ?? "No se pudo aprobar");
     } finally {
       setActing(null);
+      setConfirmTarget(null);
     }
   }
 
-  async function reject(req: PlanRequest) {
-    const reason = window.prompt(
-      `Rechazar pago de "${req.store?.name}".\n\nMotivo (lo verá el vendedor):`,
-      "No encontramos el Yape con ese número de operación"
-    );
-    if (reason === null) return;
+  async function reject(req: PlanRequest, reason: string) {
     setActing(req.id);
     try {
       await apiClient.post(`/admin/plan-requests/${req.id}/reject`, { reason });
@@ -114,6 +107,7 @@ export default function AdminPagosPage() {
       toast.error(err.response?.data?.detail ?? "No se pudo rechazar");
     } finally {
       setActing(null);
+      setRejectTarget(null);
     }
   }
 
@@ -133,7 +127,7 @@ export default function AdminPagosPage() {
         <button
           onClick={fetchRequests}
           className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold"
-          style={{ background: "var(--surface-0)", color: "var(--ink-2)", border: "1.5px solid #E2E8F0" }}
+          style={{ background: "var(--surface-0)", color: "var(--ink-2)", border: "1.5px solid var(--line-2)" }}
         >
           <RefreshCw size={14} />
           Actualizar
@@ -149,7 +143,7 @@ export default function AdminPagosPage() {
             style={
               status === t.key
                 ? { background: "var(--brand-600)", color: "#fff" }
-                : { background: "var(--surface-0)", color: "var(--ink-3)", border: "1.5px solid #E2E8F0" }
+                : { background: "var(--surface-0)", color: "var(--ink-3)", border: "1.5px solid var(--line-2)" }
             }
           >
             {t.label}
@@ -165,7 +159,7 @@ export default function AdminPagosPage() {
         ) : items.length === 0 ? (
           <div
             className="rounded-2xl p-10 text-center"
-            style={{ background: "var(--surface-0)", border: "1.5px solid #E2E8F0" }}
+            style={{ background: "var(--surface-0)", border: "1.5px solid var(--line-2)" }}
           >
             <Smartphone size={32} className="mx-auto mb-3" style={{ color: "var(--ink-4)" }} />
             <p className="text-sm font-semibold" style={{ color: "var(--ink-3)" }}>
@@ -179,7 +173,7 @@ export default function AdminPagosPage() {
               <div
                 key={r.id}
                 className="rounded-2xl p-4"
-                style={{ background: "var(--surface-0)", border: "1.5px solid #E2E8F0" }}
+                style={{ background: "var(--surface-0)", border: "1.5px solid var(--line-2)" }}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -207,7 +201,7 @@ export default function AdminPagosPage() {
                     <p className="font-display font-extrabold text-lg" style={{ color: "var(--ink)" }}>
                       {formatPrice(r.amount_cents)}
                     </p>
-                    <p className="text-xs font-semibold" style={{ color: "#742384" }}>
+                    <p className="text-xs font-semibold" style={{ color: "var(--accent-ink)" }}>
                       Plan {r.plan?.name}
                     </p>
                   </div>
@@ -222,25 +216,25 @@ export default function AdminPagosPage() {
                   </span>
                   {r.payer_phone && <span>Celular: {r.payer_phone}</span>}
                   {r.note && <span>Nota: {r.note}</span>}
-                  {r.reject_reason && <span style={{ color: "#991B1B" }}>Motivo: {r.reject_reason}</span>}
+                  {r.reject_reason && <span style={{ color: "var(--danger)" }}>Motivo: {r.reject_reason}</span>}
                 </div>
 
                 {r.status === "pending" && (
                   <div className="flex gap-2 mt-3">
                     <button
                       disabled={acting === r.id}
-                      onClick={() => approve(r)}
+                      onClick={() => setConfirmTarget(r)}
                       className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold disabled:opacity-50"
-                      style={{ background: "#D1FAE5", color: "#065F46" }}
+                      style={{ background: "var(--success-soft)", color: "var(--success)" }}
                     >
                       <CheckCircle2 size={14} />
                       Recibí el Yape, activar plan
                     </button>
                     <button
                       disabled={acting === r.id}
-                      onClick={() => reject(r)}
+                      onClick={() => setRejectTarget(r)}
                       className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold disabled:opacity-50"
-                      style={{ background: "#FEE2E2", color: "#991B1B" }}
+                      style={{ background: "var(--danger-soft)", color: "var(--danger)" }}
                     >
                       <XCircle size={14} />
                       Rechazar
@@ -252,6 +246,39 @@ export default function AdminPagosPage() {
           })
         )}
       </div>
+
+      <ConfirmModal
+        open={!!confirmTarget}
+        title="Activar plan"
+        message={
+          confirmTarget && (
+            <>
+              ¿Confirmas que recibiste el Yape de <strong>{formatPrice(confirmTarget.amount_cents)}</strong>
+              {" "}(op. {confirmTarget.operation_number ?? "—"})? Se activará el plan{" "}
+              <strong>{confirmTarget.plan?.name}</strong> por 30 días para &quot;{confirmTarget.store?.name}&quot;.
+            </>
+          )
+        }
+        confirmLabel="Recibí el Yape, activar"
+        loading={!!confirmTarget && acting === confirmTarget.id}
+        onCancel={() => setConfirmTarget(null)}
+        onConfirm={() => confirmTarget && approve(confirmTarget)}
+      />
+
+      <ConfirmModal
+        open={!!rejectTarget}
+        variant="danger"
+        title="Rechazar pago"
+        message={rejectTarget && <>Rechazar el pago de &quot;{rejectTarget.store?.name}&quot;. El vendedor verá este motivo.</>}
+        confirmLabel="Rechazar pago"
+        reasonLabel="Motivo"
+        reasonPlaceholder="No encontramos el Yape con ese número de operación"
+        reasonDefaultValue="No encontramos el Yape con ese número de operación"
+        reasonRequired
+        loading={!!rejectTarget && acting === rejectTarget.id}
+        onCancel={() => setRejectTarget(null)}
+        onConfirm={(reason) => rejectTarget && reject(rejectTarget, reason)}
+      />
     </div>
   );
 }

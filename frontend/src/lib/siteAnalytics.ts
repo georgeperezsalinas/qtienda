@@ -1,27 +1,22 @@
-// Tracking de eventos de la tienda pública (QT-008).
-// Best-effort: usa sendBeacon cuando existe (sobrevive a la navegación)
-// y nunca lanza errores — el analytics jamás debe romper la compra.
+// Tracking de trafico a nivel dominio (landing, /tiendas) — separado de
+// storeAnalytics.ts porque esas paginas no tienen slug de tienda.
+// Best-effort: nunca lanza errores, nunca bloquea la navegacion.
 
 import { getSessionId, getDevice } from "./analyticsSession";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
-export type StoreEventName = "store_view" | "product_view" | "add_to_cart" | "checkout_start";
-
-export function trackStoreEvent(
-  storeSlug: string,
-  event: StoreEventName,
-  productId?: string,
-) {
+export function trackPageView(path: string) {
   if (typeof window === "undefined") return;
   try {
     const body = JSON.stringify({
-      event,
-      product_id: productId,
+      event: "page_view",
+      path,
+      referrer: document.referrer || undefined,
       session_id: getSessionId(),
       device: getDevice(),
     });
-    const url = `${BASE}/public/store/${storeSlug}/events`;
+    const url = `${BASE}/public/events`;
     if (navigator.sendBeacon) {
       navigator.sendBeacon(url, new Blob([body], { type: "application/json" }));
     } else {
@@ -33,6 +28,6 @@ export function trackStoreEvent(
       }).catch(() => {});
     }
   } catch {
-    // nunca romper la tienda por analytics
+    // nunca romper la pagina por analytics
   }
 }

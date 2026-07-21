@@ -1,9 +1,9 @@
 """Admin endpoints — require admin role."""
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy import delete as sql_delete, func, select, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,8 +13,8 @@ from app.db.session import get_db
 from app.core.config import settings
 from app.core.security import require_admin
 from app.models.models import (
-    AuditLog, Order, Payment, Plan, PlanPaymentRequest, Product, Role, Store,
-    Subscription, User,
+    AuditLog, Order, Payment, Plan, PlanPaymentRequest, Product, Role, SiteEvent,
+    Store, StoreEvent, Subscription, User,
 )
 
 router = APIRouter()
@@ -398,8 +398,94 @@ async def list_users(
     }
 
 
+class UserUpdateRequest(BaseModel):
+    is_active: bool
+
+
+@router.patch("/users/{user_id}")
+async def update_user(
+    user_id: UUID,
+    body: UserUpdateRequest,
+    current_admin=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(User).where(User.id == user_id, User.deleted_at.is_(None)))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    if user.id == current_admin.id and not body.is_active:
+        raise HTTPException(status_code=400, detail="No puedes desactivar tu propia cuenta")
+
+    old_value = user.is_active
+    user.is_active = body.is_active
+    db.add(AuditLog(
+        user_id=current_admin.id,
+        action="user.activated" if body.is_active else "user.suspended",
+        entity="users",
+        entity_id=user.id,
+        old_value={"is_active": old_value},
+        new_value={"is_active": body.is_active},
+    ))
+    await db.commit()
+    return {"user_id": user.id, "is_active": user.is_active}
+
+
+@router.get("/audit-logs")
+async def list_audit_logs(
+    entity: Optional[str] = Query(None),
+    store_id: Optional[UUID] = Query(None),
+    page: int = Query(1, ge=1),
+    limit: int = Query(30, le=100),
+    _=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    filters = []
+    if entity:
+        filters.append(AuditLog.entity == entity)
+    if store_id:
+        filters.append(AuditLog.store_id == store_id)
+    where_clause = and_(*filters) if filters else True
+
+    total = (
+        await db.execute(select(func.count()).select_from(AuditLog).where(where_clause))
+    ).scalar()
+
+    result = await db.execute(
+        select(AuditLog, User.full_name, User.email, Store.name, Store.slug)
+        .outerjoin(User, AuditLog.user_id == User.id)
+        .outerjoin(Store, AuditLog.store_id == Store.id)
+        .where(where_clause)
+        .order_by(AuditLog.created_at.desc())
+        .offset((page - 1) * limit)
+        .limit(limit)
+    )
+    rows = result.all()
+
+    return {
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "pages": -(-total // limit),
+        "items": [
+            {
+                "id": log.id,
+                "action": log.action,
+                "entity": log.entity,
+                "entity_id": log.entity_id,
+                "old_value": log.old_value,
+                "new_value": log.new_value,
+                "created_at": log.created_at,
+                "admin": {"name": full_name, "email": email} if email else None,
+                "store": {"name": store_name, "slug": store_slug} if store_name else None,
+            }
+            for log, full_name, email, store_name, store_slug in rows
+        ],
+    }
+
+
 @router.get("/metrics")
 async def global_metrics(
+    request: Request,
     _=Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
@@ -419,6 +505,22 @@ async def global_metrics(
         )
     ).scalar()
 
+    pending_stores = (
+        await db.execute(
+            select(func.count()).select_from(Store).where(
+                Store.status == "pending", Store.deleted_at.is_(None)
+            )
+        )
+    ).scalar()
+
+    suspended_stores = (
+        await db.execute(
+            select(func.count()).select_from(Store).where(
+                Store.status == "suspended", Store.deleted_at.is_(None)
+            )
+        )
+    ).scalar()
+
     test_stores = (
         await db.execute(
             select(func.count()).select_from(Store).where(
@@ -430,6 +532,24 @@ async def global_metrics(
     total_users = (
         await db.execute(
             select(func.count()).select_from(User).where(User.deleted_at.is_(None))
+        )
+    ).scalar()
+
+    total_products = (
+        await db.execute(
+            select(func.count()).select_from(Product).where(Product.deleted_at.is_(None))
+        )
+    ).scalar()
+
+    total_orders = (
+        await db.execute(select(func.count()).select_from(Order))
+    ).scalar()
+
+    plan_requests_pending = (
+        await db.execute(
+            select(func.count()).select_from(PlanPaymentRequest).where(
+                PlanPaymentRequest.status == "pending"
+            )
         )
     ).scalar()
 
@@ -462,12 +582,193 @@ async def global_metrics(
         )
     ).scalar()
 
+    # Tendencia de altas (tiendas y usuarios) de los últimos 14 días, día a día
+    since = now - timedelta(days=13)
+    day_bucket_start = datetime(since.year, since.month, since.day, tzinfo=timezone.utc)
+
+    store_day = func.date_trunc("day", Store.created_at)
+    stores_trend_rows = (
+        await db.execute(
+            select(store_day, func.count())
+            .where(Store.created_at >= day_bucket_start, Store.deleted_at.is_(None))
+            .group_by(store_day)
+        )
+    ).all()
+    user_day = func.date_trunc("day", User.created_at)
+    users_trend_rows = (
+        await db.execute(
+            select(user_day, func.count())
+            .where(User.created_at >= day_bucket_start, User.deleted_at.is_(None))
+            .group_by(user_day)
+        )
+    ).all()
+    stores_by_day = {d.date().isoformat(): c for d, c in stores_trend_rows}
+    users_by_day = {d.date().isoformat(): c for d, c in users_trend_rows}
+    trend = []
+    for i in range(14):
+        day = (day_bucket_start + timedelta(days=i)).date().isoformat()
+        trend.append({"date": day, "stores": stores_by_day.get(day, 0), "users": users_by_day.get(day, 0)})
+
+    # Top 5 tiendas por ventas (excluye canceladas y tiendas de prueba)
+    top_rows = (
+        await db.execute(
+            select(
+                Store.id, Store.name, Store.slug,
+                func.count(Order.id),
+                func.coalesce(func.sum(Order.total_cents), 0),
+            )
+            .join(Order, Order.store_id == Store.id)
+            .where(
+                Store.deleted_at.is_(None),
+                Store.is_test.is_(False),
+                Order.status != "cancelled",
+            )
+            .group_by(Store.id, Store.name, Store.slug)
+            .order_by(func.coalesce(func.sum(Order.total_cents), 0).desc())
+            .limit(5)
+        )
+    ).all()
+    top_stores = [
+        {"id": sid, "name": name, "slug": slug, "orders": orders, "revenue_cents": revenue}
+        for sid, name, slug, orders, revenue in top_rows
+    ]
+
+    started_at = getattr(request.app.state, "started_at", None)
+    uptime_seconds = (now - started_at).total_seconds() if started_at else None
+
     return {
-        "stores": {"total": total_stores, "active": active_stores, "test": test_stores},
+        "stores": {
+            "total": total_stores,
+            "active": active_stores,
+            "pending": pending_stores,
+            "suspended": suspended_stores,
+            "test": test_stores,
+        },
         "users": {"total": total_users},
+        "products": {"total": total_products},
+        "orders": {"total": total_orders},
+        "plan_requests": {"pending": plan_requests_pending},
         "this_month": {
             "orders": monthly_orders,
             "revenue_cents": monthly_revenue,
+        },
+        "trend": trend,
+        "top_stores": top_stores,
+        "technical": {
+            "version": request.app.version,
+            "environment": "development" if settings.DEBUG else "production",
+            "uptime_seconds": uptime_seconds,
+            "database": "PostgreSQL",
+            "plan_expiry_watcher": True,
+        },
+    }
+
+
+@router.get("/site-traffic")
+async def site_traffic(
+    days: int = Query(30, ge=1, le=90),
+    _=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Trafico agregado de todo el dominio: landing/tiendas (site_events) +
+    visitas a tiendas individuales sin filtrar por tienda (store_events)."""
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+
+    # ── Landing / directorio de tiendas ──
+    site_base = [SiteEvent.created_at >= since]
+
+    page_views = (
+        await db.execute(
+            select(func.count()).select_from(SiteEvent).where(
+                *site_base, SiteEvent.event == "page_view"
+            )
+        )
+    ).scalar()
+
+    site_unique_visitors = (
+        await db.execute(
+            select(func.count(func.distinct(SiteEvent.session_id))).where(
+                *site_base, SiteEvent.event == "page_view", SiteEvent.session_id.isnot(None)
+            )
+        )
+    ).scalar()
+
+    site_device_rows = (
+        await db.execute(
+            select(SiteEvent.device, func.count())
+            .where(*site_base, SiteEvent.event == "page_view", SiteEvent.device.isnot(None))
+            .group_by(SiteEvent.device)
+        )
+    ).all()
+
+    top_path_rows = (
+        await db.execute(
+            select(SiteEvent.path, func.count())
+            .where(*site_base, SiteEvent.event == "page_view", SiteEvent.path.isnot(None))
+            .group_by(SiteEvent.path)
+            .order_by(func.count().desc())
+            .limit(8)
+        )
+    ).all()
+
+    # ── Tiendas (todas, no una en particular) ──
+    store_base = [StoreEvent.created_at >= since]
+
+    store_event_rows = (
+        await db.execute(
+            select(StoreEvent.event, func.count())
+            .where(*store_base)
+            .group_by(StoreEvent.event)
+        )
+    ).all()
+    store_event_totals = {ev: c for ev, c in store_event_rows}
+
+    stores_unique_visitors = (
+        await db.execute(
+            select(func.count(func.distinct(StoreEvent.session_id))).where(
+                *store_base, StoreEvent.event == "store_view", StoreEvent.session_id.isnot(None)
+            )
+        )
+    ).scalar()
+
+    stores_device_rows = (
+        await db.execute(
+            select(StoreEvent.device, func.count())
+            .where(*store_base, StoreEvent.event == "store_view", StoreEvent.device.isnot(None))
+            .group_by(StoreEvent.device)
+        )
+    ).all()
+
+    top_viewed_rows = (
+        await db.execute(
+            select(Store.id, Store.name, Store.slug, func.count(StoreEvent.id))
+            .join(StoreEvent, StoreEvent.store_id == Store.id)
+            .where(*store_base, StoreEvent.event == "store_view", Store.deleted_at.is_(None))
+            .group_by(Store.id, Store.name, Store.slug)
+            .order_by(func.count(StoreEvent.id).desc())
+            .limit(8)
+        )
+    ).all()
+
+    return {
+        "period_days": days,
+        "site": {
+            "page_views": page_views,
+            "unique_visitors": site_unique_visitors,
+            "devices": {d: c for d, c in site_device_rows},
+            "top_paths": [{"path": p, "views": c} for p, c in top_path_rows],
+        },
+        "stores": {
+            "store_views": store_event_totals.get("store_view", 0),
+            "product_views": store_event_totals.get("product_view", 0),
+            "add_to_cart": store_event_totals.get("add_to_cart", 0),
+            "checkout_start": store_event_totals.get("checkout_start", 0),
+            "unique_visitors": stores_unique_visitors,
+            "devices": {d: c for d, c in stores_device_rows},
+            "top_viewed": [
+                {"id": sid, "name": name, "slug": slug, "views": views}
+                for sid, name, slug, views in top_viewed_rows
+            ],
         },
     }
 
