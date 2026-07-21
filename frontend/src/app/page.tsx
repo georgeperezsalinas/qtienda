@@ -7,6 +7,7 @@ import {
   MessageCircle, Percent, Truck,
 } from "lucide-react";
 import Logo from "@/components/ui/Logo";
+import HomeInstallBanner from "@/components/ui/HomeInstallBanner";
 
 interface StoreCard {
   slug: string;
@@ -149,6 +150,8 @@ export default function LandingPage() {
           </Link>
         </div>
       </header>
+
+      <HomeInstallBanner />
 
       {/* ── Hero ── */}
       <section className="px-5 md:px-10 pt-14 md:pt-20 pb-10 max-w-6xl mx-auto w-full lg:grid lg:grid-cols-[1.1fr_0.9fr] lg:gap-12 lg:items-center">

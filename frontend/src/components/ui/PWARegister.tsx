@@ -8,21 +8,7 @@
 
 import { useEffect, useState } from "react";
 import { Download, X, Share, RefreshCw } from "lucide-react";
-
-// Detectar iOS
-function isIOS() {
-  if (typeof navigator === "undefined") return false;
-  return /iphone|ipad|ipod/i.test(navigator.userAgent);
-}
-
-// Detectar si ya está instalada como PWA
-function isStandalone() {
-  if (typeof window === "undefined") return false;
-  return (
-    window.matchMedia("(display-mode: standalone)").matches ||
-    (window.navigator as any).standalone === true
-  );
-}
+import { isIOS, isStandalone } from "@/lib/pwa";
 
 export default function PWARegister() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -87,13 +73,18 @@ export default function PWARegister() {
     const dismissed = localStorage.getItem("pwa-banner-dismissed");
     if (dismissed) return;
 
+    // Páginas con su propio banner de instalación (no duplicar aquí):
+    // /tienda/* (StorePage) y "/" (landing, banner integrado y más visible)
+    const hasOwnBanner = () =>
+      window.location.pathname.startsWith("/tienda/") || window.location.pathname === "/";
+
     // Android / Chrome: capturar evento de instalación
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      // Esperar 5s; en páginas /tienda/* ya hay banner propio en StorePage
+      // Esperar 5s antes de mostrar el flotante
       setTimeout(() => {
-        if (!window.location.pathname.startsWith("/tienda/")) setShowBanner(true);
+        if (!hasOwnBanner()) setShowBanner(true);
       }, 5_000);
     };
     window.addEventListener("beforeinstallprompt", handler);
@@ -101,7 +92,7 @@ export default function PWARegister() {
     // iOS Safari: mostrar hint manual después de 45s
     if (isIOS()) {
       const timer = setTimeout(() => {
-        if (!window.location.pathname.startsWith("/tienda/")) setShowIOSHint(true);
+        if (!hasOwnBanner()) setShowIOSHint(true);
       }, 45_000);
       return () => {
         window.removeEventListener("beforeinstallprompt", handler);
