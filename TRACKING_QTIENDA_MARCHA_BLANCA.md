@@ -1,9 +1,24 @@
 # QTIENDA - Tracking Marcha Blanca
 
 Fecha de analisis: 2026-07-09  
-Ultima actualizacion: 2026-07-21  
+Ultima actualizacion: 2026-07-22  
 Estado del producto: marcha blanca desplegada en VPS con Docker  
 Contexto operativo: ya existen usuarios reales creando tiendas desde web responsive, principalmente celular y posiblemente laptop. A la fecha de esta actualizacion se reportan 3 tiendas creadas en los ultimos dias (dato del dueño del producto, no verificado contra el admin panel en esta revision).
+
+## Actualizacion 2026-07-22 — Honestidad en landing + prueba social real + Delivery
+
+Ciclo corto disparado por una revision del dueño de producto sobre la landing: el stat "2,418 emprendedores ya venden" en el hero era **100% inventado** (numero hardcodeado + 5 iniciales falsas "ML/CR/ST/JV/RH"), contradiciendo la regla de oro del proyecto de nunca fabricar datos (misma que ya rige countdowns, descuentos y badges de "vendido"). Se aprovecho el ciclo para tambien sumar prueba social real en la ficha de producto y terminar la auditoria de color en Delivery, el ultimo modulo grande que quedaba con la paleta fria heredada.
+
+| Area | Que se hizo | Impacto esperado |
+|---|---|---|
+| Landing — honestidad | Eliminado el conteo inventado "2,418 emprendedores" y los avatares falsos. Reemplazado por `HeroSocialProof`: logos reales de tiendas activas (hasta 5) + paises reales (`country` agregado a `GET /public/stores`), sin prometer una cantidad. Con 1 tienda real muestra 1 logo real — crece solo. | La landing deja de mentir sobre el tamaño de la plataforma; se mantiene coherente cuando crezca. |
+| Landing — jerarquia | Seccion "Tiendas activas" (antes 5 secciones despues del hero) subida a inmediatamente despues del hero, antes de "Como funciona". Fix de paso: "1 tiendas" → "1 tienda" (bug de plural preexistente, mas visible ahora que esta arriba). | La prueba social real se ve primero, donde el visitante decide si confia. |
+| Prueba social — producto | Badge "🔥 X personas viendo esto ahora" en el detalle de producto, calculado con sesiones distintas reales de los ultimos 10 minutos (`GET /public/store/{slug}/products/{id}/viewers`, indice nuevo `023_store_events_product_index.sql`). Oculto si no llega a 3 sesiones, para nunca mostrar un numero bajo que se sienta peor que no mostrar nada. El stock bajo ("Quedan solo X unidades") ya existia — no hizo falta construirlo. | Urgencia real sin inventar nada, honrando el mismo criterio de "solo datos verificables" que ya usa el countdown de ofertas. |
+| Delivery — calidez visual | `/dashboard/delivery` (vendedor) y `/delivery-app` (repartidor, ~1100 lineas combinadas, ~100 colores hex) migrados del morado/azul/verde/slate de Tailwind heredado a los tokens calidos, con el mismo criterio que ya usa `/dashboard/pedidos` para "preparando" (`--accent`, urgente/accionable) vs "en camino" (`--ink-2`, neutro). | Delivery era el ultimo modulo grande que se sentia una app distinta; ya no. |
+
+**Migraciones nuevas de este ciclo:** `023_store_events_product_index.sql` — aplicada en local y en VPS (dueño de producto confirmo VPS actualizado con todos los cambios el 2026-07-22).
+
+**Deuda dejada explicitamente pendiente:** el badge "personas viendo esto" no se pudo verificar visualmente con datos reales concurrentes (se probo con sesiones simuladas y se borraron despues); las tarjetas de pedido de Delivery no se verificaron visualmente contra ordenes reales por falta de credenciales de vendedor/repartidor en este entorno de prueba — solo se confirmo el estado vacio y la ausencia de hex hardcodeado via grep + `tsc`.
 
 ## Actualizacion 2026-07-21 — Panel Admin nivel "Pro" + trafico del sitio
 
@@ -120,7 +135,7 @@ PostgreSQL compartido en VPS
 
 | Modulo | Estado | % | Archivos clave | Notas | Pendientes |
 |---|---|---:|---|---|---|
-| Landing | Funcional | 82% | `frontend/src/app/page.tsx` | Muestra tiendas activas y CTA; rediseno visual calido 2026-07-20 (header, hero, CTA final). Sigue orientado a captacion de vendedores. | Medir conversion real y origen de trafico; evaluar seccion de descubrimiento (ver QT-040). |
+| Landing | Funcional | 85% | `frontend/src/app/page.tsx` | Muestra tiendas activas (subida justo despues del hero 2026-07-22) y CTA; rediseno visual calido 2026-07-20; hero con logos/paises reales en vez del conteo inventado de antes; tracking de page_view via `site_events`. Sigue orientado a captacion de vendedores. | Medir conversion real con los datos de `/admin/site-traffic` ya disponibles; evaluar seccion de descubrimiento (ver QT-040). |
 | Tienda publica | Funcional | 85% | `frontend/src/app/tienda/[slug]/page.tsx`, `components/store/StorePage.tsx` | SEO, JSON-LD, busqueda, categorias, carrito, PWA, tour guiado, seguimiento de pedido, cross-sell, countdown de oferta, banner de cupon de bienvenida. | Analytics por tienda mas fino; revisar overlap de badges en `ProductDetailSheet` (bug preexistente menor, no bloqueante). |
 | Carrito/checkout | Funcional | 82% | `CartDrawer.tsx`, `cartStore.ts` | Compra sin login, DNI/ubigeo multi-pais, barra de envio gratis, preview de cupon de bienvenida. | Recuperacion de carrito abandonado. |
 | Auth web | Funcional | 78% | `auth/*`, `authStore.ts`, `api.ts` | Zustand persist, refresh automatico, rediseno visual calido, logout redirige a home. | Redireccion por rol mas robusta, expiracion visible, flujo real de "olvide mi contraseña" (boton hoy es decorativo). |
@@ -191,7 +206,7 @@ PostgreSQL compartido en VPS
 | R-001 | P0 | Checkout | `POST /public/store/{slug}/orders` no valida que la tienda este `active`. | Resuelto 2026-07-09: responde 403 si la tienda no esta activa. |
 | R-002 | P0 | Admin | Existe endpoint `/admin/reset-test-data`. | Resuelto: bloqueado con 403 cuando `DEBUG=False` y exige confirmacion. |
 | R-003 | P0 | QA | No hay tests propios detectables. | Agregar smoke tests API y flujo web minimo. |
-| R-004 | P0 | Operacion | No hay panel admin suficiente para ver actividad real. | Priorizar admin operativo. |
+| R-004 | P0 | Operacion | No hay panel admin suficiente para ver actividad real. | Mayormente resuelto 2026-07-21/22: tiendas, usuarios, pedidos globales, auditoria y trafico del sitio ya visibles en `/admin/*`. Falta: vista global de productos y exportar CSV. |
 | R-005 | P1 | DB | Migraciones SQL manuales. | Resuelto 2026-07-10: `apply_migrations.sh` versionado con tabla de control (sin Alembic, suficiente para esta etapa). |
 | R-006 | P1 | Pagos | Culqi no tiene webhook/conciliacion. | Mitigado parcialmente: Yape directo con aprobacion manual admin es la via principal. Webhook sigue pendiente para tarjeta. |
 | R-009 | P0 | Planes | Plans pro/elite tenian limites en 0 y el check los trataba como "limite alcanzado": bloqueaba pedidos/productos a clientes de pago. | Resuelto 2026-07-10: migracion 011 normaliza a NULL y el codigo trata 0/NULL como ilimitado. Verificar que 011 corra en VPS. |
@@ -248,6 +263,9 @@ PostgreSQL compartido en VPS
 | QT-043 | P1 | Admin | Suspender/activar usuario (`PATCH /admin/users/{id}`) y visor de auditoria (`/admin/auditoria`, tabla `audit_logs` que ya existia sin UI). | Cierra dos huecos P1 del backlog original de Admin. | Hecho 2026-07-21 |
 | QT-044 | P1 | Admin | Tablas densas de escritorio para `/admin/tiendas` y `/admin/usuarios` (antes tarjetas moviles estiradas); `/admin/pedidos` nuevo con vista global de pedidos de todas las tiendas, filtro por estado y busqueda. | El admin es usable en laptop y ya cubre pedidos globales, no solo por tienda. | Hecho 2026-07-21 (pendiente: ver detalle de pedido y exportar CSV) |
 | QT-045 | P1 | Analytics | Trafico a nivel dominio: migracion `022_site_events.sql`, tracking de landing/`tiendas` (antes sin instrumentar), y `GET /admin/site-traffic` que agrega esto mas los `store_events` existentes vistos por primera vez de forma global (no por tienda). Dashboard admin muestra vistas/visitantes unicos, paginas mas vistas y embudo de conversion agregado. | Primera vez con visibilidad real de trafico del sitio completo, no solo de una tienda a la vez. | Hecho 2026-07-21 |
+| QT-046 | P1 | Landing | Eliminado el conteo inventado "2,418 emprendedores" y avatares falsos del hero; reemplazado por logos/paises reales de tiendas activas (`country` agregado a `GET /public/stores`). Seccion "Tiendas activas" subida a justo despues del hero (antes 5 secciones mas abajo). | La landing deja de mentir sobre el tamaño de la plataforma; prueba social real visible de inmediato. | Hecho 2026-07-22 |
+| QT-047 | P2 | Conversion | Badge "🔥 X personas viendo esto ahora" en ficha de producto, con sesiones reales de los ultimos 10 min (`GET /public/store/{slug}/products/{id}/viewers`, migracion `023_store_events_product_index.sql`); oculto bajo 3 sesiones para nunca mostrar un numero bajo. | Urgencia real sin inventar nada. | Hecho 2026-07-22 |
+| QT-048 | P2 | Frontend | Delivery (`/dashboard/delivery` y `/delivery-app`) migrado de morado/azul/verde/slate de Tailwind heredado a los tokens calidos del resto de la app. | Ultimo modulo grande con paleta fria queda alineado. | Hecho 2026-07-22 (no verificado visualmente con ordenes reales por falta de credenciales de prueba) |
 
 ## Backlog Especifico Admin
 
@@ -326,8 +344,8 @@ PostgreSQL compartido en VPS
 | Hay smoke tests antes de deploy | Obligatorio — CUMPLIDO (integrado en deploy.sh) |
 | No hay endpoint destructivo disponible en produccion | Obligatorio — CUMPLIDO |
 | Checkout bloquea tiendas no activas | Obligatorio — CUMPLIDO |
-| Se mide uso por dispositivo y conversion basica | Recomendado — PENDIENTE |
-| Se puede exportar informacion operativa | Recomendado — PENDIENTE |
+| Se mide uso por dispositivo y conversion basica | Recomendado — CUMPLIDO 2026-07-22 (`/admin/site-traffic`: visitas, visitantes unicos, dispositivo, embudo) |
+| Se puede exportar informacion operativa | Recomendado — PENDIENTE (ningun admin screen tiene boton exportar CSV todavia) |
 | Pagos de planes tienen webhook/conciliacion | Requerido antes de cobro masivo — mitigado con Yape directo manual |
 
 ## Archivos Clave Del Repositorio
