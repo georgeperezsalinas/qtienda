@@ -58,6 +58,7 @@ async def list_stores(request: Request, db: AsyncSession = Depends(get_db)):
             "logo_url": s.logo_url,
             "banner_url": s.banner_url,
             "city": s.city,
+            "country": s.country,
             "primary_color": s.primary_color,
             "product_count": count_map.get(s.id, 0),
             "store_hours": s.settings.store_hours if s.settings else None,

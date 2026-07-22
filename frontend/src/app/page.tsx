@@ -16,8 +16,13 @@ interface StoreCard {
   description: string | null;
   logo_url: string | null;
   city: string | null;
+  country: string | null;
   primary_color: string;
 }
+
+const COUNTRY_NAMES: Record<string, string> = {
+  PE: "Perú", CL: "Chile", CO: "Colombia", MX: "México", AR: "Argentina",
+};
 
 async function getStores(): Promise<StoreCard[]> {
   try {
@@ -31,6 +36,55 @@ async function getStores(): Promise<StoreCard[]> {
   }
 }
 
+/** Prueba social del hero — solo tiendas reales, nunca un conteo inventado. */
+async function HeroSocialProof() {
+  const stores = await getStores();
+  if (!stores.length) return null;
+
+  const preview = stores.slice(0, 5);
+  const countries = Array.from(
+    new Set(stores.map((s) => s.country).filter((c): c is string => !!c))
+  );
+  const countryLabel = countries.map((c) => COUNTRY_NAMES[c] ?? c).join(" · ");
+
+  return (
+    <div className="flex items-center gap-4 mt-8 animate-fade-up delay-200">
+      <div className="flex">
+        {preview.map((s, i) => (
+          <div
+            key={s.slug}
+            className="flex items-center justify-center rounded-full overflow-hidden flex-shrink-0"
+            style={{
+              marginLeft: i === 0 ? 0 : -8,
+              width: 32,
+              height: 32,
+              background: i % 2 === 0 ? "var(--accent)" : "var(--accent-soft)",
+              color: i % 2 === 0 ? "#fff" : "var(--accent-ink)",
+              fontSize: 11,
+              fontWeight: 600,
+              border: "2px solid var(--bg)",
+            }}
+          >
+            {s.logo_url ? (
+              <img src={s.logo_url} alt={s.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            ) : (
+              s.name.charAt(0).toUpperCase()
+            )}
+          </div>
+        ))}
+      </div>
+      <div>
+        <p className="text-sm font-medium">Tiendas reales ya venden con qtienda</p>
+        {countryLabel && (
+          <p className="text-xs" style={{ color: "var(--ink-3)" }}>
+            {countryLabel}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 async function StoresSection() {
   const stores = await getStores();
   if (!stores.length) return null;
@@ -40,7 +94,7 @@ async function StoresSection() {
         <div>
           <p className="eyebrow">Tiendas activas</p>
           <p className="text-xl font-medium mt-1" style={{ letterSpacing: "-0.014em" }}>
-            <span className="mono num">{stores.length.toLocaleString()}</span> tiendas en qtienda
+            <span className="mono num">{stores.length.toLocaleString()}</span> {stores.length === 1 ? "tienda" : "tiendas"} en qtienda
           </p>
         </div>
       </div>
@@ -220,37 +274,8 @@ export default function LandingPage() {
             ))}
           </div>
 
-          {/* Social proof */}
-          <div className="flex items-center gap-4 mt-8 animate-fade-up delay-200">
-            <div className="flex">
-              {["ML", "CR", "ST", "JV", "RH"].map((n, i) => (
-                <div
-                  key={n}
-                  className="flex items-center justify-center rounded-full"
-                  style={{
-                    marginLeft: i === 0 ? 0 : -8,
-                    width: 32,
-                    height: 32,
-                    background: i % 2 === 0 ? "var(--accent)" : "var(--accent-soft)",
-                    color: i % 2 === 0 ? "#fff" : "var(--accent-ink)",
-                    fontSize: 11,
-                    fontWeight: 600,
-                    border: "2px solid var(--bg)",
-                  }}
-                >
-                  {n}
-                </div>
-              ))}
-            </div>
-            <div>
-              <p className="text-sm font-medium">
-                <span className="mono num">2,418</span> emprendedores ya venden
-              </p>
-              <p className="text-xs" style={{ color: "var(--ink-3)" }}>
-                Perú · Colombia · México · Chile · Argentina
-              </p>
-            </div>
-          </div>
+          {/* Social proof — tiendas reales, no un conteo inventado */}
+          <HeroSocialProof />
         </div>
 
         {/* Vitrina de ejemplo (solo desktop) */}
@@ -286,6 +311,9 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* ── Stores section (server) — arriba, cerca del hero, prueba real */}
+      <StoresSection />
 
       {/* ── Cómo funciona ── */}
       <section className="px-5 md:px-10 max-w-6xl mx-auto w-full pb-14">
@@ -380,9 +408,6 @@ export default function LandingPage() {
           </Link>
         </div>
       </section>
-
-      {/* ── Stores section (server) ── */}
-      <StoresSection />
 
       {/* ── CTA final ── */}
       <section className="px-5 md:px-10 max-w-6xl mx-auto w-full pb-16">
