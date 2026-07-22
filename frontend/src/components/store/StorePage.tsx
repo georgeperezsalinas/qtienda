@@ -204,6 +204,51 @@ function BannerCarousel({ banners, storeName }: {
   );
 }
 
+/* Banner por defecto cuando el vendedor no subió ninguno — degradado con su
+   color de marca real, nunca un archivo generado (se actualiza solo si cambia
+   su color despues). Mismo criterio que el fallback de logo (iniciales). */
+function BannerPlaceholder({ storeName, logoUrl, color }: {
+  storeName: string;
+  logoUrl?: string;
+  color: string;
+}) {
+  return (
+    <div
+      className="relative w-full aspect-[3/1] lg:aspect-[3.4/1] rounded-2xl overflow-hidden flex items-center gap-4 px-6 lg:px-10"
+      style={{
+        background: `linear-gradient(135deg, ${color} 0%, color-mix(in srgb, ${color} 65%, black) 100%)`,
+        boxShadow: "var(--shadow-md)",
+      }}
+    >
+      {logoUrl ? (
+        <img
+          src={logoUrl}
+          alt=""
+          className="rounded-2xl object-cover flex-shrink-0"
+          style={{ width: "clamp(40px, 12%, 88px)", height: "clamp(40px, 12%, 88px)", border: "2px solid rgba(255,255,255,.6)" }}
+        />
+      ) : (
+        <div
+          className="rounded-2xl flex items-center justify-center flex-shrink-0 font-bold text-white"
+          style={{
+            width: "clamp(40px, 12%, 88px)", height: "clamp(40px, 12%, 88px)",
+            background: "rgba(255,255,255,.22)", fontSize: "clamp(16px, 4vw, 34px)",
+            border: "2px solid rgba(255,255,255,.6)",
+          }}
+        >
+          {storeName[0]?.toUpperCase()}
+        </div>
+      )}
+      <p
+        className="font-display font-extrabold text-white truncate"
+        style={{ fontSize: "clamp(16px, 3.2vw, 34px)", letterSpacing: "-0.01em" }}
+      >
+        {storeName}
+      </p>
+    </div>
+  );
+}
+
 /* Lista de categorías: chips horizontales (móvil/tablet) o rail vertical (desktop) */
 function CategoryList({ store, activeCategory, setActiveCategory, color, vertical }: {
   store: StoreData;
@@ -807,15 +852,17 @@ export default function StorePage({ store, initialProducts }: Props) {
         {/* ── Contenido principal ── */}
         <div className="flex-1 min-w-0">
 
-          {/* Banners del vendedor (carrusel, se desliza al hacer scroll) */}
-          {effectiveBanners.length > 0 && (
-            <motion.div
-              className="px-4 pt-3 pb-1 lg:px-0 lg:pt-0"
-              style={{ y: bannerY, opacity: bannerOpacity, scale: bannerScale }}
-            >
+          {/* Banners del vendedor (carrusel, se desliza al hacer scroll) — si no subió ninguno, degradado con su color real */}
+          <motion.div
+            className="px-4 pt-3 pb-1 lg:px-0 lg:pt-0"
+            style={{ y: bannerY, opacity: bannerOpacity, scale: bannerScale }}
+          >
+            {effectiveBanners.length > 0 ? (
               <BannerCarousel banners={effectiveBanners} storeName={store.name} />
-            </motion.div>
-          )}
+            ) : (
+              <BannerPlaceholder storeName={store.name} logoUrl={store.logo_url} color={color} />
+            )}
+          </motion.div>
 
           {/* Descripción de la tienda (solo móvil/tablet — en desktop va en el rail) */}
           {store.description && (
