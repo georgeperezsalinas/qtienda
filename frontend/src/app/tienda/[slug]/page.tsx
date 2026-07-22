@@ -16,6 +16,18 @@ interface Props {
   params: { slug: string };
 }
 
+const LOCALE_BY_COUNTRY: Record<string, string> = {
+  PE: "es_PE", CL: "es_CL", CO: "es_CO", MX: "es_MX", AR: "es_AR",
+};
+
+const CURRENCY_BY_COUNTRY: Record<string, { code: string; symbol: string }> = {
+  PE: { code: "PEN", symbol: "S/" },
+  CL: { code: "CLP", symbol: "$" },
+  CO: { code: "COP", symbol: "$" },
+  MX: { code: "MXN", symbol: "$" },
+  AR: { code: "ARS", symbol: "$" },
+};
+
 // ── Metadata para Open Graph y Twitter ──────────────────────
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try {
@@ -32,19 +44,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         canonical: `https://qtienda.shop/tienda/${params.slug}`,
       },
       openGraph: {
-        title: store.name,
+        // Mismo titulo que la pestaña — si el vendedor configuro un titulo SEO
+        // custom, tambien se ve al compartir el link, no solo en el navegador.
+        title,
         description,
-        images: store.banner_url ? [{ url: store.banner_url }] : store.logo_url ? [{ url: store.logo_url }] : [],
+        // Sin "images": la genera /tienda/[slug]/opengraph-image.tsx (PNG real,
+        // WhatsApp/Facebook no renderizan el SVG de marca que se usaba antes).
         type: "website",
-        locale: "es_PE",
+        locale: LOCALE_BY_COUNTRY[store.country] || "es_PE",
         url: `https://qtienda.shop/tienda/${params.slug}`,
         siteName: "qtienda",
       },
       twitter: {
         card: "summary_large_image",
-        title: store.name,
+        title,
         description,
-        images: store.banner_url ? [store.banner_url] : store.logo_url ? [store.logo_url] : [],
       },
     };
   } catch {
@@ -62,6 +76,22 @@ export default async function TiendaPage({ params }: Props) {
       apiServer(`/public/store/${params.slug}/products`, { revalidate: 20 }),
     ]);
 
+    // Metodos de pago y moneda reales de esta tienda — nunca un valor
+    // generico igual para todas (antes asumia siempre Peru/soles).
+    const currency = CURRENCY_BY_COUNTRY[store.country] || CURRENCY_BY_COUNTRY.PE;
+    const paymentLabels: [string, string][] = [
+      ["accept_cash", "Cash"],
+      ["accept_card", "Credit Card"],
+      ["accept_yape", "Yape"],
+      ["accept_plin", "Plin"],
+      ["accept_transfer", "Bank Transfer"],
+    ];
+    const paymentAccepted =
+      paymentLabels
+        .filter(([key]) => store.settings?.[key])
+        .map(([, label]) => label)
+        .join(", ") || "Cash";
+
     // ── JSON-LD: LocalBusiness / Store ────────────────────
     const storeSchema = {
       "@context": "https://schema.org",
@@ -75,7 +105,7 @@ export default async function TiendaPage({ params }: Props) {
         address: {
           "@type": "PostalAddress",
           addressLocality: store.city,
-          addressCountry: "PE",
+          addressCountry: store.country || "PE",
         },
       }),
       ...(store.whatsapp && {
@@ -87,9 +117,9 @@ export default async function TiendaPage({ params }: Props) {
           availableLanguage: "Spanish",
         },
       }),
-      priceRange: "S/",
-      currenciesAccepted: "PEN",
-      paymentAccepted: "Cash, Credit Card, Mobile Payment",
+      priceRange: currency.symbol,
+      currenciesAccepted: currency.code,
+      paymentAccepted,
     };
 
     // ── JSON-LD: ItemList de productos (primeros 10) ───────
