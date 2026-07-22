@@ -575,6 +575,7 @@ export default function ConfiguracionPage() {
                 onChange={(url) => setInfo((prev) => ({ ...prev, logo_url: url }))}
                 hint={"200×200 px · cuadrado\nJPEG, PNG o WebP · máx 5 MB"}
                 className="h-28 w-full"
+                maxDimension={512}
               />
             </div>
 

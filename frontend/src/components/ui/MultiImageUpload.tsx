@@ -4,6 +4,9 @@ import { useRef, useState, useCallback } from "react";
 import { Plus, X, Star, ZoomIn } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
+import { compressImage } from "@/lib/imageCompression";
+
+const MAX_DIMENSION = 1600; // fotos de producto: grilla + ficha con zoom comparten el mismo archivo
 
 export interface FormImage {
   id?: string;   // ID del servidor (undefined si es nueva)
@@ -48,8 +51,9 @@ export function MultiImageUpload({ images, onChange, maxImages = 6 }: Props) {
       try {
         const uploaded: FormImage[] = [];
         for (const file of batch) {
+          const compressed = await compressImage(file, MAX_DIMENSION);
           const fd = new FormData();
-          fd.append("file", file);
+          fd.append("file", compressed);
           const { data } = await apiClient.post("/uploads/image", fd, {
             headers: { "Content-Type": "multipart/form-data" },
           });

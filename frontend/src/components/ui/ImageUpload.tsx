@@ -4,6 +4,7 @@ import { useRef, useState, useCallback } from "react";
 import { Upload, X, ImagePlus, CheckCircle2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
+import { compressImage } from "@/lib/imageCompression";
 
 interface Props {
   value:      string;
@@ -11,6 +12,8 @@ interface Props {
   hint:       string;
   className?: string;
   label?:     string;
+  /** Lado mas largo en px al que se reescala antes de subir. Default 1600 (banner/producto); usa 512 para logos. */
+  maxDimension?: number;
 }
 
 export function ImageUpload({
@@ -19,6 +22,7 @@ export function ImageUpload({
   hint,
   className = "h-40 w-full",
   label,
+  maxDimension = 1600,
 }: Props) {
   const inputRef   = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -39,8 +43,9 @@ export function ImageUpload({
     setUploading(true);
     setUploaded(false);
     try {
+      const compressed = await compressImage(file, maxDimension);
       const fd = new FormData();
-      fd.append("file", file);
+      fd.append("file", compressed);
       const { data } = await apiClient.post("/uploads/image", fd, {
         headers: { "Content-Type": "multipart/form-data" },
       });
@@ -52,7 +57,7 @@ export function ImageUpload({
     } finally {
       setUploading(false);
     }
-  }, [onChange]);
+  }, [onChange, maxDimension]);
 
   function onInputChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];

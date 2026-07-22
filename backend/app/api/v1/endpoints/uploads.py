@@ -1,10 +1,12 @@
 """Image upload endpoint — local storage o Cloudflare R2."""
 import asyncio
+import io
 import os
 import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from PIL import Image, ImageOps
 
 from app.core.config import settings
 from app.core.security import require_vendor
@@ -13,7 +15,40 @@ router = APIRouter()
 
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 MAX_SIZE_MB = 5
+MAX_DIMENSION = 1600  # lado mas largo tras el resize; el cliente ya manda logos mas chicos (512)
+JPEG_QUALITY = 85
 UPLOADS_DIR = Path(settings.UPLOADS_DIR)
+
+
+def _process_image(content: bytes) -> tuple[bytes, str, str]:
+    """Valida que el archivo sea una imagen real (el Content-Type lo manda el
+    navegador y se puede falsificar), reescala si excede MAX_DIMENSION, quita
+    metadata EXIF (incluye GPS de fotos tomadas con el celular) y recomprime
+    a JPEG. Devuelve (bytes, extension, content_type)."""
+    try:
+        probe = Image.open(io.BytesIO(content))
+        probe.verify()  # valida integridad sin decodificar todo el pixel data
+        img = Image.open(io.BytesIO(content))  # reabrir: verify() deja el objeto inutilizable
+    except Exception:
+        raise HTTPException(status_code=422, detail="El archivo no es una imagen válida")
+
+    # GIF animado: no recomprimir a JPEG, se perderia la animacion. Solo pasa
+    # por el chequeo de MAX_SIZE_MB ya existente.
+    if img.format == "GIF":
+        return content, "gif", "image/gif"
+
+    # Respeta la orientacion EXIF antes de descartarla (fotos de celular en
+    # vertical se ven giradas si no se hace esto primero)
+    img = ImageOps.exif_transpose(img)
+    if img.mode not in ("RGB", "L"):
+        img = img.convert("RGB")
+
+    if max(img.size) > MAX_DIMENSION:
+        img.thumbnail((MAX_DIMENSION, MAX_DIMENSION), Image.LANCZOS)
+
+    out = io.BytesIO()
+    img.save(out, format="JPEG", quality=JPEG_QUALITY, optimize=True)  # sin exif=... -> se descarta solo
+    return out.getvalue(), "jpg", "image/jpeg"
 
 
 @router.post("/image")
@@ -28,11 +63,11 @@ async def upload_image(
     if len(content) > MAX_SIZE_MB * 1024 * 1024:
         raise HTTPException(status_code=422, detail=f"Imagen muy grande. Máximo {MAX_SIZE_MB}MB.")
 
-    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in (file.filename or "") else "jpg"
+    content, ext, content_type = await asyncio.to_thread(_process_image, content)
     filename = f"{uuid.uuid4()}.{ext}"
 
     if settings.S3_ENDPOINT and settings.S3_ACCESS_KEY:
-        url = await _upload_r2(content, filename, file.content_type)
+        url = await _upload_r2(content, filename, content_type)
     else:
         url = _save_local(content, filename)
 
@@ -58,6 +93,7 @@ async def _upload_r2(content: bytes, filename: str, content_type: str, object_ke
         from botocore.config import Config
 
         key = object_key or f"products/{filename}"
+        cache_control = "public, max-age=31536000, immutable"
 
         s3 = boto3.client(
             "s3",
@@ -72,7 +108,10 @@ async def _upload_r2(content: bytes, filename: str, content_type: str, object_ke
         )
         presigned_url = s3.generate_presigned_url(
             "put_object",
-            Params={"Bucket": settings.S3_BUCKET, "Key": key, "ContentType": content_type},
+            Params={
+                "Bucket": settings.S3_BUCKET, "Key": key, "ContentType": content_type,
+                "CacheControl": cache_control,
+            },
             ExpiresIn=300,
         )
 
@@ -89,6 +128,7 @@ async def _upload_r2(content: bytes, filename: str, content_type: str, object_ke
             "-s", "-S", "-X", "PUT",
             "--cacert", certifi.where(),
             "-H", f"Content-Type: {content_type}",
+            "-H", f"Cache-Control: {cache_control}",
             "--data-binary", "@-",
             "-o", "/dev/null",
             "-w", "%{http_code}",
