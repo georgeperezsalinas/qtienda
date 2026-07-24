@@ -12,6 +12,7 @@ import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import QueryProvider from "@/components/ui/QueryProvider";
 import { GoogleAuthProvider } from "@/components/ui/GoogleAuthProvider";
+import { FacebookAuthProvider } from "@/components/ui/FacebookAuthProvider";
 import PWARegister from "@/components/ui/PWARegister";
 import ErrorBoundary from "@/components/ui/ErrorBoundary";
 import { Analytics } from "@vercel/analytics/react";
@@ -84,6 +85,7 @@ export default function RootLayout({
         <ErrorBoundary>
           <QueryProvider>
             <GoogleAuthProvider>
+            <FacebookAuthProvider>
               {children}
               <PWARegister />
               <Toaster
@@ -110,6 +112,7 @@ export default function RootLayout({
                   },
                 }}
               />
+            </FacebookAuthProvider>
             </GoogleAuthProvider>
           </QueryProvider>
           <Analytics />

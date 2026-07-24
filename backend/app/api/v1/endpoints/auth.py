@@ -1,3 +1,5 @@
+import hashlib
+import hmac
 import secrets
 import uuid
 from datetime import datetime, timezone
@@ -21,8 +23,24 @@ from app.schemas.auth import (
 from app.services.email import send_verification_email
 from app.services.referrals import ensure_referral_code
 from app.core.limiter import limiter
+from app.core.config import settings
 
 router = APIRouter()
+
+
+async def _get_facebook_userinfo(access_token: str) -> dict:
+    """Valida el token de Facebook contra Graph API y devuelve id/name/email/picture."""
+    params = {"access_token": access_token, "fields": "id,name,email,picture"}
+    if settings.FACEBOOK_APP_SECRET:
+        params["appsecret_proof"] = hmac.new(
+            settings.FACEBOOK_APP_SECRET.encode(), access_token.encode(), hashlib.sha256
+        ).hexdigest()
+
+    async with httpx.AsyncClient(timeout=10) as client:
+        r = await client.get("https://graph.facebook.com/v19.0/me", params=params)
+    if r.status_code != 200:
+        raise HTTPException(status_code=401, detail="Token de Facebook inválido")
+    return r.json()
 
 
 @router.post("/register", response_model=TokenResponse, status_code=201)
@@ -323,6 +341,114 @@ async def google_buyer(request: Request, payload: dict, db: AsyncSession = Depen
             full_name=info.get("name") or email.split("@")[0],
             password_hash=hash_password(str(uuid.uuid4())),
             avatar_url=info.get("picture"),
+            is_active=True,
+            is_verified=True,
+        )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+        result2 = await db.execute(
+            select(User).options(selectinload(User.role)).where(User.id == user.id)
+        )
+        user = result2.scalar_one()
+
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Cuenta suspendida. Contacta soporte.")
+
+    user.last_login_at = datetime.now(timezone.utc)
+    await db.commit()
+
+    return TokenResponse(
+        access_token=create_access_token(user.id, user.role.name),
+        refresh_token=create_refresh_token(user.id),
+    )
+
+
+@router.post("/facebook", response_model=TokenResponse)
+@limiter.limit("10/minute")
+async def facebook_login(request: Request, payload: dict, db: AsyncSession = Depends(get_db)):
+    access_token = (payload.get("access_token") or "").strip()
+    if not access_token:
+        raise HTTPException(status_code=422, detail="Token requerido")
+
+    info = await _get_facebook_userinfo(access_token)
+    email = (info.get("email") or "").lower().strip()
+    if not email:
+        raise HTTPException(status_code=401, detail="Facebook no proporcionó un email verificado")
+
+    result = await db.execute(
+        select(User).options(selectinload(User.role)).where(
+            User.email == email, User.deleted_at.is_(None)
+        )
+    )
+    user = result.scalar_one_or_none()
+
+    if not user:
+        role_result = await db.execute(select(Role).where(Role.name == "vendor"))
+        vendor_role = role_result.scalar_one_or_none()
+        if not vendor_role:
+            raise HTTPException(status_code=500, detail="Error de configuración")
+
+        user = User(
+            role_id=vendor_role.id,
+            email=email,
+            full_name=info.get("name") or email.split("@")[0],
+            password_hash=hash_password(str(uuid.uuid4())),
+            avatar_url=(info.get("picture") or {}).get("data", {}).get("url"),
+            is_active=True,
+            is_verified=True,
+        )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+        result2 = await db.execute(
+            select(User).options(selectinload(User.role)).where(User.id == user.id)
+        )
+        user = result2.scalar_one()
+
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Cuenta suspendida. Contacta soporte.")
+
+    user.last_login_at = datetime.now(timezone.utc)
+    await db.commit()
+
+    return TokenResponse(
+        access_token=create_access_token(user.id, user.role.name),
+        refresh_token=create_refresh_token(user.id),
+    )
+
+
+@router.post("/facebook-buyer", response_model=TokenResponse)
+@limiter.limit("10/minute")
+async def facebook_buyer(request: Request, payload: dict, db: AsyncSession = Depends(get_db)):
+    access_token = (payload.get("access_token") or "").strip()
+    if not access_token:
+        raise HTTPException(status_code=422, detail="Token requerido")
+
+    info = await _get_facebook_userinfo(access_token)
+    email = (info.get("email") or "").lower().strip()
+    if not email:
+        raise HTTPException(status_code=401, detail="Facebook no proporcionó un email verificado")
+
+    result = await db.execute(
+        select(User).options(selectinload(User.role)).where(
+            User.email == email, User.deleted_at.is_(None)
+        )
+    )
+    user = result.scalar_one_or_none()
+
+    if not user:
+        role_result = await db.execute(select(Role).where(Role.name == "buyer"))
+        buyer_role = role_result.scalar_one_or_none()
+        if not buyer_role:
+            raise HTTPException(status_code=500, detail="Error de configuración")
+
+        user = User(
+            role_id=buyer_role.id,
+            email=email,
+            full_name=info.get("name") or email.split("@")[0],
+            password_hash=hash_password(str(uuid.uuid4())),
+            avatar_url=(info.get("picture") or {}).get("data", {}).get("url"),
             is_active=True,
             is_verified=True,
         )

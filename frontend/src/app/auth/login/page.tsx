@@ -11,6 +11,7 @@ import { apiClient } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 
 const GoogleLoginButton = dynamic(() => import("@/components/ui/GoogleLoginButton"), { ssr: false });
+const FacebookLoginButton = dynamic(() => import("@/components/ui/FacebookLoginButton"), { ssr: false });
 
 function Spinner() {
   return (
@@ -167,7 +168,10 @@ export default function LoginPage() {
             </p>
           </div>
 
-          <GoogleLoginButton />
+          <div className="flex gap-2">
+            <div className="flex-1"><GoogleLoginButton label="Google" /></div>
+            <div className="flex-1"><FacebookLoginButton label="Facebook" /></div>
+          </div>
 
           <div className="or-divider my-5">o con tu email</div>
 

@@ -16,6 +16,10 @@ const GoogleLoginButton = dynamic(
   () => import("@/components/ui/GoogleLoginButton"),
   { ssr: false }
 );
+const FacebookLoginButton = dynamic(
+  () => import("@/components/ui/FacebookLoginButton"),
+  { ssr: false }
+);
 
 interface FormData {
   full_name: string;
@@ -308,8 +312,9 @@ function RegisterForm() {
         noValidate
         className="flex-1 px-5 max-w-sm mx-auto w-full space-y-4 pb-10"
       >
-        <div className="animate-fade-up delay-50 mb-2">
-          <GoogleLoginButton label="Registrarse con Google" />
+        <div className="animate-fade-up delay-50 mb-2 flex gap-2">
+          <div className="flex-1"><GoogleLoginButton label="Google" /></div>
+          <div className="flex-1"><FacebookLoginButton label="Facebook" /></div>
         </div>
 
         <div className="or-divider mb-2 animate-fade-up delay-75">

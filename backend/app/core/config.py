@@ -55,6 +55,10 @@ class Settings(BaseSettings):
     UPLOADS_DIR: str = "/tmp/qtienda-uploads"
     UPLOADS_BASE_URL: str = "http://localhost:8000/uploads"
 
+    # Facebook Login — https://developers.facebook.com/apps
+    # Opcional: si se configura, se agrega appsecret_proof a las llamadas a Graph API
+    FACEBOOK_APP_SECRET: str = ""
+
     class Config:
         env_file = ".env"
         case_sensitive = True

@@ -14,6 +14,10 @@ const GoogleLoginButton = dynamic(
   () => import("@/components/ui/GoogleLoginButton"),
   { ssr: false }
 );
+const FacebookLoginButton = dynamic(
+  () => import("@/components/ui/FacebookLoginButton"),
+  { ssr: false }
+);
 
 interface FormData {
   full_name: string;
@@ -157,8 +161,9 @@ export default function RegistroPage() {
         noValidate
         className="flex-1 px-5 max-w-sm mx-auto w-full space-y-4 pb-10"
       >
-        <div className="animate-fade-up delay-50">
-          <GoogleLoginButton label="Registrarse con Google" mode="buyer" />
+        <div className="animate-fade-up delay-50 flex gap-2">
+          <div className="flex-1"><GoogleLoginButton label="Google" mode="buyer" /></div>
+          <div className="flex-1"><FacebookLoginButton label="Facebook" mode="buyer" /></div>
         </div>
 
         <div className="or-divider animate-fade-up delay-75">
