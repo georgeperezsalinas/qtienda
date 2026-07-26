@@ -90,13 +90,21 @@ async function StoresSection() {
   if (!stores.length) return null;
   return (
     <section className="px-5 md:px-10 py-14 max-w-6xl mx-auto w-full">
-      <div className="flex items-end justify-between mb-6">
+      <div className="flex items-end justify-between mb-6 gap-4">
         <div>
           <p className="eyebrow">Tiendas activas</p>
           <p className="text-xl font-medium mt-1" style={{ letterSpacing: "-0.014em" }}>
             <span className="mono num">{stores.length.toLocaleString()}</span> {stores.length === 1 ? "tienda" : "tiendas"} en qtienda
           </p>
         </div>
+        <Link
+          href="/tiendas"
+          className="flex-shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-full transition-all hover:-translate-y-0.5"
+          style={{ background: "var(--accent)", color: "#fff" }}
+        >
+          Explorar Mall qtienda
+          <ArrowRight size={14} />
+        </Link>
       </div>
       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
         {stores.map((s) => (

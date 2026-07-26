@@ -11,7 +11,7 @@ from sqlalchemy import func, select, and_, or_
 from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
-from app.models.models import Plan, Store, Product, Order, OrderItem, Payment, StoreSettings, StoreEvent, SiteEvent, Subscription
+from app.models.models import Plan, Store, Product, Category, Order, OrderItem, Payment, StoreSettings, StoreEvent, SiteEvent, Subscription
 from app.schemas.orders import PublicOrderCreate, OrderResponse
 from app.core.limiter import limiter
 from app.core.config import settings as app_settings
@@ -50,6 +50,27 @@ async def list_stores(request: Request, db: AsyncSession = Depends(get_db)):
         )
         count_map = dict(counts.all())
 
+    # Categorías reales con más productos activos por tienda — usadas como
+    # "qué vende" cuando la tienda no escribió una descripción, y para
+    # agrupar/filtrar tiendas como secciones de un centro comercial.
+    categories_map: dict = {}
+    if store_ids:
+        cat_rows = await db.execute(
+            select(Category.store_id, Category.name, func.count(Product.id).label("n"))
+            .join(Product, Product.category_id == Category.id)
+            .where(
+                Category.store_id.in_(store_ids),
+                Product.status == "active",
+                Product.deleted_at.is_(None),
+            )
+            .group_by(Category.store_id, Category.name)
+            .order_by(Category.store_id, func.count(Product.id).desc())
+        )
+        for store_id, name, _n in cat_rows.all():
+            categories_map.setdefault(store_id, [])
+            if len(categories_map[store_id]) < 3:
+                categories_map[store_id].append(name)
+
     return [
         {
             "slug": s.slug,
@@ -61,9 +82,44 @@ async def list_stores(request: Request, db: AsyncSession = Depends(get_db)):
             "country": s.country,
             "primary_color": s.primary_color,
             "product_count": count_map.get(s.id, 0),
+            "categories": categories_map.get(s.id, []),
             "store_hours": s.settings.store_hours if s.settings else None,
         }
         for s in stores
+    ]
+
+
+@router.get("/latest-products")
+@limiter.limit("60/minute")
+async def latest_products(request: Request, db: AsyncSession = Depends(get_db)):
+    """Últimos productos publicados en tiendas activas — franja 'Recién publicado' del mall."""
+    result = await db.execute(
+        select(Product, Store)
+        .join(Store, Store.id == Product.store_id)
+        .options(selectinload(Product.images))
+        .where(
+            Product.status == "active",
+            Product.deleted_at.is_(None),
+            Store.status == "active",
+            Store.deleted_at.is_(None),
+        )
+        .order_by(Product.created_at.desc())
+        .limit(12)
+    )
+    rows = result.all()
+
+    return [
+        {
+            "id": p.id,
+            "name": p.name,
+            "price_cents": p.price_cents,
+            "image_url": next((img.url for img in p.images if img.is_primary), p.images[0].url if p.images else None),
+            "store_slug": s.slug,
+            "store_name": s.name,
+            "store_logo_url": s.logo_url,
+            "primary_color": s.primary_color,
+        }
+        for p, s in rows
     ]
 
 

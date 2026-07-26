@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, Store, ChevronRight, MapPin, ArrowLeft, Package, Clock } from "lucide-react";
+import { Search, Store, ChevronRight, MapPin, ArrowLeft, Package, Clock, Tag, Sparkles, ShoppingBag } from "lucide-react";
 import Logo from "@/components/ui/Logo";
 import { useAuthStore } from "@/store/authStore";
 import { getOpenStatus } from "@/lib/storeHours";
 import { trackPageView } from "@/lib/siteAnalytics";
+import { formatPrice } from "@/lib/utils";
 
 interface StoreCard {
   slug: string;
@@ -17,7 +18,19 @@ interface StoreCard {
   city?: string;
   primary_color?: string;
   product_count?: number;
+  categories?: string[];
   store_hours?: Record<string, { open: string; close: string }> | null;
+}
+
+interface LatestProduct {
+  id: string;
+  name: string;
+  price_cents: number;
+  image_url?: string;
+  store_slug: string;
+  store_name: string;
+  store_logo_url?: string;
+  primary_color?: string;
 }
 
 type SortMode = "recent" | "az";
@@ -27,10 +40,12 @@ const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
 export default function TiendasPage() {
   const { accessToken } = useAuthStore();
   const [stores, setStores] = useState<StoreCard[]>([]);
+  const [latestProducts, setLatestProducts] = useState<LatestProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [query, setQuery] = useState("");
   const [cityFilter, setCityFilter] = useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [sort, setSort] = useState<SortMode>("recent");
 
   useEffect(() => {
@@ -41,6 +56,10 @@ export default function TiendasPage() {
       .then((data) => setStores(Array.isArray(data) ? data : []))
       .catch(() => setStores([]))
       .finally(() => setLoading(false));
+    fetch(`${API}/public/latest-products`)
+      .then((r) => r.json())
+      .then((data) => setLatestProducts(Array.isArray(data) ? data : []))
+      .catch(() => setLatestProducts([]));
   }, []);
 
   // Ciudades reales de las tiendas activas — nunca una lista inventada de zonas
@@ -50,6 +69,14 @@ export default function TiendasPage() {
     return Array.from(set).sort();
   }, [stores]);
 
+  // Rubros reales — derivados del catálogo de cada tienda (nunca inventados),
+  // funcionan como los "pisos" o secciones del centro comercial virtual.
+  const categories = useMemo(() => {
+    const count = new Map<string, number>();
+    stores.forEach((s) => (s.categories ?? []).forEach((c) => count.set(c, (count.get(c) ?? 0) + 1)));
+    return Array.from(count.keys()).sort((a, b) => (count.get(b)! - count.get(a)!) || a.localeCompare(b));
+  }, [stores]);
+
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
     let items = stores.filter((s) => {
@@ -57,13 +84,26 @@ export default function TiendasPage() {
         !q ||
         s.name.toLowerCase().includes(q) ||
         (s.description ?? "").toLowerCase().includes(q) ||
-        (s.city ?? "").toLowerCase().includes(q);
+        (s.city ?? "").toLowerCase().includes(q) ||
+        (s.categories ?? []).some((c) => c.toLowerCase().includes(q));
       const matchesCity = !cityFilter || s.city === cityFilter;
-      return matchesQuery && matchesCity;
+      const matchesCategory = !categoryFilter || (s.categories ?? []).includes(categoryFilter);
+      return matchesQuery && matchesCity && matchesCategory;
     });
     if (sort === "az") items = [...items].sort((a, b) => a.name.localeCompare(b.name));
     return items;
-  }, [stores, query, cityFilter, sort]);
+  }, [stores, query, cityFilter, categoryFilter, sort]);
+
+  // Destacadas: las tiendas con más catálogo activo — vitrina real, no manual.
+  const featured = useMemo(
+    () =>
+      [...stores]
+        .filter((s) => (s.product_count ?? 0) > 0)
+        .sort((a, b) => (b.product_count ?? 0) - (a.product_count ?? 0))
+        .slice(0, 8),
+    [stores]
+  );
+  const showFeatured = featured.length >= 3 && !query && !cityFilter && !categoryFilter;
 
   return (
     <div className="min-h-dvh flex flex-col" style={{ background: "var(--surface-2)" }}>
@@ -114,6 +154,11 @@ export default function TiendasPage() {
             </div>
           </div>
 
+          {/* Tagline: framing hacia el "centro comercial virtual" */}
+          <p className="text-xs mb-3" style={{ color: "var(--ink-3)" }}>
+            Todas las tiendas de Qtienda, como un centro comercial — explora por rubro o ciudad.
+          </p>
+
           {/* Search */}
           <div className="relative mb-2.5">
             <Search
@@ -128,6 +173,27 @@ export default function TiendasPage() {
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
+
+          {/* Filtro por rubro — "pisos" del centro comercial, derivados del catálogo real */}
+          {!loading && categories.length > 1 && (
+            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide pb-0.5 mb-1.5">
+              <Tag size={11} className="flex-shrink-0" style={{ color: "var(--ink-4)" }} />
+              {categories.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setCategoryFilter(categoryFilter === c ? null : c)}
+                  className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap"
+                  style={
+                    categoryFilter === c
+                      ? { background: "var(--accent)", color: "#fff" }
+                      : { background: "var(--surface)", color: "var(--ink-2)", border: "1px solid var(--line-2)" }
+                  }
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Filtros: ciudad (real, derivada de las tiendas) + orden */}
           {!loading && cities.length > 1 && (
@@ -172,6 +238,69 @@ export default function TiendasPage() {
 
       {/* ── Content ── */}
       <main className="flex-1 px-4 py-4 max-w-lg lg:max-w-4xl mx-auto w-full">
+        {/* Banner — bienvenida al mall, decorativo y estático */}
+        <div
+          className="relative overflow-hidden rounded-2xl p-5 mb-4 flex items-center gap-4"
+          style={{ background: "linear-gradient(120deg, var(--accent), var(--accent-soft))" }}
+        >
+          <div
+            className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
+            style={{ background: "rgba(255,255,255,.2)" }}
+          >
+            <ShoppingBag size={20} className="text-white" />
+          </div>
+          <div className="min-w-0">
+            <p className="font-display font-extrabold text-base leading-tight text-white">Mall qtienda</p>
+            <p className="text-xs mt-0.5 text-white/85">
+              Un solo lugar para conocer todas las tiendas y sus productos.
+            </p>
+          </div>
+        </div>
+
+        {/* Recién publicado — últimos productos reales de todas las tiendas */}
+        {!loading && latestProducts.length >= 3 && !query && !cityFilter && !categoryFilter && (
+          <div className="mb-4">
+            <div className="flex items-center gap-1.5 mb-2.5 px-0.5">
+              <Package size={13} style={{ color: "var(--accent)" }} />
+              <p className="font-display font-bold text-sm" style={{ color: "var(--ink)" }}>
+                Recién publicado
+              </p>
+            </div>
+            <div className="flex gap-2.5 overflow-x-auto scrollbar-hide pb-1 -mx-4 px-4 lg:mx-0 lg:px-0">
+              {latestProducts.map((p) => {
+                const color = p.primary_color ?? "#C5613B";
+                return (
+                  <Link
+                    key={p.id}
+                    href={`/tienda/${p.store_slug}?producto=${p.id}`}
+                    className="flex-shrink-0 w-[120px] rounded-2xl overflow-hidden transition-all active:scale-[.97]"
+                    style={{ background: "var(--surface)", boxShadow: "0 1px 8px rgba(20,19,15,.06), 0 0 0 1px var(--line)" }}
+                  >
+                    <div className="w-full h-[90px] flex items-center justify-center overflow-hidden" style={{ background: "var(--surface-2)" }}>
+                      {p.image_url ? (
+                        <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <Package size={22} style={{ color: "var(--ink-4)" }} />
+                      )}
+                    </div>
+                    <div className="p-2">
+                      <p className="text-[11px] font-semibold truncate" style={{ color: "var(--ink)" }}>
+                        {p.name}
+                      </p>
+                      <p className="text-[11px] font-bold mt-0.5" style={{ color }}>
+                        {formatPrice(p.price_cents)}
+                      </p>
+                      <p className="text-[10px] truncate mt-0.5" style={{ color: "var(--ink-4)" }}>
+                        {p.store_name}
+                      </p>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Skeletons */}
         {loading && (
           <div className="space-y-2.5">
@@ -191,15 +320,61 @@ export default function TiendasPage() {
               <Store size={28} style={{ color: "var(--ink-4)" }} />
             </div>
             <p className="font-display font-bold text-base mb-1" style={{ color: "var(--ink)" }}>
-              {query || cityFilter ? "Sin resultados" : "No hay tiendas disponibles"}
+              {query || cityFilter || categoryFilter ? "Sin resultados" : "No hay tiendas disponibles"}
             </p>
             <p className="text-sm" style={{ color: "var(--ink-3)" }}>
               {query
                 ? `No encontramos tiendas con "${query}"`
+                : categoryFilter
+                ? `Ninguna tienda vendiendo "${categoryFilter}" por ahora`
                 : cityFilter
                 ? `Ninguna tienda en ${cityFilter} por ahora`
                 : "Vuelve pronto para descubrir nuevas tiendas"}
             </p>
+          </div>
+        )}
+
+        {/* Destacadas — vitrina del "mall", según catálogo real (no manual) */}
+        {!loading && showFeatured && (
+          <div className="mb-4">
+            <div className="flex items-center gap-1.5 mb-2.5 px-0.5">
+              <Sparkles size={13} style={{ color: "var(--accent)" }} />
+              <p className="font-display font-bold text-sm" style={{ color: "var(--ink)" }}>
+                Destacadas
+              </p>
+            </div>
+            <div className="flex gap-2.5 overflow-x-auto scrollbar-hide pb-1 -mx-4 px-4 lg:mx-0 lg:px-0">
+              {featured.map((s) => {
+                const color = s.primary_color ?? "#C5613B";
+                return (
+                  <Link
+                    key={s.slug}
+                    href={`/tienda/${s.slug}`}
+                    className="flex-shrink-0 w-[104px] flex flex-col items-center gap-1.5 p-2.5 rounded-2xl transition-all active:scale-[.97]"
+                    style={{ background: "var(--surface)", boxShadow: "0 1px 8px rgba(20,19,15,.06), 0 0 0 1px var(--line)" }}
+                  >
+                    <div
+                      className="w-14 h-14 rounded-[14px] flex items-center justify-center overflow-hidden"
+                      style={{ background: color }}
+                    >
+                      {s.logo_url ? (
+                        <img src={s.logo_url} alt={s.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="font-display font-extrabold text-lg text-white">
+                          {s.name.charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                    <p
+                      className="font-display font-bold text-[11px] leading-tight text-center truncate w-full"
+                      style={{ color: "var(--ink)" }}
+                    >
+                      {s.name}
+                    </p>
+                  </Link>
+                );
+              })}
+            </div>
           </div>
         )}
 
@@ -238,10 +413,16 @@ export default function TiendasPage() {
                   <p className="font-display font-bold text-sm leading-snug truncate" style={{ color: "var(--ink)" }}>
                     {s.name}
                   </p>
-                  {s.description && (
+                  {s.description ? (
                     <p className="text-xs truncate mt-0.5" style={{ color: "var(--ink-3)" }}>
                       {s.description}
                     </p>
+                  ) : (
+                    s.categories && s.categories.length > 0 && (
+                      <p className="text-xs truncate mt-0.5" style={{ color: "var(--ink-3)" }}>
+                        Vende {s.categories.join(", ")}
+                      </p>
+                    )
                   )}
                   <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                     {s.city && (
