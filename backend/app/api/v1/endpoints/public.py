@@ -91,22 +91,44 @@ async def list_stores(request: Request, db: AsyncSession = Depends(get_db)):
 
 @router.get("/latest-products")
 @limiter.limit("60/minute")
-async def latest_products(request: Request, db: AsyncSession = Depends(get_db)):
-    """Últimos productos publicados en tiendas activas — franja 'Recién publicado' del mall."""
-    result = await db.execute(
-        select(Product, Store)
-        .join(Store, Store.id == Product.store_id)
-        .options(selectinload(Product.images))
-        .where(
-            Product.status == "active",
-            Product.deleted_at.is_(None),
-            Store.status == "active",
-            Store.deleted_at.is_(None),
-        )
-        .order_by(Product.created_at.desc())
-        .limit(12)
-    )
+async def latest_products(
+    request: Request,
+    category: str = None,
+    limit: int = 12,
+    db: AsyncSession = Depends(get_db),
+):
+    """Últimos productos publicados en tiendas activas — franja 'Recién publicado' del mall,
+    o el catálogo del mall filtrado por rubro cuando se pasa `category`."""
+    limit = max(1, min(limit, 60))
+
+    filters = [
+        Product.status == "active",
+        Product.deleted_at.is_(None),
+        Store.status == "active",
+        Store.deleted_at.is_(None),
+    ]
+    query = select(Product, Store).join(Store, Store.id == Product.store_id).options(selectinload(Product.images))
+    if category:
+        query = query.join(Category, Category.id == Product.category_id).where(func.lower(Category.name) == category.lower())
+    result = await db.execute(query.where(and_(*filters)).order_by(Product.created_at.desc()).limit(200))
     rows = result.all()
+
+    # Diversifica por tienda para que ninguna acapare la vitrina del mall —
+    # máximo 2 productos seguidos por tienda antes de completar con el resto.
+    PER_STORE_CAP = 2
+    picked: list = []
+    leftover: list = []
+    counts: dict = {}
+    for p, s in rows:
+        if counts.get(s.id, 0) < PER_STORE_CAP:
+            picked.append((p, s))
+            counts[s.id] = counts.get(s.id, 0) + 1
+        else:
+            leftover.append((p, s))
+        if len(picked) >= limit:
+            break
+    if len(picked) < limit:
+        picked.extend(leftover[: limit - len(picked)])
 
     return [
         {
@@ -116,10 +138,11 @@ async def latest_products(request: Request, db: AsyncSession = Depends(get_db)):
             "image_url": next((img.url for img in p.images if img.is_primary), p.images[0].url if p.images else None),
             "store_slug": s.slug,
             "store_name": s.name,
+            "store_city": s.city,
             "store_logo_url": s.logo_url,
             "primary_color": s.primary_color,
         }
-        for p, s in rows
+        for p, s in picked
     ]
 
 
