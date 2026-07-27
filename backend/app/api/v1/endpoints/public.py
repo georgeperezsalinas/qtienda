@@ -193,6 +193,8 @@ async def get_store(request: Request, slug: str, db: AsyncSession = Depends(get_
             "require_prepayment": store.settings.require_prepayment if store.settings else False,
             "yape_phone": store.settings.yape_phone if store.settings else None,
             "plin_phone": store.settings.plin_phone if store.settings else None,
+            "yape_qr_url": store.settings.yape_qr_url if store.settings else None,
+            "plin_qr_url": store.settings.plin_qr_url if store.settings else None,
             "bank_account": store.settings.bank_account if store.settings else None,
             "delivery_fee_cents": store.settings.delivery_fee_cents if store.settings else 0,
             "min_order_cents": store.settings.min_order_cents if store.settings else 0,

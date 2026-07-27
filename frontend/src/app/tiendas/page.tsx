@@ -156,8 +156,8 @@ export default function TiendasPage() {
         }}
       >
         <div
-          className="px-4 pb-3 max-w-lg lg:max-w-4xl mx-auto w-full"
-          style={{ paddingTop: "max(16px, env(safe-area-inset-top))" }}
+          className="px-4 pb-3 mx-auto w-full"
+          style={{ paddingTop: "max(16px, env(safe-area-inset-top))", maxWidth: "min(94vw, 1400px)" }}
         >
           <div className="flex items-center gap-3 mb-3">
             <Link
@@ -272,7 +272,7 @@ export default function TiendasPage() {
       </header>
 
       {/* ── Content ── */}
-      <main className="flex-1 px-4 py-4 max-w-lg lg:max-w-4xl mx-auto w-full">
+      <main className="flex-1 px-4 py-4 mx-auto w-full" style={{ maxWidth: "min(94vw, 1400px)" }}>
         {/* Banner — bienvenida al mall, decorativo y estático */}
         <div
           className="relative overflow-hidden rounded-2xl p-5 mb-4 flex items-center gap-4"
@@ -385,7 +385,7 @@ export default function TiendasPage() {
                 {filteredCategoryProducts.length} producto{filteredCategoryProducts.length !== 1 ? "s" : ""}
               </span>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2.5">
               {filteredCategoryProducts.map((p) => {
                 const color = p.primary_color ?? "#C5613B";
                 return (
@@ -466,7 +466,7 @@ export default function TiendasPage() {
 
         {/* Store list */}
         {!categoryFilter && (
-        <div className="space-y-2.5 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-3">
+        <div className="space-y-2.5 lg:space-y-0 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-3">
           {filtered.map((s) => {
             // Hex real (no var CSS): se concatena alfa "15" abajo para el fondo de la flecha
             const color = s.primary_color ?? "#C5613B";

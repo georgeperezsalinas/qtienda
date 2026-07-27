@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ExternalLink, Save, Plus, Trash2, Bike, Eye, EyeOff, UserX, Store, CreditCard, Tag, Truck } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ExternalLink, Save, Plus, Trash2, Bike, Eye, EyeOff, UserX, Store, CreditCard, Tag, Truck, QrCode, Download } from "lucide-react";
+import { QRCodeCanvas } from "qrcode.react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
 import { ImageUpload } from "@/components/ui/ImageUpload";
@@ -121,6 +122,16 @@ export default function ConfiguracionPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [noStore, setNoStore] = useState(false);
+  const qrCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  function downloadQr() {
+    const canvas = qrCanvasRef.current;
+    if (!canvas || !store) return;
+    const a = document.createElement("a");
+    a.href = canvas.toDataURL("image/png");
+    a.download = `qr-${store.slug}.png`;
+    a.click();
+  }
 
   const [info, setInfo] = useState({
     name: "", description: "", whatsapp: "",
@@ -131,7 +142,7 @@ export default function ConfiguracionPage() {
   const [settings, setSettings] = useState({
     accept_cash: true, accept_yape: false, accept_plin: false,
     accept_transfer: false, accept_card: false, require_prepayment: false,
-    yape_phone: "", plin_phone: "", bank_account: "",
+    yape_phone: "", plin_phone: "", yape_qr_url: "", plin_qr_url: "", bank_account: "",
     delivery_fee_cents: "0", min_order_cents: "0", free_delivery_above: "",
     welcome_discount_enabled: false, welcome_discount_cents: "5",
   });
@@ -189,6 +200,8 @@ export default function ConfiguracionPage() {
             require_prepayment: storeData.settings.require_prepayment ?? false,
             yape_phone: storeData.settings.yape_phone || "",
             plin_phone: storeData.settings.plin_phone || "",
+            yape_qr_url: storeData.settings.yape_qr_url || "",
+            plin_qr_url: storeData.settings.plin_qr_url || "",
             bank_account: storeData.settings.bank_account || "",
             delivery_fee_cents: String(storeData.settings.delivery_fee_cents / 100),
             min_order_cents: String(storeData.settings.min_order_cents / 100),
@@ -278,6 +291,8 @@ export default function ConfiguracionPage() {
         require_prepayment: settings.require_prepayment,
         yape_phone: settings.yape_phone || undefined,
         plin_phone: settings.plin_phone || undefined,
+        yape_qr_url: settings.yape_qr_url || undefined,
+        plin_qr_url: settings.plin_qr_url || undefined,
         bank_account: settings.bank_account || undefined,
         delivery_fee_cents: Math.round(parseFloat(settings.delivery_fee_cents || "0") * 100),
         min_order_cents: Math.round(parseFloat(settings.min_order_cents || "0") * 100),
@@ -719,6 +734,36 @@ export default function ConfiguracionPage() {
         </section>
       )}
 
+      {activeTab === "tienda" && store && (
+        <section className="card p-5 mt-4 text-center">
+          <div
+            className="w-11 h-11 rounded-2xl flex items-center justify-center mb-3 mx-auto"
+            style={{ background: "var(--accent-soft)" }}
+          >
+            <QrCode size={20} style={{ color: "var(--accent)" }} />
+          </div>
+          <h2 className="font-semibold text-[var(--ink)] mb-1">Código QR de tu tienda</h2>
+          <p className="text-xs mb-4" style={{ color: "var(--ink-3)" }}>
+            Imprímelo y pégalo en tus paquetes de envío, empaques o volantes — tus clientes lo
+            escanean y llegan directo a tu tienda.
+          </p>
+          <div
+            className="inline-flex p-4 rounded-2xl mb-4"
+            style={{ background: "#fff", border: "1px solid var(--line-2)" }}
+          >
+            <QRCodeCanvas ref={qrCanvasRef} value={`https://qtienda.shop/tienda/${store.slug}`} size={180} marginSize={0} />
+          </div>
+          <button
+            type="button"
+            onClick={downloadQr}
+            className="mx-auto flex items-center justify-center gap-2 rounded-2xl py-3 px-6 font-bold text-sm text-white transition-all active:scale-[.98]"
+            style={{ background: "var(--accent)" }}
+          >
+            <Download size={15} /> Descargar QR
+          </button>
+        </section>
+      )}
+
       {/* Tab: Pagos */}
       {activeTab === "pagos" && (
         <section className="card p-5">
@@ -727,11 +772,31 @@ export default function ConfiguracionPage() {
             <Toggle value={settings.accept_cash} onChange={(v) => setSettings({ ...settings, accept_cash: v })} label="Aceptar efectivo" />
             <Toggle value={settings.accept_yape} onChange={(v) => setSettings({ ...settings, accept_yape: v })} label="Aceptar Yape" />
             {settings.accept_yape && (
-              <input className="input" placeholder="Número Yape" value={settings.yape_phone} onChange={(e) => setSettings({ ...settings, yape_phone: e.target.value })} />
+              <div className="space-y-2">
+                <input className="input" placeholder="Número Yape" value={settings.yape_phone} onChange={(e) => setSettings({ ...settings, yape_phone: e.target.value })} />
+                <ImageUpload
+                  label="QR de Yape (opcional)"
+                  value={settings.yape_qr_url}
+                  onChange={(url) => setSettings({ ...settings, yape_qr_url: url })}
+                  hint="Captura del QR de tu app Yape\nEl comprador lo escanea al pagar"
+                  className="h-40 w-40"
+                  maxDimension={800}
+                />
+              </div>
             )}
             <Toggle value={settings.accept_plin} onChange={(v) => setSettings({ ...settings, accept_plin: v })} label="Aceptar Plin" />
             {settings.accept_plin && (
-              <input className="input" placeholder="Número Plin" value={settings.plin_phone} onChange={(e) => setSettings({ ...settings, plin_phone: e.target.value })} />
+              <div className="space-y-2">
+                <input className="input" placeholder="Número Plin" value={settings.plin_phone} onChange={(e) => setSettings({ ...settings, plin_phone: e.target.value })} />
+                <ImageUpload
+                  label="QR de Plin (opcional)"
+                  value={settings.plin_qr_url}
+                  onChange={(url) => setSettings({ ...settings, plin_qr_url: url })}
+                  hint="Captura del QR de tu app Plin\nEl comprador lo escanea al pagar"
+                  className="h-40 w-40"
+                  maxDimension={800}
+                />
+              </div>
             )}
             <Toggle value={settings.accept_transfer} onChange={(v) => setSettings({ ...settings, accept_transfer: v })} label="Aceptar transferencia bancaria" />
             {settings.accept_transfer && (

@@ -759,6 +759,31 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                         })
                       )}
 
+                      {/* QR del metodo elegido (Yape/Plin) — si la tienda subio uno, se muestra para escanear */}
+                      {(() => {
+                        const qrUrl =
+                          form.payment_method === "yape" ? store.settings?.yape_qr_url :
+                          form.payment_method === "plin" ? store.settings?.plin_qr_url :
+                          null;
+                        if (!qrUrl) return null;
+                        return (
+                          <div
+                            className="flex flex-col items-center gap-2 rounded-2xl p-4"
+                            style={{ background: "var(--bg)", border: "1px solid var(--line-2)" }}
+                          >
+                            <p className="text-xs font-bold" style={{ color: "var(--ink-2)" }}>
+                              Escanea para pagar con {form.payment_method === "yape" ? "Yape" : "Plin"}
+                            </p>
+                            <img
+                              src={qrUrl}
+                              alt={`QR ${form.payment_method === "yape" ? "Yape" : "Plin"} de ${store.name}`}
+                              className="w-40 h-40 rounded-xl object-contain"
+                              style={{ background: "#fff", border: "1px solid var(--line-2)" }}
+                            />
+                          </div>
+                        );
+                      })()}
+
                       {paymentOptions.length > 0 && (
                         <p className="text-[11px] text-center pt-1" style={{ color: "var(--ink-4)" }}>
                           🔒 Tu pedido se coordina directo con la tienda — nunca compartimos tus datos

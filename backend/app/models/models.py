@@ -143,6 +143,8 @@ class StoreSettings(Base):
     require_prepayment: Mapped[bool] = mapped_column(Boolean, default=False)
     yape_phone: Mapped[Optional[str]]    = mapped_column(String(20))
     plin_phone: Mapped[Optional[str]]    = mapped_column(String(20))
+    yape_qr_url: Mapped[Optional[str]]   = mapped_column(Text)
+    plin_qr_url: Mapped[Optional[str]]   = mapped_column(Text)
     bank_account: Mapped[Optional[str]]  = mapped_column(Text)
     min_order_cents: Mapped[int]         = mapped_column(Integer, default=0)
     delivery_fee_cents: Mapped[int]      = mapped_column(Integer, default=0)

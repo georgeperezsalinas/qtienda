@@ -9,6 +9,7 @@ import {
   LayoutGrid, List, Clock, Truck, ShieldCheck, PackageSearch,
   HelpCircle,
 } from "lucide-react";
+import { QRCodeCanvas } from "qrcode.react";
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
 import ProductCard from "./ProductCard";
 import ProductDetailSheet from "./ProductDetailSheet";
@@ -341,6 +342,7 @@ export default function StorePage({ store, initialProducts }: Props) {
   const [welcomeBannerDismissed, setWelcomeBannerDismissed] = useState(false);
   const [isOwner,             setIsOwner]             = useState(false);
   const [trackOpen,           setTrackOpen]           = useState(false);
+  const [qrOpen,              setQrOpen]              = useState(false);
   const [trackNum,            setTrackNum]            = useState("");
   const [showFavorites,       setShowFavorites]       = useState(false);
 
@@ -358,6 +360,7 @@ export default function StorePage({ store, initialProducts }: Props) {
   const searchRef  = useRef<HTMLInputElement>(null);
   const color      = store.primary_color || "#2563EB";
   const openStatus = getOpenStatus(store.store_hours);
+  const storeUrl   = `https://qtienda.shop/tienda/${store.slug}`;
 
   // Carrusel nuevo con fallback al banner único (compatibilidad con API vieja)
   const effectiveBanners = store.banners?.length
@@ -590,9 +593,9 @@ export default function StorePage({ store, initialProducts }: Props) {
               <HelpCircle size={16} style={{ color }} />
             </button>
 
-            {/* Share */}
+            {/* Compartir — abre el modal con el link y el QR de la tienda */}
             <button
-              onClick={() => navigator.share?.({ title: store.name, url: location.href })}
+              onClick={() => setQrOpen(true)}
               className="w-9 h-9 lg:w-10 lg:h-10 rounded-xl flex items-center justify-center flex-shrink-0"
               style={{ background: `${color}12` }}
               aria-label="Compartir"
@@ -832,7 +835,7 @@ export default function StorePage({ store, initialProducts }: Props) {
                 </a>
               )}
               <button
-                onClick={() => navigator.share?.({ title: store.name, url: location.href })}
+                onClick={() => setQrOpen(true)}
                 className="flex items-center justify-center gap-1.5 text-xs font-bold px-3 py-2.5 rounded-xl"
                 style={{ background: "var(--surface-2)", color: "var(--ink-2)" }}
               >
@@ -1183,20 +1186,20 @@ export default function StorePage({ store, initialProducts }: Props) {
       {/* Modal: seguimiento de pedido por número */}
       <AnimatePresence>
         {trackOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[59]"
-              style={{ background: "rgba(20,19,15,.45)", backdropFilter: "blur(4px)" }}
-              onClick={() => setTrackOpen(false)}
-            />
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[59] flex items-center justify-center p-4"
+            style={{ background: "rgba(20,19,15,.45)", backdropFilter: "blur(4px)" }}
+            onClick={() => setTrackOpen(false)}
+          >
             <motion.div
               initial={{ y: 24, opacity: 0, scale: 0.97 }}
               animate={{ y: 0, opacity: 1, scale: 1 }}
               exit={{ y: 24, opacity: 0, scale: 0.97 }}
               transition={{ type: "spring", damping: 26, stiffness: 320 }}
-              className="fixed left-4 right-4 top-1/2 -translate-y-1/2 z-[60] max-w-sm mx-auto rounded-3xl p-6"
-              style={{ background: "var(--surface)", boxShadow: "var(--shadow-float)" }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-sm rounded-3xl p-6 overflow-y-auto"
+              style={{ background: "var(--surface)", boxShadow: "var(--shadow-float)", maxHeight: "85vh" }}
             >
               <div
                 className="w-12 h-12 rounded-2xl flex items-center justify-center mb-4"
@@ -1239,7 +1242,63 @@ export default function StorePage({ store, initialProducts }: Props) {
                 <X size={15} style={{ color: "var(--ink-2)" }} />
               </button>
             </motion.div>
-          </>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal: compartir tienda (link + QR) */}
+      <AnimatePresence>
+        {qrOpen && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[59] flex items-center justify-center p-4"
+            style={{ background: "rgba(20,19,15,.45)", backdropFilter: "blur(4px)" }}
+            onClick={() => setQrOpen(false)}
+          >
+            <motion.div
+              initial={{ y: 24, opacity: 0, scale: 0.97 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 24, opacity: 0, scale: 0.97 }}
+              transition={{ type: "spring", damping: 26, stiffness: 320 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-sm rounded-3xl p-6 text-center overflow-y-auto"
+              style={{ background: "var(--surface)", boxShadow: "var(--shadow-float)", maxHeight: "85vh" }}
+            >
+              <div
+                className="w-12 h-12 rounded-2xl flex items-center justify-center mb-4 mx-auto"
+                style={{ background: `${color}12` }}
+              >
+                <Share2 size={20} style={{ color }} />
+              </div>
+              <h3 className="font-extrabold text-lg" style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}>
+                Comparte {store.name}
+              </h3>
+              <p className="text-xs mt-1 mb-4" style={{ color: "var(--ink-3)" }}>
+                Envía el link o comparte el QR para que te encuentren fácil.
+              </p>
+              <div
+                className="inline-flex p-4 rounded-2xl mb-4"
+                style={{ background: "#fff", border: "1px solid var(--line-2)" }}
+              >
+                <QRCodeCanvas value={storeUrl} size={180} marginSize={0} />
+              </div>
+              <button
+                onClick={() => navigator.share?.({ title: store.name, url: storeUrl })}
+                className="w-full rounded-2xl py-3.5 font-bold text-sm text-white transition-all active:scale-[.98] flex items-center justify-center gap-2"
+                style={{ background: color }}
+              >
+                <Share2 size={15} /> Compartir link
+              </button>
+              <button
+                onClick={() => setQrOpen(false)}
+                className="absolute top-4 right-4 w-8 h-8 rounded-xl flex items-center justify-center"
+                style={{ background: "var(--surface-2)" }}
+                aria-label="Cerrar"
+              >
+                <X size={15} style={{ color: "var(--ink-2)" }} />
+              </button>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
 

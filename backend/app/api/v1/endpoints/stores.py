@@ -148,6 +148,8 @@ async def my_store(
             "require_prepayment": store.settings.require_prepayment,
             "yape_phone": store.settings.yape_phone,
             "plin_phone": store.settings.plin_phone,
+            "yape_qr_url": store.settings.yape_qr_url,
+            "plin_qr_url": store.settings.plin_qr_url,
             "bank_account": store.settings.bank_account,
             "min_order_cents": store.settings.min_order_cents,
             "delivery_fee_cents": store.settings.delivery_fee_cents,
