@@ -5,7 +5,7 @@ import Image from "next/image";
 import {
   Plus, Pencil, Trash2, Package, X,
   Search,
-  Star, Eye, EyeOff, Tag, Images, Clock,
+  Star, Eye, EyeOff, Tag, Images, Clock, ChevronDown,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
@@ -737,19 +737,26 @@ export default function ProductosPage() {
                   />
                 </Field>
                 <Field label="Categoría">
-                  <select
-                    className="input"
-                    value={form.category_id}
-                    onChange={(e) => setForm((f) => ({ ...f, category_id: e.target.value }))}
-                    style={{ appearance: "none" }}
-                  >
-                    <option value="">Sin categoría</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.icon ? `${c.icon} ` : ""}{c.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <select
+                      className="input pr-8"
+                      value={form.category_id}
+                      onChange={(e) => setForm((f) => ({ ...f, category_id: e.target.value }))}
+                      style={{ appearance: "none" }}
+                    >
+                      <option value="">Sin categoría</option>
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.icon ? `${c.icon} ` : ""}{c.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown
+                      size={14}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                      style={{ color: "var(--ink-3)" }}
+                    />
+                  </div>
                 </Field>
               </div>
 

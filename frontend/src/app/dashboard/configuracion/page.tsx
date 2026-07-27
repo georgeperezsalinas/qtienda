@@ -270,10 +270,10 @@ export default function ConfiguracionPage() {
         description: info.description || undefined,
         whatsapp: info.whatsapp || undefined,
         primary_color: info.primary_color,
-        theme: info.theme,
         logo_url: info.logo_url || undefined,
         city: info.city || undefined,
         country: info.country || undefined,
+        theme: info.theme,
       });
       await apiClient.put("/stores/me/banners", {
         banners: banners
@@ -819,6 +819,14 @@ export default function ConfiguracionPage() {
       {activeTab === "pagos" && (
         <section className="card p-5">
           <h2 className="font-semibold text-[var(--ink)] mb-4">Métodos de pago y delivery</h2>
+          {!(settings.accept_cash || settings.accept_yape || settings.accept_plin || settings.accept_transfer || settings.accept_card) && (
+            <div
+              className="rounded-xl px-4 py-3 mb-4 text-xs font-semibold"
+              style={{ background: "var(--danger-soft)", color: "var(--danger)" }}
+            >
+              ⚠️ No tienes ningún método de pago activo — tus clientes no podrán completar un pedido. Activa al menos uno.
+            </div>
+          )}
           <form onSubmit={saveSettings} className="space-y-4">
             <Toggle value={settings.accept_cash} onChange={(v) => setSettings({ ...settings, accept_cash: v })} label="Aceptar efectivo" />
             <Toggle value={settings.accept_yape} onChange={(v) => setSettings({ ...settings, accept_yape: v })} label="Aceptar Yape" />

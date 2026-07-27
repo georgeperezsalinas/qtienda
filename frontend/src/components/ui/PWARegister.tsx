@@ -24,7 +24,9 @@ export default function PWARegister() {
       navigator.serviceWorker
         .register("/sw.js", { scope: "/" })
         .then((reg) => {
-          console.log("[qtienda] SW registrado:", reg.scope);
+          if (process.env.NODE_ENV !== "production") {
+            console.log("[qtienda] SW registrado:", reg.scope);
+          }
 
           // ¿Ya hay una versión nueva esperando? (la página se abrió con la vieja)
           if (reg.waiting && navigator.serviceWorker.controller) {

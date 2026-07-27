@@ -230,7 +230,7 @@ export default function DeliveryPage() {
   const [orders,    setOrders]    = useState<DeliveryOrder[]>([]);
   const [staff,     setStaff]     = useState<StaffMember[]>([]);
   const [loading,   setLoading]   = useState(true);
-  const [updating,  setUpdating]  = useState(false);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [assigning, setAssigning] = useState<string | null>(null);
 
   const preparing  = orders.filter((o) => o.status === "preparing");
@@ -259,7 +259,7 @@ export default function DeliveryPage() {
   }, [fetchOrders]);
 
   async function handleAction(orderId: string, newStatus: string) {
-    setUpdating(true);
+    setUpdatingId(orderId);
     try {
       const res = await apiClient.patch(`/orders/${orderId}/status`, { status: newStatus });
       toast.success(newStatus === "on_the_way" ? "¡Pedido despachado!" : "¡Entrega confirmada!");
@@ -292,7 +292,7 @@ export default function DeliveryPage() {
     } catch (err: any) {
       toast.error(err.response?.data?.detail || "Error al actualizar");
     } finally {
-      setUpdating(false);
+      setUpdatingId(null);
     }
   }
 
@@ -376,7 +376,7 @@ export default function DeliveryPage() {
                     staff={staff}
                     onAction={handleAction}
                     onAssign={handleAssign}
-                    updating={updating}
+                    updating={updatingId === o.id}
                     assigning={assigning === o.id}
                   />
                 ))}
@@ -400,7 +400,7 @@ export default function DeliveryPage() {
                     staff={staff}
                     onAction={handleAction}
                     onAssign={handleAssign}
-                    updating={updating}
+                    updating={updatingId === o.id}
                     assigning={assigning === o.id}
                   />
                 ))}

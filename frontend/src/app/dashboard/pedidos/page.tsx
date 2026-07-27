@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
-import { Search, Phone, MapPin, Package } from "lucide-react";
+import { Search, Phone, MapPin, Package, ExternalLink } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
@@ -323,6 +323,12 @@ export default function PedidosPage() {
   const [selected, setSelected] = useState<OrderDetail | null>(null);
   const [updating, setUpdating] = useState(false);
   const [staff, setStaff] = useState<Staff[]>([]);
+  const [storeSlug, setStoreSlug] = useState<string | null>(null);
+
+  // Slug de la tienda: para el link "Ver como comprador" en el detalle del pedido
+  useEffect(() => {
+    apiClient.get("/stores/me").then(({ data }) => setStoreSlug(data.slug)).catch(() => {});
+  }, []);
 
   // Repartidores activos: integran la entrega al flujo del pedido
   useEffect(() => {
@@ -435,6 +441,18 @@ export default function PedidosPage() {
           {STATUS_LABELS[selected.status]?.label}
         </span>
       </div>
+
+      {storeSlug && (
+        <a
+          href={`/tienda/${storeSlug}/pedido/${selected.order_number}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 text-xs font-bold mb-4 -mt-2"
+          style={{ color: "var(--accent)" }}
+        >
+          <ExternalLink size={12} /> Ver como comprador
+        </a>
+      )}
 
       <StatusRoadmap
         key={selected.id}

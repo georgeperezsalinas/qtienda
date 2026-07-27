@@ -331,6 +331,19 @@ export default function DashboardLayout({
                   />
                 )}
               </Link>
+              <Link
+                href="/dashboard/configuracion"
+                className="flex items-center justify-center rounded-full"
+                style={{
+                  width: 36,
+                  height: 36,
+                  background: "var(--surface)",
+                  border: "1px solid var(--line)",
+                }}
+                aria-label="Ajustes de tienda"
+              >
+                <Settings size={16} strokeWidth={1.7} style={{ color: "var(--ink-2)" }} />
+              </Link>
               <button
                 onClick={() => setDrawerOpen(true)}
                 className="flex items-center justify-center rounded-full"
