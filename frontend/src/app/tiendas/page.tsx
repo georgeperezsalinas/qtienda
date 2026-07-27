@@ -141,10 +141,15 @@ export default function TiendasPage() {
             <div className="flex-1" />
             <div className="text-right">
               <p
-                className="font-display font-extrabold text-base leading-tight"
-                style={{ color: "var(--ink)" }}
+                className="font-display font-extrabold text-lg leading-tight"
+                style={{
+                  backgroundImage: "linear-gradient(90deg, var(--accent), var(--accent-soft))",
+                  WebkitBackgroundClip: "text",
+                  backgroundClip: "text",
+                  color: "transparent",
+                }}
               >
-                Descubrir tiendas
+                Mall Qtienda
               </p>
               {!loading && (
                 <p className="text-xs mt-0.5" style={{ color: "var(--ink-4)" }}>
@@ -156,7 +161,7 @@ export default function TiendasPage() {
 
           {/* Tagline: framing hacia el "centro comercial virtual" */}
           <p className="text-xs mb-3" style={{ color: "var(--ink-3)" }}>
-            Todas las tiendas de Qtienda, como un centro comercial — explora por rubro o ciudad.
+            Todas las tiendas de Qtienda en un solo lugar — explora por rubro o ciudad.
           </p>
 
           {/* Search */}
@@ -272,7 +277,7 @@ export default function TiendasPage() {
                 return (
                   <Link
                     key={p.id}
-                    href={`/tienda/${p.store_slug}?producto=${p.id}`}
+                    href={`/tienda/${p.store_slug}?p=${p.id}`}
                     className="flex-shrink-0 w-[120px] rounded-2xl overflow-hidden transition-all active:scale-[.97]"
                     style={{ background: "var(--surface)", boxShadow: "0 1px 8px rgba(20,19,15,.06), 0 0 0 1px var(--line)" }}
                   >
