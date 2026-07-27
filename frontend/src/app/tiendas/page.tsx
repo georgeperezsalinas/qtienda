@@ -8,6 +8,7 @@ import { useAuthStore } from "@/store/authStore";
 import { getOpenStatus } from "@/lib/storeHours";
 import { trackPageView } from "@/lib/siteAnalytics";
 import { formatPrice } from "@/lib/utils";
+import MallInstallLink from "@/components/ui/MallInstallLink";
 
 interface StoreCard {
   slug: string;
@@ -288,6 +289,7 @@ export default function TiendasPage() {
             <p className="text-xs mt-0.5 text-white/85">
               Un solo lugar para conocer todas las tiendas y sus productos.
             </p>
+            <MallInstallLink />
           </div>
         </div>
 

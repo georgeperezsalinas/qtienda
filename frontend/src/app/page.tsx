@@ -4,7 +4,7 @@
 import Link from "next/link";
 import {
   ArrowRight, ChevronRight, Package, Store, Share2, Wallet,
-  MessageCircle, Percent, Truck,
+  MessageCircle, Percent, Truck, ShoppingBag,
 } from "lucide-react";
 import Logo from "@/components/ui/Logo";
 import HomeInstallBanner from "@/components/ui/HomeInstallBanner";
@@ -250,6 +250,21 @@ export default function LandingPage() {
             Un link tuyo, productos con foto y un WhatsApp donde caen los pedidos. Cobras a tu
             manera — tarjeta, Yape, contra entrega. Sin comisiones.
           </p>
+
+          <Link
+            href="/tiendas"
+            className="inline-flex items-center gap-1.5 mb-7 animate-fade-up delay-100 transition-opacity hover:opacity-80"
+            style={{
+              color: "var(--accent)",
+              fontSize: 15,
+              fontWeight: 700,
+            }}
+          >
+            <ShoppingBag size={15} />
+            E ingresa gratis a Mall Qtienda
+            <ArrowRight size={14} />
+          </Link>
+
           <div className="flex flex-col sm:flex-row gap-3 animate-fade-up delay-150">
             <Link
               href="/auth/register"

@@ -74,9 +74,11 @@ export default function PWARegister() {
     if (dismissed) return;
 
     // Páginas con su propio banner de instalación (no duplicar aquí):
-    // /tienda/* (StorePage) y "/" (landing, banner integrado y más visible)
+    // /tienda/* (StorePage), "/" (landing) y /tiendas (Mall, con su propio manifest/icono)
     const hasOwnBanner = () =>
-      window.location.pathname.startsWith("/tienda/") || window.location.pathname === "/";
+      window.location.pathname.startsWith("/tienda/") ||
+      window.location.pathname === "/" ||
+      window.location.pathname === "/tiendas";
 
     // Android / Chrome: capturar evento de instalación
     const handler = (e: Event) => {
