@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Search, Store, ChevronRight, MapPin, ArrowLeft, Package, Clock, Tag, Sparkles, ShoppingBag } from "lucide-react";
+import { Search, Store, ChevronRight, ChevronLeft, MapPin, ArrowLeft, Package, Clock, Tag, Sparkles, ShoppingBag } from "lucide-react";
 import Logo from "@/components/ui/Logo";
 import { useAuthStore } from "@/store/authStore";
 import { getOpenStatus } from "@/lib/storeHours";
@@ -39,6 +39,67 @@ interface LatestProduct {
 type SortMode = "recent" | "az";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
+
+// Fila horizontal con flechas para avanzar/retroceder en desktop — en
+// celular ya se puede deslizar con el dedo, pero con mouse no hay forma
+// de saber que se puede scrollear ni de moverse sin ellas.
+function ScrollRow({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [canLeft, setCanLeft] = useState(false);
+  const [canRight, setCanRight] = useState(false);
+
+  function update() {
+    const el = ref.current;
+    if (!el) return;
+    setCanLeft(el.scrollLeft > 4);
+    setCanRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  }
+
+  useEffect(() => {
+    update();
+    const el = ref.current;
+    if (!el) return;
+    el.addEventListener("scroll", update);
+    window.addEventListener("resize", update);
+    return () => {
+      el.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [children]);
+
+  function scroll(dir: number) {
+    ref.current?.scrollBy({ left: dir * 280, behavior: "smooth" });
+  }
+
+  return (
+    <div className="relative">
+      <div ref={ref} className="flex gap-2.5 overflow-x-auto scrollbar-hide pb-1 -mx-4 px-4 lg:mx-0 lg:px-0">
+        {children}
+      </div>
+      {canLeft && (
+        <button
+          onClick={() => scroll(-1)}
+          aria-label="Anterior"
+          className="hidden md:flex absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full items-center justify-center z-10"
+          style={{ background: "var(--surface)", boxShadow: "0 2px 10px rgba(20,19,15,.18)", border: "1px solid var(--line)" }}
+        >
+          <ChevronLeft size={16} style={{ color: "var(--ink-2)" }} />
+        </button>
+      )}
+      {canRight && (
+        <button
+          onClick={() => scroll(1)}
+          aria-label="Siguiente"
+          className="hidden md:flex absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full items-center justify-center z-10"
+          style={{ background: "var(--surface)", boxShadow: "0 2px 10px rgba(20,19,15,.18)", border: "1px solid var(--line)" }}
+        >
+          <ChevronRight size={16} style={{ color: "var(--ink-2)" }} />
+        </button>
+      )}
+    </div>
+  );
+}
 
 export default function TiendasPage() {
   const { accessToken } = useAuthStore();
@@ -305,7 +366,7 @@ export default function TiendasPage() {
                 Recién publicado
               </p>
             </div>
-            <div className="flex gap-2.5 overflow-x-auto scrollbar-hide pb-1 -mx-4 px-4 lg:mx-0 lg:px-0">
+            <ScrollRow>
               {latestProducts.map((p) => {
                 const color = p.primary_color ?? "#C5613B";
                 return (
@@ -336,7 +397,7 @@ export default function TiendasPage() {
                   </Link>
                 );
               })}
-            </div>
+            </ScrollRow>
           </div>
         )}
 
@@ -432,7 +493,7 @@ export default function TiendasPage() {
                 Destacadas
               </p>
             </div>
-            <div className="flex gap-2.5 overflow-x-auto scrollbar-hide pb-1 -mx-4 px-4 lg:mx-0 lg:px-0">
+            <ScrollRow>
               {featured.map((s) => {
                 const color = s.primary_color ?? "#C5613B";
                 return (
@@ -463,7 +524,7 @@ export default function TiendasPage() {
                   </Link>
                 );
               })}
-            </div>
+            </ScrollRow>
           </div>
         )}
 
