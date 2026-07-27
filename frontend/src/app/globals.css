@@ -74,6 +74,38 @@
   --shadow-float: 0 12px 40px rgba(20,19,15,0.12);
 }
 
+/* ─── Temas de vitrina (store.theme) ───
+   Solo redefinen neutros (fondo/superficie/texto/líneas); el acento
+   (--accent, --accent-soft, --accent-ink) sigue viniendo del primary_color
+   de la tienda, aplicado inline por StorePage — nunca se toca aquí.
+   Se activan con data-theme en el contenedor raíz de StorePage. */
+[data-theme="elegante"] {
+  --bg:        #1A1712;
+  --surface:   #24201A;
+  --surface-2: #2C261D;
+  --tint:      #2C261D;
+  --ink:       #F3ECDD;
+  --ink-2:     #C9BCA2;
+  --ink-3:     #A89A82;
+  --ink-4:     #71654f;
+  --ink-5:     #574d3b;
+  --line:      #3A3226;
+  --line-2:    #463c2c;
+}
+[data-theme="vibrante"] {
+  --bg:        #FFF6F0;
+  --surface:   #FFFFFF;
+  --surface-2: #FFEAE0;
+  --tint:      #FFEAE0;
+  --ink:       #3A1F16;
+  --ink-2:     #6b4433;
+  --ink-3:     #B98A75;
+  --ink-4:     #d0ac99;
+  --ink-5:     #e6cfc2;
+  --line:      #FFD9C7;
+  --line-2:    #FFC7AC;
+}
+
 /* ─── Base ─── */
 @layer base {
   *, *::before, *::after {

@@ -123,6 +123,7 @@ async def my_store(
         "whatsapp": store.whatsapp,
         "status": store.status,
         "primary_color": store.primary_color,
+        "theme": store.theme,
         "city": store.city,
         "country": store.country,
         "meta_title": store.meta_title,

@@ -40,6 +40,7 @@ interface StoreData {
   country?:      string;
   categories?:   { id: string; name: string; icon?: string }[];
   whatsapp?:     string;
+  theme?:        "clasico" | "elegante" | "vibrante";
   meta_title?:   string;
   settings?: {
     welcome_discount_enabled?: boolean;
@@ -477,7 +478,7 @@ export default function StorePage({ store, initialProducts }: Props) {
   const isFiltering      = !!search || !!activeCategory || showFavorites;
 
   return (
-    <div className="min-h-dvh" style={{ background: "var(--bg)" }}>
+    <div className="min-h-dvh" data-theme={store.theme || "clasico"} style={{ background: "var(--bg)" }}>
 
       {/* Franja de marca (color del vendedor) */}
       <div

@@ -19,6 +19,7 @@ interface StoreData {
   banner_url?: string;
   banner_link?: string;
   city?: string;
+  theme?: "clasico" | "elegante" | "vibrante";
 }
 
 interface StaffMember {
@@ -34,6 +35,14 @@ interface StaffMember {
 interface CategoryForm { name: string; icon: string }
 
 const COLORS = ["#6366f1", "#ec4899", "#f97316", "#10b981", "#3b82f6", "#8b5cf6", "#ef4444", "#14b8a6"];
+
+// Temas de vitrina: cambian layout/neutros de la tienda pública. El color de
+// marca (primary_color) es independiente y se aplica dentro de cualquier tema.
+const THEMES: { value: "clasico" | "elegante" | "vibrante"; label: string; bg: string; text: string }[] = [
+  { value: "clasico", label: "Clásico", bg: "#FCFBF7", text: "#14130F" },
+  { value: "elegante", label: "Elegante", bg: "#1A1712", text: "#F3ECDD" },
+  { value: "vibrante", label: "Vibrante", bg: "#FFFFFF", text: "#3A1F16" },
+];
 
 // País de la tienda: define los campos de dirección y documento en el checkout
 // (Perú usa DNI + departamento/provincia/distrito; el resto, campos genéricos)
@@ -136,7 +145,7 @@ export default function ConfiguracionPage() {
   const [info, setInfo] = useState({
     name: "", description: "", whatsapp: "",
     primary_color: "#6366f1", logo_url: "", banner_url: "", banner_link: "", city: "",
-    country: "PE",
+    country: "PE", theme: "clasico" as "clasico" | "elegante" | "vibrante",
   });
 
   const [settings, setSettings] = useState({
@@ -181,6 +190,7 @@ export default function ConfiguracionPage() {
           banner_link: storeData.banner_link || "",
           city: storeData.city || "",
           country: storeData.country || "PE",
+          theme: storeData.theme || "clasico",
         });
         setPlanSlug(storeData.plan_slug || "free");
         setBanners(
@@ -260,6 +270,7 @@ export default function ConfiguracionPage() {
         description: info.description || undefined,
         whatsapp: info.whatsapp || undefined,
         primary_color: info.primary_color,
+        theme: info.theme,
         logo_url: info.logo_url || undefined,
         city: info.city || undefined,
         country: info.country || undefined,
@@ -581,6 +592,46 @@ export default function ConfiguracionPage() {
                     style={{ background: c }}
                   />
                 ))}
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">
+                Tema de tu vitrina
+              </label>
+              <p className="text-[11px] text-[var(--ink-4)] mb-2">
+                Cambia la disposición y los neutros de tu tienda pública. Tu color de marca se mantiene en cualquier tema.
+              </p>
+              <div className="grid grid-cols-3 gap-2.5">
+                {THEMES.map((th) => {
+                  const active = info.theme === th.value;
+                  return (
+                    <button
+                      key={th.value}
+                      type="button"
+                      onClick={() => setInfo({ ...info, theme: th.value })}
+                      className="rounded-2xl overflow-hidden text-left transition-all"
+                      style={{
+                        border: `2px solid ${active ? "var(--accent)" : "var(--line-2)"}`,
+                        boxShadow: active ? "0 0 0 3px var(--accent-soft)" : "none",
+                      }}
+                    >
+                      <div style={{ height: 44, background: th.bg, padding: 8, display: "flex", flexDirection: "column", gap: 4 }}>
+                        <div style={{ width: "40%", height: 5, borderRadius: 3, background: info.primary_color }} />
+                        <div style={{ display: "flex", gap: 3, flex: 1 }}>
+                          <div style={{ flex: 1, borderRadius: 3, background: `${th.text}14` }} />
+                          <div style={{ flex: 1, borderRadius: 3, background: info.primary_color }} />
+                        </div>
+                      </div>
+                      <div
+                        className="text-[11px] font-bold px-2 py-1.5 flex items-center justify-between"
+                        style={{ background: "var(--surface)", color: "var(--ink)" }}
+                      >
+                        {th.label}
+                        {active && <span style={{ color: "var(--accent)" }}>✓</span>}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3 items-start">

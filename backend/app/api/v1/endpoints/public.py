@@ -178,6 +178,7 @@ async def get_store(request: Request, slug: str, db: AsyncSession = Depends(get_
         "store_hours": store.settings.store_hours if store.settings else None,
         "whatsapp": store.whatsapp,
         "primary_color": store.primary_color,
+        "theme": store.theme,
         "city": store.city,
         "country": store.country,
         "categories": [

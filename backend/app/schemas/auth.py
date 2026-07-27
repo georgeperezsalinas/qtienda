@@ -61,6 +61,7 @@ class StoreUpdate(BaseModel):
     banner_url: Optional[str] = None
     banner_link: Optional[str] = None
     primary_color: Optional[str] = None
+    theme: Optional[str] = None
     city: Optional[str] = None
     country: Optional[str] = None
     meta_title: Optional[str] = None
@@ -74,6 +75,15 @@ class StoreUpdate(BaseModel):
         v = v.strip().upper()
         if not re.match(r"^[A-Z]{2}$", v):
             raise ValueError("País inválido (código ISO de 2 letras)")
+        return v
+
+    @field_validator("theme")
+    @classmethod
+    def valid_theme(cls, v):
+        if v is None:
+            return v
+        if v not in ("clasico", "elegante", "vibrante"):
+            raise ValueError("Tema inválido")
         return v
 
     @field_validator("banner_link")

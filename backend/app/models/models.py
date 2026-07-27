@@ -112,6 +112,7 @@ class Store(Base):
         default="pending",
     )
     primary_color: Mapped[str]      = mapped_column(String(7), default="#6366f1")
+    theme: Mapped[str]              = mapped_column(String(20), default="clasico")
     city: Mapped[Optional[str]]     = mapped_column(String(80))
     country: Mapped[str]            = mapped_column(String(2), default="PE")
     meta_title: Mapped[Optional[str]] = mapped_column(String(120))
