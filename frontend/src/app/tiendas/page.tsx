@@ -9,6 +9,7 @@ import { getOpenStatus } from "@/lib/storeHours";
 import { trackPageView } from "@/lib/siteAnalytics";
 import { formatPrice } from "@/lib/utils";
 import MallInstallLink from "@/components/ui/MallInstallLink";
+import FiestasPatriasFloatingBadge from "@/components/ui/FiestasPatriasFloatingBadge";
 
 interface StoreCard {
   slug: string;
@@ -143,6 +144,8 @@ export default function TiendasPage() {
         className="h-1"
         style={{ background: "linear-gradient(90deg, var(--accent), var(--accent-soft))" }}
       />
+
+      <FiestasPatriasFloatingBadge />
 
       {/* ── Header ── */}
       <header

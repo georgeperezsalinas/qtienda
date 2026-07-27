@@ -24,6 +24,7 @@ import { trackStoreEvent } from "@/lib/storeAnalytics";
 import { apiClient } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
 import { getOpenStatus } from "@/lib/storeHours";
+import FiestasPatriasFloatingBadge from "@/components/ui/FiestasPatriasFloatingBadge";
 
 interface StoreData {
   slug:          string;
@@ -36,6 +37,7 @@ interface StoreData {
   store_hours?:  Record<string, { open: string; close: string }> | null;
   primary_color: string;
   city?:         string;
+  country?:      string;
   categories?:   { id: string; name: string; icon?: string }[];
   whatsapp?:     string;
   meta_title?:   string;
@@ -483,6 +485,8 @@ export default function StorePage({ store, initialProducts }: Props) {
         className="h-1"
         style={{ background: `linear-gradient(90deg, ${color}, ${color}66)` }}
       />
+
+      <FiestasPatriasFloatingBadge country={store.country} />
 
       {/* Barra de dueño: así el vendedor no se pierde al ver su tienda pública */}
       {mounted && isOwner && (
