@@ -42,13 +42,13 @@ interface OrderDetail extends Order {
 }
 
 /* ── Status data ── */
-const STATUS_INFO: Record<string, { label: string; bg: string; text: string }> = {
-  pending:    { label: "Pendiente",  bg: "#FEF9C3", text: "#92400E" },
-  confirmed:  { label: "Confirmado", bg: "#DBEAFE", text: "#1E40AF" },
-  preparing:  { label: "Preparando", bg: "#EDE9FE", text: "#5B21B6" },
-  on_the_way: { label: "En camino",  bg: "#D1FAE5", text: "#065F46" },
-  delivered:  { label: "Entregado",  bg: "#D1FAE5", text: "#065F46" },
-  cancelled:  { label: "Cancelado",  bg: "#FEE2E2", text: "#991B1B" },
+const STATUS_INFO: Record<string, { label: string; cls: string }> = {
+  pending:    { label: "Pendiente",  cls: "badge-warn" },
+  confirmed:  { label: "Confirmado", cls: "badge-mute" },
+  preparing:  { label: "Preparando", cls: "badge-mute" },
+  on_the_way: { label: "En camino",  cls: "badge-mute" },
+  delivered:  { label: "Entregado",  cls: "badge-success" },
+  cancelled:  { label: "Cancelado",  cls: "badge-danger" },
 };
 
 const STEPS = [
@@ -100,15 +100,8 @@ function getFirstName(user: { full_name: string; email: string }): string {
 
 /* ── Status badge ── */
 function StatusBadge({ status }: { status: string }) {
-  const s = STATUS_INFO[status] ?? { label: status, bg: "#F3F4F6", text: "#374151" };
-  return (
-    <span
-      className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold flex-shrink-0"
-      style={{ background: s.bg, color: s.text }}
-    >
-      {s.label}
-    </span>
-  );
+  const s = STATUS_INFO[status] ?? { label: status, cls: "badge-mute" };
+  return <span className={`badge ${s.cls} flex-shrink-0`}>{s.label}</span>;
 }
 
 /* ── Status stepper ── */
@@ -116,10 +109,7 @@ function StatusStepper({ status }: { status: string }) {
   if (status === "cancelled") {
     return (
       <div className="flex justify-center py-2">
-        <span
-          className="text-xs font-semibold px-3 py-1.5 rounded-full"
-          style={{ background: "#FEE2E2", color: "#991B1B" }}
-        >
+        <span className="badge badge-danger">
           Este pedido fue cancelado
         </span>
       </div>
@@ -140,8 +130,8 @@ function StatusStepper({ status }: { status: string }) {
               <div
                 className="w-3.5 h-3.5 rounded-full transition-all"
                 style={{
-                  background: done ? "#10B981" : active ? "var(--brand-600)" : "#E2E8F0",
-                  boxShadow: active ? "0 0 0 3px rgba(37,99,235,.18)" : "none",
+                  background: done ? "var(--success)" : active ? "var(--accent)" : "var(--line-2)",
+                  boxShadow: active ? "0 0 0 3px var(--accent-soft)" : "none",
                 }}
               />
               <span
@@ -159,7 +149,7 @@ function StatusStepper({ status }: { status: string }) {
             {!isLast && (
               <div
                 className="flex-1 h-0.5 mt-[7px]"
-                style={{ background: done ? "#10B981" : "#E2E8F0" }}
+                style={{ background: done ? "var(--success)" : "var(--line-2)" }}
               />
             )}
           </Fragment>
@@ -174,7 +164,7 @@ function OrderCard({ order }: { order: Order }) {
   const [expanded,      setExpanded]      = useState(false);
   const [detail,        setDetail]        = useState<OrderDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
-  const color = order.store_color || "#6366f1";
+  const color = order.store_color || "var(--accent)";
 
   async function handleExpand() {
     if (!expanded && !detail) {
@@ -195,8 +185,8 @@ function OrderCard({ order }: { order: Order }) {
     <div
       className="rounded-2xl overflow-hidden"
       style={{
-        background: "var(--surface-0)",
-        boxShadow: "0 1px 8px rgba(15,23,42,.06), 0 0 0 1px rgba(15,23,42,.05)",
+        background: "var(--surface)",
+        boxShadow: "var(--shadow-sm), 0 0 0 1px var(--line)",
       }}
     >
       <button onClick={handleExpand} className="w-full flex items-center gap-3 p-3.5 text-left">
@@ -247,31 +237,31 @@ function OrderCard({ order }: { order: Order }) {
             transition={{ duration: 0.22, ease: "easeInOut" }}
             style={{ overflow: "hidden" }}
           >
-            <div className="px-3.5 pb-4 border-t" style={{ borderColor: "#F1F5F9" }}>
+            <div className="px-3.5 pb-4 border-t" style={{ borderColor: "var(--line)" }}>
               <StatusStepper status={order.status} />
 
               {loadingDetail ? (
                 <div className="py-5 flex justify-center">
                   <svg className="animate-spin" width="24" height="24" viewBox="0 0 24 24"
-                    fill="none" stroke="var(--brand-600)" strokeWidth="2.5">
+                    fill="none" stroke="var(--accent)" strokeWidth="2.5">
                     <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
                   </svg>
                 </div>
               ) : detail ? (
                 <>
-                  <div className="rounded-xl overflow-hidden mb-3" style={{ border: "1px solid #F1F5F9" }}>
+                  <div className="rounded-xl overflow-hidden mb-3" style={{ border: "1px solid var(--line)" }}>
                     {detail.items.map((item, i) => (
                       <div
                         key={i}
                         className="flex items-center gap-2.5 px-3 py-2.5"
-                        style={{ borderBottom: i < detail.items.length - 1 ? "1px solid #F8FAFC" : "none" }}
+                        style={{ borderBottom: i < detail.items.length - 1 ? "1px solid var(--line)" : "none" }}
                       >
                         {item.image_url ? (
                           <img src={item.image_url} alt={item.product_name}
                             className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
                         ) : (
                           <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                            style={{ background: "#F1F5F9" }}>
+                            style={{ background: "var(--surface-2)" }}>
                             <Package size={16} style={{ color: "var(--ink-4)" }} />
                           </div>
                         )}
@@ -290,7 +280,7 @@ function OrderCard({ order }: { order: Order }) {
                     ))}
                   </div>
 
-                  <div className="rounded-xl p-3 text-xs space-y-1.5 mb-3" style={{ background: "#F8FAFC" }}>
+                  <div className="rounded-xl p-3 text-xs space-y-1.5 mb-3" style={{ background: "var(--bg)" }}>
                     <div className="flex justify-between" style={{ color: "var(--ink-3)" }}>
                       <span>Subtotal</span><span>{formatPrice(detail.subtotal_cents)}</span>
                     </div>
@@ -298,7 +288,7 @@ function OrderCard({ order }: { order: Order }) {
                       <span>Delivery</span><span>{formatPrice(detail.delivery_cents)}</span>
                     </div>
                     <div className="flex justify-between font-bold pt-1.5 border-t"
-                      style={{ color: "var(--ink)", borderColor: "#E2E8F0" }}>
+                      style={{ color: "var(--ink)", borderColor: "var(--line-2)" }}>
                       <span>Total</span>
                       <span style={{ color }}>{formatPrice(detail.total_cents)}</span>
                     </div>
@@ -337,7 +327,7 @@ function ProfileHero({
   return (
     <div
       className="rounded-2xl p-5 mb-4"
-      style={{ background: "linear-gradient(135deg, var(--brand-600), #7C3AED)" }}
+      style={{ background: "linear-gradient(135deg, var(--ink), var(--accent-ink))" }}
     >
       <div className="flex items-center gap-4">
         <div
@@ -403,7 +393,7 @@ function MyStores({ orders }: { orders: Order[] }) {
         <h2 className="font-display font-bold text-sm" style={{ color: "var(--ink)" }}>
           Mis tiendas
         </h2>
-        <Link href="/tiendas" className="text-xs font-semibold" style={{ color: "var(--brand-600)" }}>
+        <Link href="/tiendas" className="text-xs font-semibold" style={{ color: "var(--accent)" }}>
           Descubrir más →
         </Link>
       </div>
@@ -412,7 +402,7 @@ function MyStores({ orders }: { orders: Order[] }) {
         style={{ scrollbarWidth: "none" }}
       >
         {stores.map((o) => {
-          const color = o.store_color || "#6366f1";
+          const color = o.store_color || "var(--accent)";
           return (
             <Link
               key={o.store_slug}
@@ -450,7 +440,7 @@ function MyStores({ orders }: { orders: Order[] }) {
         >
           <div
             className="w-14 h-14 rounded-[16px] flex items-center justify-center"
-            style={{ background: "#F1F5F9" }}
+            style={{ background: "var(--surface-2)" }}
           >
             <Compass size={22} style={{ color: "var(--ink-3)" }} />
           </div>
@@ -471,20 +461,20 @@ function DiscoverBanner({ subtle = false }: { subtle?: boolean }) {
         href="/tiendas"
         className="flex items-center gap-3 p-4 rounded-2xl mt-4 transition-all active:scale-[.98]"
         style={{
-          background: "var(--brand-50)",
-          border: "1px solid var(--brand-100, #DBEAFE)",
+          background: "var(--accent-soft)",
+          border: "1px solid var(--accent-soft)",
         }}
       >
-        <Compass size={20} style={{ color: "var(--brand-600)" }} />
+        <Compass size={20} style={{ color: "var(--accent)" }} />
         <div className="flex-1">
-          <p className="font-display font-bold text-sm" style={{ color: "var(--brand-700)" }}>
+          <p className="font-display font-bold text-sm" style={{ color: "var(--accent-ink)" }}>
             Descubrir nuevas tiendas
           </p>
-          <p className="text-xs mt-0.5" style={{ color: "var(--brand-500, #3B82F6)" }}>
+          <p className="text-xs mt-0.5" style={{ color: "var(--accent-ink)" }}>
             Explora más tiendas cerca de ti
           </p>
         </div>
-        <ArrowRight size={16} style={{ color: "var(--brand-400)" }} />
+        <ArrowRight size={16} style={{ color: "var(--accent)" }} />
       </Link>
     );
   }
@@ -494,8 +484,8 @@ function DiscoverBanner({ subtle = false }: { subtle?: boolean }) {
       href="/tiendas"
       className="flex items-center gap-4 p-4 rounded-2xl transition-all active:scale-[.98]"
       style={{
-        background: "linear-gradient(135deg, var(--brand-600), #7C3AED)",
-        boxShadow: "0 8px 24px rgba(37,99,235,.28)",
+        background: "linear-gradient(135deg, var(--ink), var(--accent-ink))",
+        boxShadow: "var(--shadow-md)",
       }}
     >
       <div
@@ -543,16 +533,16 @@ function ManualTrack() {
     <div
       className="rounded-2xl p-5 mt-4"
       style={{
-        background: "var(--surface-0)",
-        boxShadow: "0 1px 8px rgba(15,23,42,.06), 0 0 0 1px rgba(15,23,42,.05)",
+        background: "var(--surface)",
+        boxShadow: "var(--shadow-sm), 0 0 0 1px var(--line)",
       }}
     >
       <div className="flex items-center gap-3 mb-4">
         <div
           className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ background: "var(--brand-50)" }}
+          style={{ background: "var(--accent-soft)" }}
         >
-          <Search size={16} style={{ color: "var(--brand-600)" }} />
+          <Search size={16} style={{ color: "var(--accent)" }} />
         </div>
         <div>
           <p className="font-display font-bold text-sm" style={{ color: "var(--ink)" }}>
@@ -585,7 +575,7 @@ function ManualTrack() {
 
       {result && (
         <div className="mt-4 rounded-xl p-4"
-          style={{ background: "var(--surface-2)", border: "1px solid #F1F5F9" }}>
+          style={{ background: "var(--surface-2)", border: "1px solid var(--line)" }}>
           <div className="flex items-center justify-between mb-2">
             <span className="font-bold text-sm" style={{ color: "var(--ink)" }}>#{result.order_number}</span>
             <StatusBadge status={result.status} />
@@ -630,11 +620,11 @@ export default function MisPedidosPage() {
       <header
         className="sticky top-0 z-10"
         style={{
-          background: "rgba(255,255,255,0.97)",
+          background: "color-mix(in srgb, var(--surface) 97%, transparent)",
           backdropFilter: "blur(20px)",
           WebkitBackdropFilter: "blur(20px)",
-          borderBottom: "1px solid #F1F5F9",
-          boxShadow: "0 1px 12px rgba(15,23,42,.05)",
+          borderBottom: "1px solid var(--line)",
+          boxShadow: "var(--shadow-sm)",
         }}
       >
         <div
@@ -648,7 +638,7 @@ export default function MisPedidosPage() {
             {isLoggedIn && orders.length > 0 && (
               <span
                 className="px-2.5 py-1 rounded-full text-xs font-bold"
-                style={{ background: "var(--brand-50)", color: "var(--brand-700)" }}
+                style={{ background: "var(--accent-soft)", color: "var(--accent-ink)" }}
               >
                 {orders.length} pedido{orders.length !== 1 ? "s" : ""}
               </span>
@@ -667,7 +657,7 @@ export default function MisPedidosPage() {
                   onClick={() => setFilter(f.key)}
                   className="flex-shrink-0 text-xs font-semibold px-3.5 py-1.5 rounded-full transition-all"
                   style={{
-                    background: filter === f.key ? "var(--brand-600)" : "var(--surface-1)",
+                    background: filter === f.key ? "var(--accent)" : "var(--bg)",
                     color:      filter === f.key ? "#fff" : "var(--ink-3)",
                   }}
                 >
@@ -688,15 +678,15 @@ export default function MisPedidosPage() {
             <div
               className="rounded-2xl p-6 text-center mb-4"
               style={{
-                background: "var(--surface-0)",
-                boxShadow: "0 1px 8px rgba(15,23,42,.06), 0 0 0 1px rgba(15,23,42,.05)",
+                background: "var(--surface)",
+                boxShadow: "var(--shadow-sm), 0 0 0 1px var(--line)",
               }}
             >
               <div
                 className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
-                style={{ background: "var(--brand-50)" }}
+                style={{ background: "var(--accent-soft)" }}
               >
-                <ShoppingBag size={28} style={{ color: "var(--brand-600)" }} />
+                <ShoppingBag size={28} style={{ color: "var(--accent)" }} />
               </div>
               <h2 className="font-display font-bold text-lg mb-1.5" style={{ color: "var(--ink)" }}>
                 Inicia sesión para ver tus pedidos
@@ -737,13 +727,13 @@ export default function MisPedidosPage() {
                 <div
                   className="rounded-2xl p-8 text-center mb-4"
                   style={{
-                    background: "var(--surface-0)",
-                    boxShadow: "0 1px 8px rgba(15,23,42,.06), 0 0 0 1px rgba(15,23,42,.05)",
+                    background: "var(--surface)",
+                    boxShadow: "var(--shadow-sm), 0 0 0 1px var(--line)",
                   }}
                 >
                   <div
                     className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
-                    style={{ background: "#F1F5F9" }}
+                    style={{ background: "var(--surface-2)" }}
                   >
                     <Package size={28} style={{ color: "var(--ink-4)" }} />
                   </div>
