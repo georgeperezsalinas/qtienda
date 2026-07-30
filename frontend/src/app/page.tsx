@@ -84,8 +84,8 @@ async function HeroSocialProof() {
             {countryLabel}
           </p>          
         )}
-      </div>
-              <Link
+        <p>
+        <Link
           href="/tiendas"
           className="flex-shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-full transition-all hover:-translate-y-0.5"
           style={{ background: "var(--accent)", color: "#fff" }}
@@ -93,7 +93,11 @@ async function HeroSocialProof() {
           Explorar Mall qtienda
           <ArrowRight size={14} />
         </Link>
+        </p>
+      </div>
+
     </div>
+    
   );
 }
 
