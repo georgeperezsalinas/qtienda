@@ -5,6 +5,10 @@ import Link from "next/link";
 import {
   ArrowRight, ChevronRight, Package, Store, Share2, Wallet,
   MessageCircle, Percent, Truck, ShoppingBag,
+  Flashlight,
+  DollarSign,
+  WholeWord,
+  Heart,
 } from "lucide-react";
 import Logo from "@/components/ui/Logo";
 import HomeInstallBanner from "@/components/ui/HomeInstallBanner";
@@ -74,28 +78,37 @@ async function HeroSocialProof() {
         ))}
       </div>
       <div>
-        <p className="text-sm font-medium">Tiendas reales ya venden con qtienda</p>
+        <p className="text-sm font-medium">Compra directamente a emprendedores.</p>
         {countryLabel && (
           <p className="text-xs" style={{ color: "var(--ink-3)" }}>
             {countryLabel}
-          </p>
+          </p>          
         )}
       </div>
+              <Link
+          href="/tiendas"
+          className="flex-shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-full transition-all hover:-translate-y-0.5"
+          style={{ background: "var(--accent)", color: "#fff" }}
+        >
+          Explorar Mall qtienda
+          <ArrowRight size={14} />
+        </Link>
     </div>
   );
 }
 
 async function StoresSection() {
   const stores = await getStores();
-  if (!stores.length) return null;
+  if (stores.length) return null;
   return (
     <section className="px-5 md:px-10 py-14 max-w-6xl mx-auto w-full">
       <div className="flex items-end justify-between mb-6 gap-4">
         <div>
           <p className="eyebrow">Tiendas activas</p>
+          {/* Comentado 
           <p className="text-xl font-medium mt-1" style={{ letterSpacing: "-0.014em" }}>
             <span className="mono num">{stores.length.toLocaleString()}</span> {stores.length === 1 ? "tienda" : "tiendas"} en qtienda
-          </p>
+          </p> */}
         </div>
         <Link
           href="/tiendas"
@@ -106,53 +119,19 @@ async function StoresSection() {
           <ArrowRight size={14} />
         </Link>
       </div>
-      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
-        {stores.map((s) => (
-          <Link
-            key={s.slug}
-            href={`/tienda/${s.slug}`}
-            className="card p-4 flex flex-col items-center text-center gap-3 transition-all hover:-translate-y-0.5"
-            style={{ boxShadow: "var(--shadow-sm)" }}
-          >
-            {s.logo_url ? (
-              <img src={s.logo_url} alt={s.name} style={{ width: 48, height: 48, borderRadius: 10, objectFit: "cover" }} />
-            ) : (
-              <div
-                className="placeholder flex items-center justify-center"
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 10,
-                  fontFamily: "var(--font-mono)",
-                  fontSize: 12,
-                  color: "var(--ink-3)",
-                }}
-              >
-                {s.name.charAt(0).toUpperCase()}
-              </div>
-            )}
-            <div>
-              <p className="text-xs font-medium truncate" style={{ color: "var(--ink)", maxWidth: 100 }}>
-                {s.name}
-              </p>
-              {s.city && (
-                <p className="text-[10px] mt-0.5" style={{ color: "var(--ink-3)" }}>
-                  {s.city}
-                </p>
-              )}
-            </div>
-          </Link>
-        ))}
-      </div>
+
     </section>
   );
 }
 
 const STEPS = [
-  [Store, "Crea tu tienda", "Nombre, logo y color. Sin tarjeta, sin pasos técnicos — 2 minutos."],
-  [Share2, "Sube tus productos y comparte", "Foto, precio y descripción. Tu link qtienda.shop/tu-nombre queda listo para difundir."],
-  [MessageCircle, "Recibe pedidos por WhatsApp", "Cada venta cae a tu chat. Cobras por Yape, Plin, transferencia o efectivo."],
+  [Store, "Crea tu tienda en 2 minutos", "Nombre, logo y color. Sin tarjeta, sin pasos técnicos — 2 minutos."],
+  [Share2, "Publica tus productos y comparte", "Foto, precio y descripción. Tu link qtienda.shop/tu-nombre queda listo para difundir."],
+  [MessageCircle, "Empieza a vender por WhatsApp", "Cada venta cae a tu chat. Cobras por Yape, Plin, transferencia o efectivo."],
+  [Heart, "Aparece en el Mall QTienda", "Gana visibilidad adicional para atraer nuevos clientes."],
+
 ] as const;
+
 
 const FEATURES = [
   [Share2, "Link propio", "qtienda.shop/tu-nombre, listo al crear tu cuenta."],
@@ -210,7 +189,7 @@ export default function LandingPage() {
               boxShadow: "0 4px 12px rgba(197,97,59,.3)",
             }}
           >
-            Crear tienda
+            Creaa tu tienda gratis
           </Link>
         </div>
       </header>
@@ -247,8 +226,8 @@ export default function LandingPage() {
               marginBottom: 30,
             }}
           >
-            Un link tuyo, productos con foto y un WhatsApp donde caen los pedidos. Cobras a tu
-            manera — tarjeta, Yape, contra entrega. Sin comisiones.
+            Crea tu tienda en línea en pocos minutos, directamente desde tu movil. 
+            No necesitas instalar programas, contratar desarrolladores ni tener experiencia técnica. QTienda se encarga de la parte tecnológica para que tú puedas concentrarte en lo más importante: hacer crecer tu negocio y vender más. <strong>Empieza a vender por Internet hoy mismo, sin comisiones.</strong>
           </p>
 
           <Link
@@ -276,7 +255,7 @@ export default function LandingPage() {
                 boxShadow: "0 6px 18px rgba(197,97,59,.35)",
               }}
             >
-              Crear tienda gratis
+              Crea tu tienda gratis
               <ArrowRight size={16} />
             </Link>
             <Link
@@ -284,7 +263,7 @@ export default function LandingPage() {
               className="btn-secondary"
               style={{ padding: "14px 22px", fontSize: 15 }}
             >
-              Ya tengo cuenta
+              Ya tengo cuenta [Entrar]
               <ChevronRight size={16} />
             </Link>
           </div>
@@ -340,7 +319,7 @@ export default function LandingPage() {
 
       {/* ── Cómo funciona ── */}
       <section className="px-5 md:px-10 max-w-6xl mx-auto w-full pb-14">
-        <p className="eyebrow mb-5">Cómo funciona</p>
+        <p className="eyebrow mb-5">Cómo funciona y Porqué Qtienda</p>
         <div className="grid md:grid-cols-3 gap-4">
           {STEPS.map(([Icon, t, d], i) => (
             <div key={t} className="card p-6" style={{ borderRadius: 20 }}>
@@ -359,6 +338,7 @@ export default function LandingPage() {
           ))}
         </div>
       </section>
+
 
       {/* ── Demo strip ── */}
       <section className="px-5 md:px-10 max-w-6xl mx-auto w-full pb-14">
@@ -468,7 +448,7 @@ export default function LandingPage() {
               boxShadow: "0 6px 20px rgba(0,0,0,.3)",
             }}
           >
-            Crear tienda gratis
+            Crea tu tienda gratis
             <ArrowRight size={16} />
           </Link>
         </div>
