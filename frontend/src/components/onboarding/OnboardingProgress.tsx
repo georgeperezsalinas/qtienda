@@ -24,6 +24,7 @@ interface Step {
   label: string;
   sub: string;
   state: StepState;
+  tip?: string;
   href?: string;
   onClick?: () => void;
 }
@@ -31,6 +32,7 @@ interface Step {
 export default function OnboardingProgress({ store }: Props) {
   const [progress, setProgress] = useState<Progress | null>(null);
   const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState<number | null>(null);
 
   useEffect(() => {
     apiClient
@@ -65,18 +67,21 @@ export default function OnboardingProgress({ store }: Props) {
       label: "Logo de tu tienda",
       sub: progress.logo_added ? "Listo" : "Sube tu logo para verte más profesional",
       state: progress.logo_added ? "done" : "pending",
+      tip: "Ve a Configuración → Datos de tienda y sube una imagen cuadrada (tu logo o una foto de perfil). Se ve en tu tienda pública y en el link que compartes.",
       href: "/dashboard/configuracion",
     },
     {
       label: `Productos (${progress.products_count} de ${progress.products_target})`,
       sub: productsDone ? "¡Completo!" : "Una foto y un precio bastan para empezar",
       state: productsDone ? "done" : productsPartial ? "partial" : "pending",
+      tip: "Entra a Productos → Nuevo producto. Solo necesitas una foto, un nombre y un precio — puedes completar el resto (descripción, stock, categoría) después.",
       href: "/dashboard/productos",
     },
     {
       label: "Compartir tu tienda",
       sub: `qtienda.shop/${store.slug}`,
       state: progress.shared ? "done" : "pending",
+      tip: "Toca \"Compartir\" y elige WhatsApp, Instagram o copia el link. Publícalo en tu bio, estados o en el grupo donde vendes.",
       onClick: progress.shared ? undefined : shareStore,
     },
   ];
@@ -104,10 +109,11 @@ export default function OnboardingProgress({ store }: Props) {
 
       {steps.map((step, i) => {
         const icon = step.state === "done" ? "🟢" : step.state === "partial" ? "🟡" : "⚪";
-        const content = (
+        const isExpanded = expanded === i;
+        const row = (
           <div
             className="flex items-center gap-3"
-            style={{ padding: "10px 0", borderTop: i === 0 ? "0" : "1px solid var(--line)" }}
+            style={{ padding: "10px 0" }}
           >
             <span style={{ fontSize: 15, lineHeight: 1, flexShrink: 0 }}>{icon}</span>
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -127,21 +133,39 @@ export default function OnboardingProgress({ store }: Props) {
             {step.state !== "done" && <ChevronRight size={15} style={{ color: "var(--ink-4)" }} />}
           </div>
         );
-        if (step.onClick) {
-          return (
-            <button key={i} onClick={step.onClick} className="w-full text-left">
-              {content}
-            </button>
-          );
-        }
-        if (step.href) {
-          return (
-            <Link key={i} href={step.href} className="block">
-              {content}
-            </Link>
-          );
-        }
-        return <div key={i}>{content}</div>;
+
+        return (
+          <div key={i} style={{ borderTop: i === 0 ? "0" : "1px solid var(--line)" }}>
+            {step.onClick ? (
+              <button onClick={step.onClick} className="w-full text-left">
+                {row}
+              </button>
+            ) : step.href ? (
+              <Link href={step.href} className="block">
+                {row}
+              </Link>
+            ) : (
+              row
+            )}
+
+            {step.state !== "done" && step.tip && (
+              <div style={{ padding: "0 0 10px 27px" }}>
+                <button
+                  onClick={() => setExpanded(isExpanded ? null : i)}
+                  className="text-[11px] font-semibold"
+                  style={{ color: "var(--accent)" }}
+                >
+                  {isExpanded ? "Ocultar" : "¿Cómo?"}
+                </button>
+                {isExpanded && (
+                  <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-2)", lineHeight: 1.5 }}>
+                    {step.tip}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        );
       })}
 
       <p className="text-xs mt-3" style={{ color: "var(--ink-3)" }}>

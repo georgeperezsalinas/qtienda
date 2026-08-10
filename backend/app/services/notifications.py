@@ -22,6 +22,7 @@ log = logging.getLogger(__name__)
 _ONCE_TYPES = {
     "store_created", "first_product", "products_5",
     "first_visit", "first_favorite", "first_order",
+    "no_products_warn", "no_products_final", "no_products_urgent",
 }
 
 
@@ -90,6 +91,26 @@ TEMPLATES: dict[str, NotifTemplate] = {
         title="Consejos para vender más",
         body="Llevas 30 días sin ventas. Revisa tus precios, tus fotos y comparte tu tienda en redes para impulsarla.",
         action_url="/dashboard",
+    ),
+    # Avisos escalonados de "sin productos" — solo advertencias, nunca suspenden
+    # la tienda automáticamente (la decisión de cerrarla queda en el equipo/admin).
+    "no_products_warn": NotifTemplate(
+        icon="📸",
+        title="Todavía no tienes productos",
+        body="Han pasado varios días desde que creaste tu tienda pero aún no subes ningún producto. Agrega el primero — solo necesitas una foto y un precio.",
+        action_url="/dashboard/productos",
+    ),
+    "no_products_final": NotifTemplate(
+        icon="⚠️",
+        title="Tu tienda sigue sin productos",
+        body="Ya llevas dos semanas sin publicar nada. Sin productos tu tienda no puede recibir pedidos — agrégalos ahora para no perder terreno.",
+        action_url="/dashboard/productos",
+    ),
+    "no_products_urgent": NotifTemplate(
+        icon="🚨",
+        title="Advertencia: tu tienda está en riesgo",
+        body="Llevas 30 días sin agregar productos. Las tiendas inactivas por mucho tiempo pueden ser suspendidas — publica al menos un producto para mantenerla activa.",
+        action_url="/dashboard/productos",
     ),
     "announcement": NotifTemplate(
         icon="✨",

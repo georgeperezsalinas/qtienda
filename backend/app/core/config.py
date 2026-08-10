@@ -57,6 +57,12 @@ class Settings(BaseSettings):
     STORE_NO_SALES_DAYS: int = 30       # sin pedidos en N dias (con productos) -> "consejos para vender"
     STORE_HEALTH_CHECK_HOURS: int = 6   # frecuencia del chequeo
 
+    # Avisos escalonados de tienda sin productos — solo advertencias, nunca
+    # suspenden la tienda automaticamente (decision manual del equipo/admin)
+    STORE_NO_PRODUCTS_WARN_DAYS: int = 7
+    STORE_NO_PRODUCTS_FINAL_DAYS: int = 14
+    STORE_NO_PRODUCTS_URGENT_DAYS: int = 30
+
     UPLOADS_DIR: str = "/tmp/qtienda-uploads"
     UPLOADS_BASE_URL: str = "http://localhost:8000/uploads"
 
