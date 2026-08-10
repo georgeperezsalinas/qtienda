@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   X, Minus, Plus, ShoppingBag, MessageCircle,
   CheckCircle2, ChevronRight, MapPin, User, Phone,
-  Mail, FileText, ArrowLeft, CreditCard, Landmark,
+  Mail, FileText, ArrowLeft, CreditCard, Landmark, AlertTriangle,
 } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
 import { useRecentPurchasesStore } from "@/store/recentPurchasesStore";
@@ -236,9 +236,11 @@ export default function CartDrawer({ open, onClose, store }: Props) {
       toast.error("Nombre y teléfono son requeridos");
       return false;
     }
+    // El DNI/documento es opcional — el backend lo acepta vacío. Si el
+    // comprador lo llena igual se valida el formato, para no guardar basura.
     if (isPE) {
-      if (!/^\d{8}$/.test(form.buyer_dni.trim())) {
-        toast.error("Ingresa tu DNI (8 dígitos)");
+      if (form.buyer_dni.trim() && !/^\d{8}$/.test(form.buyer_dni.trim())) {
+        toast.error("El DNI debe tener 8 dígitos");
         return false;
       }
       if (!form.buyer_department || !form.buyer_province.trim() || !form.buyer_district.trim()) {
@@ -246,10 +248,6 @@ export default function CartDrawer({ open, onClose, store }: Props) {
         return false;
       }
     } else {
-      if (form.buyer_dni.trim().length < 5) {
-        toast.error("Ingresa tu documento de identidad");
-        return false;
-      }
       if (!form.buyer_department.trim() || !form.buyer_province.trim()) {
         toast.error("Completa región/estado y ciudad");
         return false;
@@ -273,7 +271,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
       const result = await apiClient.post(`/public/store/${store.slug}/orders`, {
         buyer_name: form.buyer_name.trim(),
         buyer_phone: form.buyer_phone.trim(),
-        buyer_dni: form.buyer_dni.trim(),
+        buyer_dni: form.buyer_dni.trim() || undefined,
         buyer_email: form.buyer_email.trim() || undefined,
         buyer_department: form.buyer_department || undefined,
         buyer_province: form.buyer_province.trim() || undefined,
@@ -410,6 +408,19 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                         </div>
                       ) : (
                         <div className="space-y-2">
+                          {/* Antes esto solo se descubría al final, después de llenar
+                              todo el formulario de entrega — se avisa acá, de entrada. */}
+                          {paymentOptions.length === 0 && (
+                            <div
+                              className="flex items-start gap-2 rounded-2xl p-3"
+                              style={{ background: "var(--danger-soft)", border: "1px solid var(--line)" }}
+                            >
+                              <AlertTriangle size={15} className="flex-shrink-0 mt-0.5" style={{ color: "var(--danger)" }} />
+                              <p className="text-xs" style={{ color: "var(--danger)" }}>
+                                Esta tienda todavía no configuró ningún método de pago. Puedes escribirle por WhatsApp para coordinar antes de completar tu pedido.
+                              </p>
+                            </div>
+                          )}
                           {!!freeAbove && deliveryFee > 0 && (
                             <FreeShippingBar subtotal={subtotal} freeAbove={freeAbove} color={color} />
                           )}
@@ -524,7 +535,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                         />
                       </Field>
 
-                      <Field label={isPE ? "DNI *" : "Documento de identidad *"} icon={<CreditCard size={11} />}>
+                      <Field label={isPE ? "DNI (opcional)" : "Documento de identidad (opcional)"} icon={<CreditCard size={11} />}>
                         <input
                           className="input"
                           inputMode={isPE ? "numeric" : "text"}
@@ -662,6 +673,26 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                   {/* ── STEP: PAYMENT ── */}
                   {step === "payment" && (
                     <div className="px-4 py-4 space-y-3">
+                      {/* Resumen de lo que se está por confirmar — antes solo se veía
+                          el total acá, sin poder revisar qué se está comprando. */}
+                      <div className="rounded-2xl p-3" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
+                        <p className="text-xs font-bold uppercase tracking-wider mb-2 px-0.5" style={{ color: "var(--ink-3)" }}>
+                          Tu pedido ({items.reduce((n, i) => n + i.quantity, 0)} producto{items.reduce((n, i) => n + i.quantity, 0) !== 1 ? "s" : ""})
+                        </p>
+                        <div className="space-y-1.5">
+                          {items.map((item) => (
+                            <div key={item.id} className="flex items-center justify-between gap-2 text-xs">
+                              <span className="truncate" style={{ color: "var(--ink-2)" }}>
+                                {item.quantity}× {item.name}
+                              </span>
+                              <span className="flex-shrink-0 font-semibold" style={{ color: "var(--ink)" }}>
+                                {formatPrice(item.price_cents * item.quantity)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
                       {/* Total destacado */}
                       <div
                         className="rounded-2xl p-4 flex items-center justify-between"

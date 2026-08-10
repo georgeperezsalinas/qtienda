@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import Image from "next/image";
-import { X, ChevronLeft, ChevronRight, Check, ShoppingCart, ZoomIn, Share2, Clock } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Check, ShoppingCart, ZoomIn, Share2, Clock, Minus, Plus } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCartStore } from "@/store/cartStore";
 import { formatPrice, stripHtml } from "@/lib/utils";
@@ -66,6 +66,7 @@ export default function ProductDetailSheet({
   const [added, setAdded] = useState(false);
   const [zoomOpen, setZoomOpen] = useState(false);
   const [viewers, setViewers] = useState(0);
+  const [qty, setQty] = useState(1);
   const touchStartX = useRef(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const addItem = useCartStore((s) => s.addItem);
@@ -79,6 +80,7 @@ export default function ProductDetailSheet({
   const discount = product.compare_price
     ? Math.round((1 - product.price_cents / product.compare_price) * 100)
     : null;
+  const maxQty = product.stock && product.stock > 0 ? product.stock : 99;
   const countdown = useSaleCountdown(product.sale_ends_at);
   const hasImages = product.images.length > 0;
   const hasDescription = !!product.description?.trim();
@@ -109,6 +111,7 @@ export default function ProductDetailSheet({
     setCurrent(Math.max(0, product.images.findIndex((i) => i.is_primary)));
     setZoomOpen(false);
     setAdded(false);
+    setQty(1);
     scrollRef.current?.scrollTo({ top: 0 });
   }, [product.id]);
 
@@ -128,12 +131,14 @@ export default function ProductDetailSheet({
     if (outOfStock) return;
     addItem(
       { id: product.id, name: displayName, price_cents: product.price_cents,
-        image_url: primaryImage, quantity: 1 },
+        image_url: primaryImage, quantity: qty },
       storeSlug,
+      qty,
     );
     setAdded(true);
-    toast.success("Agregado al carrito", { duration: 1500 });
+    toast.success(qty > 1 ? `${qty} agregados al carrito` : "Agregado al carrito", { duration: 1500 });
     setTimeout(() => setAdded(false), 2000);
+    setQty(1);
   }
 
   return (
@@ -427,7 +432,7 @@ export default function ProductDetailSheet({
           </div>
         </div>
 
-        {/* ── Botón agregar al carrito (fijo al fondo del sheet) ── */}
+        {/* ── Cantidad + agregar al carrito (fijo al fondo del sheet) ── */}
         <div
           className="absolute bottom-0 left-0 right-0 px-5 pt-3 pb-safe pb-5"
           style={{
@@ -436,26 +441,54 @@ export default function ProductDetailSheet({
             borderTop: "1px solid var(--line)",
           }}
         >
-          <motion.button
-            whileTap={{ scale: 0.97 }}
-            onClick={handleAdd}
-            disabled={outOfStock}
-            className="w-full flex items-center justify-center gap-2.5 rounded-2xl py-4
-                       font-display font-bold text-sm transition-colors"
-            style={{
-              background: outOfStock ? "var(--line-2)" : storeColor,
-              color:      outOfStock ? "var(--ink-3)" : "white",
-              boxShadow:  outOfStock ? "none" : `0 6px 20px ${storeColor}44`,
-            }}
-          >
-            {added ? (
-              <><Check size={18} /> En el carrito</>
-            ) : outOfStock ? (
-              "Producto agotado"
-            ) : (
-              <><ShoppingCart size={18} /> Agregar · {formatPrice(product.price_cents)}</>
+          <div className="flex items-center gap-2.5">
+            {!outOfStock && (
+              <div
+                className="flex items-center gap-0.5 rounded-2xl flex-shrink-0"
+                style={{ background: "var(--surface-2)", height: 52 }}
+              >
+                <button
+                  onClick={() => setQty((q) => Math.max(1, q - 1))}
+                  disabled={qty <= 1}
+                  aria-label="Restar cantidad"
+                  className="w-10 h-full flex items-center justify-center disabled:opacity-30"
+                >
+                  <Minus size={15} style={{ color: "var(--ink-2)" }} />
+                </button>
+                <span className="w-6 text-center font-bold text-sm" style={{ color: "var(--ink)" }}>
+                  {qty}
+                </span>
+                <button
+                  onClick={() => setQty((q) => Math.min(maxQty, q + 1))}
+                  disabled={qty >= maxQty}
+                  aria-label="Sumar cantidad"
+                  className="w-10 h-full flex items-center justify-center disabled:opacity-30"
+                >
+                  <Plus size={15} style={{ color: "var(--ink-2)" }} />
+                </button>
+              </div>
             )}
-          </motion.button>
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              onClick={handleAdd}
+              disabled={outOfStock}
+              className="flex-1 flex items-center justify-center gap-2.5 rounded-2xl py-4
+                         font-display font-bold text-sm transition-colors"
+              style={{
+                background: outOfStock ? "var(--line-2)" : storeColor,
+                color:      outOfStock ? "var(--ink-3)" : "white",
+                boxShadow:  outOfStock ? "none" : `0 6px 20px ${storeColor}44`,
+              }}
+            >
+              {added ? (
+                <><Check size={18} /> En el carrito</>
+              ) : outOfStock ? (
+                "Producto agotado"
+              ) : (
+                <><ShoppingCart size={18} /> Agregar · {formatPrice(product.price_cents * qty)}</>
+              )}
+            </motion.button>
+          </div>
         </div>
       </motion.div>
       {/* Lightbox de imagen completa */}

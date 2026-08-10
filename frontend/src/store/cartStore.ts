@@ -12,7 +12,7 @@ interface CartItem {
 interface CartStore {
   storeSlug: string | null;
   items: CartItem[];
-  addItem: (item: CartItem, storeSlug: string) => void;
+  addItem: (item: CartItem, storeSlug: string, qty?: number) => void;
   removeItem: (id: string) => void;
   updateQty: (id: string, qty: number) => void;
   clearCart: () => void;
@@ -26,22 +26,22 @@ export const useCartStore = create<CartStore>()(
       storeSlug: null,
       items: [],
 
-      addItem(item, storeSlug) {
+      addItem(item, storeSlug, qty = 1) {
         set((state) => {
           // Different store — clear cart before adding
           if (state.storeSlug !== null && state.storeSlug !== storeSlug) {
-            return { storeSlug, items: [{ ...item, quantity: 1 }] };
+            return { storeSlug, items: [{ ...item, quantity: qty }] };
           }
           const existing = state.items.find((i) => i.id === item.id);
           if (existing) {
             return {
               storeSlug,
               items: state.items.map((i) =>
-                i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i
+                i.id === item.id ? { ...i, quantity: i.quantity + qty } : i
               ),
             };
           }
-          return { storeSlug, items: [...state.items, { ...item, quantity: 1 }] };
+          return { storeSlug, items: [...state.items, { ...item, quantity: qty }] };
         });
       },
 
