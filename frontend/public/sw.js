@@ -133,6 +133,14 @@ self.addEventListener("push", (e) => {
       actions: data.actions || [],
     })
   );
+
+  // Numerito en el ícono de la app instalada (PWA) — Badging API.
+  // Solo Chromium (Android/desktop); Safari/iOS lo ignora sin romper nada.
+  if ("setAppBadge" in self && typeof data.badgeCount === "number") {
+    e.waitUntil(
+      data.badgeCount > 0 ? self.setAppBadge(data.badgeCount) : self.clearAppBadge()
+    );
+  }
 });
 
 self.addEventListener("notificationclick", (e) => {

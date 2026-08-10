@@ -11,6 +11,7 @@ import logging
 from dataclasses import dataclass
 from typing import Callable, Union
 
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.db.session import AsyncSessionLocal
@@ -165,8 +166,19 @@ async def _dispatch_push(store_id: str, title: str, body: str, event_type: str) 
     """Push best-effort por todos los canales — un canal fallando no afecta a los demás."""
     from app.services.push import send_expo_push_to_owner, send_webpush_to_owner
 
+    unread_count = None
     try:
-        await send_expo_push_to_owner(store_id, title, body, data={"type": event_type})
+        async with AsyncSessionLocal() as db:
+            unread_count = (await db.execute(
+                select(func.count()).select_from(Notification).where(
+                    Notification.store_id == store_id, Notification.read_at.is_(None)
+                )
+            )).scalar()
+    except Exception:
+        log.exception("[notifications] no se pudo calcular unread_count para store %s", store_id)
+
+    try:
+        await send_expo_push_to_owner(store_id, title, body, data={"type": event_type}, badge=unread_count)
     except Exception:
         log.exception("[notifications] Expo push falló para store %s (%s)", store_id, event_type)
 
@@ -177,6 +189,7 @@ async def _dispatch_push(store_id: str, title: str, body: str, event_type: str) 
             "url": "/dashboard",
             "icon": "/icon/icon-192.png",
             "badge": "/icon/icon-96.png",
+            "badgeCount": unread_count,
             "tag": event_type,
         })
     except Exception:

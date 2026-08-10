@@ -191,23 +191,29 @@ async def send_expo_push(
     title:      str,
     body:       str,
     data:       Optional[dict] = None,
+    badge:      Optional[int] = None,
 ) -> bool:
-    """Envía una notificación push nativa via Expo Push API."""
+    """Envía una notificación push nativa via Expo Push API.
+    badge: si se indica, fija el número en el ícono de la app (iOS lo hace vía
+    el push mismo; Android lo hace expo-notifications al recibirlo con la app abierta)."""
     if not expo_token or not expo_token.startswith("ExponentPushToken"):
         return False
     try:
+        payload = {
+            "to":        expo_token,
+            "title":     title,
+            "body":      body,
+            "sound":     "default",
+            "priority":  "high",
+            "channelId": "pedidos",
+            "data":      data or {},
+        }
+        if badge is not None:
+            payload["badge"] = badge
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(
                 EXPO_PUSH_URL,
-                json={
-                    "to":        expo_token,
-                    "title":     title,
-                    "body":      body,
-                    "sound":     "default",
-                    "priority":  "high",
-                    "channelId": "pedidos",
-                    "data":      data or {},
-                },
+                json=payload,
                 headers={"Content-Type": "application/json"},
             )
             result = resp.json()
@@ -273,6 +279,7 @@ async def send_expo_push_to_owner(
     title:    str,
     body:     str,
     data:     Optional[dict] = None,
+    badge:    Optional[int] = None,
 ) -> None:
     """Envia push Expo al dueño de una tienda. Igual a send_expo_push_to_vendor_by_store
     pero genérica (sin order_id fijo) — la usan las notificaciones de eventos/hitos."""
@@ -290,6 +297,7 @@ async def send_expo_push_to_owner(
             title=title,
             body=body,
             data=data or {},
+            badge=badge,
         )
 
 

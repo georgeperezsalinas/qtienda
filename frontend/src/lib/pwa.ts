@@ -13,3 +13,11 @@ export function isStandalone(): boolean {
     (window.navigator as any).standalone === true
   );
 }
+
+/** Numerito en el ícono de la app instalada (Badging API — Chromium
+ *  Android/desktop; Safari/iOS no la soporta, la llamada simplemente no hace nada). */
+export function syncAppBadge(count: number): void {
+  if (typeof navigator === "undefined" || !("setAppBadge" in navigator)) return;
+  const nav = navigator as Navigator & { setAppBadge: (n?: number) => Promise<void>; clearAppBadge: () => Promise<void> };
+  (count > 0 ? nav.setAppBadge(count) : nav.clearAppBadge()).catch(() => {});
+}

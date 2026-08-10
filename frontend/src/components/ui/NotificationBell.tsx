@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bell } from "lucide-react";
 import { apiClient } from "@/lib/api";
+import { syncAppBadge } from "@/lib/pwa";
 
 interface NotifItem {
   id: number;
@@ -49,6 +50,10 @@ export default function NotificationBell() {
   useEffect(() => {
     fetchNotifications();
   }, []);
+
+  useEffect(() => {
+    syncAppBadge(unreadCount);
+  }, [unreadCount]);
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
