@@ -51,6 +51,7 @@ class Settings(BaseSettings):
     # Aviso de vencimiento de plan
     PLAN_EXPIRY_NOTICE_DAYS: int = 3   # avisar cuando falten <= N dias
     PLAN_EXPIRY_CHECK_HOURS: int = 6   # frecuencia del chequeo
+    PLAN_EXPIRY_GRACE_DAYS: int = 4    # dias de gracia tras vencer antes de bajar al plan gratuito
 
     # Salud de tienda: reactivacion e impulso de ventas
     STORE_INACTIVE_DAYS: int = 7        # sin pedidos ni visitas en N dias -> "reactiva tu tienda"

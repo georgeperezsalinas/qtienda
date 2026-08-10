@@ -119,6 +119,31 @@ TEMPLATES: dict[str, NotifTemplate] = {
         body=lambda ctx: ctx.get("body", ""),
         action_url="/dashboard",
     ),
+    # Vencimiento de plan — el título/cuerpo ya vienen armados desde
+    # plan_expiry.py (varían si está por vencer o ya venció). push=False
+    # porque plan_expiry.py ya manda su propio push/email — esto solo
+    # deja el registro en la campanita, para no duplicar el aviso.
+    "plan_expiring": NotifTemplate(
+        icon="⏰",
+        title=lambda ctx: ctx.get("title", "Tu plan está por vencer"),
+        body=lambda ctx: ctx.get("body", ""),
+        action_url="/dashboard/planes",
+        push=False,
+    ),
+    "plan_downgraded": NotifTemplate(
+        icon="📉",
+        title="Tu tienda pasó al plan gratuito",
+        body=lambda ctx: (
+            f"Tu Plan {ctx.get('old_plan_name', 'de pago')} venció y no se renovó, así que tu tienda pasó al {ctx.get('free_plan_name', 'plan gratuito')}. "
+            + (
+                f"Tienes {ctx.get('products_count')} productos publicados, pero tu plan actual permite hasta {ctx.get('products_limit')} — "
+                "no se desactivó ninguno, pero no podrás agregar más hasta que estés dentro del límite o vuelvas a suscribirte."
+                if ctx.get("products_over_limit")
+                else "No se borró nada — puedes volver a suscribirte cuando quieras."
+            )
+        ),
+        action_url="/dashboard/planes",
+    ),
 }
 
 

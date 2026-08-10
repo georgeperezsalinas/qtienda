@@ -71,14 +71,20 @@ async def send_plan_expiry_email(
     plan_name: str,
     ends_at_str: str,
     days_left: int,
+    overdue: bool = False,
 ) -> None:
-    """Recordatorio de renovación: el plan vence en pocos días."""
+    """Recordatorio de renovación: el plan vence en pocos días, o ya venció (overdue=True)."""
     if not settings.RESEND_API_KEY:
         logger.warning("RESEND_API_KEY not set — expiry notice for %s skipped", to_email)
         return
 
     renew_url = f"{settings.APP_URL}/dashboard/planes"
-    when = "mañana" if days_left == 1 else f"en {days_left} días"
+    if overdue:
+        when = f"hace {days_left} día{'s' if days_left != 1 else ''}"
+        action = "venció"
+    else:
+        when = "mañana" if days_left == 1 else f"en {days_left} días"
+        action = "vence"
 
     html = f"""
     <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:520px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #E2E8F0">
@@ -88,7 +94,7 @@ async def send_plan_expiry_email(
       <div style="padding:40px">
         <h2 style="margin:0 0 8px;font-size:22px;color:#0F172A">Hola, {full_name} ⏰</h2>
         <p style="color:#475569;margin:0 0 24px;line-height:1.6">
-          Tu <strong>Plan {plan_name}</strong> en qtienda.shop vence <strong>{when}</strong>
+          Tu <strong>Plan {plan_name}</strong> en qtienda.shop {action} <strong>{when}</strong>
           ({ends_at_str}).<br>
           Renuévalo para no perder tus beneficios: los días nuevos se suman a tu fecha de vencimiento.
         </p>
@@ -113,7 +119,7 @@ async def send_plan_expiry_email(
     try:
         await asyncio.to_thread(
             _send_sync, to_email,
-            f"Tu Plan {plan_name} vence {when} — renuévalo",
+            f"Tu Plan {plan_name} {action} {when} — renuévalo",
             html,
         )
     except Exception:
