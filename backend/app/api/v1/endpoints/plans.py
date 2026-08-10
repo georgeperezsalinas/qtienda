@@ -166,9 +166,34 @@ async def my_subscription(
 ):
     store = await _get_store(current_user, db)
     sub = await _active_sub(store.id, db)
-    if not sub:
-        raise HTTPException(status_code=404, detail="Sin suscripción activa")
-    return _sub_out(sub)
+    if sub:
+        return _sub_out(sub)
+
+    # _active_sub() excluye a propósito las suscripciones ya vencidas (para
+    # límites/renovación ya no cuentan) — pero el vendedor SÍ debe verla
+    # mientras está en el período de gracia, antes de que el watcher la baje
+    # a plan gratuito (ver app.services.plan_expiry.downgrade_expired_subscriptions).
+    now = datetime.now(timezone.utc)
+    overdue_sub = (await db.execute(
+        select(Subscription)
+        .options(selectinload(Subscription.plan))
+        .where(
+            Subscription.store_id == store.id,
+            Subscription.status == "active",
+            Subscription.ends_at.is_not(None),
+            Subscription.ends_at <= now,
+        )
+        .order_by(Subscription.ends_at.desc())
+        .limit(1)
+    )).scalar_one_or_none()
+    if overdue_sub:
+        out = _sub_out(overdue_sub)
+        grace_deadline = overdue_sub.ends_at + timedelta(days=settings.PLAN_EXPIRY_GRACE_DAYS)
+        out["overdue"] = True
+        out["grace_days_left"] = max(0, (grace_deadline - now).days)
+        return out
+
+    raise HTTPException(status_code=404, detail="Sin suscripción activa")
 
 
 @router.post("/{plan_id}/subscribe", status_code=201)

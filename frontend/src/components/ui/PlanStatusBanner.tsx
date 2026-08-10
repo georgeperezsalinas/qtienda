@@ -3,7 +3,10 @@
 // Estado del plan del vendedor en el dashboard:
 //  - Plan de pago vigente → línea discreta "Plan Pro · vence el 09 ago".
 //  - Faltan ≤7 días → alerta ámbar con botón "Renovar ahora".
-//  - Plan free → no muestra nada (el ReferralBanner cubre ese caso).
+//  - Ya venció pero sigue en el período de gracia (todavía no bajó a free) →
+//    alerta roja con los días de gracia que quedan.
+//  - Plan free (sin haber tenido uno pagado, o ya degradado) → no muestra
+//    nada (el ReferralBanner cubre ese caso).
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -15,6 +18,8 @@ interface Subscription {
   plan_name: string | null;
   status: string;
   ends_at: string | null;
+  overdue?: boolean;
+  grace_days_left?: number;
 }
 
 function daysUntil(iso: string): number {
@@ -68,8 +73,11 @@ export default function PlanStatusBanner() {
     );
   }
 
-  // Por vencer (o vencido hoy): alerta con renovación
+  // Por vencer, o vencido y todavía en período de gracia: alerta con renovación
   const expired = days <= 0;
+  const daysOverdue = expired ? Math.abs(days) : 0;
+  const graceDaysLeft = sub.grace_days_left ?? 0;
+
   return (
     <div
       id="tour-plan"
@@ -88,14 +96,16 @@ export default function PlanStatusBanner() {
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold" style={{ color: expired ? "#991B1B" : "#92400E" }}>
             {expired
-              ? `Tu plan ${sub.plan_name} venció`
+              ? `Tu plan ${sub.plan_name} venció hace ${daysOverdue} día${daysOverdue !== 1 ? "s" : ""}`
               : days === 1
                 ? `Tu plan ${sub.plan_name} vence mañana`
                 : `Tu plan ${sub.plan_name} vence en ${days} días`}
           </p>
           <p className="text-xs mt-0.5" style={{ color: expired ? "#B91C1C" : "#B45309" }}>
             {expired
-              ? "Tu tienda volvió al plan gratuito. Renueva para recuperar tus beneficios."
+              ? graceDaysLeft > 0
+                ? `Tienes ${graceDaysLeft} día${graceDaysLeft !== 1 ? "s" : ""} más antes de que tu tienda vuelva al plan gratuito. Renueva ahora para no perder tus beneficios.`
+                : "Tu tienda está a punto de volver al plan gratuito. Renueva ahora para no perder tus beneficios."
               : `Renueva antes del ${datePE(sub.ends_at)} para no perder tus beneficios. Los días se suman.`}
           </p>
           <Link
