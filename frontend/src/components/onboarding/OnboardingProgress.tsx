@@ -8,6 +8,7 @@ import { apiClient } from "@/lib/api";
 interface Progress {
   store_created: boolean;
   logo_added: boolean;
+  banner_added: boolean;
   products_count: number;
   products_target: number;
   shared: boolean;
@@ -68,6 +69,13 @@ export default function OnboardingProgress({ store }: Props) {
       sub: progress.logo_added ? "Listo" : "Sube tu logo para verte más profesional",
       state: progress.logo_added ? "done" : "pending",
       tip: "Ve a Configuración → Datos de tienda y sube una imagen cuadrada (tu logo o una foto de perfil). Se ve en tu tienda pública y en el link que compartes.",
+      href: "/dashboard/configuracion",
+    },
+    {
+      label: "Banner de tu tienda",
+      sub: progress.banner_added ? "Listo" : "Una imagen ancha que se ve arriba de tu tienda",
+      state: progress.banner_added ? "done" : "pending",
+      tip: "Ve a Configuración → Datos de tienda y sube una imagen horizontal (ideal 1200x400px). Es lo primero que ven tus clientes al entrar a tu tienda.",
       href: "/dashboard/configuracion",
     },
     {

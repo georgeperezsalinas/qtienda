@@ -128,11 +128,16 @@ async def onboarding_progress(
     )).scalar()
 
     products_target = 5
+    logo_added = bool(store.logo_url)
+    banner_added = bool(store.banner_url)
+    products_done = products_count >= products_target
+    shared = store.shared_at is not None
     return {
         "store_created": True,
-        "logo_added": bool(store.logo_url),
+        "logo_added": logo_added,
+        "banner_added": banner_added,
         "products_count": products_count,
         "products_target": products_target,
-        "shared": store.shared_at is not None,
-        "complete": bool(store.logo_url) and products_count >= products_target and store.shared_at is not None,
+        "shared": shared,
+        "complete": logo_added and banner_added and products_done and shared,
     }
