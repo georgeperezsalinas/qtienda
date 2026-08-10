@@ -833,6 +833,11 @@ export default function ConfiguracionPage() {
             {settings.accept_yape && (
               <div className="space-y-2">
                 <input className="input" placeholder="Número Yape" value={settings.yape_phone} onChange={(e) => setSettings({ ...settings, yape_phone: e.target.value })} />
+                {!settings.yape_phone.trim() && (
+                  <p className="text-[11px] font-semibold" style={{ color: "var(--warn)" }}>
+                    ⚠️ Sin número, tus clientes no verán a dónde yapear — tendrás que enviárselo tú por WhatsApp en cada pedido.
+                  </p>
+                )}
                 <ImageUpload
                   label="QR de Yape (opcional)"
                   value={settings.yape_qr_url}
@@ -847,6 +852,11 @@ export default function ConfiguracionPage() {
             {settings.accept_plin && (
               <div className="space-y-2">
                 <input className="input" placeholder="Número Plin" value={settings.plin_phone} onChange={(e) => setSettings({ ...settings, plin_phone: e.target.value })} />
+                {!settings.plin_phone.trim() && (
+                  <p className="text-[11px] font-semibold" style={{ color: "var(--warn)" }}>
+                    ⚠️ Sin número, tus clientes no verán a dónde plinear — tendrás que enviárselo tú por WhatsApp en cada pedido.
+                  </p>
+                )}
                 <ImageUpload
                   label="QR de Plin (opcional)"
                   value={settings.plin_qr_url}
@@ -859,7 +869,14 @@ export default function ConfiguracionPage() {
             )}
             <Toggle value={settings.accept_transfer} onChange={(v) => setSettings({ ...settings, accept_transfer: v })} label="Aceptar transferencia bancaria" />
             {settings.accept_transfer && (
-              <input className="input" placeholder="BCP 123-456789-0-12 / CCI..." value={settings.bank_account} onChange={(e) => setSettings({ ...settings, bank_account: e.target.value })} />
+              <div className="space-y-2">
+                <input className="input" placeholder="BCP 123-456789-0-12 / CCI..." value={settings.bank_account} onChange={(e) => setSettings({ ...settings, bank_account: e.target.value })} />
+                {!settings.bank_account.trim() && (
+                  <p className="text-[11px] font-semibold" style={{ color: "var(--warn)" }}>
+                    ⚠️ Sin datos bancarios, tus clientes no sabrán a dónde transferir.
+                  </p>
+                )}
+              </div>
             )}
             <Toggle value={settings.accept_card} onChange={(v) => setSettings({ ...settings, accept_card: v })} label="Aceptar tarjeta (POS en entrega)" />
             <div className="pt-1 border-t border-gray-100">

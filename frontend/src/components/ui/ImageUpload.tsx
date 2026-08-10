@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useCallback } from "react";
+import Image from "next/image";
 import { Upload, X, ImagePlus, CheckCircle2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
@@ -112,10 +113,12 @@ export function ImageUpload({
         {/* ── Preview ── */}
         {value ? (
           <>
-            <img
+            <Image
               src={value}
               alt="Vista previa"
-              className="w-full h-full object-cover"
+              fill
+              sizes="(max-width: 768px) 100vw, 500px"
+              className="object-cover"
             />
 
             {/* Hover overlay */}

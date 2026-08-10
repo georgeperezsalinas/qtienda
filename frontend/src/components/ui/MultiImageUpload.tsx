@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useCallback } from "react";
+import Image from "next/image";
 import { Plus, X, Star, ZoomIn } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
@@ -103,7 +104,7 @@ export function MultiImageUpload({ images, onChange, maxImages = 6 }: Props) {
             onClick={() => makePrimary(i)}
             title={i === 0 ? "Foto principal" : "Tocar para hacer principal"}
           >
-            <img src={img.url} alt="" className="w-full h-full object-cover" />
+            <Image src={img.url} alt="" fill sizes="80px" className="object-cover" />
 
             {/* Insignia "principal" */}
             {i === 0 && (

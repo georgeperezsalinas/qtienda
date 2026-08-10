@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { Search, Phone, MapPin, Package, ExternalLink } from "lucide-react";
 import toast from "react-hot-toast";
@@ -324,6 +325,9 @@ export default function PedidosPage() {
   const [updating, setUpdating] = useState(false);
   const [staff, setStaff] = useState<Staff[]>([]);
   const [storeSlug, setStoreSlug] = useState<string | null>(null);
+  // IDs de la última carga — para detectar pedidos nuevos en el polling
+  // silencioso sin necesitar otro endpoint.
+  const knownOrderIds = useRef<Set<string> | null>(null);
 
   // Slug de la tienda: para el link "Ver como comprador" en el detalle del pedido
   useEffect(() => {
@@ -338,8 +342,8 @@ export default function PedidosPage() {
       .catch(() => {});
   }, []);
 
-  const fetchOrders = useCallback(async () => {
-    setLoading(true);
+  const fetchOrders = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true);
     try {
       const params = new URLSearchParams({ page: String(page), limit: "20" });
       if (statusFilter) params.set("status", statusFilter);
@@ -350,14 +354,34 @@ export default function PedidosPage() {
         params.set("from_date", toISODate(from));
       }
       const { data } = await apiClient.get(`/orders/?${params}`);
+
+      // Pedidos que aparecieron desde la última carga (silenciosa o no) —
+      // solo se avisa en polling silencioso y en la página 1, para no
+      // confundir "cambié de filtro/página" con "llegó un pedido nuevo".
+      if (opts?.silent && page === 1 && knownOrderIds.current) {
+        const fresh = data.items.filter((o: Order) => !knownOrderIds.current!.has(o.id));
+        fresh.forEach((o: Order) => {
+          toast.success(`🛎️ Nuevo pedido #${o.order_number} — ${o.buyer_name}`, { duration: 6000 });
+        });
+      }
+      knownOrderIds.current = new Set(data.items.map((o: Order) => o.id));
+
       setOrders(data.items);
       setTotal(data.total);
     } finally {
-      setLoading(false);
+      if (!opts?.silent) setLoading(false);
     }
   }, [statusFilter, search, page, dateRange]);
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
+
+  // Auto-refresh: esta es la pantalla de más uso diario y antes no se
+  // actualizaba sola — un pedido nuevo solo aparecía si el vendedor recargaba
+  // a mano o cambiaba de filtro. Silencioso (no dispara el skeleton de carga).
+  useEffect(() => {
+    const t = setInterval(() => fetchOrders({ silent: true }), 30_000);
+    return () => clearInterval(t);
+  }, [fetchOrders]);
 
   async function loadDetail(orderId: string) {
     try {
@@ -369,6 +393,23 @@ export default function PedidosPage() {
   }
 
   /* Enviar pedido: asigna (o desasigna) el repartidor elegido y pasa a "En camino" */
+  /* Actualiza un pedido ya en memoria (lista + detalle si está abierto) en vez
+     de recargar del servidor — esta es la pantalla de más uso diario y cada
+     cambio de estado disparaba un refetch completo, se sentía lento en
+     conexiones débiles. Si el nuevo estado ya no calza con el filtro activo
+     (ej. estabas viendo "Pendientes" y lo confirmaste), sale de la lista —
+     mismo resultado que un refetch, sin el viaje de ida y vuelta. */
+  function patchOrder(orderId: string, patch: Partial<Order>) {
+    const movesOutOfFilter = !!patch.status && !!statusFilter && patch.status !== statusFilter;
+    if (movesOutOfFilter && orders.some((o) => o.id === orderId)) {
+      setOrders((prev) => prev.filter((o) => o.id !== orderId));
+      setTotal((t) => Math.max(0, t - 1));
+    } else {
+      setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, ...patch } : o)));
+    }
+    setSelected((prev) => (prev && prev.id === orderId ? { ...prev, ...patch } : prev));
+  }
+
   async function sendOrder(orderId: string, staffId: string | null) {
     const current = selected?.assigned_to_id ?? null;
     if (staffId !== current) {
@@ -378,6 +419,8 @@ export default function PedidosPage() {
         toast.error("No se pudo asignar el repartidor");
         return;
       }
+      const staffName = staff.find((s) => s.id === staffId)?.full_name ?? null;
+      patchOrder(orderId, { assigned_to_id: staffId, assigned_to_name: staffName });
     }
     await changeStatus(orderId, "on_the_way");
   }
@@ -390,10 +433,7 @@ export default function PedidosPage() {
     try {
       const res = await apiClient.patch(`/orders/${orderId}/status`, { status: newStatus });
       toast.success(`Pedido → ${STATUS_LABELS[newStatus]?.label ?? newStatus}`);
-      await fetchOrders();
-      if (selected?.id === orderId) {
-        await loadDetail(orderId);
-      }
+      patchOrder(orderId, { status: newStatus });
       if (res.data?.buyer_wa_link) {
         const waUrl = res.data.buyer_wa_link;
         toast(
@@ -509,7 +549,9 @@ export default function PedidosPage() {
         {selected.items.map((item, i) => (
           <div key={i} className="flex items-center gap-3">
             {item.image_url && (
-              <img src={item.image_url} alt={item.product_name} className="w-10 h-10 rounded-lg object-cover" style={{ background: "var(--surface-2)" }} />
+              <div className="relative w-10 h-10 rounded-lg overflow-hidden flex-shrink-0" style={{ background: "var(--surface-2)" }}>
+                <Image src={item.image_url} alt={item.product_name} fill sizes="40px" className="object-cover" />
+              </div>
             )}
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate" style={{ color: "var(--ink)" }}>{item.product_name}</p>

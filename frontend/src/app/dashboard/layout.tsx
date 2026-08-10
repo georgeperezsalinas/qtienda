@@ -74,10 +74,14 @@ function VerifyBanner({ email }: { email: string }) {
 
 /* ─── Bottom nav: solo 4 items (lo importante) ───
    El ítem activo se muestra como botón elevado con color de acento */
+// Finanzas se revisa a diario igual que Pedidos/Productos — antes quedaba
+// a 2 toques (detrás del drawer "Cuenta"). Delivery y Ajustes se quedan ahí:
+// no todos los vendedores tienen repartidores, y Ajustes es de uso esporádico.
 const BOTTOM_NAV = [
   { href: "/dashboard", label: "Inicio", icon: LayoutDashboard, exact: true },
   { href: "/dashboard/pedidos", label: "Pedidos", icon: ShoppingBag, exact: false },
   { href: "/dashboard/productos", label: "Productos", icon: Package, exact: false },
+  { href: "/dashboard/finanzas", label: "Finanzas", icon: BarChart2, exact: false },
 ] as const;
 
 /* ─── Sidebar desktop: nav completo (5 items) ─── */
@@ -483,7 +487,6 @@ export default function DashboardLayout({
               {[
                 { href: "/dashboard/configuracion", label: "Ajustes", icon: Settings },
                 { href: "/dashboard/delivery", label: "Delivery", icon: Bike },
-                { href: "/dashboard/finanzas", label: "Finanzas", icon: BarChart2 },
                 { href: "/mis-pedidos", label: "Mis compras", icon: ShoppingCart },
                 {
                   href: storeSlug ? `/tienda/${storeSlug}` : "#",

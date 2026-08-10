@@ -133,11 +133,12 @@ function MallBannerCarousel({ storeCount }: { storeCount: number }) {
         cta: { label: "Crear mi tienda", href: "/auth/register" },
       },
     ];
+    // Sin mencionar la cantidad de tiendas — un número chico resta en vez de sumar.
     if (storeCount > 0) {
       base.push({
         icon: Sparkles,
-        title: `Ya somos ${storeCount} tienda${storeCount !== 1 ? "s" : ""}`,
-        body: "Súmate a la comunidad de vendedores que ya venden en Qtienda.",
+        title: "Súmate a Qtienda",
+        body: "Forma parte de la comunidad de vendedores que ya venden en Qtienda.",
         gradient: "linear-gradient(120deg, #059669, #34D399)",
         cta: { label: "Crear mi tienda", href: "/auth/register" },
       });

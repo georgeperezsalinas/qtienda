@@ -76,6 +76,30 @@ function periodDates(key: PeriodKey): { from: string; to: string } | null {
   }
 }
 
+/* Mismo rango de tamaño/posición pero un tramo atrás — para "+12% vs período
+   anterior". "this_month" compara contra los mismos N días del mes pasado
+   (no el mes completo), para no comparar un mes a medias contra uno cerrado. */
+function previousPeriodDates(key: PeriodKey): { from: string; to: string } | null {
+  const now = new Date();
+  const y = now.getFullYear(), m = now.getMonth(), d = now.getDate();
+  switch (key) {
+    case "today":      return { from: toISO(new Date(y, m, d-1)),  to: toISO(new Date(y, m, d-1)) };
+    case "week":       return { from: toISO(new Date(y, m, d-13)), to: toISO(new Date(y, m, d-7)) };
+    case "this_month": return { from: toISO(new Date(y, m-1, 1)),  to: toISO(new Date(y, m-1, d)) };
+    case "last_month": return { from: toISO(new Date(y, m-2, 1)),  to: toISO(new Date(y, m-1, 0)) };
+    case "3m":         return { from: toISO(new Date(y, m-5, 1)),  to: toISO(new Date(y, m-2, 0)) };
+    case "all":        return null;
+  }
+}
+
+/* "+12%" / "-8%" / "Nuevo" (de 0 a algo, no es un % real) / null (sin dato
+   comparable — ej. período "Todo", o ambos en 0). */
+function computeTrend(current: number, previous: number | undefined | null): { pct: number | null; isNew?: boolean } | null {
+  if (previous === undefined || previous === null) return null;
+  if (previous === 0) return current === 0 ? null : { pct: null, isNew: true };
+  return { pct: Math.round(((current - previous) / previous) * 100) };
+}
+
 /* ── Status config ── */
 const STATUS_CFG: Record<string, { label: string; bg: string; color: string }> = {
   pending:    { label: "Pendiente",  bg: "#FEF3C7", color: "#D97706" },
@@ -124,8 +148,25 @@ function Skel({ h = 24, className = "" }: { h?: number; className?: string }) {
 }
 
 /* ── KPI tile ── */
-function KpiTile({ label, value, sub, icon, color, bg }: {
+function TrendBadge({ trend }: { trend?: { pct: number | null; isNew?: boolean } | null }) {
+  if (!trend) return null;
+  const positive = trend.isNew || (trend.pct ?? 0) >= 0;
+  return (
+    <span
+      className="text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
+      style={{
+        background: positive ? "var(--success-soft)" : "var(--danger-soft)",
+        color: positive ? "var(--success)" : "var(--danger)",
+      }}
+    >
+      {trend.isNew ? "Nuevo" : `${(trend.pct ?? 0) >= 0 ? "+" : ""}${trend.pct}%`}
+    </span>
+  );
+}
+
+function KpiTile({ label, value, sub, trend, icon, color, bg }: {
   label: string; value: string; sub?: string;
+  trend?: { pct: number | null; isNew?: boolean } | null;
   icon: React.ReactNode; color: string; bg: string;
 }) {
   return (
@@ -140,9 +181,12 @@ function KpiTile({ label, value, sub, icon, color, bg }: {
         <span className="text-[11px] font-semibold" style={{ color: "var(--ink-4)" }}>{label}</span>
       </div>
       <div>
-        <p className="font-display font-extrabold text-xl leading-none" style={{ color: "var(--ink)" }}>
-          {value}
-        </p>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <p className="font-display font-extrabold text-xl leading-none" style={{ color: "var(--ink)" }}>
+            {value}
+          </p>
+          <TrendBadge trend={trend} />
+        </div>
         {sub && <p className="text-[11px] mt-1" style={{ color: "var(--ink-3)" }}>{sub}</p>}
       </div>
     </div>
@@ -341,6 +385,7 @@ function PaymentBreakdown({ entries, loading }: { entries: PaymentEntry[]; loadi
 export default function FinanzasPage() {
   const [period,       setPeriod]       = useState<PeriodKey>("this_month");
   const [stats,        setStats]        = useState<Stats | null>(null);
+  const [prevStats,    setPrevStats]    = useState<Stats | null>(null);
   const [daily,        setDaily]        = useState<DailyPoint[]>([]);
   const [sub,          setSub]          = useState<Subscription | null>(null);
   const [orders,       setOrders]       = useState<Order[]>([]);
@@ -362,6 +407,7 @@ export default function FinanzasPage() {
   useEffect(() => {
     const dates = periodDates(period);
     const params = dates ? { from_date: dates.from, to_date: dates.to } : {};
+    const prevDates = previousPeriodDates(period);
 
     setLoadingStats(true);
     setLoadingDaily(true);
@@ -370,6 +416,17 @@ export default function FinanzasPage() {
       .then(({ data }) => setStats(data.this_month))
       .catch(() => setStats(null))
       .finally(() => setLoadingStats(false));
+
+    // Período anterior equivalente, para el badge "+12% vs período anterior"
+    // — sin período (period "all") no hay nada contra qué comparar.
+    if (prevDates) {
+      apiClient
+        .get("/orders/stats/summary", { params: { from_date: prevDates.from, to_date: prevDates.to } })
+        .then(({ data }) => setPrevStats(data.this_month))
+        .catch(() => setPrevStats(null));
+    } else {
+      setPrevStats(null);
+    }
 
     apiClient.get("/orders/stats/daily", { params })
       .then(({ data }) => setDaily(data))
@@ -404,6 +461,8 @@ export default function FinanzasPage() {
   const avgTicket     = delivered > 0 ? Math.round(revenue / delivered) : 0;
   const periodLabel   = PERIODS.find(p => p.key === period)?.label ?? "";
   const byPayment     = stats?.by_payment ?? [];
+  const revenueTrend  = computeTrend(revenue, prevStats?.revenue_cents);
+  const ordersTrend   = computeTrend(total, prevStats?.total_orders);
 
   // current-month order count (always from "this_month" period for plan usage)
   const ordersThisMonth = period === "this_month" ? (stats?.total_orders ?? 0) : 0;
@@ -460,11 +519,25 @@ export default function FinanzasPage() {
                 Ingresos · {periodLabel}
               </span>
             </div>
-            <p className="font-display font-extrabold text-3xl text-white leading-none">
-              {formatPrice(revenue)}
-            </p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="font-display font-extrabold text-3xl text-white leading-none">
+                {formatPrice(revenue)}
+              </p>
+              {revenueTrend && (
+                <span
+                  className="text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
+                  style={{
+                    background: revenueTrend.isNew || (revenueTrend.pct ?? 0) >= 0 ? "rgba(52,211,153,.22)" : "rgba(248,113,113,.22)",
+                    color: revenueTrend.isNew || (revenueTrend.pct ?? 0) >= 0 ? "#6EE7B7" : "#FCA5A5",
+                  }}
+                >
+                  {revenueTrend.isNew ? "Nuevo" : `${(revenueTrend.pct ?? 0) >= 0 ? "+" : ""}${revenueTrend.pct}%`}
+                </span>
+              )}
+            </div>
             <p className="text-xs mt-2" style={{ color: "rgba(255,255,255,0.6)" }}>
               {delivered} pedido{delivered !== 1 ? "s" : ""} completado{delivered !== 1 ? "s" : ""}
+              {revenueTrend && " · vs. período anterior"}
             </p>
           </div>
         )}
@@ -480,6 +553,7 @@ export default function FinanzasPage() {
               label="Pedidos"
               value={String(total)}
               sub={periodLabel}
+              trend={ordersTrend}
               icon={<ShoppingBag size={15} />}
               color="#2563EB" bg="#DBEAFE"
             />
