@@ -64,6 +64,13 @@ class Settings(BaseSettings):
     STORE_NO_PRODUCTS_FINAL_DAYS: int = 14
     STORE_NO_PRODUCTS_URGENT_DAYS: int = 30
 
+    # Avisos escalonados de tienda sin logo/banner — solo un empujon, la
+    # tienda sí puede vender sin esto (no arriesga nada, a diferencia de sin
+    # productos)
+    STORE_MISSING_BRANDING_WARN_DAYS: int = 7
+    STORE_MISSING_BRANDING_FINAL_DAYS: int = 14
+    STORE_MISSING_BRANDING_URGENT_DAYS: int = 30
+
     UPLOADS_DIR: str = "/tmp/qtienda-uploads"
     UPLOADS_BASE_URL: str = "http://localhost:8000/uploads"
 

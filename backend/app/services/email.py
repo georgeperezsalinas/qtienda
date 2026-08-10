@@ -3,6 +3,7 @@ Email service using Resend.
 Falls back to a no-op if RESEND_API_KEY is not set (dev mode).
 """
 import asyncio
+import html
 import logging
 from app.core.config import settings
 
@@ -124,3 +125,54 @@ async def send_plan_expiry_email(
         )
     except Exception:
         logger.exception("Failed to send plan expiry email to %s", to_email)
+
+
+async def send_notification_email(
+    to_email: str,
+    full_name: str,
+    icon: str,
+    title: str,
+    body: str,
+    cta_url: str,
+    cta_label: str = "Ir a mi panel",
+) -> None:
+    """Email genérico para hitos/eventos de negocio (bienvenida, onboarding,
+    avisos de inactividad, etc). Reutiliza el mismo título/cuerpo que ya se
+    calculó para la campanita in-app — un solo texto, dos canales."""
+    if not settings.RESEND_API_KEY:
+        logger.warning("RESEND_API_KEY not set — notification email for %s skipped", to_email)
+        return
+
+    safe_name = html.escape(full_name or "")
+    safe_title = html.escape(title)
+    safe_body = html.escape(body)
+
+    email_html = f"""
+    <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:520px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #E2E8F0">
+      <div style="background:#2563EB;padding:32px 40px;text-align:center">
+        <img src="{settings.APP_URL}/logo_qtienda.png" alt="qtienda" height="32" style="height:32px"/>
+      </div>
+      <div style="padding:40px;text-align:center">
+        <div style="font-size:40px;line-height:1;margin-bottom:12px">{icon}</div>
+        <h2 style="margin:0 0 12px;font-size:20px;color:#0F172A">{safe_title}</h2>
+        <p style="color:#475569;margin:0 0 24px;line-height:1.6;text-align:left">
+          Hola {safe_name} — {safe_body}
+        </p>
+        <a href="{cta_url}"
+           style="display:inline-block;background:#2563EB;color:#fff;font-weight:700;
+                  padding:14px 32px;border-radius:10px;text-decoration:none;font-size:15px">
+          {cta_label}
+        </a>
+      </div>
+      <div style="background:#F8FAFC;padding:20px 40px;text-align:center">
+        <p style="color:#94A3B8;font-size:11px;margin:0">
+          © qtienda.shop · Tu tienda en Redes Sociales
+        </p>
+      </div>
+    </div>
+    """
+
+    try:
+        await asyncio.to_thread(_send_sync, to_email, title, email_html)
+    except Exception:
+        logger.exception("Failed to send notification email to %s", to_email)

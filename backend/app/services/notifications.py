@@ -14,6 +14,7 @@ from typing import Callable, Union
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
+from app.core.config import settings
 from app.db.session import AsyncSessionLocal
 from app.models.models import Notification
 
@@ -24,6 +25,7 @@ _ONCE_TYPES = {
     "store_created", "first_product", "products_5",
     "first_visit", "first_favorite", "first_order",
     "no_products_warn", "no_products_final", "no_products_urgent",
+    "missing_branding_warn", "missing_branding_final", "missing_branding_urgent",
 }
 
 
@@ -33,7 +35,9 @@ class NotifTemplate:
     title: Union[str, Callable[[dict], str]]
     body: Union[str, Callable[[dict], str]]
     action_url: str
-    push: bool = True  # False para hitos tempranos donde el vendedor ya está en el dashboard
+    push: bool = True   # False para hitos tempranos donde el vendedor ya está en el dashboard
+    email: bool = False  # True solo para hitos donde el email es el canal que realmente alcanza
+                          # a alguien que no volvió a abrir la app/PWA (opt-in explícito por evento)
 
     def render(self, ctx: dict) -> tuple[str, str]:
         title = self.title(ctx) if callable(self.title) else self.title
@@ -41,13 +45,25 @@ class NotifTemplate:
         return title, body
 
 
+def _branding_phrase(ctx: dict) -> str:
+    """'tu logo' / 'tu banner' / 'tu logo ni tu banner' según lo que falte."""
+    missing_logo = ctx.get("missing_logo")
+    missing_banner = ctx.get("missing_banner")
+    if missing_logo and missing_banner:
+        return "tu logo ni tu banner"
+    if missing_logo:
+        return "tu logo"
+    return "tu banner"
+
+
 TEMPLATES: dict[str, NotifTemplate] = {
     "store_created": NotifTemplate(
         icon="🎉",
         title="¡Bienvenido a QTienda!",
-        body=lambda ctx: f"Tu tienda \"{ctx.get('store_name', '')}\" está lista. Agrega tu primer producto para empezar a vender.",
+        body=lambda ctx: f"Tu tienda \"{ctx.get('store_name', '')}\" está lista. Ahora súbele un logo, un banner y agrega tu primer producto para empezar a vender.",
         action_url="/dashboard/productos",
         push=False,
+        email=True,
     ),
     "first_product": NotifTemplate(
         icon="📦",
@@ -55,6 +71,7 @@ TEMPLATES: dict[str, NotifTemplate] = {
         body="Ya tienes tu primer producto publicado. Sigue agregando hasta tener al menos 5 para verte más profesional.",
         action_url="/dashboard/productos",
         push=False,
+        email=True,
     ),
     "products_5": NotifTemplate(
         icon="🚀",
@@ -62,6 +79,7 @@ TEMPLATES: dict[str, NotifTemplate] = {
         body="Ya tienes 5 productos publicados. Ahora comparte tu tienda para empezar a recibir pedidos.",
         action_url="/dashboard/configuracion",
         push=False,
+        email=True,
     ),
     "first_visit": NotifTemplate(
         icon="👀",
@@ -100,18 +118,46 @@ TEMPLATES: dict[str, NotifTemplate] = {
         title="Todavía no tienes productos",
         body="Han pasado varios días desde que creaste tu tienda pero aún no subes ningún producto. Agrega el primero — solo necesitas una foto y un precio.",
         action_url="/dashboard/productos",
+        email=True,
     ),
     "no_products_final": NotifTemplate(
         icon="⚠️",
         title="Tu tienda sigue sin productos",
         body="Ya llevas dos semanas sin publicar nada. Sin productos tu tienda no puede recibir pedidos — agrégalos ahora para no perder terreno.",
         action_url="/dashboard/productos",
+        email=True,
     ),
     "no_products_urgent": NotifTemplate(
         icon="🚨",
         title="Advertencia: tu tienda está en riesgo",
         body="Llevas 30 días sin agregar productos. Las tiendas inactivas por mucho tiempo pueden ser suspendidas — publica al menos un producto para mantenerla activa.",
         action_url="/dashboard/productos",
+        email=True,
+    ),
+    # Avisos escalonados de "sin logo/banner" — a diferencia de "sin productos",
+    # esto no arriesga la tienda (sí puede vender sin logo/banner), es solo un
+    # empujón para que se vea profesional y genere más confianza. El texto
+    # varía según falte uno, el otro o ambos (ctx: missing_logo, missing_banner).
+    "missing_branding_warn": NotifTemplate(
+        icon="🎨",
+        title="Dale una cara a tu tienda",
+        body=lambda ctx: f"Todavía no subiste {_branding_phrase(ctx)}. Las tiendas con logo y banner generan más confianza y venden más.",
+        action_url="/dashboard/configuracion",
+        email=True,
+    ),
+    "missing_branding_final": NotifTemplate(
+        icon="🖼️",
+        title="Tu tienda se ve incompleta",
+        body=lambda ctx: f"Ya pasaron dos semanas y todavía no subiste {_branding_phrase(ctx)}. Toma 2 minutos y hace que tu tienda se vea mucho más profesional.",
+        action_url="/dashboard/configuracion",
+        email=True,
+    ),
+    "missing_branding_urgent": NotifTemplate(
+        icon="💡",
+        title="Un último empujón para tu tienda",
+        body=lambda ctx: f"Llevas un mes sin subir {_branding_phrase(ctx)}. Muchos compradores desconfían de tiendas sin imagen — vale la pena completarlo.",
+        action_url="/dashboard/configuracion",
+        email=True,
     ),
     "announcement": NotifTemplate(
         icon="✨",
@@ -185,6 +231,42 @@ async def emit_event(store_id: str, event_type: str, **ctx) -> None:
 
     if template.push:
         await _dispatch_push(store_id, title, body, event_type)
+
+    if template.email:
+        await _dispatch_email(store_id, template.icon, title, body, action_url)
+
+
+async def _dispatch_email(store_id: str, icon: str, title: str, body: str, action_url: str) -> None:
+    """Email best-effort — canal separado del push, no afecta a los demás si falla.
+    Resuelve el email/nombre del vendedor por store_id (mismo patrón que
+    send_expo_push_to_owner en app.services.push)."""
+    from app.models.models import Store, User
+    from app.services.email import send_notification_email
+
+    try:
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(
+                select(User).join(Store, Store.user_id == User.id).where(Store.id == store_id)
+            )
+            user = result.scalar_one_or_none()
+    except Exception:
+        log.exception("[notifications] no se pudo resolver el usuario de store %s para email", store_id)
+        return
+
+    if not user or not user.email:
+        return
+
+    try:
+        await send_notification_email(
+            to_email=user.email,
+            full_name=user.full_name or "",
+            icon=icon,
+            title=title,
+            body=body,
+            cta_url=f"{settings.APP_URL}{action_url}",
+        )
+    except Exception:
+        log.exception("[notifications] email falló para store %s (%s)", store_id, title)
 
 
 async def _dispatch_push(store_id: str, title: str, body: str, event_type: str) -> None:

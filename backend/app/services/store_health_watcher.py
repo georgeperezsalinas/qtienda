@@ -7,6 +7,9 @@ STORE_HEALTH_CHECK_HOURS) las tiendas activas buscando:
   - tiendas sin productos: avisos escalonados a los STORE_NO_PRODUCTS_WARN_DAYS /
     _FINAL_DAYS / _URGENT_DAYS de creada. Son SOLO advertencias — este watcher
     nunca cambia el status de la tienda; cerrarla queda a criterio del equipo/admin.
+  - tiendas sin logo/banner: mismo patrón escalonado (STORE_MISSING_BRANDING_*_DAYS),
+    pero sin ninguna connotación de riesgo — la tienda sí puede vender así, es
+    solo un empujón para que se vea más profesional.
 
 Notifica una sola vez por racha (inactive_notified_at / no_sales_notified_at en
 Store), mismo patron que app.services.plan_expiry con expiry_notified_at. Los
@@ -174,6 +177,49 @@ async def check_missing_products_stores() -> int:
     return notified
 
 
+async def check_missing_branding_stores() -> int:
+    """Tiendas activas sin logo o sin banner, con avisos escalonados por edad de
+    la tienda. A diferencia de "sin productos", esto NO arriesga la tienda —
+    solo es un empujón para que se vea más profesional. Mismo patrón que
+    check_missing_products_stores(): el dedupe por tramo lo resuelve el índice
+    único parcial de notifications."""
+    now = datetime.now(timezone.utc)
+
+    async with AsyncSessionLocal() as db:
+        rows = (await db.execute(
+            select(Store.id, Store.created_at, Store.logo_url, Store.banner_url)
+            .where(Store.status == "active", Store.deleted_at.is_(None))
+        )).all()
+
+    notified = 0
+    for r in rows:
+        missing_logo = r.logo_url is None
+        missing_banner = r.banner_url is None
+        if not missing_logo and not missing_banner:
+            continue
+
+        age_days = (now - r.created_at).total_seconds() / 86_400
+        if age_days >= settings.STORE_MISSING_BRANDING_URGENT_DAYS:
+            event_type = "missing_branding_urgent"
+        elif age_days >= settings.STORE_MISSING_BRANDING_FINAL_DAYS:
+            event_type = "missing_branding_final"
+        elif age_days >= settings.STORE_MISSING_BRANDING_WARN_DAYS:
+            event_type = "missing_branding_warn"
+        else:
+            continue
+
+        try:
+            await emit_event(
+                str(r.id), event_type,
+                missing_logo=missing_logo, missing_banner=missing_banner,
+            )
+            notified += 1
+        except Exception:
+            logger.exception("Error notificando falta de logo/banner a store %s", r.id)
+
+    return notified
+
+
 async def store_health_watcher() -> None:
     """Corre dentro del lifespan del backend; revisa periódicamente."""
     await asyncio.sleep(45)  # dejar terminar el arranque
@@ -182,10 +228,11 @@ async def store_health_watcher() -> None:
             n_inactive = await check_inactive_stores()
             n_no_sales = await check_no_sales_stores()
             n_no_products = await check_missing_products_stores()
-            if n_inactive or n_no_sales or n_no_products:
+            n_no_branding = await check_missing_branding_stores()
+            if n_inactive or n_no_sales or n_no_products or n_no_branding:
                 logger.info(
-                    "Salud de tienda: %d inactivas, %d sin ventas, %d sin productos notificadas",
-                    n_inactive, n_no_sales, n_no_products,
+                    "Salud de tienda: %d inactivas, %d sin ventas, %d sin productos, %d sin logo/banner notificadas",
+                    n_inactive, n_no_sales, n_no_products, n_no_branding,
                 )
         except Exception:
             logger.exception("Fallo el chequeo de salud de tienda")
