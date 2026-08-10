@@ -26,6 +26,7 @@ async def list_stores(
     q: Optional[str] = Query(None),
     is_test: Optional[bool] = Query(None),
     has_products: Optional[bool] = Query(None),
+    onboarding_incomplete: Optional[bool] = Query(None),
     page: int = Query(1, ge=1),
     limit: int = Query(20, le=100),
     _=Depends(require_admin),
@@ -43,6 +44,16 @@ async def list_stores(
             .exists()
         )
         filters.append(exists_products if has_products else ~exists_products)
+    if onboarding_incomplete:
+        exists_products = (
+            select(Product.id)
+            .where(Product.store_id == Store.id, Product.deleted_at.is_(None))
+            .exists()
+        )
+        filters.append(Store.status == "active")
+        filters.append(
+            or_(Store.logo_url.is_(None), Store.banner_url.is_(None), ~exists_products)
+        )
     if q:
         term = f"%{q.strip()}%"
         filters.append(
@@ -57,7 +68,10 @@ async def list_stores(
         await db.execute(select(func.count()).select_from(Store).where(and_(*filters)))
     ).scalar()
 
-    order_col = Store.created_at.asc() if has_products is False else Store.created_at.desc()
+    order_col = (
+        Store.created_at.asc() if (has_products is False or onboarding_incomplete)
+        else Store.created_at.desc()
+    )
     result = await db.execute(
         select(Store)
         .options(selectinload(Store.user))
@@ -116,6 +130,10 @@ async def list_stores(
                 "products_count": product_counts.get(s.id, 0),
                 "orders_count": order_counts.get(s.id, 0),
                 "revenue_cents": revenue_by_store.get(s.id, 0),
+                "logo_url": s.logo_url,
+                "banner_url": s.banner_url,
+                "whatsapp": s.whatsapp,
+                "campaign_contacted_at": s.campaign_contacted_at,
             }
             for s in stores
         ],
@@ -317,6 +335,36 @@ async def mark_store_test(
     ))
     await db.commit()
     return {"store_id": store.id, "is_test": store.is_test}
+
+
+@router.post("/stores/{store_id}/mark-contacted")
+async def mark_store_contacted(
+    store_id: UUID,
+    current_admin=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Registra que el equipo ya contactó a esta tienda por la campaña de
+    onboarding incompleto (WhatsApp manual desde el admin) — evita reenviar
+    el mismo mensaje a quien ya recibió uno."""
+    result = await db.execute(
+        select(Store).where(Store.id == store_id, Store.deleted_at.is_(None))
+    )
+    store = result.scalar_one_or_none()
+    if not store:
+        raise HTTPException(status_code=404, detail="Tienda no encontrada")
+
+    now = datetime.now(timezone.utc)
+    store.campaign_contacted_at = now
+    db.add(AuditLog(
+        user_id=current_admin.id,
+        store_id=store.id,
+        action="store.campaign_contacted",
+        entity="stores",
+        entity_id=store.id,
+        new_value={"campaign_contacted_at": now.isoformat()},
+    ))
+    await db.commit()
+    return {"store_id": store.id, "campaign_contacted_at": store.campaign_contacted_at}
 
 
 class StoreDeleteRequest(BaseModel):
@@ -621,6 +669,23 @@ async def global_metrics(
         )
     ).scalar()
 
+    stores_onboarding_incomplete = (
+        await db.execute(
+            select(func.count()).select_from(Store).where(
+                Store.status == "active",
+                Store.deleted_at.is_(None),
+                Store.is_test.is_(False),
+                or_(
+                    Store.logo_url.is_(None),
+                    Store.banner_url.is_(None),
+                    ~select(Product.id)
+                        .where(Product.store_id == Store.id, Product.deleted_at.is_(None))
+                        .exists(),
+                ),
+            )
+        )
+    ).scalar()
+
     total_users = (
         await db.execute(
             select(func.count()).select_from(User).where(User.deleted_at.is_(None))
@@ -736,6 +801,7 @@ async def global_metrics(
             "suspended": suspended_stores,
             "test": test_stores,
             "without_products": stores_without_products,
+            "onboarding_incomplete": stores_onboarding_incomplete,
         },
         "users": {"total": total_users},
         "products": {"total": total_products},

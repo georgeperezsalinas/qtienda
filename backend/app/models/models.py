@@ -124,6 +124,7 @@ class Store(Base):
     inactive_notified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     no_sales_notified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     shared_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    campaign_contacted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
     user: Mapped["User"]            = relationship(back_populates="store", foreign_keys="[Store.user_id]")
     plan: Mapped[Optional["Plan"]]  = relationship(back_populates="stores")

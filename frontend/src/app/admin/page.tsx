@@ -5,13 +5,13 @@ import Link from "next/link";
 import {
   Store, Users, ShoppingBag, TrendingUp, Clock, ArrowRight, ShieldAlert,
   Package, ScrollText, Server, GitBranch, Database, Timer, Globe, Smartphone, Monitor,
-  CreditCard,
+  CreditCard, MessageCircle,
 } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
 
 interface Metrics {
-  stores: { total: number; active: number; pending: number; suspended: number; test: number; without_products: number };
+  stores: { total: number; active: number; pending: number; suspended: number; test: number; without_products: number; onboarding_incomplete: number };
   users: { total: number };
   products: { total: number };
   orders: { total: number };
@@ -464,6 +464,25 @@ export default function AdminDashboardPage() {
                   <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Suscripciones por vencer</p>
                   <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
                     {metrics.subscriptions.expiring_soon} vencida{metrics.subscriptions.expiring_soon !== 1 ? "s" : ""} o por vencer en 14 días
+                  </p>
+                </div>
+                <ArrowRight size={16} style={{ color: "var(--ink-4)" }} />
+              </Link>
+            )}
+
+            {metrics.stores.onboarding_incomplete > 0 && (
+              <Link
+                href="/admin/campana"
+                className="flex items-center gap-3 p-4 rounded-2xl transition-all active:scale-[.98]"
+                style={{ background: "var(--surface-0)", border: "1.5px solid var(--line-2)", boxShadow: "var(--shadow-sm)" }}
+              >
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "#25D36622" }}>
+                  <MessageCircle size={18} style={{ color: "#128C7E" }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Onboarding incompleto</p>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
+                    {metrics.stores.onboarding_incomplete} tienda{metrics.stores.onboarding_incomplete !== 1 ? "s" : ""} sin logo, banner o productos — contactar por WhatsApp
                   </p>
                 </div>
                 <ArrowRight size={16} style={{ color: "var(--ink-4)" }} />
