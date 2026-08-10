@@ -97,6 +97,7 @@ const STATUS_TABS = [
   { key: "pending", label: "Pendientes" },
   { key: "active", label: "Activas" },
   { key: "suspended", label: "Suspendidas" },
+  { key: "sin-productos", label: "Sin productos" },
   { key: "test", label: "Prueba" },
 ];
 
@@ -168,6 +169,7 @@ export default function AdminTiendasPage() {
     try {
       const params: Record<string, string | number | boolean> = { page, limit: 20 };
       if (status === "test") params.is_test = true;
+      else if (status === "sin-productos") params.has_products = false;
       else if (status) params.status = status;
       if (q) params.q = q;
       const { data } = await apiClient.get<StoresResponse>("/admin/stores", { params });

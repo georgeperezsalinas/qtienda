@@ -5,16 +5,18 @@ import Link from "next/link";
 import {
   Store, Users, ShoppingBag, TrendingUp, Clock, ArrowRight, ShieldAlert,
   Package, ScrollText, Server, GitBranch, Database, Timer, Globe, Smartphone, Monitor,
+  CreditCard,
 } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
 
 interface Metrics {
-  stores: { total: number; active: number; pending: number; suspended: number; test: number };
+  stores: { total: number; active: number; pending: number; suspended: number; test: number; without_products: number };
   users: { total: number };
   products: { total: number };
   orders: { total: number };
   plan_requests: { pending: number };
+  subscriptions: { expiring_soon: number };
   this_month: { orders: number; revenue_cents: number };
   trend: { date: string; stores: number; users: number }[];
   top_stores: { id: string; name: string; slug: string; orders: number; revenue_cents: number }[];
@@ -429,6 +431,44 @@ export default function AdminDashboardPage() {
               </div>
               <ArrowRight size={16} style={{ color: "var(--ink-4)" }} />
             </Link>
+
+            {metrics.stores.without_products > 0 && (
+              <Link
+                href="/admin/tiendas?status=sin-productos"
+                className="flex items-center gap-3 p-4 rounded-2xl transition-all active:scale-[.98]"
+                style={{ background: "var(--surface-0)", border: "1.5px solid var(--line-2)", boxShadow: "var(--shadow-sm)" }}
+              >
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "var(--danger-soft)" }}>
+                  <Package size={18} style={{ color: "var(--danger)" }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Tiendas sin productos</p>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
+                    {metrics.stores.without_products} tienda{metrics.stores.without_products !== 1 ? "s" : ""} activa{metrics.stores.without_products !== 1 ? "s" : ""} sin publicar nada
+                  </p>
+                </div>
+                <ArrowRight size={16} style={{ color: "var(--ink-4)" }} />
+              </Link>
+            )}
+
+            {metrics.subscriptions.expiring_soon > 0 && (
+              <Link
+                href="/admin/pagos?view=expiring"
+                className="flex items-center gap-3 p-4 rounded-2xl transition-all active:scale-[.98]"
+                style={{ background: "var(--surface-0)", border: "1.5px solid var(--line-2)", boxShadow: "var(--shadow-sm)" }}
+              >
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "var(--warn-soft)" }}>
+                  <CreditCard size={18} style={{ color: "var(--warn)" }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Suscripciones por vencer</p>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
+                    {metrics.subscriptions.expiring_soon} vencida{metrics.subscriptions.expiring_soon !== 1 ? "s" : ""} o por vencer en 14 días
+                  </p>
+                </div>
+                <ArrowRight size={16} style={{ color: "var(--ink-4)" }} />
+              </Link>
+            )}
 
             <Link
               href="/admin/tiendas"

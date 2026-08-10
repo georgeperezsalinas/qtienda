@@ -25,6 +25,7 @@ async def list_stores(
     status: Optional[str] = Query(None),
     q: Optional[str] = Query(None),
     is_test: Optional[bool] = Query(None),
+    has_products: Optional[bool] = Query(None),
     page: int = Query(1, ge=1),
     limit: int = Query(20, le=100),
     _=Depends(require_admin),
@@ -35,6 +36,13 @@ async def list_stores(
         filters.append(Store.status == status)
     if is_test is not None:
         filters.append(Store.is_test == is_test)
+    if has_products is not None:
+        exists_products = (
+            select(Product.id)
+            .where(Product.store_id == Store.id, Product.deleted_at.is_(None))
+            .exists()
+        )
+        filters.append(exists_products if has_products else ~exists_products)
     if q:
         term = f"%{q.strip()}%"
         filters.append(
@@ -49,11 +57,12 @@ async def list_stores(
         await db.execute(select(func.count()).select_from(Store).where(and_(*filters)))
     ).scalar()
 
+    order_col = Store.created_at.asc() if has_products is False else Store.created_at.desc()
     result = await db.execute(
         select(Store)
         .options(selectinload(Store.user))
         .where(and_(*filters))
-        .order_by(Store.created_at.desc())
+        .order_by(order_col)
         .offset((page - 1) * limit)
         .limit(limit)
     )
@@ -589,6 +598,29 @@ async def global_metrics(
         )
     ).scalar()
 
+    stores_without_products = (
+        await db.execute(
+            select(func.count()).select_from(Store).where(
+                Store.status == "active",
+                Store.deleted_at.is_(None),
+                Store.is_test.is_(False),
+                ~select(Product.id)
+                    .where(Product.store_id == Store.id, Product.deleted_at.is_(None))
+                    .exists(),
+            )
+        )
+    ).scalar()
+
+    subscriptions_expiring_soon = (
+        await db.execute(
+            select(func.count()).select_from(Subscription).where(
+                Subscription.status == "active",
+                Subscription.ends_at.is_not(None),
+                Subscription.ends_at <= now + timedelta(days=14),
+            )
+        )
+    ).scalar()
+
     total_users = (
         await db.execute(
             select(func.count()).select_from(User).where(User.deleted_at.is_(None))
@@ -703,11 +735,13 @@ async def global_metrics(
             "pending": pending_stores,
             "suspended": suspended_stores,
             "test": test_stores,
+            "without_products": stores_without_products,
         },
         "users": {"total": total_users},
         "products": {"total": total_products},
         "orders": {"total": total_orders},
         "plan_requests": {"pending": plan_requests_pending},
+        "subscriptions": {"expiring_soon": subscriptions_expiring_soon},
         "this_month": {
             "orders": monthly_orders,
             "revenue_cents": monthly_revenue,
@@ -830,6 +864,70 @@ async def site_traffic(
                 for sid, name, slug, views in top_viewed_rows
             ],
         },
+    }
+
+
+# ── Suscripciones por vencer/vencidas ──────────────────────────
+
+@router.get("/subscriptions")
+async def list_subscriptions_at_risk(
+    within_days: int = Query(14, ge=1, le=90),
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, le=100),
+    _=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Suscripciones de pago activas que vencen dentro de `within_days` días
+    (incluye las que ya vencieron y siguen marcadas como activas). Ordenadas
+    por fecha de vencimiento — las más urgentes primero."""
+    now = datetime.now(timezone.utc)
+    window_end = now + timedelta(days=within_days)
+
+    filters = [
+        Subscription.status == "active",
+        Subscription.ends_at.is_not(None),
+        Subscription.ends_at <= window_end,
+    ]
+
+    total = (
+        await db.execute(select(func.count()).select_from(Subscription).where(and_(*filters)))
+    ).scalar()
+
+    result = await db.execute(
+        select(Subscription)
+        .options(
+            selectinload(Subscription.plan),
+            selectinload(Subscription.store).selectinload(Store.user),
+        )
+        .where(and_(*filters))
+        .order_by(Subscription.ends_at.asc())
+        .offset((page - 1) * limit)
+        .limit(limit)
+    )
+    subs = result.scalars().all()
+
+    return {
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "pages": -(-total // limit),
+        "items": [
+            {
+                "id": sub.id,
+                "store_id": sub.store.id if sub.store else None,
+                "store_name": sub.store.name if sub.store else None,
+                "store_slug": sub.store.slug if sub.store else None,
+                "owner_email": sub.store.user.email if sub.store and sub.store.user else None,
+                "owner_name": sub.store.user.full_name if sub.store and sub.store.user else None,
+                "owner_phone": sub.store.user.phone if sub.store and sub.store.user else None,
+                "plan_name": sub.plan.name if sub.plan else None,
+                "ends_at": sub.ends_at,
+                "days_left": (sub.ends_at - now).days if sub.ends_at else None,
+                "expired": sub.ends_at < now if sub.ends_at else False,
+                "notified": sub.expiry_notified_at is not None,
+            }
+            for sub in subs
+        ],
     }
 
 

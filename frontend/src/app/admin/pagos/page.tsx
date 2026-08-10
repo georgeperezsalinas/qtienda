@@ -5,8 +5,9 @@
 // aquí se verifica contra la app de Yape y se aprueba o rechaza.
 
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
-  CheckCircle2, Clock, RefreshCw, Smartphone, XCircle,
+  CheckCircle2, Clock, RefreshCw, Smartphone, XCircle, AlertTriangle,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
@@ -34,11 +35,31 @@ interface PlanRequest {
   } | null;
 }
 
+interface SubscriptionAtRisk {
+  id: string;
+  store_id: string | null;
+  store_name: string | null;
+  store_slug: string | null;
+  owner_email: string | null;
+  owner_name: string | null;
+  owner_phone: string | null;
+  plan_name: string | null;
+  ends_at: string | null;
+  days_left: number | null;
+  expired: boolean;
+  notified: boolean;
+}
+
 const TABS = [
   { key: "pending", label: "Pendientes" },
   { key: "approved", label: "Aprobados" },
   { key: "rejected", label: "Rechazados" },
 ];
+
+const VIEWS = [
+  { key: "requests", label: "Solicitudes de pago" },
+  { key: "expiring", label: "Suscripciones por vencer" },
+] as const;
 
 const STATUS_STYLES: Record<string, { bg: string; color: string; label: string }> = {
   pending: { bg: "var(--warn-soft)", color: "var(--warn)", label: "Pendiente" },
@@ -56,6 +77,10 @@ function dateTimePE(iso: string) {
 }
 
 export default function AdminPagosPage() {
+  const searchParams = useSearchParams();
+  const [view, setView] = useState<(typeof VIEWS)[number]["key"]>(
+    searchParams.get("view") === "expiring" ? "expiring" : "requests"
+  );
   const [status, setStatus] = useState("pending");
   const [items, setItems] = useState<PlanRequest[]>([]);
   const [total, setTotal] = useState(0);
@@ -63,6 +88,10 @@ export default function AdminPagosPage() {
   const [acting, setActing] = useState<string | null>(null);
   const [confirmTarget, setConfirmTarget] = useState<PlanRequest | null>(null);
   const [rejectTarget, setRejectTarget] = useState<PlanRequest | null>(null);
+
+  const [expiring, setExpiring] = useState<SubscriptionAtRisk[]>([]);
+  const [expiringTotal, setExpiringTotal] = useState(0);
+  const [expiringLoading, setExpiringLoading] = useState(true);
 
   const fetchRequests = useCallback(async () => {
     setLoading(true);
@@ -79,9 +108,28 @@ export default function AdminPagosPage() {
     }
   }, [status]);
 
+  const fetchExpiring = useCallback(async () => {
+    setExpiringLoading(true);
+    try {
+      const { data } = await apiClient.get("/admin/subscriptions", {
+        params: { within_days: 14, limit: 50 },
+      });
+      setExpiring(data.items);
+      setExpiringTotal(data.total);
+    } catch {
+      toast.error("No se pudieron cargar las suscripciones");
+    } finally {
+      setExpiringLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchRequests();
   }, [fetchRequests]);
+
+  useEffect(() => {
+    if (view === "expiring") fetchExpiring();
+  }, [view, fetchExpiring]);
 
   async function approve(req: PlanRequest) {
     setActing(req.id);
@@ -117,15 +165,16 @@ export default function AdminPagosPage() {
         <div>
           <p className="eyebrow">Planes</p>
           <h1 className="font-display font-extrabold text-2xl" style={{ color: "var(--ink)" }}>
-            Pagos Yape
+            {view === "requests" ? "Pagos Yape" : "Suscripciones por vencer"}
           </h1>
           <p className="text-sm mt-1" style={{ color: "var(--ink-3)" }}>
-            {total} pago{total !== 1 ? "s" : ""} {STATUS_STYLES[status].label.toLowerCase()}
-            {total !== 1 ? "s" : ""}
+            {view === "requests"
+              ? `${total} pago${total !== 1 ? "s" : ""} ${STATUS_STYLES[status].label.toLowerCase()}${total !== 1 ? "s" : ""}`
+              : `${expiringTotal} suscripción${expiringTotal !== 1 ? "es" : ""} vencida${expiringTotal !== 1 ? "s" : ""} o por vencer en 14 días`}
           </p>
         </div>
         <button
-          onClick={fetchRequests}
+          onClick={() => (view === "requests" ? fetchRequests() : fetchExpiring())}
           className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold"
           style={{ background: "var(--surface-0)", color: "var(--ink-2)", border: "1.5px solid var(--line-2)" }}
         >
@@ -134,6 +183,24 @@ export default function AdminPagosPage() {
         </button>
       </div>
 
+      <div className="flex gap-2">
+        {VIEWS.map((v) => (
+          <button
+            key={v.key}
+            onClick={() => setView(v.key)}
+            className="px-4 py-1.5 rounded-full text-xs font-semibold transition-all"
+            style={
+              view === v.key
+                ? { background: "var(--ink)", color: "var(--bg)" }
+                : { background: "var(--surface-0)", color: "var(--ink-3)", border: "1.5px solid var(--line-2)" }
+            }
+          >
+            {v.label}
+          </button>
+        ))}
+      </div>
+
+      {view === "requests" && (
       <div className="flex gap-2">
         {TABS.map((t) => (
           <button
@@ -150,7 +217,9 @@ export default function AdminPagosPage() {
           </button>
         ))}
       </div>
+      )}
 
+      {view === "requests" && (
       <div className="space-y-3">
         {loading ? (
           [...Array(3)].map((_, i) => (
@@ -246,6 +315,75 @@ export default function AdminPagosPage() {
           })
         )}
       </div>
+      )}
+
+      {view === "expiring" && (
+      <div className="space-y-3">
+        {expiringLoading ? (
+          [...Array(3)].map((_, i) => (
+            <div key={i} className="skeleton" style={{ height: 100, borderRadius: 16 }} />
+          ))
+        ) : expiring.length === 0 ? (
+          <div
+            className="rounded-2xl p-10 text-center"
+            style={{ background: "var(--surface-0)", border: "1.5px solid var(--line-2)" }}
+          >
+            <CheckCircle2 size={32} className="mx-auto mb-3" style={{ color: "var(--ink-4)" }} />
+            <p className="text-sm font-semibold" style={{ color: "var(--ink-3)" }}>
+              Ninguna suscripción vence en los próximos 14 días
+            </p>
+          </div>
+        ) : (
+          expiring.map((sub) => (
+            <div
+              key={sub.id}
+              className="rounded-2xl p-4"
+              style={{ background: "var(--surface-0)", border: "1.5px solid var(--line-2)" }}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-display font-bold text-sm" style={{ color: "var(--ink)" }}>
+                      {sub.store_name ?? "Tienda eliminada"}
+                    </p>
+                    <span
+                      className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
+                      style={
+                        sub.expired
+                          ? { background: "var(--danger-soft)", color: "var(--danger)" }
+                          : { background: "var(--warn-soft)", color: "var(--warn)" }
+                      }
+                    >
+                      <AlertTriangle size={10} />
+                      {sub.expired
+                        ? `Vencida hace ${Math.abs(sub.days_left ?? 0)} día${Math.abs(sub.days_left ?? 0) !== 1 ? "s" : ""}`
+                        : `Vence en ${sub.days_left} día${sub.days_left !== 1 ? "s" : ""}`}
+                    </span>
+                  </div>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
+                    {sub.owner_name ?? "Sin nombre"} · {sub.owner_email ?? "sin email"}
+                    {sub.owner_phone ? ` · ${sub.owner_phone}` : ""}
+                  </p>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--ink-4)" }}>
+                    {sub.notified ? "Ya se le avisó por email/push" : "Todavía no se le ha avisado"}
+                  </p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-xs font-semibold" style={{ color: "var(--accent-ink)" }}>
+                    Plan {sub.plan_name ?? "—"}
+                  </p>
+                  {sub.ends_at && (
+                    <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
+                      {new Date(sub.ends_at).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" })}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+      )}
 
       <ConfirmModal
         open={!!confirmTarget}
