@@ -16,7 +16,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.db.session import AsyncSessionLocal
-from app.models.models import AuditLog, Plan, Product, Store, Subscription
+from app.models.models import AuditLog, Notification, Plan, Product, Store, Subscription
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +87,26 @@ async def _send_all_channels(
         title = f"Tu Plan {plan_name} vence {when} ⏰"
         body = f"Renuévalo antes del {ends_str} para no perder tus beneficios."
 
+    # Campanita in-app primero — no dispara push propio (los pushes de acá
+    # abajo lo cubren, evita duplicar), pero así el badge que se calcula
+    # después ya incluye esta notificación.
+    try:
+        await emit_event(store_id, "plan_expiring", title=title, body=body)
+    except Exception:
+        logger.exception("Notificación in-app de vencimiento falló para store %s", store_id)
+
+    # Numerito del ícono de la app — mismo conteo que usa notifications.py
+    unread_count = None
+    try:
+        async with AsyncSessionLocal() as db:
+            unread_count = (await db.execute(
+                select(func.count()).select_from(Notification).where(
+                    Notification.store_id == store_id, Notification.read_at.is_(None)
+                )
+            )).scalar()
+    except Exception:
+        logger.exception("No se pudo calcular unread_count para store %s", store_id)
+
     # Email (Resend)
     try:
         await send_plan_expiry_email(user.email, user.full_name, plan_name, ends_str, days, overdue=overdue)
@@ -101,6 +121,7 @@ async def _send_all_channels(
             "url": "/dashboard/planes",
             "icon": "/icon/icon-192.png",
             "badge": "/icon/icon-96.png",
+            "badgeCount": unread_count,
             "tag": "plan-expiry",
         })
     except Exception:
@@ -114,15 +135,10 @@ async def _send_all_channels(
                 title=title,
                 body=body,
                 data={"type": "plan_expiry"},
+                badge=unread_count,
             )
     except Exception:
         logger.exception("Expo push de vencimiento falló para %s", user.email)
-
-    # Campanita in-app — no dispara push propio (ya se mandó arriba, evita duplicar)
-    try:
-        await emit_event(store_id, "plan_expiring", title=title, body=body)
-    except Exception:
-        logger.exception("Notificación in-app de vencimiento falló para store %s", store_id)
 
 
 async def downgrade_expired_subscriptions() -> int:
