@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
 import { Search, Store, ChevronRight, ChevronLeft, MapPin, ArrowLeft, Package, Clock, Tag, Sparkles, ShoppingBag } from "lucide-react";
 import Logo from "@/components/ui/Logo";
 import { useAuthStore } from "@/store/authStore";
@@ -96,6 +97,135 @@ function ScrollRow({ children }: { children: React.ReactNode }) {
         >
           <ChevronRight size={16} style={{ color: "var(--ink-2)" }} />
         </button>
+      )}
+    </div>
+  );
+}
+
+interface BannerSlide {
+  icon: React.ElementType;
+  title: string;
+  body: string;
+  gradient: string;
+  cta?: { label: string; href: string };
+  showInstallLink?: boolean;
+}
+
+const BANNER_ROTATE_MS = 6000;
+
+// Banner rotatorio del Mall: bienvenida, invitación a crear tienda, y un
+// dato real (nunca inventado — mismo criterio que el resto de esta página).
+function MallBannerCarousel({ storeCount }: { storeCount: number }) {
+  const slides: BannerSlide[] = useMemo(() => {
+    const base: BannerSlide[] = [
+      {
+        icon: ShoppingBag,
+        title: "Mall qtienda",
+        body: "Un solo lugar para conocer todas las tiendas y sus productos.",
+        gradient: "linear-gradient(120deg, var(--accent), var(--accent-soft))",
+        showInstallLink: true,
+      },
+      {
+        icon: Store,
+        title: "¿Vendes por TikTok? 🚀",
+        body: "Crea tu tienda gratis en 2 minutos — sin tarjeta, sin pasos técnicos.",
+        gradient: "linear-gradient(120deg, #7C3AED, #A78BFA)",
+        cta: { label: "Crear mi tienda", href: "/auth/register" },
+      },
+    ];
+    if (storeCount > 0) {
+      base.push({
+        icon: Sparkles,
+        title: `Ya somos ${storeCount} tienda${storeCount !== 1 ? "s" : ""}`,
+        body: "Súmate a la comunidad de vendedores que ya venden en Qtienda.",
+        gradient: "linear-gradient(120deg, #059669, #34D399)",
+        cta: { label: "Crear mi tienda", href: "/auth/register" },
+      });
+    }
+    return base;
+  }, [storeCount]);
+
+  const [index, setIndex] = useState(0);
+  const touchStartX = useRef(0);
+
+  useEffect(() => {
+    if (index >= slides.length) setIndex(0);
+  }, [slides.length, index]);
+
+  useEffect(() => {
+    if (slides.length <= 1) return;
+    const t = setInterval(() => setIndex((i) => (i + 1) % slides.length), BANNER_ROTATE_MS);
+    return () => clearInterval(t);
+  }, [slides.length]);
+
+  function onTouchStart(e: React.TouchEvent) {
+    touchStartX.current = e.touches[0].clientX;
+  }
+  function onTouchEnd(e: React.TouchEvent) {
+    const delta = touchStartX.current - e.changedTouches[0].clientX;
+    if (delta > 40) setIndex((i) => (i + 1) % slides.length);
+    else if (delta < -40) setIndex((i) => (i - 1 + slides.length) % slides.length);
+  }
+
+  const slide = slides[index];
+  const Icon = slide.icon;
+
+  return (
+    <div
+      className="relative overflow-hidden rounded-2xl p-5 mb-4"
+      style={{ background: slide.gradient }}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={index}
+          initial={{ opacity: 0, x: 12 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -12 }}
+          transition={{ duration: 0.25 }}
+          className="flex items-center gap-4"
+        >
+          <div
+            className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
+            style={{ background: "rgba(255,255,255,.2)" }}
+          >
+            <Icon size={20} className="text-white" />
+          </div>
+          <div className="min-w-0">
+            <p className="font-display font-extrabold text-base leading-tight text-white">{slide.title}</p>
+            <p className="text-xs mt-0.5 text-white/85">{slide.body}</p>
+            {slide.cta ? (
+              <Link
+                href={slide.cta.href}
+                className="inline-flex items-center gap-1 mt-2 text-xs font-bold px-3 py-1.5 rounded-full text-white"
+                style={{ background: "rgba(255,255,255,.22)", border: "1px solid rgba(255,255,255,.4)" }}
+              >
+                {slide.cta.label} <ChevronRight size={12} />
+              </Link>
+            ) : slide.showInstallLink ? (
+              <MallInstallLink />
+            ) : null}
+          </div>
+        </motion.div>
+      </AnimatePresence>
+
+      {slides.length > 1 && (
+        <div className="flex items-center gap-1.5 mt-3 relative z-10">
+          {slides.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setIndex(i)}
+              aria-label={`Ir al slide ${i + 1}`}
+              className="rounded-full transition-all"
+              style={{
+                width: i === index ? 16 : 6,
+                height: 6,
+                background: i === index ? "#fff" : "rgba(255,255,255,.4)",
+              }}
+            />
+          ))}
+        </div>
       )}
     </div>
   );
@@ -337,25 +467,8 @@ export default function TiendasPage() {
 
       {/* ── Content ── */}
       <main className="flex-1 px-4 py-4 mx-auto w-full" style={{ maxWidth: "min(94vw, 1400px)" }}>
-        {/* Banner — bienvenida al mall, decorativo y estático */}
-        <div
-          className="relative overflow-hidden rounded-2xl p-5 mb-4 flex items-center gap-4"
-          style={{ background: "linear-gradient(120deg, var(--accent), var(--accent-soft))" }}
-        >
-          <div
-            className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
-            style={{ background: "rgba(255,255,255,.2)" }}
-          >
-            <ShoppingBag size={20} className="text-white" />
-          </div>
-          <div className="min-w-0">
-            <p className="font-display font-extrabold text-base leading-tight text-white">Mall qtienda</p>
-            <p className="text-xs mt-0.5 text-white/85">
-              Un solo lugar para conocer todas las tiendas y sus productos.
-            </p>
-            <MallInstallLink />
-          </div>
-        </div>
+        {/* Banner rotatorio — bienvenida, invitación a crear tienda, y stats reales */}
+        <MallBannerCarousel storeCount={stores.length} />
 
         {/* Recién publicado — últimos productos reales de todas las tiendas.
             Grilla (no fila única) para que se sienta como un catálogo real,
