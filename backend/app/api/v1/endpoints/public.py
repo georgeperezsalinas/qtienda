@@ -527,6 +527,11 @@ async def create_order(
             )
         )
 
+    # Hito "primer pedido" — dedupe lo resuelve emit_event, se puede llamar en cada pedido
+    import asyncio
+    from app.services.notifications import emit_event
+    asyncio.ensure_future(emit_event(str(store.id), "first_order", order_number=order.order_number))
+
     # WhatsApp deep-link for vendor notification
     wa_link = None
     if store.whatsapp:
@@ -678,7 +683,7 @@ async def track_order(request: Request, slug: str, order_number: str, db: AsyncS
 
 # ── Analytics de tienda (QT-008) ──────────────────────────────
 
-ALLOWED_EVENTS = {"store_view", "product_view", "add_to_cart", "checkout_start"}
+ALLOWED_EVENTS = {"store_view", "product_view", "add_to_cart", "checkout_start", "product_favorite"}
 
 
 @router.post("/store/{slug}/events", status_code=204)
@@ -729,6 +734,17 @@ async def track_event(
         device=device,
     ))
     await db.commit()
+
+    # Hitos de onboarding — el dedupe de "primera vez" lo resuelve el ON CONFLICT
+    # del propio emit_event, así que llamar en cada evento es seguro y barato.
+    if event == "store_view":
+        import asyncio
+        from app.services.notifications import emit_event
+        asyncio.ensure_future(emit_event(str(store_id), "first_visit"))
+    elif event == "product_favorite":
+        import asyncio
+        from app.services.notifications import emit_event
+        asyncio.ensure_future(emit_event(str(store_id), "first_favorite"))
 
 
 VIEWERS_WINDOW_MINUTES = 10

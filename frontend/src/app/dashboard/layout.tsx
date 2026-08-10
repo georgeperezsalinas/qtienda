@@ -22,11 +22,11 @@ import {
   BarChart2,
   Search,
   ShoppingCart,
-  Bell,
   HelpCircle,
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import DashboardTour, { restartQtiendaTour } from "@/components/onboarding/DashboardTour";
+import NotificationBell from "@/components/ui/NotificationBell";
 import { useSellerPushSubscription } from "@/hooks/usePushSubscription";
 import { apiClient } from "@/lib/api";
 import toast from "react-hot-toast";
@@ -115,7 +115,6 @@ export default function DashboardLayout({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [storeSlug, setStoreSlug] = useState<string | null>(null);
-  const [pendingCount, setPendingCount] = useState(0);
   const loggingOut = useRef(false);
 
   useSellerPushSubscription(user?.email);
@@ -129,15 +128,7 @@ export default function DashboardLayout({
     if (hydrated && accessToken)
       apiClient
         .get("/stores/me")
-        .then(({ data }) => {
-          setStoreSlug(data.slug);
-          // Pedidos pendientes de hoy → badge de la campanita del top bar
-          const today = new Date().toISOString().slice(0, 10);
-          apiClient
-            .get("/orders/stats/summary", { params: { from_date: today, to_date: today } })
-            .then(({ data: s }) => setPendingCount(s.this_month?.pending ?? 0))
-            .catch(() => {});
-        })
+        .then(({ data }) => setStoreSlug(data.slug))
         .catch(() => {});
   }, [hydrated, accessToken]);
   useEffect(() => setDrawerOpen(false), [pathname]);
@@ -178,8 +169,9 @@ export default function DashboardLayout({
           padding: "20px 14px",
         }}
       >
-        <div style={{ padding: "4px 8px 22px" }}>
+        <div className="flex items-center justify-between" style={{ padding: "4px 8px 22px" }}>
           <Logo size="md" variant="brand" />
+          <NotificationBell />
         </div>
 
         <nav className="flex-1 flex flex-col gap-0.5">
@@ -305,32 +297,7 @@ export default function DashboardLayout({
               >
                 <HelpCircle size={16} strokeWidth={1.7} style={{ color: "var(--ink-2)" }} />
               </button>
-              <Link
-                href={pendingCount > 0 ? "/dashboard/pedidos?status=pending" : "/dashboard/pedidos"}
-                className="relative flex items-center justify-center rounded-full"
-                style={{
-                  width: 36,
-                  height: 36,
-                  background: "var(--surface)",
-                  border: "1px solid var(--line)",
-                }}
-                aria-label="Pedidos pendientes"
-              >
-                <Bell size={16} strokeWidth={1.7} style={{ color: "var(--ink-2)" }} />
-                {pendingCount > 0 && (
-                  <span
-                    className="absolute rounded-full"
-                    style={{
-                      top: 8,
-                      right: 8,
-                      width: 7,
-                      height: 7,
-                      background: "var(--accent)",
-                      border: "2px solid var(--bg)",
-                    }}
-                  />
-                )}
-              </Link>
+              <NotificationBell />
               <Link
                 href="/dashboard/configuracion"
                 className="flex items-center justify-center rounded-full"

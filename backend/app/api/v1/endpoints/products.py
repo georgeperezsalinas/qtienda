@@ -204,6 +204,18 @@ async def create_product(
     await db.flush()
     await db.commit()
 
+    active_count = (await db.execute(
+        select(func.count()).select_from(Product).where(
+            Product.store_id == store.id,
+            Product.deleted_at.is_(None),
+        )
+    )).scalar()
+    if active_count in (1, 5):
+        import asyncio
+        from app.services.notifications import emit_event
+        event_type = "first_product" if active_count == 1 else "products_5"
+        asyncio.ensure_future(emit_event(str(store.id), event_type))
+
     result = await db.execute(
         select(Product).options(selectinload(Product.images)).where(Product.id == product.id)
     )

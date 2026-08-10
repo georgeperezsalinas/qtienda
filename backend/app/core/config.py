@@ -52,6 +52,11 @@ class Settings(BaseSettings):
     PLAN_EXPIRY_NOTICE_DAYS: int = 3   # avisar cuando falten <= N dias
     PLAN_EXPIRY_CHECK_HOURS: int = 6   # frecuencia del chequeo
 
+    # Salud de tienda: reactivacion e impulso de ventas
+    STORE_INACTIVE_DAYS: int = 7        # sin pedidos ni visitas en N dias -> "reactiva tu tienda"
+    STORE_NO_SALES_DAYS: int = 30       # sin pedidos en N dias (con productos) -> "consejos para vender"
+    STORE_HEALTH_CHECK_HOURS: int = 6   # frecuencia del chequeo
+
     UPLOADS_DIR: str = "/tmp/qtienda-uploads"
     UPLOADS_BASE_URL: str = "http://localhost:8000/uploads"
 

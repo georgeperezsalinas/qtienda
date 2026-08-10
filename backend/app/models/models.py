@@ -121,6 +121,9 @@ class Store(Base):
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime]    = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime]    = mapped_column(DateTime(timezone=True), server_default=func.now())
+    inactive_notified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    no_sales_notified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    shared_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
     user: Mapped["User"]            = relationship(back_populates="store", foreign_keys="[Store.user_id]")
     plan: Mapped[Optional["Plan"]]  = relationship(back_populates="stores")
@@ -452,4 +455,20 @@ class SiteEvent(Base):
     session_id: Mapped[Optional[str]] = mapped_column(String(64))
     device: Mapped[Optional[str]] = mapped_column(String(10))
     ip_address: Mapped[Optional[str]] = mapped_column(INET)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+# ── Notifications (inbox del vendedor) ─────────────────────────
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id: Mapped[int]             = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    store_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("stores.id", ondelete="CASCADE"), nullable=False)
+    type: Mapped[str]           = mapped_column(String(40))
+    title: Mapped[str]          = mapped_column(String(150))
+    body: Mapped[str]           = mapped_column(String(300))
+    icon: Mapped[Optional[str]] = mapped_column(String(10))
+    action_url: Mapped[Optional[str]] = mapped_column(String(200))
+    read_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -23,6 +23,7 @@ import { apiClient } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import ReferralBanner from "@/components/ui/ReferralBanner";
 import PlanStatusBanner from "@/components/ui/PlanStatusBanner";
+import OnboardingProgress from "@/components/onboarding/OnboardingProgress";
 import toast from "react-hot-toast";
 
 /* ─── Types ─── */
@@ -380,99 +381,8 @@ export default function DashboardPage() {
           )
         }
 
-        {/* Onboarding checklist */}
-        {
-          !loadingStats && productCount !== null && productCount === 0 && (
-            <div id="tour-checklist" className="card mb-5 p-4 animate-fade-up">
-              <p className="eyebrow mb-3">Para que tu tienda esté lista</p>
-              {(
-                [
-                  {
-                    label: "Tienda creada",
-                    sub: store.name,
-                    done: true,
-                    href: "/dashboard/configuracion",
-                  },
-                  {
-                    label: "Primer producto",
-                    sub: "Una foto y un precio",
-                    done: false,
-                    href: "/dashboard/productos",
-                  },
-                  {
-                    label: "Cómo recibes pagos",
-                    sub: "Yape, transferencia, contra entrega",
-                    done: false,
-                    href: "/dashboard/configuracion",
-                  },
-                  {
-                    label: "Compartir tu link",
-                    sub: `qtienda.shop/${store.slug}`,
-                    done: false,
-                    onClick: () =>
-                      navigator.share?.({
-                        title: store.name,
-                        text: `Visita mi tienda: ${store.name}`,
-                        url: `${window.location.origin}/tienda/${store.slug}`,
-                      }),
-                  },
-                ] as const
-              ).map((step, i) => {
-                const content = (
-                  <div
-                    key={i}
-                    className="flex items-center gap-3"
-                    style={{
-                      padding: "12px 0",
-                      borderTop: i === 0 ? "0" : "1px solid var(--line)",
-                    }}
-                  >
-                    <span
-                      className="flex items-center justify-center flex-shrink-0 rounded-full"
-                      style={{
-                        width: 18,
-                        height: 18,
-                        background: step.done ? "var(--ink)" : "transparent",
-                        border: step.done ? "0" : "1.5px solid var(--ink-4)",
-                        color: "var(--bg)",
-                      }}
-                    >
-                      {step.done && <CheckCircle2 size={11} strokeWidth={2.5} />}
-                    </span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p
-                        className="text-sm font-medium truncate"
-                        style={{
-                          color: step.done ? "var(--ink-3)" : "var(--ink)",
-                          textDecoration: step.done ? "line-through" : "none",
-                        }}
-                      >
-                        {step.label}
-                      </p>
-                      <p className="text-[11px]" style={{ color: "var(--ink-3)", marginTop: 1 }}>
-                        {step.sub}
-                      </p>
-                    </div>
-                    {!step.done && <ChevronRight size={15} style={{ color: "var(--ink-4)" }} />}
-                  </div>
-                );
-                if ("onClick" in step && step.onClick)
-                  return (
-                    <button key={i} onClick={step.onClick} className="w-full text-left">
-                      {content}
-                    </button>
-                  );
-                if ("href" in step && step.href)
-                  return (
-                    <Link key={i} href={step.href} className="block">
-                      {content}
-                    </Link>
-                  );
-                return content;
-              })}
-            </div>
-          )
-        }
+        {/* Onboarding: progreso gamificado */}
+        {!loadingStats && <OnboardingProgress store={store} />}
 
         <div className="md:grid md:grid-cols-2 md:gap-6 md:items-start">
         {/* Today — typographic, no boxes */}

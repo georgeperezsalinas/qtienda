@@ -80,6 +80,10 @@ async def create_store(
     await db.commit()
     await db.refresh(store)
 
+    import asyncio
+    from app.services.notifications import emit_event
+    asyncio.ensure_future(emit_event(str(store.id), "store_created", store_name=store.name))
+
     return {
         "id": store.id,
         "slug": store.slug,
@@ -248,6 +252,27 @@ async def update_store(
 
     await db.commit()
     return {"updated": True}
+
+
+@router.post("/me/mark-shared")
+async def mark_store_shared(
+    current_user=Depends(require_vendor),
+    db: AsyncSession = Depends(get_db),
+):
+    """Marca que el vendedor ya compartió el link de su tienda (checklist de onboarding)."""
+    result = await db.execute(
+        select(Store).where(Store.user_id == current_user.id, Store.deleted_at.is_(None))
+    )
+    store = result.scalar_one_or_none()
+    if not store:
+        raise HTTPException(status_code=404, detail="Tienda no encontrada")
+
+    if store.shared_at is None:
+        from datetime import datetime, timezone
+        store.shared_at = datetime.now(timezone.utc)
+        await db.commit()
+
+    return {"shared_at": store.shared_at}
 
 
 @router.put("/me/banners")

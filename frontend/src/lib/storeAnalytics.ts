@@ -6,7 +6,7 @@ import { getSessionId, getDevice } from "./analyticsSession";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
-export type StoreEventName = "store_view" | "product_view" | "add_to_cart" | "checkout_start";
+export type StoreEventName = "store_view" | "product_view" | "add_to_cart" | "checkout_start" | "product_favorite";
 
 export function trackStoreEvent(
   storeSlug: string,

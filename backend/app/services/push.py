@@ -268,6 +268,45 @@ async def send_expo_push_to_vendor_by_store(
         )
 
 
+async def send_expo_push_to_owner(
+    store_id: str,
+    title:    str,
+    body:     str,
+    data:     Optional[dict] = None,
+) -> None:
+    """Envia push Expo al dueño de una tienda. Igual a send_expo_push_to_vendor_by_store
+    pero genérica (sin order_id fijo) — la usan las notificaciones de eventos/hitos."""
+    async with AsyncSessionLocal() as db:
+        from app.models.models import Store, User
+        result = await db.execute(
+            select(User).join(Store, Store.user_id == User.id)
+            .where(Store.id == store_id)
+        )
+        vendor = result.scalar_one_or_none()
+        if not vendor or not getattr(vendor, "push_token", None):
+            return
+        await send_expo_push(
+            expo_token=vendor.push_token,
+            title=title,
+            body=body,
+            data=data or {},
+        )
+
+
+async def send_webpush_to_owner(store_id: str, payload: dict) -> None:
+    """Envia WebPush (PWA) al dueño de una tienda, resolviendo su email por store_id."""
+    async with AsyncSessionLocal() as db:
+        from app.models.models import Store, User
+        result = await db.execute(
+            select(User).join(Store, Store.user_id == User.id)
+            .where(Store.id == store_id)
+        )
+        vendor = result.scalar_one_or_none()
+        if not vendor or not vendor.email:
+            return
+    await _notify_email(vendor.email, payload)
+
+
 async def notify_new_order_to_vendor(
     store_id:     str,
     order_number: str,

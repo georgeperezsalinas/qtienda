@@ -1050,3 +1050,39 @@ async def reset_test_data(
             "users": total_users,
         }
     }
+
+
+# ── Anuncios (nueva función / nuevo plan) ──────────────────────
+
+class BroadcastRequest(BaseModel):
+    title: str
+    body: str
+    action_url: Optional[str] = None
+    plan_id: Optional[UUID] = None  # None = todas las tiendas activas
+
+
+@router.post("/notifications/broadcast")
+async def broadcast_notification(
+    payload: BroadcastRequest,
+    current_admin=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Envía un anuncio (nueva función, nuevo plan, etc.) a todas las tiendas
+    o a las de un plan específico. Fire-and-forget, igual que los demás hitos."""
+    import asyncio
+    from app.services.notifications import emit_event
+
+    filters = [Store.status == "active", Store.deleted_at.is_(None)]
+    if payload.plan_id:
+        filters.append(Store.plan_id == payload.plan_id)
+
+    store_ids = (await db.execute(select(Store.id).where(*filters))).scalars().all()
+
+    extra_ctx = {"title": payload.title, "body": payload.body}
+    if payload.action_url:
+        extra_ctx["action_url"] = payload.action_url
+
+    for store_id in store_ids:
+        asyncio.ensure_future(emit_event(str(store_id), "announcement", **extra_ctx))
+
+    return {"targeted_stores": len(store_ids)}
