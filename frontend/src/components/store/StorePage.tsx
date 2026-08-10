@@ -45,7 +45,19 @@ interface StoreData {
   settings?: {
     welcome_discount_enabled?: boolean;
     welcome_discount_cents?:   number;
+    accept_cash?:     boolean;
+    accept_yape?:     boolean;
+    accept_plin?:     boolean;
+    accept_transfer?: boolean;
+    accept_card?:     boolean;
   };
+}
+
+// "Yape, Plin y efectivo" — nunca "Yape, Plin, efectivo" (sin "y" final)
+function joinSpanish(items: string[]): string {
+  if (items.length === 0) return "";
+  if (items.length === 1) return items[0];
+  return `${items.slice(0, -1).join(", ")} y ${items[items.length - 1]}`;
 }
 
 interface ProductData {
@@ -225,12 +237,12 @@ function BannerPlaceholder({ storeName, logoUrl, color }: {
       }}
     >
       {logoUrl ? (
-        <img
-          src={logoUrl}
-          alt=""
-          className="rounded-2xl object-cover flex-shrink-0"
+        <div
+          className="relative rounded-2xl overflow-hidden flex-shrink-0"
           style={{ width: "clamp(40px, 12%, 88px)", height: "clamp(40px, 12%, 88px)", border: "2px solid rgba(255,255,255,.6)" }}
-        />
+        >
+          <Image src={logoUrl} alt="" fill sizes="88px" className="object-cover" />
+        </div>
       ) : (
         <div
           className="rounded-2xl flex items-center justify-center flex-shrink-0 font-bold text-white"
@@ -295,33 +307,40 @@ function CategoryList({ store, activeCategory, setActiveCategory, color, vertica
     );
   }
   return (
-    <div className="flex gap-2 overflow-x-auto px-4 pb-3 scrollbar-hide lg:px-6">
-      <button
-        onClick={() => setActiveCategory(null)}
-        className="flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
-        style={
-          !activeCategory
-            ? { background: color, color: "#fff" }
-            : { background: "var(--surface-2)", color: "var(--ink-2)" }
-        }
-      >
-        Todo
-      </button>
-      {store.categories.map((cat) => (
+    <div className="relative">
+      <div className="flex gap-2 overflow-x-auto px-4 pb-3 scrollbar-hide lg:px-6">
         <button
-          key={cat.id}
-          onClick={() => setActiveCategory(cat.id === activeCategory ? null : cat.id)}
-          className="flex-shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+          onClick={() => setActiveCategory(null)}
+          className="flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
           style={
-            activeCategory === cat.id
+            !activeCategory
               ? { background: color, color: "#fff" }
               : { background: "var(--surface-2)", color: "var(--ink-2)" }
           }
         >
-          {cat.icon && <span>{cat.icon}</span>}
-          {cat.name}
+          Todo
         </button>
-      ))}
+        {store.categories.map((cat) => (
+          <button
+            key={cat.id}
+            onClick={() => setActiveCategory(cat.id === activeCategory ? null : cat.id)}
+            className="flex-shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+            style={
+              activeCategory === cat.id
+                ? { background: color, color: "#fff" }
+                : { background: "var(--surface-2)", color: "var(--ink-2)" }
+            }
+          >
+            {cat.icon && <span>{cat.icon}</span>}
+            {cat.name}
+          </button>
+        ))}
+      </div>
+      {/* Pista de "hay más categorías" — mismo recurso que la franja de confianza justo debajo */}
+      <div
+        className="absolute right-0 top-0 bottom-3 w-8 pointer-events-none"
+        style={{ background: "linear-gradient(90deg, transparent, var(--surface))" }}
+      />
     </div>
   );
 }
@@ -332,6 +351,7 @@ function CategoryList({ store, activeCategory, setActiveCategory, color, vertica
 export default function StorePage({ store, initialProducts }: Props) {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [search,         setSearch]         = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [cartOpen,       setCartOpen]       = useState(false);
   const [mounted,        setMounted]        = useState(false);
   const [searchFocused,  setSearchFocused]  = useState(false);
@@ -364,6 +384,20 @@ export default function StorePage({ store, initialProducts }: Props) {
   const color      = store.primary_color || "#2563EB";
   const openStatus = getOpenStatus(store.store_hours);
   const storeUrl   = `https://qtienda.shop/tienda/${store.slug}`;
+
+  // Métodos de pago reales de la tienda — antes decía "Yape, Plin o efectivo"
+  // fijo aunque el vendedor no los hubiera activado; ahora refleja lo que de
+  // verdad va a ofrecer en el checkout.
+  const enabledPaymentMethods = [
+    store.settings?.accept_yape && "Yape",
+    store.settings?.accept_plin && "Plin",
+    store.settings?.accept_card && "tarjeta",
+    store.settings?.accept_transfer && "transferencia",
+    store.settings?.accept_cash && "efectivo",
+  ].filter((m): m is string => !!m);
+  const paymentMethodsLabel = enabledPaymentMethods.length > 0
+    ? `Pago seguro por ${joinSpanish(enabledPaymentMethods)}`
+    : "Pago seguro y directo con el vendedor";
 
   // Carrusel nuevo con fallback al banner único (compatibilidad con API vieja)
   const effectiveBanners = store.banners?.length
@@ -457,25 +491,35 @@ export default function StorePage({ store, initialProducts }: Props) {
     if (cartOpen) trackStoreEvent(store.slug, "checkout_start");
   }, [cartOpen, store.slug]);
 
+  // La grilla se re-anima entera en cada cambio de `search` (ver key del
+  // AnimatePresence más abajo) — sin debounce, cada tecla tipeada dispara un
+  // re-render/re-animación completa, se ve entrecortado en celulares lentos.
+  // El input sigue leyendo `search` (respuesta instantánea al tipear); solo
+  // el filtrado/animación esperan a que el usuario haga una pausa.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
   const filtered = useMemo(() => {
     let items = initialProducts;
     if (showFavorites) {
       items = items.filter((p) => favoriteIds.includes(`${store.slug}:${p.id}`));
     }
     if (activeCategory) items = items.filter((p) => p.category_id === activeCategory);
-    if (search) {
-      const q = search.toLowerCase();
+    if (debouncedSearch) {
+      const q = debouncedSearch.toLowerCase();
       items = items.filter(
         (p) => p.name.toLowerCase().includes(q) || p.description?.toLowerCase().includes(q)
       );
     }
     return items;
-  }, [initialProducts, activeCategory, search, showFavorites, favoriteIds, store.slug]);
+  }, [initialProducts, activeCategory, debouncedSearch, showFavorites, favoriteIds, store.slug]);
 
   const featured        = initialProducts.filter((p) => p.is_featured).slice(0, 8);
   const recentPurchases = recentIds.map((id) => initialProducts.find((p) => p.id === id)).filter(Boolean) as ProductData[];
   const hasCategories    = (store.categories?.length ?? 0) > 0;
-  const isFiltering      = !!search || !!activeCategory || showFavorites;
+  const isFiltering      = !!debouncedSearch || !!activeCategory || showFavorites;
 
   return (
     <div className="min-h-dvh" data-theme={store.theme || "clasico"} style={{ background: "var(--bg)" }}>
@@ -591,7 +635,7 @@ export default function StorePage({ store, initialProducts }: Props) {
             {/* Ayuda: relanza el tour guiado de la tienda */}
             <button
               onClick={() => restartStoreTour()}
-              className="w-9 h-9 lg:w-10 lg:h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+              className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
               style={{ background: `${color}12` }}
               aria-label="Ver guía de la tienda"
             >
@@ -601,7 +645,7 @@ export default function StorePage({ store, initialProducts }: Props) {
             {/* Compartir — abre el modal con el link y el QR de la tienda */}
             <button
               onClick={() => setQrOpen(true)}
-              className="w-9 h-9 lg:w-10 lg:h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+              className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
               style={{ background: `${color}12` }}
               aria-label="Compartir"
             >
@@ -611,7 +655,7 @@ export default function StorePage({ store, initialProducts }: Props) {
             {/* Favoritos */}
             <button
               onClick={() => setShowFavorites((v) => !v)}
-              className="relative w-9 h-9 lg:w-10 lg:h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+              className="relative w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
               style={{ background: showFavorites ? "var(--danger-soft)" : `${color}12` }}
               aria-label="Favoritos"
             >
@@ -630,11 +674,11 @@ export default function StorePage({ store, initialProducts }: Props) {
             {mounted && isLoggedIn && user && (
               <button
                 onClick={() => setAccountOpen(true)}
-                className="w-9 h-9 lg:w-10 lg:h-10 rounded-xl flex items-center justify-center font-bold text-xs text-white overflow-hidden flex-shrink-0"
+                className="relative w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs text-white overflow-hidden flex-shrink-0"
                 style={{ background: `${color}cc` }}
               >
                 {user.avatar_url ? (
-                  <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+                  <Image src={user.avatar_url} alt="" fill sizes="40px" className="object-cover" />
                 ) : (
                   (user.full_name?.[0] ?? user.email[0]).toUpperCase()
                 )}
@@ -645,7 +689,7 @@ export default function StorePage({ store, initialProducts }: Props) {
             <button
               id="tour-cart"
               onClick={() => setCartOpen(true)}
-              className="relative w-9 h-9 lg:w-10 lg:h-10 rounded-xl flex items-center justify-center transition-all active:scale-90 flex-shrink-0"
+              className="relative w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-90 flex-shrink-0"
               style={{ background: color }}
               aria-label="Ver carrito"
             >
@@ -701,13 +745,13 @@ export default function StorePage({ store, initialProducts }: Props) {
             </span>
           </button>
           {[
-            { icon: Truck, label: "Coordinas la entrega con el vendedor", short: "Entrega coordinada" },
-            { icon: ShieldCheck, label: "Pago seguro por Yape, Plin o efectivo", short: "Pago seguro" },
-            { icon: MessageCircle, label: "Atención directa por WhatsApp", short: "Atención por WhatsApp" },
-          ].map(({ icon: Icon, label, short }) => (
+            { key: "delivery", icon: Truck, label: "Coordinas la entrega con el vendedor", short: "Entrega coordinada" },
+            { key: "payment", icon: ShieldCheck, label: paymentMethodsLabel, short: "Pago seguro" },
+            { key: "whatsapp", icon: MessageCircle, label: "Atención directa por WhatsApp", short: "Atención por WhatsApp" },
+          ].map(({ key, icon: Icon, label, short }) => (
             <div
-              key={label}
-              id={label === "Pago seguro por Yape, Plin o efectivo" ? "tour-payment" : undefined}
+              key={key}
+              id={key === "payment" ? "tour-payment" : undefined}
               className="flex items-center gap-1.5 flex-shrink-0"
             >
               <Icon size={13} style={{ color: "var(--ink-3)" }} />
@@ -1021,7 +1065,7 @@ export default function StorePage({ store, initialProducts }: Props) {
               ) : listView ? (
                 /* ── LISTA ── */
                 <motion.div
-                  key={`list-${activeCategory}-${search}`}
+                  key={`list-${activeCategory}-${debouncedSearch}`}
                   initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.18 }}
@@ -1050,7 +1094,7 @@ export default function StorePage({ store, initialProducts }: Props) {
               ) : (
                 /* ── GRID ── */
                 <motion.div
-                  key={`grid-${activeCategory}-${search}`}
+                  key={`grid-${activeCategory}-${debouncedSearch}`}
                   initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.18 }}
@@ -1335,11 +1379,11 @@ export default function StorePage({ store, initialProducts }: Props) {
               <div className="px-5 pt-3 pb-8" style={{ paddingBottom: "max(32px, env(safe-area-inset-bottom))" }}>
                 <div className="flex items-center gap-3 mb-5">
                   <div
-                    className="w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-lg text-white flex-shrink-0 overflow-hidden"
+                    className="relative w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-lg text-white flex-shrink-0 overflow-hidden"
                     style={{ background: color }}
                   >
                     {user.avatar_url ? (
-                      <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+                      <Image src={user.avatar_url} alt="" fill sizes="48px" className="object-cover" />
                     ) : (
                       (user.full_name?.[0] ?? user.email[0]).toUpperCase()
                     )}

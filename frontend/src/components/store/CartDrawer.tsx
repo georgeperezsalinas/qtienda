@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, Minus, Plus, ShoppingBag, MessageCircle,
@@ -420,11 +421,9 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                             >
                               {/* Image */}
                               {item.image_url ? (
-                                <img
-                                  src={item.image_url}
-                                  alt={item.name}
-                                  className="w-16 h-16 rounded-xl object-cover flex-shrink-0"
-                                />
+                                <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
+                                  <Image src={item.image_url} alt={item.name} fill sizes="64px" className="object-cover" />
+                                </div>
                               ) : (
                                 <div
                                   className="w-16 h-16 rounded-xl flex items-center justify-center flex-shrink-0 text-2xl"
@@ -774,12 +773,18 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                             <p className="text-xs font-bold" style={{ color: "var(--ink-2)" }}>
                               Escanea para pagar con {form.payment_method === "yape" ? "Yape" : "Plin"}
                             </p>
-                            <img
-                              src={qrUrl}
-                              alt={`QR ${form.payment_method === "yape" ? "Yape" : "Plin"} de ${store.name}`}
-                              className="w-40 h-40 rounded-xl object-contain"
+                            <div
+                              className="relative w-40 h-40 rounded-xl overflow-hidden"
                               style={{ background: "#fff", border: "1px solid var(--line-2)" }}
-                            />
+                            >
+                              <Image
+                                src={qrUrl}
+                                alt={`QR ${form.payment_method === "yape" ? "Yape" : "Plin"} de ${store.name}`}
+                                fill
+                                sizes="160px"
+                                className="object-contain"
+                              />
+                            </div>
                           </div>
                         );
                       })()}

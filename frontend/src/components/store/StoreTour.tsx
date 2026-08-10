@@ -7,7 +7,7 @@
 //   #tour-categories   → wrapper de <CategoryList> (chips de categorías)
 //   #tour-cart         → botón "Ver carrito" (ShoppingCart icon) del header
 //   #tour-product-1    → el <ProductCard> del primer producto renderizado
-//   #tour-payment      → el chip "Pago seguro por Yape, Plin o efectivo"
+//   #tour-payment      → el chip de métodos de pago de la franja de confianza
 //   #tour-orderstatus  → botón "Mi pedido" (PackageSearch)
 //   #tour-whatsapp     → link/botón de WhatsApp (header o barra inferior)
 //

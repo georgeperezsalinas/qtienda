@@ -122,7 +122,7 @@ export default function TiendasPage() {
       .then((data) => setStores(Array.isArray(data) ? data : []))
       .catch(() => setStores([]))
       .finally(() => setLoading(false));
-    fetch(`${API}/public/latest-products`)
+    fetch(`${API}/public/latest-products?limit=24`)
       .then((r) => r.json())
       .then((data) => setLatestProducts(Array.isArray(data) ? data : []))
       .catch(() => setLatestProducts([]));
@@ -357,7 +357,9 @@ export default function TiendasPage() {
           </div>
         </div>
 
-        {/* Recién publicado — últimos productos reales de todas las tiendas */}
+        {/* Recién publicado — últimos productos reales de todas las tiendas.
+            Grilla (no fila única) para que se sienta como un catálogo real,
+            no un carrusel que hay que arrastrar para ver más. */}
         {!loading && latestProducts.length >= 3 && !query && !cityFilter && !categoryFilter && (
           <div className="mb-4">
             <div className="flex items-center gap-1.5 mb-2.5 px-0.5">
@@ -366,28 +368,28 @@ export default function TiendasPage() {
                 Recién publicado
               </p>
             </div>
-            <ScrollRow>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2.5">
               {latestProducts.map((p) => {
                 const color = p.primary_color ?? "#C5613B";
                 return (
                   <Link
                     key={p.id}
                     href={`/tienda/${p.store_slug}?p=${p.id}`}
-                    className="flex-shrink-0 w-[120px] rounded-2xl overflow-hidden transition-all active:scale-[.97]"
+                    className="rounded-2xl overflow-hidden transition-all active:scale-[.97]"
                     style={{ background: "var(--surface)", boxShadow: "0 1px 8px rgba(20,19,15,.06), 0 0 0 1px var(--line)" }}
                   >
-                    <div className="w-full h-[90px] flex items-center justify-center overflow-hidden" style={{ background: "var(--surface-2)" }}>
+                    <div className="w-full h-[110px] flex items-center justify-center overflow-hidden" style={{ background: "var(--surface-2)" }}>
                       {p.image_url ? (
                         <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
                       ) : (
-                        <Package size={22} style={{ color: "var(--ink-4)" }} />
+                        <Package size={24} style={{ color: "var(--ink-4)" }} />
                       )}
                     </div>
-                    <div className="p-2">
-                      <p className="text-[11px] font-semibold truncate" style={{ color: "var(--ink)" }}>
+                    <div className="p-2.5">
+                      <p className="text-xs font-semibold truncate" style={{ color: "var(--ink)" }}>
                         {p.name}
                       </p>
-                      <p className="text-[11px] font-bold mt-0.5" style={{ color }}>
+                      <p className="text-xs font-bold mt-0.5" style={{ color }}>
                         {formatPrice(p.price_cents)}
                       </p>
                       <p className="text-[10px] truncate mt-0.5" style={{ color: "var(--ink-4)" }}>
@@ -397,7 +399,7 @@ export default function TiendasPage() {
                   </Link>
                 );
               })}
-            </ScrollRow>
+            </div>
           </div>
         )}
 
