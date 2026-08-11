@@ -61,8 +61,9 @@ export default function AdminMallBannersPage() {
           Banners rotatorios
         </h1>
         <p className="text-sm mt-1" style={{ color: "var(--ink-3)" }}>
-          Se muestran en /tiendas, rotando junto al banner de bienvenida. Formato recomendado:{" "}
-          <strong>1600×400 px</strong> (panorámico 3:1), JPEG/PNG/WebP, máx 5 MB.
+          Se muestran en /tiendas, rotando junto al banner de bienvenida. Formato exacto:{" "}
+          <strong>1600×400 px</strong> (4:1) — se muestra completo, sin recortar, así que el
+          diseño debe llegar hasta los bordes (sin márgenes en blanco). JPEG/PNG/WebP, máx 5 MB.
         </p>
       </div>
 
@@ -101,7 +102,7 @@ export default function AdminMallBannersPage() {
                       onChange={(url) =>
                         setBanners((prev) => prev.map((x, j) => (j === i ? { ...x, image_url: url } : x)))
                       }
-                      hint={"1600×400 px · panorámico\nJPEG, PNG o WebP · máx 5 MB"}
+                      hint={"1600×400 px exacto (4:1) · diseño hasta el borde, sin márgenes\nJPEG, PNG o WebP · máx 5 MB"}
                       className="h-28 w-full"
                     />
                   </div>

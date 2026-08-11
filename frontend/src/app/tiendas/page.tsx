@@ -214,8 +214,10 @@ function MallBannerCarousel() {
               // (mismo criterio que el carrusel de banners de cada tienda).
               const link = slide.linkUrl && /^(https?:\/\/|\/)/.test(slide.linkUrl) ? slide.linkUrl : undefined;
               const isExternal = !!link && link.startsWith("http") && !link.includes("qtienda.shop");
+              // 4:1 fijo (sin variante lg) — coincide exacto con el tamaño
+              // recomendado (1600×400) para que no haya recorte extra.
               const img = (
-                <div className="relative w-full aspect-[3/1] lg:aspect-[3.4/1]">
+                <div className="relative w-full aspect-[4/1]">
                   <Image
                     src={slide.imageUrl}
                     alt=""
