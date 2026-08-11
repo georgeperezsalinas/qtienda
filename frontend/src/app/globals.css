@@ -42,6 +42,10 @@
   --warn-soft:    #F3E6CC;
   --danger:       #A8453B;
   --danger-soft:  #F1DDD9;
+  --info:         #3E6B8A;
+  --info-soft:    #DEE7EC;
+  --progress:     #6B4F8A;
+  --progress-soft: #E6DFEC;
 
   /* Compatibilidad legacy — mapeo del sistema viejo al nuevo
      (deja estas mientras migras pantallas viejas) */
@@ -344,6 +348,8 @@
   .badge-success { background: var(--success-soft); color: var(--success); }
   .badge-danger  { background: var(--danger-soft); color: var(--danger); }
   .badge-accent  { background: var(--accent-soft); color: var(--accent-ink); }
+  .badge-info     { background: var(--info-soft); color: var(--info); }
+  .badge-progress { background: var(--progress-soft); color: var(--progress); }
   .badge-ink     { background: var(--ink); color: var(--bg); }
 
   /* Or divider */

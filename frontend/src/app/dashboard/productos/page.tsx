@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import Image from "next/image";
 import {
-  Plus, Pencil, Trash2, Package, X,
+  Plus, Pencil, Trash2, Package, PackagePlus, X,
   Search, Copy, CheckSquare, Square, Percent,
   Star, Eye, EyeOff, Tag, Images, Clock, ChevronDown,
 } from "lucide-react";
@@ -318,6 +318,8 @@ export default function ProductosPage() {
   const [bulkBusy, setBulkBusy] = useState(false);
   const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [discountPercent, setDiscountPercent] = useState("");
+  const [showStockModal, setShowStockModal] = useState(false);
+  const [stockDelta, setStockDelta] = useState("");
 
   /* IDs de imágenes originales al abrir edición (para saber cuáles borrar) */
   const origImagesRef = useRef<ProductImage[]>([]);
@@ -501,7 +503,10 @@ export default function ProductosPage() {
   }
 
   /* ── Bulk actions ── */
-  async function runBulkAction(action: "activate" | "deactivate" | "delete", percent?: number) {
+  async function runBulkAction(
+    action: "activate" | "deactivate" | "delete" | "discount_percent" | "adjust_stock",
+    extra?: { percent?: number; stockDelta?: number }
+  ) {
     if (selectedIds.size === 0) return;
     if (action === "delete" && !confirm(`¿Eliminar ${selectedIds.size} producto(s)? Esta acción no se puede deshacer.`)) {
       return;
@@ -510,15 +515,18 @@ export default function ProductosPage() {
     try {
       const body: Record<string, any> = {
         product_ids: Array.from(selectedIds),
-        action: percent != null ? "discount_percent" : action,
+        action,
       };
-      if (percent != null) body.percent = percent;
+      if (extra?.percent != null) body.percent = extra.percent;
+      if (extra?.stockDelta != null) body.stock_delta = extra.stockDelta;
       await apiClient.post("/products/bulk-action", body);
       toast.success("Productos actualizados ✓");
       setSelectMode(false);
       setSelectedIds(new Set());
       setShowDiscountModal(false);
       setDiscountPercent("");
+      setShowStockModal(false);
+      setStockDelta("");
       fetchAll();
     } catch (err: any) {
       toast.error(err.response?.data?.detail ?? "Error al actualizar");
@@ -533,7 +541,16 @@ export default function ProductosPage() {
       toast.error("Ingresa un porcentaje válido (hasta 90%)");
       return;
     }
-    runBulkAction("deactivate" /* ignorado, se sobreescribe por percent */, -Math.abs(pct));
+    runBulkAction("discount_percent", { percent: -Math.abs(pct) });
+  }
+
+  function applyStockAdjust() {
+    const delta = parseInt(stockDelta, 10);
+    if (!delta || delta === 0) {
+      toast.error("Ingresa una cantidad distinta de 0");
+      return;
+    }
+    runBulkAction("adjust_stock", { stockDelta: delta });
   }
 
   /* ── Render ── */
@@ -978,6 +995,14 @@ export default function ProductosPage() {
                 <Percent size={13} /> Descuento
               </button>
               <button
+                onClick={() => setShowStockModal(true)}
+                disabled={bulkBusy}
+                className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap flex-shrink-0"
+                style={{ background: "var(--surface-2)", color: "var(--ink-2)", border: "1.5px solid var(--line-2)" }}
+              >
+                <PackagePlus size={13} /> Stock
+              </button>
+              <button
                 onClick={() => runBulkAction("delete")}
                 disabled={bulkBusy}
                 className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap flex-shrink-0"
@@ -1044,6 +1069,58 @@ export default function ProductosPage() {
               </button>
               <button
                 onClick={applyDiscount}
+                disabled={bulkBusy}
+                className="flex-1 btn-primary"
+                style={{ padding: "12px" }}
+              >
+                {bulkBusy ? "Aplicando..." : "Aplicar"}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ══════════════════════════════════════
+          MODAL: AJUSTAR STOCK MASIVO
+      ══════════════════════════════════════ */}
+      {showStockModal && (
+        <>
+          <div
+            className="fixed inset-0 z-[60]"
+            style={{ background: "rgba(20,19,15,.5)", backdropFilter: "blur(2px)" }}
+            onClick={() => setShowStockModal(false)}
+          />
+          <div
+            className="fixed z-[70] left-1/2 top-1/2 w-[90vw] max-w-sm rounded-[24px] p-5"
+            style={{ background: "var(--surface)", boxShadow: "var(--shadow-float)", transform: "translate(-50%,-50%)" }}
+          >
+            <h3 className="font-display font-extrabold text-base mb-1" style={{ color: "var(--ink)" }}>
+              Ajustar stock
+            </h3>
+            <p className="text-xs mb-4" style={{ color: "var(--ink-3)" }}>
+              Suma o resta unidades al stock de {selectedIds.size} producto(s) seleccionado(s) —
+              útil cuando llega mercadería nueva. Los productos con stock ilimitado se saltan.
+            </p>
+            <Field label="Cantidad (negativo para restar)" required>
+              <input
+                className="input"
+                type="number"
+                placeholder="Ej: 10 ó -5"
+                value={stockDelta}
+                onChange={(e) => setStockDelta(e.target.value)}
+                autoFocus
+              />
+            </Field>
+            <div className="flex gap-2 mt-5">
+              <button
+                onClick={() => setShowStockModal(false)}
+                className="flex-1 rounded-xl py-3 text-sm font-bold"
+                style={{ background: "var(--surface-2)", color: "var(--ink-2)", border: "1.5px solid var(--line-2)" }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={applyStockAdjust}
                 disabled={bulkBusy}
                 className="flex-1 btn-primary"
                 style={{ padding: "12px" }}

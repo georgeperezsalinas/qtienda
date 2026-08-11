@@ -37,9 +37,9 @@ const STATUS_TABS = [
 
 const STATUS_CLS: Record<string, string> = {
   pending: "badge-warn",
-  confirmed: "badge-mute",
-  preparing: "badge-mute",
-  on_the_way: "badge-mute",
+  confirmed: "badge-info",
+  preparing: "badge-progress",
+  on_the_way: "badge-accent",
   delivered: "badge-success",
   cancelled: "badge-danger",
 };

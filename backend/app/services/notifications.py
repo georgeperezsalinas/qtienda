@@ -159,6 +159,15 @@ TEMPLATES: dict[str, NotifTemplate] = {
         action_url="/dashboard/configuracion",
         email=True,
     ),
+    # Stock bajo — no es un evento "once" por tienda (_ONCE_TYPES), el dedupe
+    # es por PRODUCTO vía Product.low_stock_notified_at, controlado por quien
+    # llama a emit_event (public.py, al descontar stock en el checkout).
+    "low_stock": NotifTemplate(
+        icon="📦",
+        title="Se te está acabando un producto",
+        body=lambda ctx: f"A \"{ctx.get('product_name', '')}\" le quedan {ctx.get('stock', 0)} unidades. Actualiza el stock antes de que se agote.",
+        action_url="/dashboard/productos",
+    ),
     "announcement": NotifTemplate(
         icon="✨",
         title=lambda ctx: ctx.get("title", "Novedades en QTienda"),

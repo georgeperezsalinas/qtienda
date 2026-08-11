@@ -15,7 +15,7 @@ from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
 from app.core.security import require_vendor
-from app.models.models import Order, OrderItem, Store, AuditLog
+from app.models.models import Order, OrderItem, Product, Store, AuditLog
 
 
 class OrderStatusUpdate(BaseModel):
@@ -417,7 +417,7 @@ async def update_order_status(
     store = await get_vendor_store(current_user, db)
 
     result = await db.execute(
-        select(Order).where(Order.id == order_id, Order.store_id == store.id)
+        select(Order).options(selectinload(Order.items)).where(Order.id == order_id, Order.store_id == store.id)
     )
     order = result.scalar_one_or_none()
     if not order:
@@ -438,6 +438,24 @@ async def update_order_status(
     order.status = new_status
     if new_status == "delivered" and not order.delivered_at:
         order.delivered_at = datetime.now(timezone.utc)
+
+    # Cancelar libera el stock que se había reservado al crear el pedido —
+    # sin esto, un pedido cancelado dejaba esas unidades "perdidas" para
+    # siempre en el sistema. Reactivar (cancelled → pending) vuelve a
+    # descontarlo (se permite quedar en negativo; es un caso raro y el
+    # vendedor lo ve reflejado para ajustarlo a mano si hace falta).
+    if new_status == "cancelled" or (old_status == "cancelled" and new_status == "pending"):
+        product_ids = [i.product_id for i in order.items if i.product_id]
+        if product_ids:
+            products = (
+                await db.execute(select(Product).where(Product.id.in_(product_ids)).with_for_update())
+            ).scalars().all()
+            products_by_id = {p.id: p for p in products}
+            sign = 1 if new_status == "cancelled" else -1
+            for item in order.items:
+                product = products_by_id.get(item.product_id)
+                if product and product.stock is not None:
+                    product.stock += sign * item.quantity
 
     # Audit
     db.add(AuditLog(

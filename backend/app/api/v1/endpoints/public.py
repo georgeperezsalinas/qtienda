@@ -870,13 +870,18 @@ async def create_order(
     db.add(order)
     await db.flush()
 
+    low_stock_alerts = []  # (product_name, stock) — se avisa fire-and-forget después del commit
     for oi in order_items:
         oi.order_id = order.id
         db.add(oi)
 
         # Decrement stock
-        if products_map[oi.product_id].stock is not None:
-            products_map[oi.product_id].stock -= oi.quantity
+        product = products_map[oi.product_id]
+        if product.stock is not None:
+            product.stock -= oi.quantity
+            if 0 <= product.stock <= app_settings.LOW_STOCK_THRESHOLD and product.low_stock_notified_at is None:
+                product.low_stock_notified_at = datetime.now(timezone.utc)
+                low_stock_alerts.append((product.name, product.stock))
 
     db.add(Payment(
         order_id=order.id,
@@ -920,6 +925,12 @@ async def create_order(
     import asyncio
     from app.services.notifications import emit_event
     asyncio.ensure_future(emit_event(str(store.id), "first_order", order_number=order.order_number))
+
+    # Stock bajo — el dedupe ya se resolvió al marcar low_stock_notified_at arriba
+    for product_name, stock_left in low_stock_alerts:
+        asyncio.ensure_future(
+            emit_event(str(store.id), "low_stock", product_name=product_name, stock=stock_left)
+        )
 
     # WhatsApp deep-link for vendor notification
     wa_link = None

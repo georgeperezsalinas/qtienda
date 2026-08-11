@@ -771,15 +771,17 @@ export default function ConfiguracionPage() {
                     {banners.map((b, i) => (
                       <div key={i} className="rounded-xl border border-gray-200 p-3 space-y-2">
                         <div className="flex items-start gap-2">
-                          <ImageUpload
-                            label={`Banner ${i + 1}`}
-                            value={b.image_url}
-                            onChange={(url) =>
-                              setBanners((prev) => prev.map((x, j) => (j === i ? { ...x, image_url: url } : x)))
-                            }
-                            hint={"1600×400 px · panorámico (en celular se recorta a 3:1)\nJPEG, PNG o WebP · máx 5 MB"}
-                            className="h-24 w-full"
-                          />
+                          <div className="flex-1 min-w-0">
+                            <ImageUpload
+                              label={`Banner ${i + 1}`}
+                              value={b.image_url}
+                              onChange={(url) =>
+                                setBanners((prev) => prev.map((x, j) => (j === i ? { ...x, image_url: url } : x)))
+                              }
+                              hint={"1600×400 px exacto (4:1)\nJPEG, PNG o WebP · máx 5 MB"}
+                              className="h-24 w-full"
+                            />
+                          </div>
                           <button
                             type="button"
                             onClick={() => setBanners((prev) => prev.filter((_, j) => j !== i))}

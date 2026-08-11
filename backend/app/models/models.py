@@ -216,6 +216,7 @@ class Product(Base):
     sale_ends_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     sku: Mapped[Optional[str]]      = mapped_column(String(80))
     stock: Mapped[Optional[int]]    = mapped_column(Integer)
+    low_stock_notified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     status: Mapped[str]             = mapped_column(
         Enum("active", "inactive", "out_of_stock", name="product_status", create_type=False),
         default="active",

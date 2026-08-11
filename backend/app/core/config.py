@@ -90,6 +90,10 @@ class Settings(BaseSettings):
     # de pedidos viejos la primera vez que corre este watcher.
     REVIEW_REMINDER_MAX_AGE_DAYS: int = 14
 
+    # Alerta de stock bajo — se dispara una vez que el stock de un producto
+    # cae a este número o menos tras una venta (se resetea al editar el stock).
+    LOW_STOCK_THRESHOLD: int = 3
+
     UPLOADS_DIR: str = "/tmp/qtienda-uploads"
     UPLOADS_BASE_URL: str = "http://localhost:8000/uploads"
 

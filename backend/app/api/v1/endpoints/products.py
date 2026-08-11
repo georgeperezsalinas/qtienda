@@ -279,6 +279,10 @@ async def update_product(
             raise HTTPException(status_code=422, detail="Categoría no válida")
 
     update_data = payload.model_dump(exclude_unset=True)
+    # Tocar el stock a mano "reinicia" la alerta de stock bajo — si vuelve a
+    # caer bajo el umbral más adelante, se puede volver a avisar.
+    if "stock" in update_data and update_data["stock"] != product.stock:
+        product.low_stock_notified_at = None
     for field, value in update_data.items():
         setattr(product, field, value)
 
@@ -384,8 +388,9 @@ async def duplicate_product(
 
 class BulkActionRequest(BaseModel):
     product_ids: list[UUID]
-    action: Literal["activate", "deactivate", "delete", "discount_percent"]
+    action: Literal["activate", "deactivate", "delete", "discount_percent", "adjust_stock"]
     percent: Optional[int] = None
+    stock_delta: Optional[int] = None
 
 
 @router.post("/bulk-action")
@@ -426,6 +431,18 @@ async def bulk_action(
         for p in products:
             new_price = round(p.price_cents * (1 + payload.percent / 100))
             p.price_cents = max(new_price, 1)
+    elif payload.action == "adjust_stock":
+        if payload.stock_delta is None or payload.stock_delta == 0:
+            raise HTTPException(status_code=422, detail="Indica cuánto sumar o restar (distinto de 0)")
+        # Productos con stock ilimitado (None) no tienen nada que ajustar — se
+        # saltan en silencio, no es un error (no todos los seleccionados
+        # necesariamente llevan control de stock).
+        for p in products:
+            if p.stock is None:
+                continue
+            p.stock = max(0, p.stock + payload.stock_delta)
+            if payload.stock_delta > 0:
+                p.low_stock_notified_at = None
 
     await db.commit()
     return {"updated": len(products)}

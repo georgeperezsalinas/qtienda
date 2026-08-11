@@ -20,9 +20,9 @@ const STATUSES = [
 
 const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
   pending:    { label: "Pendiente",  cls: "badge-warn" },
-  confirmed:  { label: "Confirmado", cls: "badge-mute" },
-  preparing:  { label: "Preparando", cls: "badge-mute" },
-  on_the_way: { label: "En camino",  cls: "badge-mute" },
+  confirmed:  { label: "Confirmado", cls: "badge-info" },
+  preparing:  { label: "Preparando", cls: "badge-progress" },
+  on_the_way: { label: "En camino",  cls: "badge-accent" },
   delivered:  { label: "Entregado",  cls: "badge-success" },
   cancelled:  { label: "Cancelado",  cls: "badge-danger" },
 };
