@@ -4,17 +4,65 @@ No authentication required.
 """
 import re
 from datetime import date, datetime, timedelta, timezone
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from urllib.parse import quote
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import func, select, and_, or_
+from sqlalchemy import case, func, select, and_, or_
 from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
-from app.models.models import Plan, Store, Product, Category, Order, OrderItem, Payment, StoreSettings, StoreEvent, SiteEvent, Subscription, MallBanner
+from app.models.models import Plan, Store, Product, Category, Order, OrderItem, Payment, Review, StoreSettings, StoreEvent, SiteEvent, Subscription, MallBanner
 from app.schemas.orders import PublicOrderCreate, OrderResponse
 from app.core.limiter import limiter
 from app.core.config import settings as app_settings
+
+
+async def _trust_data_for_stores(db: AsyncSession, stores: list) -> dict:
+    """Insignia 'verificada' y rating promedio — 100% calculados en vivo sobre
+    datos reales (pedidos entregados/cancelados, reseñas), nunca vetting
+    manual ni datos inventados. Devuelve {store_id: {is_verified, rating_avg, rating_count}}."""
+    store_ids = [s.id for s in stores]
+    if not store_ids:
+        return {}
+
+    order_rows = await db.execute(
+        select(
+            Order.store_id,
+            func.sum(case((Order.status == "delivered", 1), else_=0)).label("delivered"),
+            func.sum(case((Order.status == "cancelled", 1), else_=0)).label("cancelled"),
+        )
+        .where(Order.store_id.in_(store_ids))
+        .group_by(Order.store_id)
+    )
+    order_map = {r.store_id: (int(r.delivered), int(r.cancelled)) for r in order_rows.all()}
+
+    review_rows = await db.execute(
+        select(Review.store_id, func.avg(Review.rating), func.count())
+        .where(Review.store_id.in_(store_ids))
+        .group_by(Review.store_id)
+    )
+    review_map = {r[0]: (float(r[1]), int(r[2])) for r in review_rows.all()}
+
+    now = datetime.now(timezone.utc)
+    out = {}
+    for s in stores:
+        delivered, cancelled = order_map.get(s.id, (0, 0))
+        sample = delivered + cancelled
+        age_days = (now - s.created_at).days if s.created_at else 0
+        cancel_rate = (cancelled / sample) if sample >= app_settings.STORE_VERIFIED_MIN_SAMPLE else 0
+        is_verified = (
+            age_days >= app_settings.STORE_VERIFIED_MIN_AGE_DAYS
+            and delivered >= app_settings.STORE_VERIFIED_MIN_DELIVERED
+            and (sample < app_settings.STORE_VERIFIED_MIN_SAMPLE or cancel_rate <= app_settings.STORE_VERIFIED_MAX_CANCEL_RATE)
+        )
+        rating_avg, rating_count = review_map.get(s.id, (None, 0))
+        out[s.id] = {
+            "is_verified": is_verified,
+            "rating_avg": round(rating_avg, 1) if rating_avg else None,
+            "rating_count": rating_count,
+        }
+    return out
 
 router = APIRouter()
 
@@ -32,20 +80,57 @@ async def mall_banners(request: Request, db: AsyncSession = Depends(get_db)):
 
 @router.get("/stores")
 @limiter.limit("60/minute")
-async def list_stores(request: Request, db: AsyncSession = Depends(get_db)):
-    """Public store directory — returns active stores for /tiendas y la landing."""
+async def list_stores(
+    request: Request,
+    page: int = 1,
+    limit: int = 24,
+    category: Optional[str] = None,
+    city: Optional[str] = None,
+    q: Optional[str] = None,
+    sort: str = "recent",
+    db: AsyncSession = Depends(get_db),
+):
+    """Public store directory — paginado en el servidor, no limitado a un
+    puñado de tiendas: con miles de tiendas el listado debe seguir siendo
+    completo y filtrable (no solo lo que trajo la página 1)."""
+    page = max(1, page)
+    limit = max(1, min(limit, 60))
+
+    filters = [Store.status == "active", Store.deleted_at.is_(None)]
+    if city:
+        filters.append(Store.city == city)
+    if q:
+        like = f"%{q}%"
+        filters.append(or_(Store.name.ilike(like), Store.description.ilike(like), Store.city.ilike(like)))
+    if category:
+        cat_subq = (
+            select(Category.store_id)
+            .join(Product, Product.category_id == Category.id)
+            .where(
+                func.lower(Category.name) == category.lower(),
+                Product.status == "active",
+                Product.deleted_at.is_(None),
+            )
+            .distinct()
+        )
+        filters.append(Store.id.in_(cat_subq))
+
+    total = (
+        await db.execute(select(func.count()).select_from(Store).where(and_(*filters)))
+    ).scalar()
+
+    order_by = Store.name.asc() if sort == "az" else Store.created_at.desc()
     result = await db.execute(
         select(Store)
         .options(selectinload(Store.settings))
-        .where(
-            Store.status == "active",
-            Store.deleted_at.is_(None),
-        )
-        .order_by(Store.created_at.desc())
-        .limit(24)
+        .where(and_(*filters))
+        .order_by(order_by)
+        .offset((page - 1) * limit)
+        .limit(limit)
     )
     stores = result.scalars().all()
     store_ids = [s.id for s in stores]
+    trust_map = await _trust_data_for_stores(db, stores)
 
     # Productos activos por tienda — dato real del catálogo, no inventado
     count_map: dict = {}
@@ -82,22 +167,77 @@ async def list_stores(request: Request, db: AsyncSession = Depends(get_db)):
             if len(categories_map[store_id]) < 3:
                 categories_map[store_id].append(name)
 
-    return [
-        {
-            "slug": s.slug,
-            "name": s.name,
-            "description": s.description,
-            "logo_url": s.logo_url,
-            "banner_url": s.banner_url,
-            "city": s.city,
-            "country": s.country,
-            "primary_color": s.primary_color,
-            "product_count": count_map.get(s.id, 0),
-            "categories": categories_map.get(s.id, []),
-            "store_hours": s.settings.store_hours if s.settings else None,
-        }
-        for s in stores
-    ]
+    return {
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "pages": -(-total // limit) if total else 0,
+        "items": [
+            {
+                "slug": s.slug,
+                "name": s.name,
+                "description": s.description,
+                "logo_url": s.logo_url,
+                "banner_url": s.banner_url,
+                "city": s.city,
+                "country": s.country,
+                "primary_color": s.primary_color,
+                "product_count": count_map.get(s.id, 0),
+                "categories": categories_map.get(s.id, []),
+                "store_hours": s.settings.store_hours if s.settings else None,
+                "is_verified": trust_map.get(s.id, {}).get("is_verified", False),
+                "rating_avg": trust_map.get(s.id, {}).get("rating_avg"),
+                "rating_count": trust_map.get(s.id, {}).get("rating_count", 0),
+            }
+            for s in stores
+        ],
+    }
+
+
+@router.get("/categories")
+@limiter.limit("60/minute")
+async def public_categories(request: Request, db: AsyncSession = Depends(get_db)):
+    """Categorías reales agregadas sobre TODO el catálogo activo de TODAS las
+    tiendas (no solo la página de resultados actual) — alimenta la grilla de
+    navegación del Mall, pensada para escalar a miles de productos."""
+    rows = await db.execute(
+        select(Category.name, Category.icon, func.count(Product.id).label("n"))
+        .join(Product, Product.category_id == Category.id)
+        .join(Store, Store.id == Category.store_id)
+        .where(
+            Product.status == "active",
+            Product.deleted_at.is_(None),
+            Store.status == "active",
+            Store.deleted_at.is_(None),
+        )
+        .group_by(Category.name, Category.icon)
+        .order_by(func.count(Product.id).desc())
+    )
+
+    agg: dict = {}
+    for name, icon, n in rows.all():
+        key = name.strip().lower()
+        cur = agg.setdefault(key, {"name": name, "icon": None, "count": 0})
+        cur["count"] += n
+        if icon and not cur["icon"]:
+            cur["icon"] = icon
+
+    merged = sorted(agg.values(), key=lambda c: c["count"], reverse=True)[:24]
+    return [{"name": c["name"], "icon": c["icon"], "product_count": c["count"]} for c in merged]
+
+
+@router.get("/store-cities")
+@limiter.limit("60/minute")
+async def public_store_cities(request: Request, db: AsyncSession = Depends(get_db)):
+    """Ciudades reales de tiendas activas — no limitadas a una sola página
+    del listado, para que el filtro de ciudad sea correcto a cualquier escala."""
+    rows = await db.execute(
+        select(Store.city, func.count())
+        .where(Store.status == "active", Store.deleted_at.is_(None), Store.city.is_not(None))
+        .group_by(Store.city)
+        .order_by(func.count().desc())
+    )
+    return [{"city": c, "count": n} for c, n in rows.all() if c]
 
 
 @router.get("/latest-products")
@@ -184,6 +324,8 @@ async def get_store(request: Request, slug: str, db: AsyncSession = Depends(get_
         )
     ).scalar()
 
+    trust = (await _trust_data_for_stores(db, [store])).get(store.id, {})
+
     return {
         "id": store.id,
         "slug": store.slug,
@@ -194,6 +336,9 @@ async def get_store(request: Request, slug: str, db: AsyncSession = Depends(get_
         "banner_link": store.banner_link,
         "member_since": store.created_at,
         "orders_delivered_count": delivered_count,
+        "is_verified": trust.get("is_verified", False),
+        "rating_avg": trust.get("rating_avg"),
+        "rating_count": trust.get("rating_count", 0),
         "banners": [
             {"url": b.image_url, "link": b.link_url}
             for b in store.banners
@@ -230,6 +375,46 @@ async def get_store(request: Request, slug: str, db: AsyncSession = Depends(get_
         "meta_title": store.meta_title or store.name,
         "meta_desc": store.meta_desc,
     }
+
+
+def _mask_buyer_name(name: str) -> str:
+    """Nombre + inicial de apellido — reseña se siente real sin exponer el nombre completo."""
+    parts = (name or "").strip().split()
+    if not parts:
+        return "Comprador"
+    if len(parts) == 1:
+        return parts[0]
+    return f"{parts[0]} {parts[-1][0].upper()}."
+
+
+@router.get("/store/{slug}/reviews")
+@limiter.limit("60/minute")
+async def get_store_reviews(request: Request, slug: str, limit: int = 20, db: AsyncSession = Depends(get_db)):
+    """Reseñas reales más recientes de la tienda."""
+    limit = max(1, min(limit, 50))
+    store_id = (await db.execute(
+        select(Store.id).where(Store.slug == slug, Store.status == "active", Store.deleted_at.is_(None))
+    )).scalar_one_or_none()
+    if not store_id:
+        raise HTTPException(status_code=404, detail="Tienda no encontrada")
+
+    rows = await db.execute(
+        select(Review, Order.buyer_name)
+        .join(Order, Order.id == Review.order_id)
+        .where(Review.store_id == store_id)
+        .order_by(Review.created_at.desc())
+        .limit(limit)
+    )
+
+    return [
+        {
+            "rating": review.rating,
+            "comment": review.comment,
+            "buyer_name": _mask_buyer_name(buyer_name),
+            "created_at": review.created_at,
+        }
+        for review, buyer_name in rows.all()
+    ]
 
 
 @router.get("/store/{slug}/products")

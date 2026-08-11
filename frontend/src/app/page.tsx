@@ -31,10 +31,10 @@ const COUNTRY_NAMES: Record<string, string> = {
 async function getStores(): Promise<StoreCard[]> {
   try {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://api:8000/api/v1";
-    const res = await fetch(`${apiUrl}/public/stores`, { next: { revalidate: 60 } });
+    const res = await fetch(`${apiUrl}/public/stores?limit=24`, { next: { revalidate: 60 } });
     if (!res.ok) return [];
     const data = await res.json();
-    return Array.isArray(data) ? data : [];
+    return Array.isArray(data?.items) ? data.items : [];
   } catch {
     return [];
   }

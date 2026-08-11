@@ -5,7 +5,7 @@ import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ChevronDown, ChevronUp, Search, Package,
-  Compass, Store, ArrowRight, ShoppingBag, Pencil,
+  Compass, Store, ArrowRight, ShoppingBag, Pencil, Star,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
@@ -30,6 +30,7 @@ interface Order {
   store_logo_url: string | null;
   store_color:    string;
   items_count:    number;
+  rating?:        number | null;
 }
 interface OrderDetail extends Order {
   subtotal_cents: number;
@@ -164,7 +165,29 @@ function OrderCard({ order }: { order: Order }) {
   const [expanded,      setExpanded]      = useState(false);
   const [detail,        setDetail]        = useState<OrderDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [rating,        setRating]        = useState<number | null>(order.rating ?? null);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [formRating,    setFormRating]    = useState(order.rating ?? 5);
+  const [comment,       setComment]       = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
   const color = order.store_color || "var(--accent)";
+
+  async function submitReview() {
+    setSubmittingReview(true);
+    try {
+      await apiClient.post(`/buyer/orders/${order.order_number}/review`, {
+        rating: formRating,
+        comment: comment.trim() || undefined,
+      });
+      setRating(formRating);
+      setShowReviewForm(false);
+      toast.success("¡Gracias por tu calificación!");
+    } catch {
+      toast.error("No se pudo enviar tu calificación");
+    } finally {
+      setSubmittingReview(false);
+    }
+  }
 
   async function handleExpand() {
     if (!expanded && !detail) {
@@ -239,6 +262,83 @@ function OrderCard({ order }: { order: Order }) {
           >
             <div className="px-3.5 pb-4 border-t" style={{ borderColor: "var(--line)" }}>
               <StatusStepper status={order.status} />
+
+              {order.status === "delivered" && (
+                <div className="rounded-xl p-3 mb-3" style={{ background: "var(--bg)" }}>
+                  {!showReviewForm ? (
+                    rating ? (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1">
+                          {Array.from({ length: 5 }).map((_, i) => (
+                            <Star
+                              key={i}
+                              size={14}
+                              fill={i < rating ? "var(--warn)" : "none"}
+                              style={{ color: i < rating ? "var(--warn)" : "var(--line-2)" }}
+                            />
+                          ))}
+                        </div>
+                        <button
+                          onClick={() => { setFormRating(rating); setShowReviewForm(true); }}
+                          className="text-xs font-bold"
+                          style={{ color }}
+                        >
+                          Editar calificación
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setShowReviewForm(true)}
+                        className="flex items-center justify-center gap-1.5 w-full text-xs font-bold py-2 rounded-lg"
+                        style={{ background: `${color}12`, color }}
+                      >
+                        <Star size={13} /> Calificar pedido
+                      </button>
+                    )
+                  ) : (
+                    <div>
+                      <p className="text-xs font-bold mb-2" style={{ color: "var(--ink)" }}>
+                        ¿Cómo fue tu experiencia?
+                      </p>
+                      <div className="flex items-center gap-1 mb-2">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <button key={i} onClick={() => setFormRating(i + 1)} type="button">
+                            <Star
+                              size={22}
+                              fill={i < formRating ? "var(--warn)" : "none"}
+                              style={{ color: i < formRating ? "var(--warn)" : "var(--line-2)" }}
+                            />
+                          </button>
+                        ))}
+                      </div>
+                      <textarea
+                        className="input text-xs"
+                        rows={2}
+                        placeholder="Cuéntanos más (opcional)"
+                        value={comment}
+                        onChange={(e) => setComment(e.target.value)}
+                      />
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          onClick={() => setShowReviewForm(false)}
+                          className="flex-1 text-xs font-bold py-2 rounded-lg"
+                          style={{ background: "var(--surface-2)", color: "var(--ink-2)" }}
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          onClick={submitReview}
+                          disabled={submittingReview}
+                          className="flex-1 text-xs font-bold py-2 rounded-lg text-white"
+                          style={{ background: color }}
+                        >
+                          {submittingReview ? "Enviando..." : "Enviar"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {loadingDetail ? (
                 <div className="py-5 flex justify-center">

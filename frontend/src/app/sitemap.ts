@@ -12,20 +12,27 @@ import { MetadataRoute } from "next";
 
 const BASE_URL = "https://qtienda.shop";
 
+// /public/stores está paginado (no devuelve todas las tiendas en una sola
+// llamada) — se recorren las páginas hasta agotarlas para que el sitemap
+// incluya TODAS las tiendas activas, no solo las primeras 24/60.
+// Tope de 50 páginas (=3000 tiendas con limit=60) como salvaguarda razonable.
 async function getActiveSlugs(): Promise<string[]> {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://api:8000/api/v1";
+  const slugs: string[] = [];
   try {
-    const apiUrl =
-      process.env.NEXT_PUBLIC_API_URL || "http://api:8000/api/v1";
-    const res = await fetch(`${apiUrl}/public/stores`, {
-      next: { revalidate: 3600 }, // Regenera el sitemap cada 1h
-    });
-    if (!res.ok) return [];
-    const stores = await res.json();
-    return Array.isArray(stores)
-      ? stores.map((s: { slug: string }) => s.slug).filter(Boolean)
-      : [];
+    for (let page = 1; page <= 50; page++) {
+      const res = await fetch(`${apiUrl}/public/stores?page=${page}&limit=60`, {
+        next: { revalidate: 3600 }, // Regenera el sitemap cada 1h
+      });
+      if (!res.ok) break;
+      const data = await res.json();
+      const items = Array.isArray(data?.items) ? data.items : [];
+      items.forEach((s: { slug: string }) => s.slug && slugs.push(s.slug));
+      if (items.length < 60 || page >= (data?.pages ?? 1)) break;
+    }
+    return slugs;
   } catch {
-    return [];
+    return slugs;
   }
 }
 

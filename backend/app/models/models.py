@@ -455,6 +455,20 @@ class Favorite(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+# ── Reseñas de compradores (una por pedido entregado) ──────────
+
+class Review(Base):
+    __tablename__ = "reviews"
+
+    id: Mapped[uuid.UUID]       = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    order_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("orders.id", ondelete="CASCADE"), unique=True, nullable=False)
+    store_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("stores.id", ondelete="CASCADE"), nullable=False)
+    rating: Mapped[int]         = mapped_column(SmallInteger)
+    comment: Mapped[Optional[str]] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+
 # ── Store Events (analytics) ──────────────────────────────────
 
 class StoreEvent(Base):

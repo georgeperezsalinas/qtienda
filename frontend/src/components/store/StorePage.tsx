@@ -7,7 +7,7 @@ import {
   ShoppingCart, Search, ChevronRight, Zap, Heart,
   MapPin, X, MessageCircle, Share2, Download,
   LayoutGrid, List, Clock, Truck, ShieldCheck, PackageSearch,
-  HelpCircle, CheckCircle2,
+  HelpCircle, CheckCircle2, Star,
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
@@ -43,6 +43,9 @@ interface StoreData {
   theme?:        "clasico" | "elegante" | "vibrante";
   meta_title?:   string;
   orders_delivered_count?: number;
+  is_verified?:  boolean;
+  rating_avg?:   number | null;
+  rating_count?: number;
   settings?: {
     welcome_discount_enabled?: boolean;
     welcome_discount_cents?:   number;
@@ -370,6 +373,7 @@ export default function StorePage({ store, initialProducts }: Props) {
   const [qrOpen,              setQrOpen]              = useState(false);
   const [trackNum,            setTrackNum]            = useState("");
   const [showFavorites,       setShowFavorites]       = useState(false);
+  const [reviews, setReviews] = useState<{ rating: number; comment?: string; buyer_name: string; created_at: string }[]>([]);
 
   const router = useRouter();
 
@@ -492,6 +496,16 @@ export default function StorePage({ store, initialProducts }: Props) {
   useEffect(() => {
     if (cartOpen) trackStoreEvent(store.slug, "checkout_start");
   }, [cartOpen, store.slug]);
+
+  // Reseñas reales — solo se pide si la tienda ya tiene al menos una
+  // (evita una llamada de red que siempre volvería vacía).
+  useEffect(() => {
+    if (!store.rating_count || store.rating_count === 0) return;
+    apiClient
+      .get(`/public/store/${store.slug}/reviews`)
+      .then(({ data }) => setReviews(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, [store.slug, store.rating_count]);
 
   // La grilla se re-anima entera en cada cambio de `search` (ver key del
   // AnimatePresence más abajo) — sin debounce, cada tecla tipeada dispara un
@@ -759,9 +773,25 @@ export default function StorePage({ store, initialProducts }: Props) {
             </span>
           </button>
           {[
-            // Señal de confianza real — nunca inventada, y nunca se muestra
-            // en "0" (una tienda sin pedidos entregados aún no gana nada
-            // mostrando un cero, así que directamente no aparece el chip).
+            // Señales de confianza reales — nunca inventadas, y nunca se
+            // muestran en "0"/sin dato (una tienda sin pedidos entregados o
+            // sin reseñas aún no gana nada mostrando un cero).
+            ...(store.is_verified
+              ? [{
+                  key: "verified",
+                  icon: ShieldCheck,
+                  label: "Tienda verificada por Qtienda",
+                  short: "Verificada",
+                }]
+              : []),
+            ...(store.rating_count && store.rating_count > 0
+              ? [{
+                  key: "rating",
+                  icon: Star,
+                  label: `${store.rating_avg?.toFixed(1)} de calificación (${store.rating_count} reseña${store.rating_count !== 1 ? "s" : ""})`,
+                  short: `${store.rating_avg?.toFixed(1)} ★ (${store.rating_count})`,
+                }]
+              : []),
             ...(store.orders_delivered_count && store.orders_delivered_count > 0
               ? [{
                   key: "trust",
@@ -1158,6 +1188,44 @@ export default function StorePage({ store, initialProducts }: Props) {
               </div>
             )}
           </main>
+
+          {/* Reseñas reales de compradores — solo se muestra si hay al menos una */}
+          {reviews.length > 0 && (
+            <section className="px-4 pt-2 pb-6 lg:px-0">
+              <div className="flex items-center gap-2 mb-3">
+                <Star size={15} fill={color} style={{ color }} />
+                <p className="font-display font-bold text-sm" style={{ color: "var(--ink)" }}>
+                  {store.rating_avg?.toFixed(1)} · {store.rating_count} reseña{store.rating_count !== 1 ? "s" : ""}
+                </p>
+              </div>
+              <div className="space-y-2.5">
+                {reviews.map((r, i) => (
+                  <div
+                    key={i}
+                    className="rounded-2xl p-3.5"
+                    style={{ background: "var(--surface)", border: "1px solid var(--line)" }}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-xs font-bold" style={{ color: "var(--ink)" }}>{r.buyer_name}</p>
+                      <div className="flex items-center gap-0.5">
+                        {Array.from({ length: 5 }).map((_, s) => (
+                          <Star
+                            key={s}
+                            size={11}
+                            fill={s < r.rating ? "var(--warn)" : "none"}
+                            style={{ color: s < r.rating ? "var(--warn)" : "var(--line-2)" }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    {r.comment && (
+                      <p className="text-xs" style={{ color: "var(--ink-3)" }}>{r.comment}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           {/* Footer con identidad de la tienda */}
           <footer className="px-4 pt-8 pb-6 lg:px-0" style={{ borderTop: "1px solid var(--line)" }}>

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Store, ChevronRight, ChevronLeft, MapPin, ArrowLeft, Package, Clock, Tag, Sparkles, ShoppingBag } from "lucide-react";
+import { Search, Store, ChevronRight, ChevronLeft, MapPin, ArrowLeft, Package, Clock, Tag, Sparkles, ShoppingBag, ShieldCheck, Star, Loader2 } from "lucide-react";
 import Logo from "@/components/ui/Logo";
 import { useAuthStore } from "@/store/authStore";
 import { getOpenStatus } from "@/lib/storeHours";
@@ -24,6 +24,48 @@ interface StoreCard {
   product_count?: number;
   categories?: string[];
   store_hours?: Record<string, { open: string; close: string }> | null;
+  is_verified?: boolean;
+  rating_avg?: number | null;
+  rating_count?: number;
+}
+
+interface CategoryItem {
+  name: string;
+  icon: string | null;
+  product_count: number;
+}
+
+interface CityItem {
+  city: string;
+  count: number;
+}
+
+// Chip de confianza real — nunca se muestra si no hay dato real detrás
+// (0 reseñas no muestra estrellas, no-verificada no muestra insignia).
+function TrustChips({ store }: { store: StoreCard }) {
+  if (!store.is_verified && !(store.rating_count && store.rating_count > 0)) return null;
+  return (
+    <>
+      {store.is_verified && (
+        <span
+          className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
+          style={{ background: "var(--success-soft)", color: "var(--success)" }}
+        >
+          <ShieldCheck size={9} />
+          Verificada
+        </span>
+      )}
+      {!!store.rating_count && store.rating_count > 0 && (
+        <span
+          className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
+          style={{ background: "var(--warn-soft)", color: "var(--warn)" }}
+        >
+          <Star size={9} fill="currentColor" />
+          {store.rating_avg?.toFixed(1)} ({store.rating_count})
+        </span>
+      )}
+    </>
+  );
 }
 
 interface LatestProduct {
@@ -290,15 +332,24 @@ function MallBannerCarousel() {
   );
 }
 
+const STORES_PAGE_SIZE = 24;
+
 export default function TiendasPage() {
   const { accessToken } = useAuthStore();
   const [stores, setStores] = useState<StoreCard[]>([]);
+  const [storesTotal, setStoresTotal] = useState(0);
+  const [storesPage, setStoresPage] = useState(1);
+  const [storesPages, setStoresPages] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [categoriesList, setCategoriesList] = useState<CategoryItem[]>([]);
+  const [cities, setCities] = useState<CityItem[]>([]);
   const [latestProducts, setLatestProducts] = useState<LatestProduct[]>([]);
   const [categoryProducts, setCategoryProducts] = useState<LatestProduct[]>([]);
   const [categoryLoading, setCategoryLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [cityFilter, setCityFilter] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [sort, setSort] = useState<SortMode>("recent");
@@ -306,16 +357,72 @@ export default function TiendasPage() {
   useEffect(() => {
     setMounted(true);
     trackPageView("/tiendas");
-    fetch(`${API}/public/stores`)
+    // Categorías y ciudades: agregadas en el backend sobre TODO el catálogo/
+    // directorio real (no derivadas de la página de tiendas cargada), para
+    // que sigan siendo correctas aunque existan miles de tiendas/productos.
+    fetch(`${API}/public/categories`)
       .then((r) => r.json())
-      .then((data) => setStores(Array.isArray(data) ? data : []))
-      .catch(() => setStores([]))
-      .finally(() => setLoading(false));
+      .then((data) => setCategoriesList(Array.isArray(data) ? data : []))
+      .catch(() => setCategoriesList([]));
+    fetch(`${API}/public/store-cities`)
+      .then((r) => r.json())
+      .then((data) => setCities(Array.isArray(data) ? data : []))
+      .catch(() => setCities([]));
     fetch(`${API}/public/latest-products?limit=24`)
       .then((r) => r.json())
       .then((data) => setLatestProducts(Array.isArray(data) ? data : []))
       .catch(() => setLatestProducts([]));
   }, []);
+
+  // Búsqueda con debounce — evita una consulta al servidor por cada tecla
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(query), 300);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  // Directorio de tiendas paginado en el servidor — se recarga desde la
+  // página 1 cuando cambia búsqueda/ciudad/orden.
+  useEffect(() => {
+    setLoading(true);
+    const params = new URLSearchParams({ page: "1", limit: String(STORES_PAGE_SIZE) });
+    if (debouncedQuery) params.set("q", debouncedQuery);
+    if (cityFilter) params.set("city", cityFilter);
+    if (sort === "az") params.set("sort", "az");
+    fetch(`${API}/public/stores?${params}`)
+      .then((r) => r.json())
+      .then((data) => {
+        setStores(Array.isArray(data?.items) ? data.items : []);
+        setStoresTotal(data?.total ?? 0);
+        setStoresPages(data?.pages ?? 1);
+        setStoresPage(1);
+      })
+      .catch(() => {
+        setStores([]);
+        setStoresTotal(0);
+        setStoresPages(1);
+      })
+      .finally(() => setLoading(false));
+  }, [debouncedQuery, cityFilter, sort]);
+
+  async function loadMoreStores() {
+    if (loadingMore || storesPage >= storesPages) return;
+    setLoadingMore(true);
+    const nextPage = storesPage + 1;
+    const params = new URLSearchParams({ page: String(nextPage), limit: String(STORES_PAGE_SIZE) });
+    if (debouncedQuery) params.set("q", debouncedQuery);
+    if (cityFilter) params.set("city", cityFilter);
+    if (sort === "az") params.set("sort", "az");
+    try {
+      const res = await fetch(`${API}/public/stores?${params}`);
+      const data = await res.json();
+      setStores((prev) => [...prev, ...(Array.isArray(data?.items) ? data.items : [])]);
+      setStoresPage(nextPage);
+    } catch {
+      /* silencioso — el botón sigue disponible para reintentar */
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   // Al elegir un rubro, el mall muestra productos de ese rubro (todas las tiendas), no solo la lista de tiendas
   useEffect(() => {
@@ -324,58 +431,20 @@ export default function TiendasPage() {
       return;
     }
     setCategoryLoading(true);
-    fetch(`${API}/public/latest-products?category=${encodeURIComponent(categoryFilter)}&limit=24`)
+    fetch(`${API}/public/latest-products?category=${encodeURIComponent(categoryFilter)}&limit=48`)
       .then((r) => r.json())
       .then((data) => setCategoryProducts(Array.isArray(data) ? data : []))
       .catch(() => setCategoryProducts([]))
       .finally(() => setCategoryLoading(false));
   }, [categoryFilter]);
 
-  // Ciudades reales de las tiendas activas — nunca una lista inventada de zonas
-  const cities = useMemo(() => {
-    const set = new Set<string>();
-    stores.forEach((s) => s.city && set.add(s.city));
-    return Array.from(set).sort();
-  }, [stores]);
-
-  // Rubros reales — derivados del catálogo de cada tienda (nunca inventados),
-  // funcionan como los "pisos" o secciones del centro comercial virtual.
-  const categories = useMemo(() => {
-    const count = new Map<string, number>();
-    stores.forEach((s) => (s.categories ?? []).forEach((c) => count.set(c, (count.get(c) ?? 0) + 1)));
-    return Array.from(count.keys()).sort((a, b) => (count.get(b)! - count.get(a)!) || a.localeCompare(b));
-  }, [stores]);
-
-  // Lista de tiendas — solo se muestra cuando no hay rubro elegido
-  // (con rubro elegido, el mall muestra productos de ese rubro más abajo).
-  const filtered = useMemo(() => {
-    const q = query.toLowerCase();
-    let items = stores.filter((s) => {
-      const matchesQuery =
-        !q ||
-        s.name.toLowerCase().includes(q) ||
-        (s.description ?? "").toLowerCase().includes(q) ||
-        (s.city ?? "").toLowerCase().includes(q) ||
-        (s.categories ?? []).some((c) => c.toLowerCase().includes(q));
-      const matchesCity = !cityFilter || s.city === cityFilter;
-      return matchesQuery && matchesCity;
-    });
-    if (sort === "az") items = [...items].sort((a, b) => a.name.localeCompare(b.name));
-    return items;
-  }, [stores, query, cityFilter, sort]);
-
-  // Productos del rubro elegido — combinando ciudad/búsqueda ya activos
+  // Productos del rubro elegido — combinando ciudad ya activa (la búsqueda
+  // por texto y el filtro de rubro son mutuamente excluyentes en la UI)
   const filteredCategoryProducts = useMemo(() => {
-    const q = query.toLowerCase();
-    return categoryProducts.filter((p) => {
-      const matchesQuery =
-        !q || p.name.toLowerCase().includes(q) || p.store_name.toLowerCase().includes(q);
-      const matchesCity = !cityFilter || p.store_city === cityFilter;
-      return matchesQuery && matchesCity;
-    });
-  }, [categoryProducts, query, cityFilter]);
+    return categoryProducts.filter((p) => !cityFilter || p.store_city === cityFilter);
+  }, [categoryProducts, cityFilter]);
 
-  // Destacadas: las tiendas con más catálogo activo — vitrina real, no manual.
+  // Destacadas: las tiendas con más catálogo activo dentro de la página actual — vitrina real, no manual.
   const featured = useMemo(
     () =>
       [...stores]
@@ -384,7 +453,7 @@ export default function TiendasPage() {
         .slice(0, 8),
     [stores]
   );
-  const showFeatured = featured.length >= 3 && !query && !cityFilter && !categoryFilter;
+  const showFeatured = featured.length >= 3 && !debouncedQuery && !cityFilter && !categoryFilter;
 
   return (
     <div className="min-h-dvh flex flex-col" style={{ background: "var(--surface-2)" }}>
@@ -436,7 +505,7 @@ export default function TiendasPage() {
               </p>
               {!loading && (
                 <p className="text-xs mt-0.5" style={{ color: "var(--ink-4)" }}>
-                  {stores.length} tienda{stores.length !== 1 ? "s" : ""} disponible{stores.length !== 1 ? "s" : ""}
+                  {storesTotal} tienda{storesTotal !== 1 ? "s" : ""} disponible{storesTotal !== 1 ? "s" : ""}
                 </p>
               )}
             </div>
@@ -462,29 +531,30 @@ export default function TiendasPage() {
             />
           </div>
 
-          {/* Filtro por rubro — "pisos" del centro comercial, derivados del catálogo real */}
-          {!loading && categories.length > 1 && (
+          {/* Filtro rápido por rubro — acceso directo con ícono, la grilla
+              grande de categorías (más abajo) es la vitrina principal */}
+          {categoriesList.length > 1 && (
             <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide pb-0.5 mb-1.5">
               <Tag size={11} className="flex-shrink-0" style={{ color: "var(--ink-4)" }} />
-              {categories.map((c) => (
+              {categoriesList.map((c) => (
                 <button
-                  key={c}
-                  onClick={() => setCategoryFilter(categoryFilter === c ? null : c)}
-                  className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap"
+                  key={c.name}
+                  onClick={() => setCategoryFilter(categoryFilter === c.name ? null : c.name)}
+                  className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap"
                   style={
-                    categoryFilter === c
+                    categoryFilter === c.name
                       ? { background: "var(--accent)", color: "#fff" }
                       : { background: "var(--surface)", color: "var(--ink-2)", border: "1px solid var(--line-2)" }
                   }
                 >
-                  {c}
+                  {c.icon && <span>{c.icon}</span>} {c.name}
                 </button>
               ))}
             </div>
           )}
 
-          {/* Filtros: ciudad (real, derivada de las tiendas) + orden */}
-          {!loading && cities.length > 1 && (
+          {/* Filtros: ciudad (real, agregada en el servidor) + orden */}
+          {cities.length > 1 && (
             <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide pb-0.5">
               <button
                 onClick={() => setCityFilter(null)}
@@ -499,16 +569,16 @@ export default function TiendasPage() {
               </button>
               {cities.map((c) => (
                 <button
-                  key={c}
-                  onClick={() => setCityFilter(cityFilter === c ? null : c)}
+                  key={c.city}
+                  onClick={() => setCityFilter(cityFilter === c.city ? null : c.city)}
                   className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold transition-all"
                   style={
-                    cityFilter === c
+                    cityFilter === c.city
                       ? { background: "var(--accent)", color: "#fff" }
                       : { background: "var(--surface)", color: "var(--ink-2)", border: "1px solid var(--line-2)" }
                   }
                 >
-                  <MapPin size={10} /> {c}
+                  <MapPin size={10} /> {c.city}
                 </button>
               ))}
               <div className="flex-1 min-w-2" />
@@ -529,10 +599,48 @@ export default function TiendasPage() {
         {/* Banner rotatorio — bienvenida, invitación a crear tienda, y stats reales */}
         <MallBannerCarousel />
 
+        {/* Categorías — vitrina principal de navegación del mall: grilla con
+            ícono real y cantidad de productos, agregada en el servidor sobre
+            TODO el catálogo activo (no solo lo que trajo esta página), para
+            que siga siendo representativa aunque existan miles de productos. */}
+        {categoriesList.length > 1 && !debouncedQuery && !cityFilter && !categoryFilter && (
+          <div className="mb-5">
+            <div className="flex items-center gap-1.5 mb-2.5 px-0.5">
+              <Tag size={13} style={{ color: "var(--accent)" }} />
+              <p className="font-display font-bold text-sm" style={{ color: "var(--ink)" }}>
+                Categorías
+              </p>
+            </div>
+            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-2.5">
+              {categoriesList.map((c) => (
+                <button
+                  key={c.name}
+                  onClick={() => setCategoryFilter(c.name)}
+                  className="flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all active:scale-[.96]"
+                  style={{ background: "var(--surface)", boxShadow: "0 1px 8px rgba(20,19,15,.06), 0 0 0 1px var(--line)" }}
+                >
+                  <div
+                    className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl"
+                    style={{ background: "var(--accent-soft)" }}
+                  >
+                    {c.icon || "🛍️"}
+                  </div>
+                  <p className="text-xs font-bold text-center truncate w-full" style={{ color: "var(--ink)" }}>
+                    {c.name}
+                  </p>
+                  <p className="text-[10px]" style={{ color: "var(--ink-4)" }}>
+                    {c.product_count} producto{c.product_count !== 1 ? "s" : ""}
+                  </p>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Recién publicado — últimos productos reales de todas las tiendas.
             Grilla (no fila única) para que se sienta como un catálogo real,
             no un carrusel que hay que arrastrar para ver más. */}
-        {!loading && latestProducts.length >= 3 && !query && !cityFilter && !categoryFilter && (
+        {!loading && latestProducts.length >= 3 && !debouncedQuery && !cityFilter && !categoryFilter && (
           <div className="mb-4">
             <div className="flex items-center gap-1.5 mb-2.5 px-0.5">
               <Package size={13} style={{ color: "var(--accent)" }} />
@@ -588,7 +696,7 @@ export default function TiendasPage() {
         {!loading &&
           (categoryFilter
             ? !categoryLoading && filteredCategoryProducts.length === 0
-            : filtered.length === 0) && (
+            : stores.length === 0) && (
             <div className="text-center py-20">
               <div
                 className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
@@ -597,13 +705,13 @@ export default function TiendasPage() {
                 <Store size={28} style={{ color: "var(--ink-4)" }} />
               </div>
               <p className="font-display font-bold text-base mb-1" style={{ color: "var(--ink)" }}>
-                {query || cityFilter || categoryFilter ? "Sin resultados" : "No hay tiendas disponibles"}
+                {debouncedQuery || cityFilter || categoryFilter ? "Sin resultados" : "No hay tiendas disponibles"}
               </p>
               <p className="text-sm" style={{ color: "var(--ink-3)" }}>
                 {categoryFilter
                   ? `Ningún producto de "${categoryFilter}" por ahora${cityFilter ? ` en ${cityFilter}` : ""}`
-                  : query
-                  ? `No encontramos tiendas con "${query}"`
+                  : debouncedQuery
+                  ? `No encontramos tiendas con "${debouncedQuery}"`
                   : cityFilter
                   ? `Ninguna tienda en ${cityFilter} por ahora`
                   : "Vuelve pronto para descubrir nuevas tiendas"}
@@ -705,7 +813,7 @@ export default function TiendasPage() {
         {/* Store list */}
         {!categoryFilter && (
         <div className="space-y-2.5 lg:space-y-0 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-3">
-          {filtered.map((s) => {
+          {stores.map((s) => {
             // Hex real (no var CSS): se concatena alfa "15" abajo para el fondo de la flecha
             const color = s.primary_color ?? "#C5613B";
             const status = mounted ? getOpenStatus(s.store_hours) : null;
@@ -750,6 +858,7 @@ export default function TiendasPage() {
                     )
                   )}
                   <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                    <TrustChips store={s} />
                     {s.city && (
                       <span
                         className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
@@ -795,6 +904,27 @@ export default function TiendasPage() {
             );
           })}
         </div>
+        )}
+
+        {/* Cargar más — el directorio ya no trae todas las tiendas de una
+            vez, se pagina para seguir siendo rápido con miles de tiendas */}
+        {!categoryFilter && !loading && storesPage < storesPages && (
+          <div className="flex justify-center mt-4">
+            <button
+              onClick={loadMoreStores}
+              disabled={loadingMore}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold transition-all"
+              style={{ background: "var(--surface)", color: "var(--ink-2)", border: "1px solid var(--line-2)" }}
+            >
+              {loadingMore ? (
+                <>
+                  <Loader2 size={13} className="animate-spin" /> Cargando...
+                </>
+              ) : (
+                `Cargar más tiendas (${stores.length} de ${storesTotal})`
+              )}
+            </button>
+          </div>
         )}
       </main>
     </div>

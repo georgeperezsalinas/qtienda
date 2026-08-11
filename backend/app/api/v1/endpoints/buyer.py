@@ -1,17 +1,19 @@
 """
 Buyer endpoints — authenticated buyer order history and favorites.
 """
+from datetime import datetime, timezone
+from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import delete as sql_delete, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
-from app.models.models import User, Order, Product, Store, Favorite
+from app.models.models import User, Order, Product, Store, Favorite, Review
 from app.core.security import get_current_user
 
 router = APIRouter()
@@ -34,6 +36,13 @@ async def get_buyer_orders(
     )
     orders = result.scalars().all()
 
+    review_map: dict = {}
+    if orders:
+        review_rows = await db.execute(
+            select(Review.order_id, Review.rating).where(Review.order_id.in_([o.id for o in orders]))
+        )
+        review_map = dict(review_rows.all())
+
     return [
         {
             "order_number": o.order_number,
@@ -45,6 +54,7 @@ async def get_buyer_orders(
             "store_logo_url": o.store.logo_url if o.store else None,
             "store_color": o.store.primary_color if o.store else "#6366f1",
             "items_count": len(o.items),
+            "rating": review_map.get(o.id),
         }
         for o in orders
     ]
@@ -70,6 +80,10 @@ async def get_buyer_order_detail(
     if order.buyer_email != current_user.email:
         raise HTTPException(status_code=403, detail="No autorizado")
 
+    review = (
+        await db.execute(select(Review).where(Review.order_id == order.id))
+    ).scalar_one_or_none()
+
     return {
         "order_number": order.order_number,
         "status": order.status,
@@ -77,6 +91,7 @@ async def get_buyer_order_detail(
         "subtotal_cents": order.subtotal_cents,
         "delivery_cents": order.delivery_cents,
         "created_at": order.created_at,
+        "review": {"rating": review.rating, "comment": review.comment} if review else None,
         "buyer_name": order.buyer_name,
         "buyer_phone": order.buyer_phone,
         "buyer_address": order.buyer_address,
@@ -96,6 +111,46 @@ async def get_buyer_order_detail(
             for i in order.items
         ],
     }
+
+
+class ReviewIn(BaseModel):
+    rating: int = Field(ge=1, le=5)
+    comment: Optional[str] = None
+
+
+@router.post("/orders/{order_number}/review")
+async def submit_order_review(
+    order_number: str,
+    payload: ReviewIn,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Calificar un pedido entregado — una reseña por pedido (se puede editar
+    reenviando). Solo el comprador dueño del pedido y solo si ya fue entregado:
+    calificar antes de recibir el producto no aporta una señal real."""
+    result = await db.execute(select(Order).where(Order.order_number == order_number))
+    order = result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="Pedido no encontrado")
+    if order.buyer_email != current_user.email:
+        raise HTTPException(status_code=403, detail="No autorizado")
+    if order.status != "delivered":
+        raise HTTPException(status_code=422, detail="Solo puedes calificar pedidos ya entregados")
+
+    comment = (payload.comment or "").strip() or None
+
+    existing = (
+        await db.execute(select(Review).where(Review.order_id == order.id))
+    ).scalar_one_or_none()
+    if existing:
+        existing.rating = payload.rating
+        existing.comment = comment
+        existing.updated_at = datetime.now(timezone.utc)
+    else:
+        db.add(Review(order_id=order.id, store_id=order.store_id, rating=payload.rating, comment=comment))
+
+    await db.commit()
+    return {"rating": payload.rating, "comment": comment}
 
 
 # ── Favoritos — el localStorage del navegador es la fuente de verdad

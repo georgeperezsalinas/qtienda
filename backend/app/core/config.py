@@ -71,6 +71,15 @@ class Settings(BaseSettings):
     STORE_MISSING_BRANDING_FINAL_DAYS: int = 14
     STORE_MISSING_BRANDING_URGENT_DAYS: int = 30
 
+    # Insignia "Tienda verificada" — 100% automatica en base a datos reales,
+    # nunca vetting manual (no escala con miles de tiendas). Umbral de
+    # cancelacion solo aplica si hay muestra minima (evita castigar tiendas
+    # nuevas con 1 pedido cancelado de 1).
+    STORE_VERIFIED_MIN_AGE_DAYS: int = 30
+    STORE_VERIFIED_MIN_DELIVERED: int = 15
+    STORE_VERIFIED_MAX_CANCEL_RATE: float = 0.2
+    STORE_VERIFIED_MIN_SAMPLE: int = 10   # pedidos entregados+cancelados minimos para evaluar tasa
+
     UPLOADS_DIR: str = "/tmp/qtienda-uploads"
     UPLOADS_BASE_URL: str = "http://localhost:8000/uploads"
 
