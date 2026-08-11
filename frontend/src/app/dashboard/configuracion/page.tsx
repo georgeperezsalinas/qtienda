@@ -144,6 +144,7 @@ export default function ConfiguracionPage() {
 
   const [info, setInfo] = useState({
     name: "", description: "", whatsapp: "",
+    instagram: "", tiktok: "", facebook: "",
     primary_color: "#6366f1", logo_url: "", banner_url: "", banner_link: "", city: "",
     country: "PE", theme: "clasico" as "clasico" | "elegante" | "vibrante",
   });
@@ -187,6 +188,9 @@ export default function ConfiguracionPage() {
           name: storeData.name || "",
           description: storeData.description || "",
           whatsapp: storeData.whatsapp || "",
+          instagram: storeData.instagram || "",
+          tiktok: storeData.tiktok || "",
+          facebook: storeData.facebook || "",
           primary_color: storeData.primary_color || "#6366f1",
           logo_url: storeData.logo_url || "",
           banner_url: storeData.banner_url || "",
@@ -278,6 +282,9 @@ export default function ConfiguracionPage() {
         name: info.name || undefined,
         description: info.description || undefined,
         whatsapp: info.whatsapp || undefined,
+        instagram: info.instagram,
+        tiktok: info.tiktok,
+        facebook: info.facebook,
         primary_color: info.primary_color,
         logo_url: info.logo_url || undefined,
         city: info.city || undefined,
@@ -592,6 +599,28 @@ export default function ConfiguracionPage() {
                 <input className="input" placeholder="Lima" value={info.city} onChange={(e) => setInfo({ ...info, city: e.target.value })} />
               </div>
             </div>
+
+            <div>
+              <p className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide mb-1">Redes sociales</p>
+              <p className="text-[11px] mb-2" style={{ color: "var(--ink-4)" }}>
+                Que tus compradores puedan ver tu cuenta real (seguidores, historial) genera confianza — es opcional.
+              </p>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">Instagram</label>
+                  <input className="input" placeholder="tu_usuario" value={info.instagram} onChange={(e) => setInfo({ ...info, instagram: e.target.value })} />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">TikTok</label>
+                  <input className="input" placeholder="tu_usuario" value={info.tiktok} onChange={(e) => setInfo({ ...info, tiktok: e.target.value })} />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">Facebook</label>
+                  <input className="input" placeholder="tu.pagina" value={info.facebook} onChange={(e) => setInfo({ ...info, facebook: e.target.value })} />
+                </div>
+              </div>
+            </div>
+
             <div>
               <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">País</label>
               <select

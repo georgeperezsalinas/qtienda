@@ -82,6 +82,25 @@ class StoreUpdate(BaseModel):
     country: Optional[str] = None
     meta_title: Optional[str] = None
     meta_desc: Optional[str] = None
+    instagram: Optional[str] = None
+    tiktok: Optional[str] = None
+    facebook: Optional[str] = None
+
+    @field_validator("instagram", "tiktok", "facebook")
+    @classmethod
+    def clean_handle(cls, v):
+        if v is None:
+            return v
+        # Admite que el vendedor pegue el @, o la URL completa — se guarda
+        # solo el handle limpio, la URL se arma al mostrarlo.
+        v = v.strip()
+        v = re.sub(r"^https?://(www\.)?(instagram|tiktok|facebook)\.com/", "", v, flags=re.IGNORECASE)
+        v = v.lstrip("@").rstrip("/")
+        if v == "":
+            return None
+        if not re.match(r"^[A-Za-z0-9_.\-]{1,50}$", v):
+            raise ValueError("Usuario inválido — solo letras, números, puntos y guiones")
+        return v
 
     @field_validator("country")
     @classmethod

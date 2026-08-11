@@ -134,6 +134,9 @@ async def my_store(
             for b in store.banners
         ],
         "whatsapp": store.whatsapp,
+        "instagram": store.instagram,
+        "tiktok": store.tiktok,
+        "facebook": store.facebook,
         "status": store.status,
         "primary_color": store.primary_color,
         "theme": store.theme,

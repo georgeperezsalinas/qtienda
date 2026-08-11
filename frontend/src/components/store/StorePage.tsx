@@ -7,7 +7,7 @@ import {
   ShoppingCart, Search, ChevronRight, Zap, Heart,
   MapPin, X, MessageCircle, Share2, Download,
   LayoutGrid, List, Clock, Truck, ShieldCheck, PackageSearch,
-  HelpCircle, CheckCircle2, Star,
+  HelpCircle, CheckCircle2, Star, Instagram, Facebook,
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
@@ -41,6 +41,9 @@ interface StoreData {
   country?:      string;
   categories?:   { id: string; name: string; icon?: string }[];
   whatsapp?:     string;
+  instagram?:    string;
+  tiktok?:       string;
+  facebook?:     string;
   theme?:        "clasico" | "elegante" | "vibrante";
   meta_title?:   string;
   orders_delivered_count?: number;
@@ -350,6 +353,44 @@ function CategoryList({ store, activeCategory, setActiveCategory, color, vertica
         className="absolute right-0 top-0 bottom-3 w-8 pointer-events-none"
         style={{ background: "linear-gradient(90deg, transparent, var(--surface))" }}
       />
+    </div>
+  );
+}
+
+function TikTokIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z" />
+    </svg>
+  );
+}
+
+/* Redes sociales de la tienda — señal que el comprador puede verificar por
+   su cuenta (seguidores, historial real), no una garantía de qtienda. */
+function SocialLinks({ store, size = 32 }: { store: StoreData; size?: number }) {
+  const links = [
+    store.instagram && { key: "instagram", href: `https://instagram.com/${store.instagram}`, icon: Instagram },
+    store.tiktok && { key: "tiktok", href: `https://tiktok.com/@${store.tiktok}`, icon: TikTokIcon },
+    store.facebook && { key: "facebook", href: `https://facebook.com/${store.facebook}`, icon: Facebook },
+  ].filter(Boolean) as { key: string; href: string; icon: React.ElementType }[];
+
+  if (links.length === 0) return null;
+
+  return (
+    <div className="flex items-center gap-2">
+      {links.map(({ key, href, icon: Icon }) => (
+        <a
+          key={key}
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center rounded-full flex-shrink-0 transition-transform active:scale-90"
+          style={{ width: size, height: size, background: "var(--surface-2)", color: "var(--ink-2)" }}
+          aria-label={key}
+        >
+          <Icon size={Math.round(size * 0.45)} />
+        </a>
+      ))}
     </div>
   );
 }
@@ -790,13 +831,16 @@ export default function StorePage({ store, initialProducts }: Props) {
           {[
             // Señales de confianza reales — nunca inventadas, y nunca se
             // muestran en "0"/sin dato (una tienda sin pedidos entregados o
-            // sin reseñas aún no gana nada mostrando un cero).
+            // sin reseñas aún no gana nada mostrando un cero). Van primero
+            // y con más peso visual (pill de color) que los datos de
+            // logística de abajo — son la prueba de que no es una estafa.
             ...(store.is_verified
               ? [{
                   key: "verified",
                   icon: ShieldCheck,
                   label: "Tienda verificada por Qtienda",
                   short: "Verificada",
+                  bg: "var(--success-soft)", fg: "var(--success)",
                 }]
               : []),
             ...(store.rating_count && store.rating_count > 0
@@ -805,6 +849,7 @@ export default function StorePage({ store, initialProducts }: Props) {
                   icon: Star,
                   label: `${store.rating_avg?.toFixed(1)} de calificación (${store.rating_count} reseña${store.rating_count !== 1 ? "s" : ""})`,
                   short: `${store.rating_avg?.toFixed(1)} ★ (${store.rating_count})`,
+                  bg: "var(--warn-soft)", fg: "var(--warn)",
                 }]
               : []),
             ...(store.orders_delivered_count && store.orders_delivered_count > 0
@@ -813,20 +858,22 @@ export default function StorePage({ store, initialProducts }: Props) {
                   icon: CheckCircle2,
                   label: `${store.orders_delivered_count} pedido${store.orders_delivered_count !== 1 ? "s" : ""} entregado${store.orders_delivered_count !== 1 ? "s" : ""}`,
                   short: `${store.orders_delivered_count} entregados`,
+                  bg: `${color}14`, fg: color,
                 }]
               : []),
             { key: "delivery", icon: Truck, label: "Coordinas la entrega con el vendedor", short: "Entrega coordinada" },
             { key: "payment", icon: ShieldCheck, label: paymentMethodsLabel, short: "Pago seguro" },
             { key: "whatsapp", icon: MessageCircle, label: "Atención directa por WhatsApp", short: "Atención por WhatsApp" },
-          ].map(({ key, icon: Icon, label, short }) => (
+          ].map(({ key, icon: Icon, label, short, bg, fg }) => (
             <div
               key={key}
               id={key === "payment" ? "tour-payment" : undefined}
               className="flex items-center gap-1.5 flex-shrink-0"
+              style={bg ? { background: bg, borderRadius: 999, padding: "4px 10px" } : undefined}
             >
-              <Icon size={13} style={{ color: "var(--ink-3)" }} />
-              <span className="text-[11px] font-medium whitespace-nowrap lg:hidden" style={{ color: "var(--ink-3)" }}>{short}</span>
-              <span className="text-[11px] font-medium whitespace-nowrap hidden lg:inline" style={{ color: "var(--ink-3)" }}>{label}</span>
+              <Icon size={13} style={{ color: fg ?? "var(--ink-3)" }} />
+              <span className={`text-[11px] whitespace-nowrap lg:hidden ${bg ? "font-bold" : "font-medium"}`} style={{ color: fg ?? "var(--ink-3)" }}>{short}</span>
+              <span className={`text-[11px] whitespace-nowrap hidden lg:inline ${bg ? "font-bold" : "font-medium"}`} style={{ color: fg ?? "var(--ink-3)" }}>{label}</span>
             </div>
           ))}
         </div>
@@ -961,6 +1008,11 @@ export default function StorePage({ store, initialProducts }: Props) {
                 <Share2 size={13} /> Compartir tienda
               </button>
             </div>
+            {(store.instagram || store.tiktok || store.facebook) && (
+              <div className="pt-3 mt-3" style={{ borderTop: "1px solid var(--line)" }}>
+                <SocialLinks store={store} size={30} />
+              </div>
+            )}
           </div>
 
           {hasCategories && (
@@ -1261,6 +1313,11 @@ export default function StorePage({ store, initialProducts }: Props) {
                 )}
               </div>
             </div>
+            {(store.instagram || store.tiktok || store.facebook) && (
+              <div className="flex justify-center pb-4">
+                <SocialLinks store={store} />
+              </div>
+            )}
             <div className="flex justify-center items-center gap-2 pt-4" style={{ borderTop: "1px solid var(--line)" }}>
               <span className="text-[11px] font-medium" style={{ color: "var(--ink-4)" }}>Powered by</span>
               <a href="https://qtienda.shop" target="_blank" rel="noopener noreferrer">

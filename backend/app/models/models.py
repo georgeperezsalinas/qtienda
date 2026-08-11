@@ -109,6 +109,12 @@ class Store(Base):
     banner_url: Mapped[Optional[str]] = mapped_column(Text)
     banner_link: Mapped[Optional[str]] = mapped_column(Text)
     whatsapp: Mapped[Optional[str]] = mapped_column(String(20))
+    # Redes sociales — señal de confianza que el comprador puede verificar
+    # por su cuenta (cuenta real, seguidores, historial), no una garantía
+    # de qtienda. Se guarda solo el @handle, la URL se arma al mostrarlo.
+    instagram: Mapped[Optional[str]] = mapped_column(String(50))
+    tiktok: Mapped[Optional[str]]    = mapped_column(String(50))
+    facebook: Mapped[Optional[str]]  = mapped_column(String(50))
     status: Mapped[str]             = mapped_column(
         Enum("pending", "active", "suspended", "banned", name="store_status", create_type=False),
         default="pending",

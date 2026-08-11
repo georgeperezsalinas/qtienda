@@ -116,11 +116,16 @@ export default function LoginPage() {
             ))}
           </ul>
 
-          {/* Vitrina de ejemplo */}
+          {/* Vitrina de ejemplo — forma de tarjeta de producto (foto + nombre
+              + precio), no solo cuadros vacíos sin contexto */}
           <div className="rounded-2xl p-4 mt-2" style={{ background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.12)" }}>
             <div className="grid grid-cols-3 gap-2">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="rounded-lg" style={{ aspectRatio: "1", background: "rgba(255,255,255,.1)" }} />
+                <div key={i} className="flex flex-col gap-1.5">
+                  <div className="rounded-lg" style={{ aspectRatio: "1", background: "rgba(255,255,255,.14)" }} />
+                  <div className="rounded-full" style={{ height: 5, width: "80%", background: "rgba(255,255,255,.18)" }} />
+                  <div className="rounded-full" style={{ height: 5, width: "45%", background: "rgba(255,255,255,.18)" }} />
+                </div>
               ))}
             </div>
             <p className="text-xs mt-3" style={{ color: "rgba(255,255,255,.5)" }}>
@@ -279,6 +284,14 @@ export default function LoginPage() {
             </Link>
           </div>
         </div>
+
+        {/* Solo acceso a consulta — el consentimiento ya se dio al registrarse,
+            no hace falta volver a "aceptar" en cada login */}
+        <p className="text-[11px] mt-5" style={{ color: "var(--ink-4)" }}>
+          <Link href="/terminos" className="hover:underline">Términos de uso</Link>
+          {" · "}
+          <Link href="/privacidad" className="hover:underline">Política de privacidad</Link>
+        </p>
 
         {/* Crédito QSD Soft */}
         <a
