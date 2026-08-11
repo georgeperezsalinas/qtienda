@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import Image from "next/image";
 import {
   Plus, Pencil, Trash2, Package, X,
-  Search,
+  Search, Copy, CheckSquare, Square, Percent,
   Star, Eye, EyeOff, Tag, Images, Clock, ChevronDown,
 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -68,12 +68,18 @@ function discountPct(price: number, compare?: number) {
    PRODUCT CARD (list item)
 ════════════════════════════ */
 function ProductCard({
-  product, onEdit, onDelete, onToggleStatus,
+  product, onEdit, onDelete, onToggleStatus, onDuplicate, duplicating,
+  selectMode, selected, onToggleSelect,
 }: {
   product: Product;
   onEdit: () => void;
   onDelete: () => void;
   onToggleStatus: () => void;
+  onDuplicate: () => void;
+  duplicating: boolean;
+  selectMode: boolean;
+  selected: boolean;
+  onToggleSelect: () => void;
 }) {
   const img = getPrimaryImg(product);
   const discount = discountPct(product.price_cents, product.compare_price);
@@ -83,14 +89,23 @@ function ProductCard({
 
   return (
     <div
+      onClick={selectMode ? onToggleSelect : undefined}
       className="rounded-2xl flex items-center gap-3.5 p-3 transition-all"
       style={{
         background: "var(--surface)",
-        border: "1.5px solid var(--line-2)",
+        border: `1.5px solid ${selected ? "var(--brand-600)" : "var(--line-2)"}`,
         boxShadow: "var(--shadow-sm)",
         opacity: active ? 1 : 0.65,
+        cursor: selectMode ? "pointer" : undefined,
       }}
     >
+      {/* Checkbox (modo selección) */}
+      {selectMode && (
+        <div className="flex-shrink-0" style={{ color: selected ? "var(--brand-600)" : "var(--ink-4)" }}>
+          {selected ? <CheckSquare size={20} /> : <Square size={20} />}
+        </div>
+      )}
+
       {/* Thumbnail */}
       <div
         className="w-16 h-16 rounded-xl flex-shrink-0 overflow-hidden relative"
@@ -174,42 +189,58 @@ function ProductCard({
       </div>
 
       {/* Actions */}
-      <div className="flex flex-col gap-1.5 flex-shrink-0">
-        <button
-          onClick={onToggleStatus}
-          title={active ? "Desactivar" : "Activar"}
-          className="w-8 h-8 rounded-xl flex items-center justify-center transition-all"
-          style={{
-            background: active ? "var(--success-soft)" : "var(--surface-2)",
-            color: active ? "var(--success)" : "var(--ink-3)",
-            border: `1.5px solid ${active ? "var(--line-2)" : "var(--line-2)"}`,
-          }}
-        >
-          {active ? <Eye size={14} /> : <EyeOff size={14} />}
-        </button>
-        <button
-          onClick={onEdit}
-          className="w-8 h-8 rounded-xl flex items-center justify-center transition-all"
-          style={{
-            background: "var(--surface-2)",
-            color: "var(--ink-2)",
-            border: "1.5px solid var(--line-2)",
-          }}
-        >
-          <Pencil size={13} />
-        </button>
-        <button
-          onClick={onDelete}
-          className="w-8 h-8 rounded-xl flex items-center justify-center transition-all"
-          style={{
-            background: "var(--danger-soft)",
-            color: "var(--danger)",
-            border: "1.5px solid var(--line-2)",
-          }}
-        >
-          <Trash2 size={13} />
-        </button>
-      </div>
+      {!selectMode && (
+        <div className="flex flex-col gap-1.5 flex-shrink-0">
+          <button
+            onClick={onToggleStatus}
+            title={active ? "Desactivar" : "Activar"}
+            className="w-8 h-8 rounded-xl flex items-center justify-center transition-all"
+            style={{
+              background: active ? "var(--success-soft)" : "var(--surface-2)",
+              color: active ? "var(--success)" : "var(--ink-3)",
+              border: `1.5px solid ${active ? "var(--line-2)" : "var(--line-2)"}`,
+            }}
+          >
+            {active ? <Eye size={14} /> : <EyeOff size={14} />}
+          </button>
+          <button
+            onClick={onEdit}
+            className="w-8 h-8 rounded-xl flex items-center justify-center transition-all"
+            style={{
+              background: "var(--surface-2)",
+              color: "var(--ink-2)",
+              border: "1.5px solid var(--line-2)",
+            }}
+          >
+            <Pencil size={13} />
+          </button>
+          <button
+            onClick={onDuplicate}
+            disabled={duplicating}
+            title="Duplicar"
+            className="w-8 h-8 rounded-xl flex items-center justify-center transition-all"
+            style={{
+              background: "var(--surface-2)",
+              color: "var(--ink-2)",
+              border: "1.5px solid var(--line-2)",
+              opacity: duplicating ? 0.5 : 1,
+            }}
+          >
+            <Copy size={13} />
+          </button>
+          <button
+            onClick={onDelete}
+            className="w-8 h-8 rounded-xl flex items-center justify-center transition-all"
+            style={{
+              background: "var(--danger-soft)",
+              color: "var(--danger)",
+              border: "1.5px solid var(--line-2)",
+            }}
+          >
+            <Trash2 size={13} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -281,6 +312,12 @@ export default function ProductosPage() {
   const [filter, setFilter] = useState<FilterStatus>("all");
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [formImages, setFormImages] = useState<FormImage[]>([]);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [duplicating, setDuplicating] = useState<string | null>(null);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [showDiscountModal, setShowDiscountModal] = useState(false);
+  const [discountPercent, setDiscountPercent] = useState("");
 
   /* IDs de imágenes originales al abrir edición (para saber cuáles borrar) */
   const origImagesRef = useRef<ProductImage[]>([]);
@@ -435,6 +472,70 @@ export default function ProductosPage() {
     } catch { toast.error("Error al eliminar"); }
   }
 
+  /* ── Duplicate ── */
+  async function duplicateProduct(id: string) {
+    setDuplicating(id);
+    try {
+      const { data } = await apiClient.post(`/products/${id}/duplicate`);
+      setProducts((prev) => [data, ...prev]);
+      toast.success("Producto duplicado como borrador ✓");
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail ?? "Error al duplicar");
+    } finally {
+      setDuplicating(null);
+    }
+  }
+
+  /* ── Selection mode ── */
+  function toggleSelectMode() {
+    setSelectMode((v) => !v);
+    setSelectedIds(new Set());
+  }
+
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  /* ── Bulk actions ── */
+  async function runBulkAction(action: "activate" | "deactivate" | "delete", percent?: number) {
+    if (selectedIds.size === 0) return;
+    if (action === "delete" && !confirm(`¿Eliminar ${selectedIds.size} producto(s)? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+    setBulkBusy(true);
+    try {
+      const body: Record<string, any> = {
+        product_ids: Array.from(selectedIds),
+        action: percent != null ? "discount_percent" : action,
+      };
+      if (percent != null) body.percent = percent;
+      await apiClient.post("/products/bulk-action", body);
+      toast.success("Productos actualizados ✓");
+      setSelectMode(false);
+      setSelectedIds(new Set());
+      setShowDiscountModal(false);
+      setDiscountPercent("");
+      fetchAll();
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail ?? "Error al actualizar");
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  function applyDiscount() {
+    const pct = parseFloat(discountPercent);
+    if (!pct || pct === 0 || Math.abs(pct) > 90) {
+      toast.error("Ingresa un porcentaje válido (hasta 90%)");
+      return;
+    }
+    runBulkAction("deactivate" /* ignorado, se sobreescribe por percent */, -Math.abs(pct));
+  }
+
   /* ── Render ── */
   return (
     <div
@@ -456,13 +557,29 @@ export default function ProductosPage() {
               {products.length} producto{products.length !== 1 ? "s" : ""}
             </p>
           </div>
-          <button
-            onClick={openCreate}
-            className="btn-primary"
-            style={{ width: "auto", padding: "10px 16px" }}
-          >
-            <Plus size={16} /> Agregar
-          </button>
+          <div className="flex items-center gap-2">
+            {products.length > 0 && (
+              <button
+                onClick={toggleSelectMode}
+                className="rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+                style={{
+                  padding: "10px 12px",
+                  background: selectMode ? "var(--ink)" : "var(--surface)",
+                  color: selectMode ? "var(--bg)" : "var(--ink-2)",
+                  border: `1.5px solid ${selectMode ? "var(--ink)" : "var(--line-2)"}`,
+                }}
+              >
+                <CheckSquare size={14} /> {selectMode ? "Cancelar" : "Seleccionar"}
+              </button>
+            )}
+            <button
+              onClick={openCreate}
+              className="btn-primary"
+              style={{ width: "auto", padding: "10px 16px" }}
+            >
+              <Plus size={16} /> Agregar
+            </button>
+          </div>
         </div>
 
         {/* Search + filter — apilados en móvil para no desbordar el ancho */}
@@ -533,6 +650,11 @@ export default function ProductosPage() {
               onEdit={() => openEdit(p)}
               onDelete={() => deleteProduct(p.id)}
               onToggleStatus={() => toggleStatus(p)}
+              onDuplicate={() => duplicateProduct(p.id)}
+              duplicating={duplicating === p.id}
+              selectMode={selectMode}
+              selected={selectedIds.has(p.id)}
+              onToggleSelect={() => toggleSelected(p.id)}
             />
           ))
         )}
@@ -814,6 +936,121 @@ export default function ProductosPage() {
               </button>
 
             </form>
+          </div>
+        </>
+      )}
+
+      {/* ══════════════════════════════════════
+          BARRA DE ACCIONES MASIVAS
+      ══════════════════════════════════════ */}
+      {selectMode && selectedIds.size > 0 && (
+        <div
+          className="fixed bottom-0 left-0 right-0 z-50 animate-fade-up px-4 pb-safe pb-4 pt-3"
+          style={{ background: "var(--surface)", borderTop: "1px solid var(--line)", boxShadow: "var(--shadow-float)" }}
+        >
+          <div className="max-w-2xl lg:max-w-6xl xl:max-w-7xl mx-auto flex items-center gap-2">
+            <span className="text-xs font-bold flex-shrink-0" style={{ color: "var(--ink-2)" }}>
+              {selectedIds.size} sel.
+            </span>
+            <div className="flex items-center gap-2 flex-1 overflow-x-auto scrollbar-hide">
+              <button
+                onClick={() => runBulkAction("activate")}
+                disabled={bulkBusy}
+                className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap flex-shrink-0"
+                style={{ background: "var(--success-soft)", color: "var(--success)", border: "1.5px solid var(--line-2)" }}
+              >
+                <Eye size={13} /> Activar
+              </button>
+              <button
+                onClick={() => runBulkAction("deactivate")}
+                disabled={bulkBusy}
+                className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap flex-shrink-0"
+                style={{ background: "var(--surface-2)", color: "var(--ink-2)", border: "1.5px solid var(--line-2)" }}
+              >
+                <EyeOff size={13} /> Desactivar
+              </button>
+              <button
+                onClick={() => setShowDiscountModal(true)}
+                disabled={bulkBusy}
+                className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap flex-shrink-0"
+                style={{ background: "var(--warn-soft)", color: "var(--warn)", border: "1.5px solid var(--line-2)" }}
+              >
+                <Percent size={13} /> Descuento
+              </button>
+              <button
+                onClick={() => runBulkAction("delete")}
+                disabled={bulkBusy}
+                className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap flex-shrink-0"
+                style={{ background: "var(--danger-soft)", color: "var(--danger)", border: "1.5px solid var(--line-2)" }}
+              >
+                <Trash2 size={13} /> Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════
+          MODAL: DESCUENTO MASIVO
+      ══════════════════════════════════════ */}
+      {showDiscountModal && (
+        <>
+          <div
+            className="fixed inset-0 z-[60]"
+            style={{ background: "rgba(20,19,15,.5)", backdropFilter: "blur(2px)" }}
+            onClick={() => setShowDiscountModal(false)}
+          />
+          <div
+            className="fixed z-[70] left-1/2 top-1/2 w-[90vw] max-w-sm rounded-[24px] p-5"
+            style={{ background: "var(--surface)", boxShadow: "var(--shadow-float)", transform: "translate(-50%,-50%)" }}
+          >
+            <h3 className="font-display font-extrabold text-base mb-1" style={{ color: "var(--ink)" }}>
+              Aplicar descuento
+            </h3>
+            <p className="text-xs mb-4" style={{ color: "var(--ink-3)" }}>
+              Reduce el precio de {selectedIds.size} producto(s) seleccionado(s) en un porcentaje.
+            </p>
+            <Field label="Porcentaje de descuento" required>
+              <div
+                className="flex items-center rounded-xl overflow-hidden"
+                style={{ border: "1.5px solid var(--line-2)", background: "var(--surface-2)" }}
+              >
+                <input
+                  className="flex-1 bg-transparent px-3 py-3 text-sm outline-none"
+                  type="number"
+                  min="1"
+                  max="90"
+                  placeholder="Ej: 10"
+                  value={discountPercent}
+                  onChange={(e) => setDiscountPercent(e.target.value)}
+                  style={{ color: "var(--ink)" }}
+                  autoFocus
+                />
+                <span
+                  className="px-3 font-bold text-sm"
+                  style={{ color: "var(--ink-2)", borderLeft: "1px solid var(--line-2)" }}
+                >
+                  %
+                </span>
+              </div>
+            </Field>
+            <div className="flex gap-2 mt-5">
+              <button
+                onClick={() => setShowDiscountModal(false)}
+                className="flex-1 rounded-xl py-3 text-sm font-bold"
+                style={{ background: "var(--surface-2)", color: "var(--ink-2)", border: "1.5px solid var(--line-2)" }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={applyDiscount}
+                disabled={bulkBusy}
+                className="flex-1 btn-primary"
+                style={{ padding: "12px" }}
+              >
+                {bulkBusy ? "Aplicando..." : "Aplicar"}
+              </button>
+            </div>
           </div>
         </>
       )}

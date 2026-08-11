@@ -960,10 +960,10 @@ export default function StorePage({ store, initialProducts }: Props) {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="pt-4 pb-5 lg:rounded-2xl lg:mt-5"
+                className="pt-3 pb-3 md:pb-5 lg:rounded-2xl lg:mt-5"
                 style={{ background: `${color}07` }}
               >
-                <div className="flex items-center gap-2 px-4 mb-3 lg:px-6">
+                <div className="flex items-center gap-2 px-4 mb-2 lg:px-6">
                   <div
                     className="w-6 h-6 rounded-lg flex items-center justify-center"
                     style={{ background: color }}
@@ -994,8 +994,8 @@ export default function StorePage({ store, initialProducts }: Props) {
 
           {/* Comprar de nuevo */}
           {recentPurchases.length > 0 && !isFiltering && (
-            <section className="pt-4 pb-1">
-              <div className="flex items-center gap-2 px-4 mb-3 lg:px-6">
+            <section className="pt-3 pb-1">
+              <div className="flex items-center gap-2 px-4 mb-2 lg:px-6">
                 <span className="text-xs font-extrabold uppercase tracking-widest" style={{ color: "var(--ink-3)" }}>
                   Comprar de nuevo
                 </span>

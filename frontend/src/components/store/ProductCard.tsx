@@ -149,14 +149,17 @@ export default function ProductCard({
   if (featured) {
     return (
       <div
-        className="flex-shrink-0 w-48 md:w-56 lg:w-64 snap-start cursor-pointer group"
+        className="flex-shrink-0 w-36 md:w-56 lg:w-64 snap-start cursor-pointer group"
         onClick={onTap}
       >
         <div
           className="rounded-2xl overflow-hidden transition-shadow lg:hover:shadow-lg"
           style={{ background: "var(--surface)", boxShadow: "var(--shadow-md), 0 0 0 1px var(--line)" }}
         >
-          <div className="relative h-40 lg:h-48" style={{ background: "var(--surface-2)" }}>
+          {/* Más baja en celular (antes h-40=160px) — Destacados + Comprar de
+              nuevo juntos ocupaban casi toda la pantalla antes de llegar al
+              catálogo real. Desktop queda igual, ahí sobra espacio. */}
+          <div className="relative h-28 md:h-40 lg:h-48" style={{ background: "var(--surface-2)" }}>
             {favoriteButton}
             {primaryImage ? (
               <CardImage src={primaryImage} alt={displayName} />
@@ -197,8 +200,8 @@ export default function ProductCard({
               </div>
             )}
           </div>
-          <div className="p-3 lg:p-4">
-            <p className="font-semibold text-sm lg:text-[15px] leading-tight line-clamp-2" style={{ color: "var(--ink)" }}>
+          <div className="p-2.5 lg:p-4">
+            <p className="font-semibold text-xs md:text-sm lg:text-[15px] leading-tight line-clamp-2" style={{ color: "var(--ink)" }}>
               {displayName}
             </p>
             {socialBadge && <div className="mt-1">{socialBadge}</div>}

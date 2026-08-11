@@ -1,10 +1,11 @@
 """Vendor product management — authenticated, scoped to vendor's store."""
 import re
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Literal, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy import func, and_, or_, select, update as sa_update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -319,6 +320,115 @@ async def delete_product(
     product.deleted_at = datetime.now(timezone.utc)
     product.status = "inactive"
     await db.commit()
+
+
+@router.post("/{product_id}/duplicate", status_code=201)
+async def duplicate_product(
+    product_id: UUID,
+    current_user=Depends(require_vendor),
+    db: AsyncSession = Depends(get_db),
+):
+    store = await _get_store(current_user, db)
+    await _check_product_limit(store, db)
+
+    result = await db.execute(
+        select(Product)
+        .options(selectinload(Product.images))
+        .where(
+            Product.id == product_id,
+            Product.store_id == store.id,
+            Product.deleted_at.is_(None),
+        )
+    )
+    original = result.scalar_one_or_none()
+    if not original:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+
+    slug = await _unique_slug(db, store.id, _slugify(f"{original.name}-copia"))
+
+    # Nace en borrador — el vendedor decide cuándo publicar la copia
+    # (ej. tras ajustar talla/color), igual que un producto nuevo.
+    clone = Product(
+        store_id=store.id,
+        category_id=original.category_id,
+        name=f"{original.name} (copia)",
+        slug=slug,
+        description=original.description,
+        price_cents=original.price_cents,
+        compare_price=original.compare_price,
+        sale_ends_at=None,
+        sku=None,
+        stock=original.stock,
+        is_featured=False,
+        status="inactive",
+    )
+    db.add(clone)
+    await db.flush()
+
+    for img in original.images:
+        db.add(ProductImage(
+            product_id=clone.id,
+            url=img.url,
+            alt_text=img.alt_text,
+            sort_order=img.sort_order,
+            is_primary=img.is_primary,
+        ))
+
+    await db.commit()
+
+    result2 = await db.execute(
+        select(Product).options(selectinload(Product.images)).where(Product.id == clone.id)
+    )
+    return _serialize(result2.scalar_one())
+
+
+class BulkActionRequest(BaseModel):
+    product_ids: list[UUID]
+    action: Literal["activate", "deactivate", "delete", "discount_percent"]
+    percent: Optional[int] = None
+
+
+@router.post("/bulk-action")
+async def bulk_action(
+    payload: BulkActionRequest,
+    current_user=Depends(require_vendor),
+    db: AsyncSession = Depends(get_db),
+):
+    if not payload.product_ids:
+        raise HTTPException(status_code=422, detail="Selecciona al menos un producto")
+
+    store = await _get_store(current_user, db)
+    result = await db.execute(
+        select(Product).where(
+            Product.id.in_(payload.product_ids),
+            Product.store_id == store.id,
+            Product.deleted_at.is_(None),
+        )
+    )
+    products = result.scalars().all()
+    if not products:
+        raise HTTPException(status_code=404, detail="Productos no encontrados")
+
+    if payload.action == "activate":
+        for p in products:
+            p.status = "active"
+    elif payload.action == "deactivate":
+        for p in products:
+            p.status = "inactive"
+    elif payload.action == "delete":
+        now = datetime.now(timezone.utc)
+        for p in products:
+            p.deleted_at = now
+            p.status = "inactive"
+    elif payload.action == "discount_percent":
+        if payload.percent is None or not (-90 <= payload.percent <= 90) or payload.percent == 0:
+            raise HTTPException(status_code=422, detail="Porcentaje inválido (entre -90 y 90, distinto de 0)")
+        for p in products:
+            new_price = round(p.price_cents * (1 + payload.percent / 100))
+            p.price_cents = max(new_price, 1)
+
+    await db.commit()
+    return {"updated": len(products)}
 
 
 @router.post("/{product_id}/images", status_code=201)
