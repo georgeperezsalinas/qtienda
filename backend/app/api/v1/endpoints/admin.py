@@ -396,6 +396,11 @@ async def delete_store(
     }
     store.status = "suspended"
     store.deleted_at = datetime.now(timezone.utc)
+    # Libera el slug para que se pueda reutilizar — el índice único de la BD
+    # no distingue tiendas eliminadas, así que sin esto un slug borrado queda
+    # bloqueado para siempre y crear una tienda nueva con ese nombre revienta
+    # con IntegrityError (bug real: qtienda.shop/jpsystem, agosto 2026).
+    store.slug = f"{store.slug[:40]}-del-{store.deleted_at.strftime('%Y%m%d%H%M%S')}"
     db.add(AuditLog(
         user_id=current_admin.id,
         store_id=store.id,
@@ -406,6 +411,7 @@ async def delete_store(
         new_value={
             "status": store.status,
             "deleted_at": store.deleted_at.isoformat(),
+            "slug": store.slug,
             "reason": body.reason,
         },
     ))

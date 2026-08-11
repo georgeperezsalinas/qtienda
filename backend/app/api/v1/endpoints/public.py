@@ -213,6 +213,7 @@ async def get_store(request: Request, slug: str, db: AsyncSession = Depends(get_
             "free_delivery_above": store.settings.free_delivery_above if store.settings else None,
             "welcome_discount_enabled": store.settings.welcome_discount_enabled if store.settings else False,
             "welcome_discount_cents": store.settings.welcome_discount_cents if store.settings else 0,
+            "delivery_zones": store.settings.delivery_zones if store.settings else [],
         } if store.settings else {},
         "meta_title": store.meta_title or store.name,
         "meta_desc": store.meta_desc,

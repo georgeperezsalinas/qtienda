@@ -14,6 +14,7 @@ import QueryProvider from "@/components/ui/QueryProvider";
 import { GoogleAuthProvider } from "@/components/ui/GoogleAuthProvider";
 import { FacebookAuthProvider } from "@/components/ui/FacebookAuthProvider";
 import PWARegister from "@/components/ui/PWARegister";
+import FavoritesSync from "@/components/ui/FavoritesSync";
 import ErrorBoundary from "@/components/ui/ErrorBoundary";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -88,6 +89,7 @@ export default function RootLayout({
             <FacebookAuthProvider>
               {children}
               <PWARegister />
+              <FavoritesSync />
               <Toaster
                 position="top-center"
                 toastOptions={{

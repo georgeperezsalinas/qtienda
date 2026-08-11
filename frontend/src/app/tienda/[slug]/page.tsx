@@ -11,9 +11,11 @@ import { notFound } from "next/navigation";
 import { apiServer } from "@/lib/api-server";
 import StorePage from "@/components/store/StorePage";
 import Script from "next/script";
+import { formatPrice, stripHtml } from "@/lib/utils";
 
 interface Props {
   params: { slug: string };
+  searchParams: { p?: string };
 }
 
 const LOCALE_BY_COUNTRY: Record<string, string> = {
@@ -29,36 +31,68 @@ const CURRENCY_BY_COUNTRY: Record<string, { code: string; symbol: string }> = {
 };
 
 // ── Metadata para Open Graph y Twitter ──────────────────────
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   try {
     const store = await apiServer(`/public/store/${params.slug}`);
-    const title = store.meta_title || store.name;
-    const description =
-      store.meta_desc || `Compra en ${store.name} · qtienda.shop`;
+
+    // Link a un producto puntual (?p=id) — antes SIEMPRE mostraba la vista
+    // previa genérica de la tienda al compartir, aunque el link apuntara a
+    // un producto específico. Con tanto tráfico de gente compartiendo un
+    // solo producto (TikTok, WhatsApp), vale la pena que se vea su propia
+    // foto/nombre/precio en la vista previa, no la de la tienda entera.
+    const productId = searchParams?.p;
+    let product: any = null;
+    if (productId) {
+      try {
+        const products = await apiServer(`/public/store/${params.slug}/products`, { revalidate: 20 });
+        product = (products as any[]).find((p) => p.id === productId) ?? null;
+      } catch {
+        product = null;
+      }
+    }
+
+    const currency = CURRENCY_BY_COUNTRY[store.country] || CURRENCY_BY_COUNTRY.PE;
+    const canonicalUrl = product
+      ? `https://qtienda.shop/tienda/${params.slug}?p=${productId}`
+      : `https://qtienda.shop/tienda/${params.slug}`;
+
+    const title = product
+      ? `${product.name} · ${store.name}`
+      : store.meta_title || store.name;
+    const description = product
+      ? stripHtml(product.description).slice(0, 155) ||
+        `${formatPrice(product.price_cents, currency.code)} · Cómpralo en ${store.name}`
+      : store.meta_desc || `Compra en ${store.name} · qtienda.shop`;
+    const productImage = product
+      ? product.images?.find((im: any) => im.is_primary)?.url ?? product.images?.[0]?.url
+      : null;
 
     return {
       title,
       description,
       alternates: {
-        // Canonical evita que Google indexe la misma tienda con params duplicados
-        canonical: `https://qtienda.shop/tienda/${params.slug}`,
+        // Canonical evita que Google indexe la misma tienda/producto con params duplicados
+        canonical: canonicalUrl,
       },
       openGraph: {
         // Mismo titulo que la pestaña — si el vendedor configuro un titulo SEO
         // custom, tambien se ve al compartir el link, no solo en el navegador.
         title,
         description,
-        // Sin "images": la genera /tienda/[slug]/opengraph-image.tsx (PNG real,
-        // WhatsApp/Facebook no renderizan el SVG de marca que se usaba antes).
+        // Sin "images" (caso tienda): la genera /tienda/[slug]/opengraph-image.tsx
+        // (PNG real, WhatsApp/Facebook no renderizan el SVG de marca de antes).
+        // Con producto: su propia foto real, no hace falta generar nada.
+        ...(productImage ? { images: [{ url: productImage, width: 1200, height: 1200 }] } : {}),
         type: "website",
         locale: LOCALE_BY_COUNTRY[store.country] || "es_PE",
-        url: `https://qtienda.shop/tienda/${params.slug}`,
+        url: canonicalUrl,
         siteName: "qtienda",
       },
       twitter: {
         card: "summary_large_image",
         title,
         description,
+        ...(productImage ? { images: [productImage] } : {}),
       },
     };
   } catch {

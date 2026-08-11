@@ -4,6 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
@@ -63,7 +64,15 @@ async def create_store(
         status="active",  # Auto-approve on free plan; can add review flow
     )
     db.add(store)
-    await db.flush()
+    try:
+        await db.flush()
+    except IntegrityError:
+        # Defensa extra ante condición de carrera (dos requests con el mismo
+        # slug pasando el chequeo de arriba a la vez) — nunca debería
+        # llegar aquí en el flujo normal, pero un 500 crudo de Postgres es
+        # peor que un 409 claro.
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="URL ya en uso, elige otro nombre")
 
     # Default settings
     db.add(StoreSettings(store_id=store.id))

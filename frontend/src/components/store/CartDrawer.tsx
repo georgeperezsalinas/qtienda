@@ -421,6 +421,22 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                               </p>
                             </div>
                           )}
+                          {/* Zonas de entrega — visibles antes de llenar la dirección, para
+                              que el comprador no descubra recién al final que no le llega. */}
+                          {Array.isArray(store.settings?.delivery_zones) && store.settings.delivery_zones.length > 0 && (
+                            <details
+                              className="rounded-2xl px-3 py-2.5"
+                              style={{ background: "var(--bg)", border: "1px solid var(--line)" }}
+                            >
+                              <summary className="text-xs font-semibold cursor-pointer" style={{ color: "var(--ink-2)" }}>
+                                🚚 Entregamos en {store.settings.delivery_zones.length} zona
+                                {store.settings.delivery_zones.length !== 1 ? "s" : ""} — toca para ver cuáles
+                              </summary>
+                              <p className="text-xs mt-2" style={{ color: "var(--ink-3)" }}>
+                                {store.settings.delivery_zones.join(", ")}
+                              </p>
+                            </details>
+                          )}
                           {!!freeAbove && deliveryFee > 0 && (
                             <FreeShippingBar subtotal={subtotal} freeAbove={freeAbove} color={color} />
                           )}

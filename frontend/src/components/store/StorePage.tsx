@@ -50,6 +50,7 @@ interface StoreData {
     accept_plin?:     boolean;
     accept_transfer?: boolean;
     accept_card?:     boolean;
+    delivery_zones?:  string[];
   };
 }
 
@@ -520,6 +521,18 @@ export default function StorePage({ store, initialProducts }: Props) {
   const recentPurchases = recentIds.map((id) => initialProducts.find((p) => p.id === id)).filter(Boolean) as ProductData[];
   const hasCategories    = (store.categories?.length ?? 0) > 0;
   const isFiltering      = !!debouncedSearch || !!activeCategory || showFavorites;
+
+  // Paginación de renderizado (no del fetch): el catálogo completo ya está en
+  // memoria para que el filtro siga siendo instantáneo, pero una tienda con
+  // cientos de productos no necesita pintar/cargar imágenes de todos a la vez.
+  // Se resetea al lote inicial cada vez que cambia el filtro activo.
+  const PRODUCTS_PAGE_SIZE = 24;
+  const [visibleCount, setVisibleCount] = useState(PRODUCTS_PAGE_SIZE);
+  useEffect(() => {
+    setVisibleCount(PRODUCTS_PAGE_SIZE);
+  }, [activeCategory, debouncedSearch, showFavorites]);
+  const visibleProducts = filtered.slice(0, visibleCount);
+  const hasMoreProducts = filtered.length > visibleCount;
 
   return (
     <div className="min-h-dvh" data-theme={store.theme || "clasico"} style={{ background: "var(--bg)" }}>
@@ -1071,7 +1084,7 @@ export default function StorePage({ store, initialProducts }: Props) {
                   transition={{ duration: 0.18 }}
                   className="space-y-2 md:space-y-0 md:grid md:grid-cols-2 md:gap-3 lg:grid-cols-2 xl:grid-cols-3"
                 >
-                  {filtered.map((product, i) => (
+                  {visibleProducts.map((product, i) => (
                     <motion.div
                       key={product.id}
                       id={i === 0 ? "tour-product-1" : undefined}
@@ -1100,7 +1113,7 @@ export default function StorePage({ store, initialProducts }: Props) {
                   transition={{ duration: 0.18 }}
                   className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-3 lg:gap-4 xl:grid-cols-4 xl:gap-5"
                 >
-                  {filtered.map((product, i) => (
+                  {visibleProducts.map((product, i) => (
                     <motion.div
                       key={product.id}
                       id={i === 0 ? "tour-product-1" : undefined}
@@ -1120,6 +1133,18 @@ export default function StorePage({ store, initialProducts }: Props) {
                 </motion.div>
               )}
             </AnimatePresence>
+
+            {hasMoreProducts && (
+              <div className="flex justify-center mt-5">
+                <button
+                  onClick={() => setVisibleCount((c) => c + PRODUCTS_PAGE_SIZE)}
+                  className="text-sm font-bold px-5 py-2.5 rounded-full transition-all active:scale-95"
+                  style={{ background: `${color}12`, color }}
+                >
+                  Ver más productos ({filtered.length - visibleCount} más)
+                </button>
+              </div>
+            )}
           </main>
 
           {/* Footer con identidad de la tienda */}

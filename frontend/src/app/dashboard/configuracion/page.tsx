@@ -154,7 +154,9 @@ export default function ConfiguracionPage() {
     yape_phone: "", plin_phone: "", yape_qr_url: "", plin_qr_url: "", bank_account: "",
     delivery_fee_cents: "0", min_order_cents: "0", free_delivery_above: "",
     welcome_discount_enabled: false, welcome_discount_cents: "5",
+    delivery_zones: [] as string[],
   });
+  const [newZone, setNewZone] = useState("");
 
   const [hours, setHours] = useState<Record<string, DayHours>>({});
   const [banners, setBanners] = useState<{ image_url: string; link_url: string }[]>([]);
@@ -222,6 +224,9 @@ export default function ConfiguracionPage() {
             welcome_discount_cents: storeData.settings.welcome_discount_cents
               ? String(storeData.settings.welcome_discount_cents / 100)
               : "5",
+            delivery_zones: Array.isArray(storeData.settings.delivery_zones)
+              ? storeData.settings.delivery_zones
+              : [],
           });
           if (storeData.settings.store_hours) setHours(storeData.settings.store_hours);
         }
@@ -312,6 +317,7 @@ export default function ConfiguracionPage() {
           : null,
         welcome_discount_enabled: settings.welcome_discount_enabled,
         welcome_discount_cents: Math.round(parseFloat(settings.welcome_discount_cents || "0") * 100),
+        delivery_zones: settings.delivery_zones,
       });
       toast.success("Configuración guardada");
     } catch {
@@ -904,6 +910,77 @@ export default function ConfiguracionPage() {
               <div>
                 <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">Delivery gratis desde (S/)</label>
                 <input className="input" type="number" min="0" step="0.50" placeholder="0 = sin mínimo" value={settings.free_delivery_above} onChange={(e) => setSettings({ ...settings, free_delivery_above: e.target.value })} />
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-gray-100 space-y-2">
+              <p className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide">Zonas de entrega</p>
+              <p className="text-[11px] text-[var(--ink-4)]">
+                Distritos donde entregas. Se muestran a tus clientes antes de que llenen su dirección,
+                para que no lleguen hasta el final del pedido y recién ahí se enteren de que no llegas a su zona.
+                Déjalo vacío si entregas a cualquier zona o coordinas caso por caso.
+              </p>
+              {settings.delivery_zones.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {settings.delivery_zones.map((zone) => (
+                    <span
+                      key={zone}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold pl-2.5 pr-1.5 py-1 rounded-full"
+                      style={{ background: "var(--surface-2)", color: "var(--ink-2)" }}
+                    >
+                      {zone}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSettings((s) => ({ ...s, delivery_zones: s.delivery_zones.filter((z) => z !== zone) }))
+                        }
+                        aria-label={`Quitar ${zone}`}
+                        className="flex items-center justify-center rounded-full"
+                        style={{ width: 16, height: 16, color: "var(--ink-4)" }}
+                      >
+                        <Trash2 size={11} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <input
+                  className="input flex-1"
+                  placeholder="Ej: Comas"
+                  value={newZone}
+                  onChange={(e) => setNewZone(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter") return;
+                    e.preventDefault();
+                    const z = newZone.trim();
+                    if (!z) return;
+                    if (settings.delivery_zones.some((d) => d.toLowerCase() === z.toLowerCase())) {
+                      toast.error("Esa zona ya está en la lista");
+                      return;
+                    }
+                    setSettings((s) => ({ ...s, delivery_zones: [...s.delivery_zones, z] }));
+                    setNewZone("");
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const z = newZone.trim();
+                    if (!z) return;
+                    if (settings.delivery_zones.some((d) => d.toLowerCase() === z.toLowerCase())) {
+                      toast.error("Esa zona ya está en la lista");
+                      return;
+                    }
+                    setSettings((s) => ({ ...s, delivery_zones: [...s.delivery_zones, z] }));
+                    setNewZone("");
+                  }}
+                  className="px-3 rounded-xl flex-shrink-0"
+                  style={{ border: "1.5px solid var(--line-2)", color: "var(--ink-2)" }}
+                  aria-label="Agregar zona"
+                >
+                  <Plus size={15} />
+                </button>
               </div>
             </div>
 
