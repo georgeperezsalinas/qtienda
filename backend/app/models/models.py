@@ -54,6 +54,8 @@ class User(Base):
     referred_by_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     email_verification_token: Mapped[Optional[str]]     = mapped_column(String(64))
     email_verification_sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    password_reset_token: Mapped[Optional[str]]      = mapped_column(String(64))
+    password_reset_sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     deleted_at: Mapped[Optional[datetime]]    = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -467,6 +469,7 @@ class Review(Base):
     comment: Mapped[Optional[str]] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    hidden_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
 
 # ── Store Events (analytics) ──────────────────────────────────

@@ -64,6 +64,8 @@ export default function DeliveryAppPage() {
   const [gpsStatus,         setGpsStatus]         = useState<"idle" | "loading" | "ok" | "denied">("idle");
   const [paymentCollected,  setPaymentCollected]  = useState<boolean | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // IDs de la última carga — detecta pedidos nuevos en el polling silencioso
+  const knownOrderIds = useRef<Set<string> | null>(null);
 
   useEffect(() => {
     if (!accessToken) { router.replace("/auth/login"); return; }
@@ -77,15 +79,26 @@ export default function DeliveryAppPage() {
       .catch(() => {});
   }, [accessToken]);
 
-  const fetchOrders = useCallback(async () => {
-    setLoading(true);
+  const fetchOrders = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true);
     try {
       const { data } = await apiClient.get("/delivery/orders");
+
+      // Solo avisa en polling silencioso — al cargar por primera vez "todo"
+      // es nuevo y no tiene sentido avisar de golpe.
+      if (opts?.silent && knownOrderIds.current) {
+        const fresh = data.filter((o: DeliveryOrder) => !knownOrderIds.current!.has(o.id));
+        fresh.forEach((o: DeliveryOrder) => {
+          toast.success(`🛎️ Pedido #${o.order_number} listo para repartir`, { duration: 6000 });
+        });
+      }
+      knownOrderIds.current = new Set(data.map((o: DeliveryOrder) => o.id));
+
       setOrders(data);
     } catch {
-      toast.error("Error al cargar pedidos");
+      if (!opts?.silent) toast.error("Error al cargar pedidos");
     } finally {
-      setLoading(false);
+      if (!opts?.silent) setLoading(false);
     }
   }, []);
 
@@ -103,7 +116,7 @@ export default function DeliveryAppPage() {
 
   useEffect(() => {
     fetchOrders();
-    const t = setInterval(fetchOrders, 30_000);
+    const t = setInterval(() => fetchOrders({ silent: true }), 30_000);
     return () => clearInterval(t);
   }, [fetchOrders]);
 
@@ -293,7 +306,7 @@ export default function DeliveryAppPage() {
             <p className="text-[11px] font-bold mt-0.5" style={{ color: "var(--ink-2)" }}>En camino</p>
           </div>
           <button
-            onClick={fetchOrders}
+            onClick={() => fetchOrders()}
             disabled={loading}
             className="w-14 rounded-2xl flex items-center justify-center"
             style={{ background: "var(--surface-2)", border: "1.5px solid var(--line-2)" }}

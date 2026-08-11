@@ -39,7 +39,7 @@ async def _trust_data_for_stores(db: AsyncSession, stores: list) -> dict:
 
     review_rows = await db.execute(
         select(Review.store_id, func.avg(Review.rating), func.count())
-        .where(Review.store_id.in_(store_ids))
+        .where(Review.store_id.in_(store_ids), Review.hidden_at.is_(None))
         .group_by(Review.store_id)
     )
     review_map = {r[0]: (float(r[1]), int(r[2])) for r in review_rows.all()}
@@ -401,7 +401,7 @@ async def get_store_reviews(request: Request, slug: str, limit: int = 20, db: As
     rows = await db.execute(
         select(Review, Order.buyer_name)
         .join(Order, Order.id == Review.order_id)
-        .where(Review.store_id == store_id)
+        .where(Review.store_id == store_id, Review.hidden_at.is_(None))
         .order_by(Review.created_at.desc())
         .limit(limit)
     )

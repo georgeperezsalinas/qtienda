@@ -188,13 +188,13 @@ export default function LoginPage() {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="field-label mb-0" htmlFor="password">Contraseña</label>
-                <button
-                  type="button"
+                <Link
+                  href="/auth/forgot-password"
                   className="text-xs font-semibold transition-colors"
                   style={{ color: "var(--accent)" }}
                 >
                   ¿La olvidaste?
-                </button>
+                </Link>
               </div>
               <div className="relative">
                 <input

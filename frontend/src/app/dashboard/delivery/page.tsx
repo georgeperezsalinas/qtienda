@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Phone, MapPin, MessageCircle, RefreshCw, Package, Bike, CheckCircle2, Clock, UserCheck } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
@@ -232,29 +232,44 @@ export default function DeliveryPage() {
   const [loading,   setLoading]   = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [assigning, setAssigning] = useState<string | null>(null);
+  // IDs de la última carga — detecta pedidos nuevos en el polling silencioso
+  // sin necesitar otro endpoint (mismo patrón que dashboard/pedidos).
+  const knownOrderIds = useRef<Set<string> | null>(null);
 
   const preparing  = orders.filter((o) => o.status === "preparing");
   const on_the_way = orders.filter((o) => o.status === "on_the_way");
 
-  const fetchOrders = useCallback(async () => {
-    setLoading(true);
+  const fetchOrders = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true);
     try {
       const [r1, r2] = await Promise.all([
         apiClient.get("/orders/?status=preparing&limit=50"),
         apiClient.get("/orders/?status=on_the_way&limit=50"),
       ]);
-      setOrders([...r1.data.items, ...r2.data.items]);
+      const items = [...r1.data.items, ...r2.data.items];
+
+      // Solo avisa en polling silencioso — al cargar por primera vez
+      // "todo" es nuevo y no tiene sentido avisar de golpe.
+      if (opts?.silent && knownOrderIds.current) {
+        const fresh = items.filter((o: DeliveryOrder) => !knownOrderIds.current!.has(o.id));
+        fresh.forEach((o: DeliveryOrder) => {
+          toast.success(`🛎️ Pedido #${o.order_number} listo para repartir`, { duration: 6000 });
+        });
+      }
+      knownOrderIds.current = new Set(items.map((o: DeliveryOrder) => o.id));
+
+      setOrders(items);
     } catch {
-      toast.error("Error al cargar pedidos");
+      if (!opts?.silent) toast.error("Error al cargar pedidos");
     } finally {
-      setLoading(false);
+      if (!opts?.silent) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     fetchOrders();
     apiClient.get("/delivery/staff").then(({ data }) => setStaff(data)).catch(() => {});
-    const t = setInterval(fetchOrders, 60_000);
+    const t = setInterval(() => fetchOrders({ silent: true }), 60_000);
     return () => clearInterval(t);
   }, [fetchOrders]);
 
@@ -333,7 +348,7 @@ export default function DeliveryPage() {
           </p>
         </div>
         <button
-          onClick={fetchOrders}
+          onClick={() => fetchOrders()}
           disabled={loading}
           className="w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-90"
           style={{ background: "var(--line)", border: "1.5px solid var(--line-2)" }}

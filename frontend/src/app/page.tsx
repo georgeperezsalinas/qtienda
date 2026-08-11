@@ -193,7 +193,7 @@ export default function LandingPage() {
               boxShadow: "0 4px 12px rgba(197,97,59,.3)",
             }}
           >
-            Creaa tu tienda gratis
+            Crea tu tienda gratis
           </Link>
         </div>
       </header>
@@ -351,15 +351,20 @@ export default function LandingPage() {
           <p className="mono mb-5" style={{ fontSize: 22, fontWeight: 500, letterSpacing: "-0.01em" }}>
             qtienda.shop/<span style={{ color: "var(--accent)" }}>tu-nombre</span>
           </p>
+          {/* Vista previa genérica de la grilla de productos — sin datos
+              inventados, solo la forma de una tarjeta (foto + nombre + precio) */}
           <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
             {Array.from({ length: 8 }).map((_, i) => (
-              <div
-                key={i}
-                className="placeholder"
-                style={{ aspectRatio: "1", borderRadius: 8 }}
-              />
+              <div key={i} className="flex flex-col gap-1.5">
+                <div className="placeholder" style={{ aspectRatio: "1", borderRadius: 8 }} />
+                <div className="placeholder" style={{ height: 6, width: "80%", borderRadius: 4 }} />
+                <div className="placeholder" style={{ height: 6, width: "45%", borderRadius: 4 }} />
+              </div>
             ))}
           </div>
+          <p className="text-xs mt-4" style={{ color: "var(--ink-4)" }}>
+            Tus productos aparecen así, organizados en una tienda propia.
+          </p>
         </div>
       </section>
 

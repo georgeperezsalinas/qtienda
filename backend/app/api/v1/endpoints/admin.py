@@ -13,7 +13,7 @@ from app.db.session import get_db
 from app.core.config import settings
 from app.core.security import require_admin
 from app.models.models import (
-    AuditLog, MallBanner, Order, Payment, Plan, PlanPaymentRequest, Product, Role, SiteEvent,
+    AuditLog, MallBanner, Order, Payment, Plan, PlanPaymentRequest, Product, Review, Role, SiteEvent,
     Store, StoreEvent, Subscription, User,
 )
 from app.schemas.auth import BannersUpdate
@@ -1305,3 +1305,91 @@ async def update_mall_banners(
 
     await db.commit()
     return {"updated": True, "count": len(payload.banners)}
+
+
+# ── Moderación de reseñas ────────────────────────────────────────
+
+@router.get("/reviews")
+async def list_reviews(
+    q: Optional[str] = Query(None, description="Nombre/slug de tienda o texto de la reseña"),
+    rating: Optional[int] = Query(None, ge=1, le=5),
+    hidden: Optional[bool] = Query(None),
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, le=100),
+    _=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    filters = []
+    if rating:
+        filters.append(Review.rating == rating)
+    if hidden is not None:
+        filters.append(Review.hidden_at.is_not(None) if hidden else Review.hidden_at.is_(None))
+    if q:
+        like = f"%{q}%"
+        filters.append(or_(Store.name.ilike(like), Store.slug.ilike(like), Review.comment.ilike(like)))
+
+    base = select(Review, Store, Order.buyer_name).join(Store, Store.id == Review.store_id).join(Order, Order.id == Review.order_id)
+    if filters:
+        base = base.where(and_(*filters))
+
+    total = (
+        await db.execute(select(func.count()).select_from(base.subquery()))
+    ).scalar()
+
+    result = await db.execute(
+        base.order_by(Review.created_at.desc()).offset((page - 1) * limit).limit(limit)
+    )
+
+    return {
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "pages": -(-total // limit) if total else 0,
+        "items": [
+            {
+                "id": review.id,
+                "rating": review.rating,
+                "comment": review.comment,
+                "buyer_name": buyer_name,
+                "store_name": store.name,
+                "store_slug": store.slug,
+                "created_at": review.created_at,
+                "hidden_at": review.hidden_at,
+            }
+            for review, store, buyer_name in result.all()
+        ],
+    }
+
+
+@router.post("/reviews/{review_id}/hide")
+async def hide_review(
+    review_id: UUID,
+    current_admin=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    review = (await db.execute(select(Review).where(Review.id == review_id))).scalar_one_or_none()
+    if not review:
+        raise HTTPException(status_code=404, detail="Reseña no encontrada")
+    review.hidden_at = datetime.now(timezone.utc)
+    db.add(AuditLog(
+        user_id=current_admin.id, action="review.hidden", entity="review", entity_id=review.id,
+    ))
+    await db.commit()
+    return {"hidden": True}
+
+
+@router.post("/reviews/{review_id}/unhide")
+async def unhide_review(
+    review_id: UUID,
+    current_admin=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    review = (await db.execute(select(Review).where(Review.id == review_id))).scalar_one_or_none()
+    if not review:
+        raise HTTPException(status_code=404, detail="Reseña no encontrada")
+    review.hidden_at = None
+    db.add(AuditLog(
+        user_id=current_admin.id, action="review.unhidden", entity="review", entity_id=review.id,
+    ))
+    await db.commit()
+    return {"hidden": False}

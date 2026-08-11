@@ -18,9 +18,9 @@ from app.core.security import (
 )
 from app.schemas.auth import (
     RegisterRequest, LoginRequest, TokenResponse, RefreshRequest,
-    UpdateProfileRequest,
+    UpdateProfileRequest, ForgotPasswordRequest, ResetPasswordRequest,
 )
-from app.services.email import send_verification_email
+from app.services.email import send_verification_email, send_password_reset_email
 from app.services.referrals import ensure_referral_code
 from app.core.limiter import limiter
 from app.core.config import settings
@@ -141,6 +141,60 @@ async def resend_verification(
 
     await send_verification_email(current_user.email, current_user.full_name, token)
     return {"message": "Correo de verificación reenviado"}
+
+
+@router.post("/forgot-password")
+@limiter.limit("5/minute")
+async def forgot_password(request: Request, payload: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
+    """Siempre responde igual exista o no el email — evita que alguien use
+    este endpoint para descubrir qué correos están registrados."""
+    from datetime import timedelta
+
+    GENERIC_MSG = {"message": "Si el correo existe, te enviamos un enlace para restablecer tu contraseña"}
+
+    result = await db.execute(
+        select(User).where(User.email == payload.email.lower().strip(), User.deleted_at.is_(None))
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        return GENERIC_MSG
+
+    # Rate limit por usuario: 1 solicitud cada 2 minutos
+    if user.password_reset_sent_at:
+        age = datetime.now(timezone.utc) - user.password_reset_sent_at.replace(tzinfo=timezone.utc)
+        if age < timedelta(minutes=2):
+            return GENERIC_MSG
+
+    token = secrets.token_hex(32)
+    user.password_reset_token = token
+    user.password_reset_sent_at = datetime.now(timezone.utc)
+    await db.commit()
+
+    await send_password_reset_email(user.email, user.full_name, token)
+    return GENERIC_MSG
+
+
+@router.post("/reset-password")
+@limiter.limit("10/minute")
+async def reset_password(request: Request, payload: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
+    from datetime import timedelta
+
+    result = await db.execute(select(User).where(User.password_reset_token == payload.token))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=400, detail="Enlace inválido o ya utilizado")
+
+    if user.password_reset_sent_at:
+        age = datetime.now(timezone.utc) - user.password_reset_sent_at.replace(tzinfo=timezone.utc)
+        if age > timedelta(hours=1):
+            raise HTTPException(status_code=400, detail="El enlace expiró. Solicita uno nuevo.")
+
+    user.password_hash = hash_password(payload.password)
+    user.password_reset_token = None
+    user.password_reset_sent_at = None
+    await db.commit()
+
+    return {"message": "Contraseña actualizada correctamente"}
 
 
 @router.post("/register-buyer", response_model=TokenResponse, status_code=201)
