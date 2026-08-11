@@ -1,5 +1,4 @@
 // src/app/page.tsx — qtienda v2 (landing pública)
-// Reemplaza completo. Mantiene fetch de StoresSection.
 
 import Link from "next/link";
 import {
@@ -40,9 +39,27 @@ async function getStores(): Promise<StoreCard[]> {
   }
 }
 
-/** Prueba social del hero — solo tiendas reales, nunca un conteo inventado. */
+interface PlatformStats {
+  stores_count: number;
+  delivered_count: number;
+  rating_avg: number | null;
+  rating_count: number;
+}
+
+async function getPlatformStats(): Promise<PlatformStats | null> {
+  try {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://api:8000/api/v1";
+    const res = await fetch(`${apiUrl}/public/platform-stats`, { next: { revalidate: 300 } });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+/** Prueba social del hero — solo datos reales de la plataforma, nunca un conteo inventado. */
 async function HeroSocialProof() {
-  const stores = await getStores();
+  const [stores, stats] = await Promise.all([getStores(), getPlatformStats()]);
   if (!stores.length) return null;
 
   const preview = stores.slice(0, 5);
@@ -52,79 +69,77 @@ async function HeroSocialProof() {
   const countryLabel = countries.map((c) => COUNTRY_NAMES[c] ?? c).join(" · ");
 
   return (
-    <div className="flex items-center gap-4 mt-8 animate-fade-up delay-200">
-      <div className="flex">
-        {preview.map((s, i) => (
-          <div
-            key={s.slug}
-            className="flex items-center justify-center rounded-full overflow-hidden flex-shrink-0"
-            style={{
-              marginLeft: i === 0 ? 0 : -8,
-              width: 32,
-              height: 32,
-              background: i % 2 === 0 ? "var(--accent)" : "var(--accent-soft)",
-              color: i % 2 === 0 ? "#fff" : "var(--accent-ink)",
-              fontSize: 11,
-              fontWeight: 600,
-              border: "2px solid var(--bg)",
-            }}
-          >
-            {s.logo_url ? (
-              <img src={s.logo_url} alt={s.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-            ) : (
-              s.name.charAt(0).toUpperCase()
-            )}
-          </div>
-        ))}
-      </div>
-      <div>
-        <p className="text-sm font-medium">Compra directamente a emprendedores.</p>
-        {countryLabel && (
-          <p className="text-xs" style={{ color: "var(--ink-3)" }}>
-            {countryLabel}
-          </p>          
-        )}
-        <p>
-        <Link
-          href="/tiendas"
-          className="flex-shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-full transition-all hover:-translate-y-0.5"
-          style={{ background: "var(--accent)", color: "#fff" }}
-        >
-          Explorar Mall qtienda
-          <ArrowRight size={14} />
-        </Link>
-        </p>
-      </div>
-
-    </div>
-    
-  );
-}
-
-async function StoresSection() {
-  const stores = await getStores();
-  if (stores.length) return null;
-  return (
-    <section className="px-5 md:px-10 py-14 max-w-6xl mx-auto w-full">
-      <div className="flex items-end justify-between mb-6 gap-4">
-        <div>
-          <p className="eyebrow">Tiendas activas</p>
-          {/* Comentado 
-          <p className="text-xl font-medium mt-1" style={{ letterSpacing: "-0.014em" }}>
-            <span className="mono num">{stores.length.toLocaleString()}</span> {stores.length === 1 ? "tienda" : "tiendas"} en qtienda
-          </p> */}
+    <div className="mt-8 animate-fade-up delay-200">
+      <div className="flex items-center gap-4">
+        <div className="flex">
+          {preview.map((s, i) => (
+            <div
+              key={s.slug}
+              className="flex items-center justify-center rounded-full overflow-hidden flex-shrink-0"
+              style={{
+                marginLeft: i === 0 ? 0 : -8,
+                width: 32,
+                height: 32,
+                background: i % 2 === 0 ? "var(--accent)" : "var(--accent-soft)",
+                color: i % 2 === 0 ? "#fff" : "var(--accent-ink)",
+                fontSize: 11,
+                fontWeight: 600,
+                border: "2px solid var(--bg)",
+              }}
+            >
+              {s.logo_url ? (
+                <img src={s.logo_url} alt={s.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              ) : (
+                s.name.charAt(0).toUpperCase()
+              )}
+            </div>
+          ))}
         </div>
-        <Link
-          href="/tiendas"
-          className="flex-shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-full transition-all hover:-translate-y-0.5"
-          style={{ background: "var(--accent)", color: "#fff" }}
-        >
-          Explorar Mall qtienda
-          <ArrowRight size={14} />
-        </Link>
+        <div>
+          <p className="text-sm font-medium">Compra directamente a emprendedores.</p>
+          {countryLabel && (
+            <p className="text-xs" style={{ color: "var(--ink-3)" }}>
+              {countryLabel}
+            </p>
+          )}
+          <p>
+          <Link
+            href="/tiendas"
+            className="flex-shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-full transition-all hover:-translate-y-0.5"
+            style={{ background: "var(--accent)", color: "#fff" }}
+          >
+            Explorar Mall qtienda
+            <ArrowRight size={14} />
+          </Link>
+          </p>
+        </div>
       </div>
 
-    </section>
+      {/* Números reales de la plataforma — se omite cada campo si no hay
+          muestra suficiente para ser representativo (nunca un dato inflado) */}
+      {stats && (stats.stores_count > 0 || stats.rating_count > 0 || stats.delivered_count > 0) && (
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 mt-5 pt-5" style={{ borderTop: "1px solid var(--line)" }}>
+          {stats.stores_count > 0 && (
+            <span className="text-sm">
+              <strong className="mono num" style={{ color: "var(--ink)" }}>{stats.stores_count.toLocaleString()}</strong>{" "}
+              <span style={{ color: "var(--ink-3)" }}>tienda{stats.stores_count !== 1 ? "s" : ""} activa{stats.stores_count !== 1 ? "s" : ""}</span>
+            </span>
+          )}
+          {stats.rating_count > 0 && stats.rating_avg != null && (
+            <span className="text-sm">
+              <strong className="mono num" style={{ color: "var(--ink)" }}>{stats.rating_avg.toFixed(1)}★</strong>{" "}
+              <span style={{ color: "var(--ink-3)" }}>({stats.rating_count} reseña{stats.rating_count !== 1 ? "s" : ""})</span>
+            </span>
+          )}
+          {stats.delivered_count > 0 && (
+            <span className="text-sm">
+              <strong className="mono num" style={{ color: "var(--ink)" }}>{stats.delivered_count.toLocaleString()}</strong>{" "}
+              <span style={{ color: "var(--ink-3)" }}>pedidos entregados</span>
+            </span>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -317,9 +332,6 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
-
-      {/* ── Stores section (server) — arriba, cerca del hero, prueba real */}
-      <StoresSection />
 
       {/* ── Cómo funciona ── */}
       <section className="px-5 md:px-10 max-w-6xl mx-auto w-full pb-14">

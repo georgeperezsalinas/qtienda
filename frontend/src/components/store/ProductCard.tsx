@@ -34,8 +34,11 @@ interface Props {
 
 const NEW_PRODUCT_DAYS = 14;
 
-/* Imagen con skeleton: shimmer mientras carga, fade-in al terminar */
-function CardImage({ src, alt }: { src: string; alt: string }) {
+/* Imagen con skeleton: shimmer mientras carga, fade-in al terminar.
+   `sizes` es obligatorio con `fill` — sin él, Next pide siempre la versión
+   a ancho completo de pantalla aunque la tarjeta ocupe una fracción chica
+   de la grilla (2-4 columnas), desperdiciando datos en conexiones móviles. */
+function CardImage({ src, alt, sizes }: { src: string; alt: string; sizes: string }) {
   const [loaded, setLoaded] = useState(false);
   return (
     <>
@@ -43,6 +46,7 @@ function CardImage({ src, alt }: { src: string; alt: string }) {
         src={src}
         alt={alt}
         fill
+        sizes={sizes}
         className={`object-cover transition-all duration-300 group-hover:scale-[1.04] ${loaded ? "opacity-100" : "opacity-0"}`}
         onLoad={() => setLoaded(true)}
       />
@@ -162,7 +166,11 @@ export default function ProductCard({
           <div className="relative h-28 md:h-40 lg:h-48" style={{ background: "var(--surface-2)" }}>
             {favoriteButton}
             {primaryImage ? (
-              <CardImage src={primaryImage} alt={displayName} />
+              <CardImage
+                src={primaryImage}
+                alt={displayName}
+                sizes="(min-width: 1024px) 256px, (min-width: 768px) 224px, 144px"
+              />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-4xl">🛍️</div>
             )}
@@ -248,7 +256,11 @@ export default function ProductCard({
         <div className="relative w-[76px] h-[76px] lg:w-[92px] lg:h-[92px] rounded-xl overflow-hidden flex-shrink-0" style={{ background: "var(--surface-2)" }}>
           {favoriteButton}
           {primaryImage ? (
-            <CardImage src={primaryImage} alt={displayName} />
+            <CardImage
+              src={primaryImage}
+              alt={displayName}
+              sizes="(min-width: 1024px) 92px, 76px"
+            />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-2xl">🛍️</div>
           )}
@@ -335,7 +347,11 @@ export default function ProductCard({
       <div className="relative aspect-square" style={{ background: "var(--surface-2)" }}>
         {favoriteButton}
         {primaryImage ? (
-          <CardImage src={primaryImage} alt={displayName} />
+          <CardImage
+            src={primaryImage}
+            alt={displayName}
+            sizes="(min-width: 1280px) 25vw, (min-width: 768px) 33vw, 50vw"
+          />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-5xl">🛍️</div>
         )}

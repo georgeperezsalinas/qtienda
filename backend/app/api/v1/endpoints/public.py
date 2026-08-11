@@ -66,6 +66,50 @@ async def _trust_data_for_stores(db: AsyncSession, stores: list) -> dict:
 
 router = APIRouter()
 
+# Debajo de esta cantidad de reseñas, un promedio no es representativo —
+# se prefiere ocultarlo en vez de mostrar un número que una sola reseña
+# mala/buena puede inflar o hundir.
+PLATFORM_STATS_MIN_RATING_COUNT = 5
+
+
+@router.get("/platform-stats")
+@limiter.limit("60/minute")
+async def platform_stats(request: Request, db: AsyncSession = Depends(get_db)):
+    """Números reales agregados de toda la plataforma — usados como prueba
+    social en la landing. Nunca inventados: cada campo sale de una cuenta
+    real y se omite si no hay suficiente muestra para ser representativo."""
+    stores_count = (
+        await db.execute(
+            select(func.count()).select_from(Store).where(Store.status == "active", Store.deleted_at.is_(None))
+        )
+    ).scalar() or 0
+
+    delivered_count = (
+        await db.execute(
+            select(func.count())
+            .select_from(Order)
+            .join(Store, Store.id == Order.store_id)
+            .where(Order.status == "delivered", Store.deleted_at.is_(None))
+        )
+    ).scalar() or 0
+
+    rating_avg, rating_count = (
+        await db.execute(
+            select(func.avg(Review.rating), func.count())
+            .select_from(Review)
+            .join(Store, Store.id == Review.store_id)
+            .where(Review.hidden_at.is_(None), Store.deleted_at.is_(None))
+        )
+    ).one()
+    rating_count = rating_count or 0
+
+    return {
+        "stores_count": stores_count,
+        "delivered_count": delivered_count,
+        "rating_avg": round(float(rating_avg), 1) if rating_count >= PLATFORM_STATS_MIN_RATING_COUNT else None,
+        "rating_count": rating_count if rating_count >= PLATFORM_STATS_MIN_RATING_COUNT else 0,
+    }
+
 
 @router.get("/mall-banners")
 @limiter.limit("60/minute")

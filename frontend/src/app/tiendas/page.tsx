@@ -628,9 +628,15 @@ export default function TiendasPage() {
                     className="rounded-2xl overflow-hidden transition-all active:scale-[.97]"
                     style={{ background: "var(--surface)", boxShadow: "0 1px 8px rgba(20,19,15,.06), 0 0 0 1px var(--line)" }}
                   >
-                    <div className="w-full h-[110px] flex items-center justify-center overflow-hidden" style={{ background: "var(--surface-2)" }}>
+                    <div className="relative w-full h-[110px] flex items-center justify-center overflow-hidden" style={{ background: "var(--surface-2)" }}>
                       {p.image_url ? (
-                        <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
+                        <Image
+                          src={p.image_url}
+                          alt={p.name}
+                          fill
+                          sizes="(min-width: 1280px) 16vw, (min-width: 640px) 33vw, 50vw"
+                          className="object-cover"
+                        />
                       ) : (
                         <Package size={24} style={{ color: "var(--ink-4)" }} />
                       )}
@@ -711,9 +717,15 @@ export default function TiendasPage() {
                     className="rounded-2xl overflow-hidden transition-all active:scale-[.97]"
                     style={{ background: "var(--surface)", boxShadow: "0 1px 8px rgba(20,19,15,.06), 0 0 0 1px var(--line)" }}
                   >
-                    <div className="w-full h-[110px] flex items-center justify-center overflow-hidden" style={{ background: "var(--surface-2)" }}>
+                    <div className="relative w-full h-[110px] flex items-center justify-center overflow-hidden" style={{ background: "var(--surface-2)" }}>
                       {p.image_url ? (
-                        <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
+                        <Image
+                          src={p.image_url}
+                          alt={p.name}
+                          fill
+                          sizes="(min-width: 1280px) 16vw, (min-width: 640px) 33vw, 50vw"
+                          className="object-cover"
+                        />
                       ) : (
                         <Package size={24} style={{ color: "var(--ink-4)" }} />
                       )}
@@ -756,11 +768,11 @@ export default function TiendasPage() {
                     style={{ background: "var(--surface)", boxShadow: "0 1px 8px rgba(20,19,15,.06), 0 0 0 1px var(--line)" }}
                   >
                     <div
-                      className="w-14 h-14 rounded-[14px] flex items-center justify-center overflow-hidden"
+                      className="relative w-14 h-14 rounded-[14px] flex items-center justify-center overflow-hidden"
                       style={{ background: color }}
                     >
                       {s.logo_url ? (
-                        <img src={s.logo_url} alt={s.name} className="w-full h-full object-cover" />
+                        <Image src={s.logo_url} alt={s.name} fill sizes="56px" className="object-cover" />
                       ) : (
                         <span className="font-display font-extrabold text-lg text-white">
                           {s.name.charAt(0).toUpperCase()}
@@ -799,11 +811,11 @@ export default function TiendasPage() {
               >
                 {/* Store logo */}
                 <div
-                  className="w-[52px] h-[52px] rounded-[14px] flex-shrink-0 flex items-center justify-center overflow-hidden"
+                  className="relative w-[52px] h-[52px] rounded-[14px] flex-shrink-0 flex items-center justify-center overflow-hidden"
                   style={{ background: color }}
                 >
                   {s.logo_url ? (
-                    <img src={s.logo_url} alt={s.name} className="w-full h-full object-cover" />
+                    <Image src={s.logo_url} alt={s.name} fill sizes="52px" className="object-cover" />
                   ) : (
                     <span className="font-display font-extrabold text-xl text-white">
                       {s.name.charAt(0).toUpperCase()}
