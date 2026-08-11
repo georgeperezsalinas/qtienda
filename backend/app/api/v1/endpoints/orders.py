@@ -15,7 +15,7 @@ from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
 from app.core.security import require_vendor
-from app.models.models import Order, Store, AuditLog
+from app.models.models import Order, OrderItem, Store, AuditLog
 
 
 class OrderStatusUpdate(BaseModel):
@@ -205,6 +205,63 @@ async def order_stats_daily(
         {
             "date": r.day.strftime("%Y-%m-%d"),
             "orders": r.orders,
+            "revenue_cents": r.revenue_cents,
+        }
+        for r in rows
+    ]
+
+
+@router.get("/stats/top-products")
+async def order_stats_top_products(
+    from_date: Optional[date] = Query(None),
+    to_date:   Optional[date] = Query(None),
+    limit: int = Query(10, ge=1, le=20),
+    current_user = Depends(require_vendor),
+    db: AsyncSession = Depends(get_db),
+):
+    """Productos más vendidos del período — por ingresos y por unidades.
+    Agrupa por product_id (o por nombre si el producto ya se eliminó, para
+    no mezclar productos distintos bajo un mismo NULL)."""
+    store = await get_vendor_store(current_user, db)
+
+    now = datetime.now(timezone.utc)
+    start = (
+        datetime(from_date.year, from_date.month, from_date.day, tzinfo=timezone.utc)
+        if from_date
+        else datetime(now.year, now.month, 1, tzinfo=timezone.utc)
+    )
+    end = (
+        datetime(to_date.year, to_date.month, to_date.day, 23, 59, 59, tzinfo=timezone.utc)
+        if to_date
+        else now
+    )
+
+    rows = (await db.execute(
+        select(
+            OrderItem.product_id,
+            OrderItem.product_name,
+            func.max(OrderItem.image_url).label("image_url"),
+            func.sum(OrderItem.quantity).label("units_sold"),
+            func.sum(OrderItem.subtotal).label("revenue_cents"),
+        )
+        .join(Order, Order.id == OrderItem.order_id)
+        .where(
+            Order.store_id == store.id,
+            Order.status != "cancelled",
+            Order.created_at >= start,
+            Order.created_at <= end,
+        )
+        .group_by(OrderItem.product_id, OrderItem.product_name)
+        .order_by(func.sum(OrderItem.subtotal).desc())
+        .limit(limit)
+    )).all()
+
+    return [
+        {
+            "product_id": r.product_id,
+            "product_name": r.product_name,
+            "image_url": r.image_url,
+            "units_sold": r.units_sold,
             "revenue_cents": r.revenue_cents,
         }
         for r in rows

@@ -306,33 +306,59 @@ export default function LandingPage() {
           <HeroSocialProof />
         </div>
 
-        {/* Vitrina de ejemplo (solo desktop) */}
+        {/* Vitrina de ejemplo (solo desktop) — mockup con contenido real
+            simulado (banner de color + productos con ícono/color propio),
+            no los placeholders de "sube tu foto aquí" del dashboard vacío:
+            eso no vende, se ve como una tienda a medio armar. */}
         <div className="hidden lg:block animate-fade-up delay-200">
           <div className="card p-5" style={{ borderRadius: 24, boxShadow: "var(--shadow-lg)" }}>
             <div className="flex items-center gap-2.5 mb-4">
               <div
                 className="flex items-center justify-center flex-shrink-0"
-                style={{ width: 34, height: 34, borderRadius: 10, background: "var(--accent)", color: "#fff", fontWeight: 600, fontSize: 14 }}
+                style={{ width: 34, height: 34, borderRadius: 10, background: "var(--accent)", color: "#fff", fontWeight: 700, fontSize: 15 }}
               >
-                M
+                🧁
               </div>
-              <div style={{ flex: 1 }}>
-                <div className="placeholder" style={{ height: 9, width: "55%", borderRadius: 4, marginBottom: 6 }} />
-                <div className="placeholder" style={{ height: 7, width: "35%", borderRadius: 4 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p className="text-sm font-bold truncate" style={{ color: "var(--ink)" }}>Dulces de Mica</p>
+                <p className="text-[11px] mono" style={{ color: "var(--ink-3)" }}>qtienda.shop/dulcesdemica</p>
               </div>
               <span className="badge badge-success">Abierto</span>
             </div>
-            <div style={{ height: 110, borderRadius: 14, marginBottom: 12, overflow: "hidden" }}>
-              <img src="/placeholders/banner-promo.svg" alt="Banner promocional de ejemplo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+
+            {/* Banner promocional con color real, no un cuadro gris de "sube tu imagen" */}
+            <div
+              className="flex items-center justify-between px-4"
+              style={{
+                height: 110, borderRadius: 14, marginBottom: 12,
+                background: "linear-gradient(120deg, var(--accent), #E8A87C)",
+              }}
+            >
+              <div>
+                <p className="text-white font-extrabold text-base leading-tight">🎉 20% OFF hoy</p>
+                <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,.85)" }}>En pedidos desde S/ 40</p>
+              </div>
+              <span style={{ fontSize: 42 }}>🎂</span>
             </div>
+
             <div className="grid grid-cols-3 gap-2.5">
-              {["Torta", "Brownie", "Cupcake", "Alfajor", "Cheesecake", "Galletas"].map((name, i) => (
+              {[
+                { name: "Torta", emoji: "🎂", bg: "#FBE7D6", price: 12 },
+                { name: "Brownie", emoji: "🍫", bg: "#E7DCEF", price: 15 },
+                { name: "Cupcake", emoji: "🧁", bg: "#FDE8EE", price: 18 },
+                { name: "Alfajor", emoji: "🍪", bg: "#EFE6D8", price: 21 },
+                { name: "Cheesecake", emoji: "🍰", bg: "#FFF3D6", price: 24 },
+                { name: "Galletas", emoji: "🍩", bg: "#E1EFE6", price: 27 },
+              ].map(({ name, emoji, bg, price }) => (
                 <div key={name}>
-                  <div style={{ aspectRatio: "1", borderRadius: 10, marginBottom: 6, overflow: "hidden" }}>
-                    <img src="/placeholders/product-photo.svg" alt={`Foto de ${name}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <div
+                    className="flex items-center justify-center"
+                    style={{ aspectRatio: "1", borderRadius: 10, marginBottom: 6, background: bg, fontSize: 24 }}
+                  >
+                    {emoji}
                   </div>
                   <p className="text-[9px] font-medium truncate" style={{ color: "var(--ink-2)" }}>{name}</p>
-                  <p className="mono" style={{ fontSize: 9, color: "var(--accent-ink)", fontWeight: 600 }}>S/ {12 + i * 3}</p>
+                  <p className="mono" style={{ fontSize: 9, color: "var(--accent-ink)", fontWeight: 600 }}>S/ {price}</p>
                 </div>
               ))}
             </div>

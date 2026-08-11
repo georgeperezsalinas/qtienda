@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Image from "next/image";
 import {
   TrendingUp, ShoppingBag, CheckCircle2,
   XCircle, CreditCard, ChevronDown, Banknote,
-  Smartphone, Building2, BarChart2, Download,
+  Smartphone, Building2, BarChart2, Download, Package, Trophy,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
@@ -14,6 +15,14 @@ import { formatPrice } from "@/lib/utils";
 interface PaymentEntry {
   method: string;
   count: number;
+  revenue_cents: number;
+}
+
+interface TopProduct {
+  product_id: string | null;
+  product_name: string;
+  image_url: string | null;
+  units_sold: number;
   revenue_cents: number;
 }
 
@@ -381,6 +390,99 @@ function PaymentBreakdown({ entries, loading }: { entries: PaymentEntry[]; loadi
   );
 }
 
+type TopSort = "revenue" | "units";
+
+function TopProducts({ items, loading }: { items: TopProduct[]; loading: boolean }) {
+  const [sort, setSort] = useState<TopSort>("revenue");
+
+  if (loading) return <Skel h={220} />;
+  if (items.length === 0) return null;
+
+  const sorted = [...items].sort((a, b) =>
+    sort === "revenue" ? b.revenue_cents - a.revenue_cents : b.units_sold - a.units_sold
+  );
+  const maxValue = Math.max(...sorted.map((p) => (sort === "revenue" ? p.revenue_cents : p.units_sold)), 1);
+
+  return (
+    <div
+      className="rounded-2xl p-4"
+      style={{ background: "var(--surface)", border: "1.5px solid var(--line-2)" }}
+    >
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-1.5">
+          <Trophy size={14} style={{ color: "var(--accent)" }} />
+          <p className="text-xs font-bold" style={{ color: "var(--ink)" }}>
+            Productos más vendidos
+          </p>
+        </div>
+        <div className="flex gap-1">
+          {(["revenue", "units"] as TopSort[]).map((s) => (
+            <button
+              key={s}
+              onClick={() => setSort(s)}
+              className="text-[10px] font-bold px-2.5 py-1 rounded-full transition-all"
+              style={{
+                background: sort === s ? "var(--ink)" : "var(--bg)",
+                color: sort === s ? "var(--bg)" : "var(--ink-3)",
+              }}
+            >
+              {s === "revenue" ? "Ingresos" : "Unidades"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-2.5">
+        {sorted.map((p, i) => {
+          const value = sort === "revenue" ? p.revenue_cents : p.units_sold;
+          const pct = value / maxValue;
+          return (
+            <div key={p.product_id ?? p.product_name} className="flex items-center gap-2.5">
+              <span
+                className="flex-shrink-0 text-[11px] font-bold w-4 text-center"
+                style={{ color: i < 3 ? "var(--accent)" : "var(--ink-4)" }}
+              >
+                {i + 1}
+              </span>
+              <div
+                className="relative flex-shrink-0 rounded-lg overflow-hidden flex items-center justify-center"
+                style={{ width: 32, height: 32, background: "var(--bg)" }}
+              >
+                {p.image_url ? (
+                  <Image src={p.image_url} alt={p.product_name} fill sizes="32px" className="object-cover" />
+                ) : (
+                  <Package size={14} style={{ color: "var(--ink-4)" }} />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <p className="text-xs font-semibold truncate" style={{ color: "var(--ink-2)" }}>
+                    {p.product_name}
+                  </p>
+                  <span className="text-xs font-bold flex-shrink-0" style={{ color: "var(--ink)" }}>
+                    {sort === "revenue" ? formatPrice(p.revenue_cents) : `${p.units_sold} und.`}
+                  </span>
+                </div>
+                <div className="w-full rounded-full overflow-hidden" style={{ height: 3, background: "var(--line-2)" }}>
+                  <div
+                    style={{
+                      height: "100%",
+                      width: `${pct * 100}%`,
+                      borderRadius: 9999,
+                      background: "var(--accent)",
+                      transition: "width 0.4s ease",
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /* ══════════════════════════════════════
    PAGE
 ══════════════════════════════════════ */
@@ -398,6 +500,8 @@ export default function FinanzasPage() {
   const [loadingDaily, setLoadingDaily] = useState(true);
   const [loadingList,  setLoadingList]  = useState(true);
   const [exporting,    setExporting]    = useState(false);
+  const [topProducts,  setTopProducts]  = useState<TopProduct[]>([]);
+  const [loadingTop,   setLoadingTop]   = useState(true);
 
   /* ── Sub (once) ── */
   useEffect(() => {
@@ -435,6 +539,12 @@ export default function FinanzasPage() {
       .then(({ data }) => setDaily(data))
       .catch(() => setDaily([]))
       .finally(() => setLoadingDaily(false));
+
+    setLoadingTop(true);
+    apiClient.get("/orders/stats/top-products", { params: { ...params, limit: 10 } })
+      .then(({ data }) => setTopProducts(data))
+      .catch(() => setTopProducts([]))
+      .finally(() => setLoadingTop(false));
   }, [period]);
 
   /* ── Orders list ── */
@@ -658,6 +768,11 @@ export default function FinanzasPage() {
 
         {/* ── Payment breakdown ── */}
         <PaymentBreakdown entries={byPayment} loading={loadingStats} />
+
+        {/* ── Top productos ── */}
+        <div className="lg:col-span-2">
+          <TopProducts items={topProducts} loading={loadingTop} />
+        </div>
 
         {/* ── Detalle de movimientos ── */}
         <div className="animate-fade-up lg:col-span-2">

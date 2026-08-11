@@ -1334,8 +1334,12 @@ export default function ConfiguracionPage() {
             <h2 className="font-semibold" style={{ color: "var(--ink)" }}>Pixels de marketing</h2>
           </div>
           <p className="text-xs mb-4" style={{ color: "var(--ink-3)" }}>
-            Conecta tus propios pixels para medir tus campañas de anuncios en tu tienda —
-            esto es distinto de las estadísticas de qtienda, es exclusivamente tuyo.
+            Solo si <strong>pagas anuncios</strong> en TikTok, Meta o Google y quieres medir cuántas
+            ventas te generaron — es distinto de las estadísticas de qtienda, es exclusivamente tuyo.
+            Si buscas mostrar tu perfil de redes a tus compradores, eso va en la pestaña{" "}
+            <button type="button" onClick={() => setActiveTab("tienda")} className="font-bold underline" style={{ color: "var(--accent)" }}>
+              Tienda
+            </button>, no aquí.
           </p>
 
           <form onSubmit={saveMarketing} className="space-y-4">
@@ -1350,7 +1354,8 @@ export default function ConfiguracionPage() {
                 onChange={(e) => setSettings({ ...settings, tiktok_pixel_id: e.target.value })}
               />
               <p className="text-[11px] mt-1" style={{ color: "var(--ink-4)" }}>
-                TikTok Ads Manager → Activos → Eventos → Administrar → tu pixel
+                No es tu usuario de TikTok — es un código de TikTok Ads Manager → Activos →
+                Eventos → Administrar → tu pixel. Déjalo vacío si no pautas anuncios ahí.
               </p>
             </div>
 

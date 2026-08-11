@@ -116,19 +116,25 @@ export default function LoginPage() {
             ))}
           </ul>
 
-          {/* Vitrina de ejemplo — forma de tarjeta de producto (foto + nombre
-              + precio), no solo cuadros vacíos sin contexto */}
+          {/* Vitrina de ejemplo — tarjetas con contraste real (fondo claro +
+              ícono + barra de precio en color de acento), no transparencias
+              sutiles sobre fondo oscuro que terminan viéndose vacías */}
           <div className="rounded-2xl p-4 mt-2" style={{ background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.12)" }}>
             <div className="grid grid-cols-3 gap-2">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="flex flex-col gap-1.5">
-                  <div className="rounded-lg" style={{ aspectRatio: "1", background: "rgba(255,255,255,.14)" }} />
-                  <div className="rounded-full" style={{ height: 5, width: "80%", background: "rgba(255,255,255,.18)" }} />
-                  <div className="rounded-full" style={{ height: 5, width: "45%", background: "rgba(255,255,255,.18)" }} />
+                <div key={i} className="rounded-lg p-1.5" style={{ background: "rgba(255,255,255,.94)" }}>
+                  <div
+                    className="rounded flex items-center justify-center"
+                    style={{ aspectRatio: "1", background: "#F1EEE7" }}
+                  >
+                    <ShoppingBag size={16} style={{ color: "#B8B0A0" }} />
+                  </div>
+                  <div className="rounded-full mt-1.5" style={{ height: 4, width: "70%", background: "#D8D2C4" }} />
+                  <div className="rounded-full mt-1" style={{ height: 5, width: "45%", background: "var(--accent)" }} />
                 </div>
               ))}
             </div>
-            <p className="text-xs mt-3" style={{ color: "rgba(255,255,255,.5)" }}>
+            <p className="text-xs mt-3" style={{ color: "rgba(255,255,255,.6)" }}>
               Así se ve tu vitrina — lista en 2 minutos
             </p>
           </div>
