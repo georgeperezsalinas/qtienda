@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   MessageCircle, RefreshCw, ImageIcon, GalleryHorizontal, Package,
-  CheckCircle2, ChevronLeft, ChevronRight as ChevronRightIcon, Filter,
+  CheckCircle2, ChevronLeft, ChevronRight as ChevronRightIcon, Filter, Mail,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
@@ -22,6 +22,7 @@ interface StoreItem {
   created_at: string;
   owner_name: string | null;
   owner_phone: string | null;
+  owner_email: string | null;
   products_count: number;
   logo_url: string | null;
   banner_url: string | null;
@@ -128,6 +129,22 @@ export default function AdminCampanaPage() {
     }
   }
 
+  // Fallback para tiendas sin teléfono registrado — mismo mensaje, por correo.
+  async function sendCampaignEmail(s: StoreItem) {
+    setSending(s.id);
+    try {
+      await apiClient.post(`/admin/stores/${s.id}/campaign-email`);
+      setStores((prev) =>
+        prev.map((st) => (st.id === s.id ? { ...st, campaign_contacted_at: new Date().toISOString() } : st))
+      );
+      toast.success("Correo enviado");
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail ?? "No se pudo enviar el correo");
+    } finally {
+      setSending(null);
+    }
+  }
+
   const visibleStores = hideContacted ? stores.filter((s) => !s.campaign_contacted_at) : stores;
 
   return (
@@ -160,7 +177,8 @@ export default function AdminCampanaPage() {
         <p>
           Cada tarjeta arma un mensaje personalizado según lo que le falta a la tienda. Al tocar
           &quot;Enviar WhatsApp&quot; se abre la conversación con el texto listo — solo confirmas el envío.
-          No se manda nada automáticamente.
+          Si la tienda no tiene teléfono registrado pero sí correo, se ofrece enviar el mismo
+          mensaje por correo (ese sí se envía directo, sin confirmación manual).
         </p>
       </div>
 
@@ -206,7 +224,11 @@ export default function AdminCampanaPage() {
                     </p>
                     <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
                       {s.owner_name ?? "Sin nombre"}
-                      {s.owner_phone ? ` · ${s.owner_phone}` : " · sin teléfono"}
+                      {s.owner_phone
+                        ? ` · ${s.owner_phone}`
+                        : s.owner_email
+                        ? ` · sin teléfono, sí correo`
+                        : " · sin teléfono ni correo"}
                     </p>
                     <p className="text-xs mt-0.5" style={{ color: "var(--ink-4)" }}>
                       Creada hace {daysAgo(s.created_at)} día{daysAgo(s.created_at) !== 1 ? "s" : ""}
@@ -244,15 +266,38 @@ export default function AdminCampanaPage() {
                   {buildMessage(s)}
                 </div>
 
-                <button
-                  disabled={sending === s.id || (!s.owner_phone && !s.whatsapp)}
-                  onClick={() => sendWhatsApp(s)}
-                  className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold mt-3 disabled:opacity-50"
-                  style={{ background: "#25D366", color: "#fff" }}
-                >
-                  <MessageCircle size={14} />
-                  {contacted ? "Enviar de nuevo por WhatsApp" : "Enviar por WhatsApp"}
-                </button>
+                {s.owner_phone || s.whatsapp ? (
+                  <button
+                    disabled={sending === s.id}
+                    onClick={() => sendWhatsApp(s)}
+                    className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold mt-3 disabled:opacity-50"
+                    style={{ background: "#25D366", color: "#fff" }}
+                  >
+                    <MessageCircle size={14} />
+                    {contacted ? "Enviar de nuevo por WhatsApp" : "Enviar por WhatsApp"}
+                  </button>
+                ) : s.owner_email ? (
+                  <button
+                    disabled={sending === s.id}
+                    onClick={() => sendCampaignEmail(s)}
+                    className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold mt-3 disabled:opacity-50"
+                    style={{ background: "var(--ink)", color: "var(--bg)" }}
+                  >
+                    <Mail size={14} />
+                    {sending === s.id
+                      ? "Enviando..."
+                      : contacted
+                      ? "Enviar de nuevo por correo (sin teléfono)"
+                      : "Enviar por correo (sin teléfono)"}
+                  </button>
+                ) : (
+                  <div
+                    className="w-full text-center py-2.5 rounded-xl text-xs font-semibold mt-3"
+                    style={{ background: "var(--surface-2)", color: "var(--ink-4)" }}
+                  >
+                    Sin teléfono ni correo — no se puede contactar
+                  </div>
+                )}
               </div>
             );
           })

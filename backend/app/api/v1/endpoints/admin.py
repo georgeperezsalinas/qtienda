@@ -368,6 +368,79 @@ async def mark_store_contacted(
     return {"store_id": store.id, "campaign_contacted_at": store.campaign_contacted_at}
 
 
+@router.post("/stores/{store_id}/campaign-email")
+async def send_campaign_email(
+    store_id: UUID,
+    current_admin=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Igual que la campaña de WhatsApp, pero por correo — para las tiendas
+    cuyo dueño no registró teléfono y por eso no se les puede armar un
+    link de wa.me."""
+    result = await db.execute(
+        select(Store).options(selectinload(Store.user)).where(
+            Store.id == store_id, Store.deleted_at.is_(None)
+        )
+    )
+    store = result.scalar_one_or_none()
+    if not store:
+        raise HTTPException(status_code=404, detail="Tienda no encontrada")
+    if not store.user or not store.user.email:
+        raise HTTPException(status_code=422, detail="Esta tienda no tiene un correo registrado")
+
+    active_products = (await db.execute(
+        select(func.count()).select_from(Product).where(
+            Product.store_id == store.id, Product.deleted_at.is_(None), Product.status == "active",
+        )
+    )).scalar()
+
+    missing = []
+    if not store.logo_url:
+        missing.append("logo")
+    if not store.banner_url:
+        missing.append("banner")
+    if not active_products:
+        missing.append("productos")
+
+    if not missing:
+        raise HTTPException(status_code=422, detail="Esta tienda ya completó su onboarding")
+
+    missing_text = (
+        f"tu {missing[0]}" if len(missing) == 1
+        else f"tu {missing[0]} y tu {missing[1]}" if len(missing) == 2
+        else f"tu {missing[0]}, tu {missing[1]} y tus {missing[2]}"
+    )
+    first_name = (store.user.full_name or "").split(" ")[0] or ""
+    greeting = f"Hola {first_name}" if first_name else "Hola"
+
+    from app.services.email import send_notification_email
+    await send_notification_email(
+        to_email=store.user.email,
+        full_name=store.user.full_name or "",
+        icon="👋",
+        title=f"{greeting}, te falta un paso para vender",
+        body=(
+            f'Vimos que creaste tu tienda "{store.name}" pero te falta agregar {missing_text} '
+            f"para que quede lista y puedas empezar a vender."
+        ),
+        cta_url="https://qtienda.shop/dashboard",
+        cta_label="Completar mi tienda",
+    )
+
+    now = datetime.now(timezone.utc)
+    store.campaign_contacted_at = now
+    db.add(AuditLog(
+        user_id=current_admin.id,
+        store_id=store.id,
+        action="store.campaign_emailed",
+        entity="stores",
+        entity_id=store.id,
+        new_value={"campaign_contacted_at": now.isoformat()},
+    ))
+    await db.commit()
+    return {"store_id": store.id, "campaign_contacted_at": store.campaign_contacted_at}
+
+
 class StoreDeleteRequest(BaseModel):
     confirm: str
     reason: Optional[str] = None
