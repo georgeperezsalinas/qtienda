@@ -545,7 +545,7 @@ export default function ProductosPage() {
 
       {/* ── Header ── */}
       <div
-        className="sticky top-0 z-10 px-5 pt-safe pt-5 md:pt-7 pb-4"
+        className="sticky top-0 z-10 px-5 pt-[max(20px,env(safe-area-inset-top))] md:pt-[max(28px,env(safe-area-inset-top))] pb-4"
         style={{ background: "var(--surface)", borderBottom: "1px solid var(--line)" }}
       >
         <div className="flex items-center justify-between mb-4">

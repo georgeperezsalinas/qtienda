@@ -24,8 +24,9 @@ export default function CompradorLayout({ children }: { children: React.ReactNod
 
       {/* Top bar */}
       <header
-        className="sticky top-0 z-10 flex items-center justify-between px-5 pt-safe py-3.5"
+        className="sticky top-0 z-10 flex items-center justify-between px-5 pb-3.5"
         style={{
+          paddingTop: "max(14px, env(safe-area-inset-top))",
           background: "rgba(255,255,255,0.9)",
           backdropFilter: "blur(16px)",
           WebkitBackdropFilter: "blur(16px)",

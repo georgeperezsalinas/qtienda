@@ -109,8 +109,9 @@ export default function RegistroPage() {
     >
       {/* Top nav */}
       <nav
-        className="flex items-center justify-between px-5 pt-safe py-3.5 animate-fade-in"
+        className="flex items-center justify-between px-5 pb-3.5 animate-fade-in"
         style={{
+          paddingTop: "max(14px, env(safe-area-inset-top))",
           background: "rgba(255,255,255,0.88)",
           backdropFilter: "blur(16px)",
           WebkitBackdropFilter: "blur(16px)",

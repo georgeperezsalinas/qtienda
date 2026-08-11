@@ -220,8 +220,9 @@ function RegisterForm() {
 
       {/* ── Top nav ── */}
       <nav
-        className="flex items-center justify-between px-5 pt-safe py-3.5 animate-fade-in"
+        className="flex items-center justify-between px-5 pb-3.5 animate-fade-in"
         style={{
+          paddingTop: "max(14px, env(safe-area-inset-top))",
           background: "color-mix(in srgb, var(--surface) 92%, transparent)",
           backdropFilter: "blur(16px)",
           WebkitBackdropFilter: "blur(16px)",
