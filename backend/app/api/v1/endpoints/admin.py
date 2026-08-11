@@ -13,9 +13,10 @@ from app.db.session import get_db
 from app.core.config import settings
 from app.core.security import require_admin
 from app.models.models import (
-    AuditLog, Order, Payment, Plan, PlanPaymentRequest, Product, Role, SiteEvent,
+    AuditLog, MallBanner, Order, Payment, Plan, PlanPaymentRequest, Product, Role, SiteEvent,
     Store, StoreEvent, Subscription, User,
 )
+from app.schemas.auth import BannersUpdate
 
 router = APIRouter()
 
@@ -1250,3 +1251,51 @@ async def broadcast_notification(
         asyncio.ensure_future(emit_event(str(store_id), "announcement", **extra_ctx))
 
     return {"targeted_stores": len(store_ids)}
+
+
+# ── Banners rotatorios del Mall (/tiendas) ──────────────────────
+
+MAX_MALL_BANNERS = 6
+
+
+@router.get("/mall-banners")
+async def list_mall_banners(
+    _=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(MallBanner).order_by(MallBanner.sort_order))
+    return {
+        "banners": [
+            {"id": b.id, "image_url": b.image_url, "link_url": b.link_url}
+            for b in result.scalars().all()
+        ]
+    }
+
+
+@router.put("/mall-banners")
+async def update_mall_banners(
+    payload: BannersUpdate,
+    current_admin=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Reemplaza la lista completa de banners del Mall — mismo patrón que
+    PUT /stores/me/banners (borra y recrea en el orden recibido)."""
+    if len(payload.banners) > MAX_MALL_BANNERS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Máximo {MAX_MALL_BANNERS} banners.",
+        )
+
+    await db.execute(sql_delete(MallBanner))
+    for i, b in enumerate(payload.banners):
+        db.add(MallBanner(image_url=b.image_url, link_url=b.link_url, sort_order=i))
+
+    db.add(AuditLog(
+        user_id=current_admin.id,
+        action="mall_banners.updated",
+        entity="mall_banners",
+        new_value={"count": len(payload.banners)},
+    ))
+
+    await db.commit()
+    return {"updated": True, "count": len(payload.banners)}

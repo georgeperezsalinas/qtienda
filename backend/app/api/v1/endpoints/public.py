@@ -11,12 +11,23 @@ from sqlalchemy import func, select, and_, or_
 from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
-from app.models.models import Plan, Store, Product, Category, Order, OrderItem, Payment, StoreSettings, StoreEvent, SiteEvent, Subscription
+from app.models.models import Plan, Store, Product, Category, Order, OrderItem, Payment, StoreSettings, StoreEvent, SiteEvent, Subscription, MallBanner
 from app.schemas.orders import PublicOrderCreate, OrderResponse
 from app.core.limiter import limiter
 from app.core.config import settings as app_settings
 
 router = APIRouter()
+
+
+@router.get("/mall-banners")
+@limiter.limit("60/minute")
+async def mall_banners(request: Request, db: AsyncSession = Depends(get_db)):
+    """Banners rotatorios del Mall (/tiendas), administrados desde /admin."""
+    result = await db.execute(select(MallBanner).order_by(MallBanner.sort_order))
+    return [
+        {"id": b.id, "image_url": b.image_url, "link_url": b.link_url}
+        for b in result.scalars().all()
+    ]
 
 
 @router.get("/stores")

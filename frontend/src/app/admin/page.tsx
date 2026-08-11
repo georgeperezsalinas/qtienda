@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   Store, Users, ShoppingBag, TrendingUp, Clock, ArrowRight, ShieldAlert,
   Package, ScrollText, Server, GitBranch, Database, Timer, Globe, Smartphone, Monitor,
-  CreditCard, MessageCircle,
+  CreditCard, MessageCircle, Image as ImageIcon,
 } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
@@ -536,6 +536,21 @@ export default function AdminDashboardPage() {
                 <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
                   {metrics.orders.total} pedidos registrados
                 </p>
+              </div>
+              <ArrowRight size={16} style={{ color: "var(--ink-4)" }} />
+            </Link>
+
+            <Link
+              href="/admin/mall-banners"
+              className="flex items-center gap-3 p-4 rounded-2xl transition-all active:scale-[.98]"
+              style={{ background: "var(--surface-0)", border: "1.5px solid var(--line-2)", boxShadow: "var(--shadow-sm)" }}
+            >
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "var(--surface-2)" }}>
+                <ImageIcon size={18} style={{ color: "var(--ink-2)" }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Banners del Mall</p>
+                <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>Imágenes rotatorias en /tiendas</p>
               </div>
               <ArrowRight size={16} style={{ color: "var(--ink-4)" }} />
             </Link>

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, Store, ChevronRight, ChevronLeft, MapPin, ArrowLeft, Package, Clock, Tag, Sparkles, ShoppingBag } from "lucide-react";
 import Logo from "@/components/ui/Logo";
@@ -102,49 +103,70 @@ function ScrollRow({ children }: { children: React.ReactNode }) {
   );
 }
 
-interface BannerSlide {
-  icon: React.ElementType;
-  title: string;
-  body: string;
-  gradient: string;
-  cta?: { label: string; href: string };
-  showInstallLink?: boolean;
+interface DynamicBanner {
+  id: string;
+  image_url: string;
+  link_url: string | null;
 }
+
+type BannerSlide =
+  | {
+      kind: "text";
+      icon: React.ElementType;
+      title: string;
+      body: string;
+      gradient: string;
+      cta?: { label: string; href: string };
+      showInstallLink?: boolean;
+    }
+  | { kind: "image"; imageUrl: string; linkUrl: string | null };
 
 const BANNER_ROTATE_MS = 6000;
 
-// Banner rotatorio del Mall: bienvenida, invitación a crear tienda, y un
-// dato real (nunca inventado — mismo criterio que el resto de esta página).
-function MallBannerCarousel({ storeCount }: { storeCount: number }) {
+// Banner rotatorio del Mall: el primer slide (bienvenida + instalar PWA) es
+// fijo — tiene lógica real de detección de navegador, no tiene sentido
+// convertirlo en imagen. Los demás vienen de /admin/mall-banners; si todavía
+// no hay ninguno configurado, se muestra un slide de texto genérico
+// invitando a crear tienda (nunca queda el carrusel con un solo slide mudo).
+function MallBannerCarousel() {
+  const [dynamicBanners, setDynamicBanners] = useState<DynamicBanner[]>([]);
+  const [bannersLoaded, setBannersLoaded] = useState(false);
+
+  useEffect(() => {
+    fetch(`${API}/public/mall-banners`)
+      .then((r) => r.json())
+      .then((data) => setDynamicBanners(Array.isArray(data) ? data : []))
+      .catch(() => setDynamicBanners([]))
+      .finally(() => setBannersLoaded(true));
+  }, []);
+
   const slides: BannerSlide[] = useMemo(() => {
     const base: BannerSlide[] = [
       {
+        kind: "text",
         icon: ShoppingBag,
         title: "Mall qtienda",
         body: "Un solo lugar para conocer todas las tiendas y sus productos.",
         gradient: "linear-gradient(120deg, var(--accent), var(--accent-soft))",
         showInstallLink: true,
       },
-      {
+    ];
+    if (dynamicBanners.length > 0) {
+      dynamicBanners.forEach((b) => {
+        base.push({ kind: "image", imageUrl: b.image_url, linkUrl: b.link_url });
+      });
+    } else if (bannersLoaded) {
+      base.push({
+        kind: "text",
         icon: Store,
         title: "¿Vendes por TikTok? 🚀",
         body: "Crea tu tienda gratis en 2 minutos — sin tarjeta, sin pasos técnicos.",
         gradient: "linear-gradient(120deg, #7C3AED, #A78BFA)",
         cta: { label: "Crear mi tienda", href: "/auth/register" },
-      },
-    ];
-    // Sin mencionar la cantidad de tiendas — un número chico resta en vez de sumar.
-    if (storeCount > 0) {
-      base.push({
-        icon: Sparkles,
-        title: "Súmate a Qtienda",
-        body: "Forma parte de la comunidad de vendedores que ya venden en Qtienda.",
-        gradient: "linear-gradient(120deg, #059669, #34D399)",
-        cta: { label: "Crear mi tienda", href: "/auth/register" },
       });
     }
     return base;
-  }, [storeCount]);
+  }, [dynamicBanners, bannersLoaded]);
 
   const [index, setIndex] = useState(0);
   const touchStartX = useRef(0);
@@ -169,12 +191,12 @@ function MallBannerCarousel({ storeCount }: { storeCount: number }) {
   }
 
   const slide = slides[index];
-  const Icon = slide.icon;
+  if (!slide) return null;
 
   return (
     <div
-      className="relative overflow-hidden rounded-2xl p-5 mb-4"
-      style={{ background: slide.gradient }}
+      className="relative overflow-hidden rounded-2xl mb-4"
+      style={{ border: "1px solid var(--line)" }}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
@@ -185,34 +207,68 @@ function MallBannerCarousel({ storeCount }: { storeCount: number }) {
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -12 }}
           transition={{ duration: 0.25 }}
-          className="flex items-center gap-4"
         >
-          <div
-            className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
-            style={{ background: "rgba(255,255,255,.2)" }}
-          >
-            <Icon size={20} className="text-white" />
-          </div>
-          <div className="min-w-0">
-            <p className="font-display font-extrabold text-base leading-tight text-white">{slide.title}</p>
-            <p className="text-xs mt-0.5 text-white/85">{slide.body}</p>
-            {slide.cta ? (
-              <Link
-                href={slide.cta.href}
-                className="inline-flex items-center gap-1 mt-2 text-xs font-bold px-3 py-1.5 rounded-full text-white"
-                style={{ background: "rgba(255,255,255,.22)", border: "1px solid rgba(255,255,255,.4)" }}
+          {slide.kind === "image" ? (
+            (() => {
+              // Solo http(s) o rutas internas: nunca javascript: en el href
+              // (mismo criterio que el carrusel de banners de cada tienda).
+              const link = slide.linkUrl && /^(https?:\/\/|\/)/.test(slide.linkUrl) ? slide.linkUrl : undefined;
+              const isExternal = !!link && link.startsWith("http") && !link.includes("qtienda.shop");
+              const img = (
+                <div className="relative w-full aspect-[3/1] lg:aspect-[3.4/1]">
+                  <Image
+                    src={slide.imageUrl}
+                    alt=""
+                    fill
+                    sizes="(max-width: 640px) 100vw, 1360px"
+                    className="object-cover"
+                  />
+                </div>
+              );
+              return link ? (
+                <a
+                  href={link}
+                  target={isExternal ? "_blank" : undefined}
+                  rel={isExternal ? "noopener noreferrer" : undefined}
+                  className="block active:scale-[.99] transition-transform"
+                  aria-label="Promoción"
+                >
+                  {img}
+                </a>
+              ) : (
+                img
+              );
+            })()
+          ) : (
+            <div className="flex items-center gap-4 p-5" style={{ background: slide.gradient }}>
+              <div
+                className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
+                style={{ background: "rgba(255,255,255,.2)" }}
               >
-                {slide.cta.label} <ChevronRight size={12} />
-              </Link>
-            ) : slide.showInstallLink ? (
-              <MallInstallLink />
-            ) : null}
-          </div>
+                <slide.icon size={20} className="text-white" />
+              </div>
+              <div className="min-w-0">
+                <p className="font-display font-extrabold text-base leading-tight text-white">{slide.title}</p>
+                <p className="text-xs mt-0.5 text-white/85">{slide.body}</p>
+                {slide.cta ? (
+                  <Link
+                    href={slide.cta.href}
+                    className="inline-flex items-center gap-1 mt-2 text-xs font-bold px-3 py-1.5 rounded-full text-white"
+                    style={{ background: "rgba(255,255,255,.22)", border: "1px solid rgba(255,255,255,.4)" }}
+                  >
+                    {slide.cta.label} <ChevronRight size={12} />
+                  </Link>
+                ) : slide.showInstallLink ? (
+                  <MallInstallLink />
+                ) : null}
+              </div>
+            </div>
+          )}
         </motion.div>
       </AnimatePresence>
 
       {slides.length > 1 && (
-        <div className="flex items-center gap-1.5 mt-3 relative z-10">
+        <div className="flex items-center justify-center gap-1.5 py-2" style={{ background: "var(--surface)" }}>
           {slides.map((_, i) => (
             <button
               key={i}
@@ -222,7 +278,7 @@ function MallBannerCarousel({ storeCount }: { storeCount: number }) {
               style={{
                 width: i === index ? 16 : 6,
                 height: 6,
-                background: i === index ? "#fff" : "rgba(255,255,255,.4)",
+                background: i === index ? "var(--accent)" : "var(--line-2)",
               }}
             />
           ))}
@@ -469,7 +525,7 @@ export default function TiendasPage() {
       {/* ── Content ── */}
       <main className="flex-1 px-4 py-4 mx-auto w-full" style={{ maxWidth: "min(94vw, 1400px)" }}>
         {/* Banner rotatorio — bienvenida, invitación a crear tienda, y stats reales */}
-        <MallBannerCarousel storeCount={stores.length} />
+        <MallBannerCarousel />
 
         {/* Recién publicado — últimos productos reales de todas las tiendas.
             Grilla (no fila única) para que se sienta como un catálogo real,

@@ -430,6 +430,18 @@ class StoreBanner(Base):
     store: Mapped["Store"]      = relationship(back_populates="banners")
 
 
+# ── Mall Banners (rotatorios en /tiendas, administrables desde /admin) ──
+
+class MallBanner(Base):
+    __tablename__ = "mall_banners"
+
+    id: Mapped[uuid.UUID]       = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    image_url: Mapped[str]      = mapped_column(Text)
+    link_url: Mapped[Optional[str]] = mapped_column(Text)
+    sort_order: Mapped[int]     = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 # ── Store Events (analytics) ──────────────────────────────────
 
 class StoreEvent(Base):
