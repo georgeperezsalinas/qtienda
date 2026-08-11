@@ -7,7 +7,7 @@ import {
   ShoppingCart, Search, ChevronRight, Zap, Heart,
   MapPin, X, MessageCircle, Share2, Download,
   LayoutGrid, List, Clock, Truck, ShieldCheck, PackageSearch,
-  HelpCircle,
+  HelpCircle, CheckCircle2,
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
@@ -42,6 +42,7 @@ interface StoreData {
   whatsapp?:     string;
   theme?:        "clasico" | "elegante" | "vibrante";
   meta_title?:   string;
+  orders_delivered_count?: number;
   settings?: {
     welcome_discount_enabled?: boolean;
     welcome_discount_cents?:   number;
@@ -758,6 +759,17 @@ export default function StorePage({ store, initialProducts }: Props) {
             </span>
           </button>
           {[
+            // Señal de confianza real — nunca inventada, y nunca se muestra
+            // en "0" (una tienda sin pedidos entregados aún no gana nada
+            // mostrando un cero, así que directamente no aparece el chip).
+            ...(store.orders_delivered_count && store.orders_delivered_count > 0
+              ? [{
+                  key: "trust",
+                  icon: CheckCircle2,
+                  label: `${store.orders_delivered_count} pedido${store.orders_delivered_count !== 1 ? "s" : ""} entregado${store.orders_delivered_count !== 1 ? "s" : ""}`,
+                  short: `${store.orders_delivered_count} entregados`,
+                }]
+              : []),
             { key: "delivery", icon: Truck, label: "Coordinas la entrega con el vendedor", short: "Entrega coordinada" },
             { key: "payment", icon: ShieldCheck, label: paymentMethodsLabel, short: "Pago seguro" },
             { key: "whatsapp", icon: MessageCircle, label: "Atención directa por WhatsApp", short: "Atención por WhatsApp" },

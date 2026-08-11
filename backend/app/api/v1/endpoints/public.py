@@ -174,6 +174,16 @@ async def get_store(request: Request, slug: str, db: AsyncSession = Depends(get_
     if not store:
         raise HTTPException(status_code=404, detail="Tienda no encontrada")
 
+    # Señal de confianza real (nunca inventada) — pedidos entregados, no
+    # "pedidos totales" para no inflar con cancelados/pendientes.
+    delivered_count = (
+        await db.execute(
+            select(func.count()).select_from(Order).where(
+                Order.store_id == store.id, Order.status == "delivered"
+            )
+        )
+    ).scalar()
+
     return {
         "id": store.id,
         "slug": store.slug,
@@ -182,6 +192,8 @@ async def get_store(request: Request, slug: str, db: AsyncSession = Depends(get_
         "logo_url": store.logo_url,
         "banner_url": store.banner_url,
         "banner_link": store.banner_link,
+        "member_since": store.created_at,
+        "orders_delivered_count": delivered_count,
         "banners": [
             {"url": b.image_url, "link": b.link_url}
             for b in store.banners
