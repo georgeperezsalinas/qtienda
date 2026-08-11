@@ -531,25 +531,33 @@ export default function TiendasPage() {
             />
           </div>
 
-          {/* Filtro rápido por rubro — acceso directo con ícono, la grilla
-              grande de categorías (más abajo) es la vitrina principal */}
+          {/* Filtro por rubro — íconos reales en vez de solo texto, para que
+              se distingan de un vistazo sin ocupar una sección aparte */}
           {categoriesList.length > 1 && (
-            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide pb-0.5 mb-1.5">
-              <Tag size={11} className="flex-shrink-0" style={{ color: "var(--ink-4)" }} />
-              {categoriesList.map((c) => (
-                <button
-                  key={c.name}
-                  onClick={() => setCategoryFilter(categoryFilter === c.name ? null : c.name)}
-                  className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap"
-                  style={
-                    categoryFilter === c.name
-                      ? { background: "var(--accent)", color: "#fff" }
-                      : { background: "var(--surface)", color: "var(--ink-2)", border: "1px solid var(--line-2)" }
-                  }
-                >
-                  {c.icon && <span>{c.icon}</span>} {c.name}
-                </button>
-              ))}
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1 mb-1.5">
+              {categoriesList.map((c) => {
+                const active = categoryFilter === c.name;
+                return (
+                  <button
+                    key={c.name}
+                    onClick={() => setCategoryFilter(active ? null : c.name)}
+                    className="flex-shrink-0 flex items-center gap-1.5 pl-1.5 pr-3 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap"
+                    style={
+                      active
+                        ? { background: "var(--accent)", color: "#fff" }
+                        : { background: "var(--surface)", color: "var(--ink-2)", border: "1px solid var(--line-2)" }
+                    }
+                  >
+                    <span
+                      className="w-6 h-6 rounded-full flex items-center justify-center text-sm flex-shrink-0"
+                      style={{ background: active ? "rgba(255,255,255,.25)" : "var(--accent-soft)" }}
+                    >
+                      {c.icon || "🛍️"}
+                    </span>
+                    {c.name}
+                  </button>
+                );
+              })}
             </div>
           )}
 
@@ -598,44 +606,6 @@ export default function TiendasPage() {
       <main className="flex-1 px-4 py-4 mx-auto w-full" style={{ maxWidth: "min(94vw, 1400px)" }}>
         {/* Banner rotatorio — bienvenida, invitación a crear tienda, y stats reales */}
         <MallBannerCarousel />
-
-        {/* Categorías — vitrina principal de navegación del mall: grilla con
-            ícono real y cantidad de productos, agregada en el servidor sobre
-            TODO el catálogo activo (no solo lo que trajo esta página), para
-            que siga siendo representativa aunque existan miles de productos. */}
-        {categoriesList.length > 1 && !debouncedQuery && !cityFilter && !categoryFilter && (
-          <div className="mb-5">
-            <div className="flex items-center gap-1.5 mb-2.5 px-0.5">
-              <Tag size={13} style={{ color: "var(--accent)" }} />
-              <p className="font-display font-bold text-sm" style={{ color: "var(--ink)" }}>
-                Categorías
-              </p>
-            </div>
-            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-2.5">
-              {categoriesList.map((c) => (
-                <button
-                  key={c.name}
-                  onClick={() => setCategoryFilter(c.name)}
-                  className="flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all active:scale-[.96]"
-                  style={{ background: "var(--surface)", boxShadow: "0 1px 8px rgba(20,19,15,.06), 0 0 0 1px var(--line)" }}
-                >
-                  <div
-                    className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl"
-                    style={{ background: "var(--accent-soft)" }}
-                  >
-                    {c.icon || "🛍️"}
-                  </div>
-                  <p className="text-xs font-bold text-center truncate w-full" style={{ color: "var(--ink)" }}>
-                    {c.name}
-                  </p>
-                  <p className="text-[10px]" style={{ color: "var(--ink-4)" }}>
-                    {c.product_count} producto{c.product_count !== 1 ? "s" : ""}
-                  </p>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Recién publicado — últimos productos reales de todas las tiendas.
             Grilla (no fila única) para que se sienta como un catálogo real,

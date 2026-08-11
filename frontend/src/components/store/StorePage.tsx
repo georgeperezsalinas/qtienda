@@ -17,7 +17,6 @@ import CartDrawer from "./CartDrawer";
 import StoreTour, { restartStoreTour } from "./StoreTour";
 import { useCartStore } from "@/store/cartStore";
 import { useFavoritesStore } from "@/store/favoritesStore";
-import { useRecentPurchasesStore } from "@/store/recentPurchasesStore";
 import { useAuthStore } from "@/store/authStore";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
 import { trackStoreEvent } from "@/lib/storeAnalytics";
@@ -380,7 +379,6 @@ export default function StorePage({ store, initialProducts }: Props) {
   const cartCount     = useCartStore((s) => s.totalItems());
   const favoriteIds    = useFavoritesStore((s) => s.ids);
   const favoritesCount = useFavoritesStore((s) => s.countForStore(store.slug));
-  const recentIds      = useRecentPurchasesStore((s) => s.getRecent(store.slug));
   const isLoggedIn = useAuthStore((s) => s.isAuthenticated());
   const user       = useAuthStore((s) => s.user);
   const logout     = useAuthStore((s) => s.logout);
@@ -533,7 +531,6 @@ export default function StorePage({ store, initialProducts }: Props) {
   }, [initialProducts, activeCategory, debouncedSearch, showFavorites, favoriteIds, store.slug]);
 
   const featured        = initialProducts.filter((p) => p.is_featured).slice(0, 8);
-  const recentPurchases = recentIds.map((id) => initialProducts.find((p) => p.id === id)).filter(Boolean) as ProductData[];
   const hasCategories    = (store.categories?.length ?? 0) > 0;
   const isFiltering      = !!debouncedSearch || !!activeCategory || showFavorites;
 
@@ -1021,30 +1018,6 @@ export default function StorePage({ store, initialProducts }: Props) {
               </motion.section>
             )}
           </AnimatePresence>
-
-          {/* Comprar de nuevo */}
-          {recentPurchases.length > 0 && !isFiltering && (
-            <section className="pt-3 pb-1">
-              <div className="flex items-center gap-2 px-4 mb-2 lg:px-6">
-                <span className="text-xs font-extrabold uppercase tracking-widest" style={{ color: "var(--ink-3)" }}>
-                  Comprar de nuevo
-                </span>
-              </div>
-              <div className="flex gap-3 overflow-x-auto px-4 pb-1 snap-x snap-mandatory scrollbar-hide lg:px-6">
-                {recentPurchases.map((p) => (
-                  <ProductCard
-                    key={p.id}
-                    product={p}
-                    storeColor={color}
-                    storeSlug={store.slug}
-                    featured
-                    onTap={() => setViewProduct(p)}
-                    onOpenCart={() => setCartOpen(true)}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
 
           {/* Section header */}
           <div className="flex items-center justify-between px-4 pt-4 pb-2 lg:px-0 lg:pt-6 lg:pb-4">
