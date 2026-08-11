@@ -44,6 +44,18 @@ class ResetPasswordRequest(BaseModel):
         return v
 
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def password_strength(cls, v):
+        if len(v) < 8:
+            raise ValueError("Contraseña mínimo 8 caracteres")
+        return v
+
+
 class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str

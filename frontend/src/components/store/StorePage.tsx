@@ -883,6 +883,18 @@ export default function StorePage({ store, initialProducts }: Props) {
         />
       </div>
 
+      {/* Redes sociales — visibles apenas se entra en móvil (antes solo
+          estaban en el footer, al final de todo el catálogo). En desktop no
+          se repite acá porque ya están en el rail lateral. */}
+      {(store.instagram || store.tiktok || store.facebook) && (
+        <div
+          className="lg:hidden flex items-center justify-center gap-2 py-2.5"
+          style={{ background: "var(--surface)", borderBottom: "1px solid var(--line)" }}
+        >
+          <SocialLinks store={store} size={28} />
+        </div>
+      )}
+
       {/* ══════════════════════════════════
           BANNERS (PWA + buyer)
       ══════════════════════════════════ */}

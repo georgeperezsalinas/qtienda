@@ -19,6 +19,7 @@ from app.core.security import (
 from app.schemas.auth import (
     RegisterRequest, LoginRequest, TokenResponse, RefreshRequest,
     UpdateProfileRequest, ForgotPasswordRequest, ResetPasswordRequest,
+    ChangePasswordRequest,
 )
 from app.services.email import send_verification_email, send_password_reset_email
 from app.services.referrals import ensure_referral_code
@@ -559,3 +560,19 @@ async def update_me(
         "avatar_url": current_user.avatar_url,
         "is_verified": current_user.is_verified,
     }
+
+
+@router.post("/change-password")
+async def change_password(
+    payload: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Cambiar contraseña estando ya logueado — distinto del flujo de
+    'olvidé mi contraseña' (ese usa un token por correo, sin sesión)."""
+    if not verify_password(payload.current_password, current_user.password_hash):
+        raise HTTPException(status_code=401, detail="La contraseña actual no es correcta")
+
+    current_user.password_hash = hash_password(payload.new_password)
+    await db.commit()
+    return {"message": "Contraseña actualizada correctamente"}

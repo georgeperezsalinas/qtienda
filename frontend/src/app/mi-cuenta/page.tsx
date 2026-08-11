@@ -67,6 +67,39 @@ export default function MiCuentaPage() {
   const [hydrated, setHydrated] = useState(false);
   const loggingOut = useRef(false);
 
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
+
+  async function handleChangePassword() {
+    if (newPassword.length < 8) {
+      toast.error("La nueva contraseña debe tener al menos 8 caracteres");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("Las contraseñas no coinciden");
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      await apiClient.post("/auth/change-password", {
+        current_password: currentPassword,
+        new_password: newPassword,
+      });
+      toast.success("Contraseña actualizada");
+      setShowPasswordModal(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail ?? "No se pudo cambiar la contraseña");
+    } finally {
+      setChangingPassword(false);
+    }
+  }
+
   useEffect(() => { setHydrated(true); }, []);
 
   useEffect(() => {
@@ -295,9 +328,13 @@ export default function MiCuentaPage() {
                 ••••••••
               </p>
             </div>
-            <span className="text-xs font-semibold" style={{ color: "var(--ink-4)" }}>
-              Próximamente
-            </span>
+            <button
+              onClick={() => setShowPasswordModal(true)}
+              className="text-xs font-bold flex items-center gap-1"
+              style={{ color: "var(--accent)" }}
+            >
+              Cambiar <ChevronRight size={13} />
+            </button>
           </div>
         </div>
 
@@ -361,6 +398,78 @@ export default function MiCuentaPage() {
 
         <div style={{ height: "max(20px, env(safe-area-inset-bottom))" }} />
       </main>
+
+      {showPasswordModal && (
+        <>
+          <div
+            className="fixed inset-0 z-[60]"
+            style={{ background: "rgba(20,19,15,.5)", backdropFilter: "blur(2px)" }}
+            onClick={() => setShowPasswordModal(false)}
+          />
+          <div
+            className="fixed z-[70] left-1/2 top-1/2 w-[90vw] max-w-sm rounded-[24px] p-5"
+            style={{ background: "#fff", boxShadow: "var(--shadow-float)", transform: "translate(-50%,-50%)" }}
+          >
+            <h3 className="font-display font-extrabold text-base mb-1" style={{ color: "var(--ink)" }}>
+              Cambiar contraseña
+            </h3>
+            <p className="text-xs mb-4" style={{ color: "var(--ink-3)" }}>
+              Ingresa tu contraseña actual y la nueva.
+            </p>
+            <div className="space-y-3">
+              <div>
+                <label className="field-label">Contraseña actual</label>
+                <input
+                  className="input"
+                  type="password"
+                  autoComplete="current-password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="field-label">Nueva contraseña</label>
+                <input
+                  className="input"
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="Mínimo 8 caracteres"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="field-label">Confirmar nueva contraseña</label>
+                <input
+                  className="input"
+                  type="password"
+                  autoComplete="new-password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-5">
+              <button
+                onClick={() => setShowPasswordModal(false)}
+                className="flex-1 rounded-xl py-3 text-sm font-bold"
+                style={{ background: "var(--surface-2)", color: "var(--ink-2)", border: "1.5px solid var(--line-2)" }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleChangePassword}
+                disabled={changingPassword || !currentPassword || !newPassword || !confirmPassword}
+                className="flex-1 btn-primary disabled:opacity-50"
+                style={{ padding: "12px" }}
+              >
+                {changingPassword ? "Guardando..." : "Guardar"}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
