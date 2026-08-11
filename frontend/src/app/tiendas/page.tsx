@@ -345,6 +345,8 @@ export default function TiendasPage() {
   const [mallCategories, setMallCategories] = useState<MallCategoryItem[]>([]);
   const [cities, setCities] = useState<CityItem[]>([]);
   const [latestProducts, setLatestProducts] = useState<LatestProduct[]>([]);
+  const [categoryProducts, setCategoryProducts] = useState<LatestProduct[]>([]);
+  const [categoryProductsLoading, setCategoryProductsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [query, setQuery] = useState("");
@@ -424,6 +426,21 @@ export default function TiendasPage() {
       setLoadingMore(false);
     }
   }
+
+  // Al elegir un departamento, además de filtrar la lista de tiendas se
+  // muestra un mosaico de sus productos reales (no solo el nombre de la tienda).
+  useEffect(() => {
+    if (!categoryFilter) {
+      setCategoryProducts([]);
+      return;
+    }
+    setCategoryProductsLoading(true);
+    fetch(`${API}/public/latest-products?mall_category=${encodeURIComponent(categoryFilter)}&limit=24`)
+      .then((r) => r.json())
+      .then((data) => setCategoryProducts(Array.isArray(data) ? data : []))
+      .catch(() => setCategoryProducts([]))
+      .finally(() => setCategoryProductsLoading(false));
+  }, [categoryFilter]);
 
   // Destacadas: las tiendas con más catálogo activo dentro de la página actual — vitrina real, no manual.
   const featured = useMemo(
@@ -637,6 +654,69 @@ export default function TiendasPage() {
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {/* Productos del departamento elegido — mosaico real, no solo la lista de tiendas */}
+        {categoryFilter && (categoryProductsLoading || categoryProducts.length > 0) && (
+          <div className="mb-4">
+            <div className="flex items-center gap-1.5 mb-2.5 px-0.5">
+              <ShoppingBag size={13} style={{ color: "var(--accent)" }} />
+              <p className="font-display font-bold text-sm" style={{ color: "var(--ink)" }}>
+                {mallCategories.find((c) => c.slug === categoryFilter)?.label ?? "Productos"}
+              </p>
+              {!categoryProductsLoading && (
+                <span className="text-xs" style={{ color: "var(--ink-4)" }}>
+                  {categoryProducts.length} producto{categoryProducts.length !== 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
+            {categoryProductsLoading ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2.5">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="skeleton rounded-2xl" style={{ height: 170 }} />
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2.5">
+                {categoryProducts.map((p) => {
+                  const color = p.primary_color ?? "#C5613B";
+                  return (
+                    <Link
+                      key={p.id}
+                      href={`/tienda/${p.store_slug}?p=${p.id}`}
+                      className="rounded-2xl overflow-hidden transition-all active:scale-[.97]"
+                      style={{ background: "var(--surface)", boxShadow: "0 1px 8px rgba(20,19,15,.06), 0 0 0 1px var(--line)" }}
+                    >
+                      <div className="relative w-full h-[110px] flex items-center justify-center overflow-hidden" style={{ background: "var(--surface-2)" }}>
+                        {p.image_url ? (
+                          <Image
+                            src={p.image_url}
+                            alt={p.name}
+                            fill
+                            sizes="(min-width: 1280px) 16vw, (min-width: 640px) 33vw, 50vw"
+                            className="object-cover"
+                          />
+                        ) : (
+                          <Package size={24} style={{ color: "var(--ink-4)" }} />
+                        )}
+                      </div>
+                      <div className="p-2.5">
+                        <p className="text-xs font-semibold truncate" style={{ color: "var(--ink)" }}>
+                          {p.name}
+                        </p>
+                        <p className="text-xs font-bold mt-0.5" style={{ color }}>
+                          {formatPrice(p.price_cents)}
+                        </p>
+                        <p className="text-[10px] truncate mt-0.5" style={{ color: "var(--ink-4)" }}>
+                          {p.store_name}
+                        </p>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 

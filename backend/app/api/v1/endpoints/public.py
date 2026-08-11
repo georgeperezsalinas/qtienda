@@ -331,11 +331,13 @@ async def public_store_cities(request: Request, db: AsyncSession = Depends(get_d
 async def latest_products(
     request: Request,
     category: str = None,
+    mall_category: str = None,
     limit: int = 12,
     db: AsyncSession = Depends(get_db),
 ):
     """Últimos productos publicados en tiendas activas — franja 'Recién publicado' del mall,
-    o el catálogo del mall filtrado por rubro cuando se pasa `category`."""
+    o el catálogo del mall filtrado por rubro/departamento (`category` = nombre libre de
+    categoría interna del vendedor; `mall_category` = departamento fijo del Mall)."""
     limit = max(1, min(limit, 60))
 
     filters = [
@@ -347,6 +349,8 @@ async def latest_products(
     query = select(Product, Store).join(Store, Store.id == Product.store_id).options(selectinload(Product.images))
     if category:
         query = query.join(Category, Category.id == Product.category_id).where(func.lower(Category.name) == category.lower())
+    if mall_category:
+        filters.append(Store.mall_category == mall_category)
     result = await db.execute(query.where(and_(*filters)).order_by(Product.created_at.desc()).limit(200))
     rows = result.all()
 
