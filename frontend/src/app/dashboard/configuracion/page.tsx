@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ExternalLink, Save, Plus, Trash2, Bike, Eye, EyeOff, UserX, Store, CreditCard, Tag, Truck, QrCode, Download } from "lucide-react";
+import { ExternalLink, Save, Plus, Trash2, Bike, Eye, EyeOff, UserX, Store, CreditCard, Tag, Truck, QrCode, Download, Megaphone } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
@@ -88,7 +88,7 @@ const VEHICLE_TYPES = [
   { value: "camion", label: "Camión" },
 ];
 
-type Tab = "tienda" | "pagos" | "categorias" | "repartidores";
+type Tab = "tienda" | "pagos" | "categorias" | "repartidores" | "marketing";
 
 function Toggle({ value, onChange, label }: { value: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
@@ -155,6 +155,7 @@ export default function ConfiguracionPage() {
     delivery_fee_cents: "0", min_order_cents: "0", free_delivery_above: "",
     welcome_discount_enabled: false, welcome_discount_cents: "5",
     delivery_zones: [] as string[],
+    tiktok_pixel_id: "", meta_pixel_id: "", google_analytics_id: "",
   });
   const [newZone, setNewZone] = useState("");
 
@@ -227,6 +228,9 @@ export default function ConfiguracionPage() {
             delivery_zones: Array.isArray(storeData.settings.delivery_zones)
               ? storeData.settings.delivery_zones
               : [],
+            tiktok_pixel_id: storeData.settings.tiktok_pixel_id || "",
+            meta_pixel_id: storeData.settings.meta_pixel_id || "",
+            google_analytics_id: storeData.settings.google_analytics_id || "",
           });
           if (storeData.settings.store_hours) setHours(storeData.settings.store_hours);
         }
@@ -318,6 +322,23 @@ export default function ConfiguracionPage() {
         welcome_discount_enabled: settings.welcome_discount_enabled,
         welcome_discount_cents: Math.round(parseFloat(settings.welcome_discount_cents || "0") * 100),
         delivery_zones: settings.delivery_zones,
+      });
+      toast.success("Configuración guardada");
+    } catch {
+      toast.error("Error al guardar");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveMarketing(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await apiClient.patch("/stores/me/settings", {
+        tiktok_pixel_id: settings.tiktok_pixel_id.trim() || null,
+        meta_pixel_id: settings.meta_pixel_id.trim() || null,
+        google_analytics_id: settings.google_analytics_id.trim() || null,
       });
       toast.success("Configuración guardada");
     } catch {
@@ -459,6 +480,7 @@ export default function ConfiguracionPage() {
     { id: "pagos", label: "Pagos", icon: <CreditCard size={15} /> },
     { id: "categorias", label: "Categorías", icon: <Tag size={15} /> },
     { id: "repartidores", label: "Repartidores", icon: <Truck size={15} /> },
+    { id: "marketing", label: "Marketing", icon: <Megaphone size={15} /> },
   ];
 
   return (
@@ -1270,6 +1292,76 @@ export default function ConfiguracionPage() {
             >
               <Plus size={15} />
               {addingStaff ? "Creando..." : "Agregar repartidor"}
+            </button>
+          </form>
+        </section>
+      )}
+
+      {/* Tab: Marketing */}
+      {activeTab === "marketing" && (
+        <section className="card p-5">
+          <div className="flex items-center gap-2 mb-1">
+            <Megaphone size={18} style={{ color: "var(--accent)" }} />
+            <h2 className="font-semibold" style={{ color: "var(--ink)" }}>Pixels de marketing</h2>
+          </div>
+          <p className="text-xs mb-4" style={{ color: "var(--ink-3)" }}>
+            Conecta tus propios pixels para medir tus campañas de anuncios en tu tienda —
+            esto es distinto de las estadísticas de qtienda, es exclusivamente tuyo.
+          </p>
+
+          <form onSubmit={saveMarketing} className="space-y-4">
+            <div>
+              <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">
+                TikTok Pixel ID
+              </label>
+              <input
+                className="input"
+                placeholder="Ej: C4A1B2C3D4E5F6G7H8I9"
+                value={settings.tiktok_pixel_id}
+                onChange={(e) => setSettings({ ...settings, tiktok_pixel_id: e.target.value })}
+              />
+              <p className="text-[11px] mt-1" style={{ color: "var(--ink-4)" }}>
+                TikTok Ads Manager → Activos → Eventos → Administrar → tu pixel
+              </p>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">
+                Meta Pixel ID (Facebook/Instagram)
+              </label>
+              <input
+                className="input"
+                placeholder="Ej: 1234567890123456"
+                value={settings.meta_pixel_id}
+                onChange={(e) => setSettings({ ...settings, meta_pixel_id: e.target.value })}
+              />
+              <p className="text-[11px] mt-1" style={{ color: "var(--ink-4)" }}>
+                Administrador de eventos de Meta → Orígenes de datos → tu pixel
+              </p>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">
+                Google Analytics (GA4)
+              </label>
+              <input
+                className="input"
+                placeholder="Ej: G-XXXXXXXXXX"
+                value={settings.google_analytics_id}
+                onChange={(e) => setSettings({ ...settings, google_analytics_id: e.target.value })}
+              />
+              <p className="text-[11px] mt-1" style={{ color: "var(--ink-4)" }}>
+                Google Analytics → Administrar → Flujos de datos → ID de medición
+              </p>
+            </div>
+
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex items-center justify-center gap-2 rounded-2xl py-3 px-6 font-bold text-sm text-white transition-all active:scale-[.98]"
+              style={{ background: "var(--accent)", opacity: saving ? 0.6 : 1 }}
+            >
+              <Save size={15} /> {saving ? "Guardando..." : "Guardar"}
             </button>
           </form>
         </section>

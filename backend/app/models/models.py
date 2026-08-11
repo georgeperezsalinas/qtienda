@@ -161,6 +161,12 @@ class StoreSettings(Base):
     delivery_zones: Mapped[list]         = mapped_column(JSONB, default=list)
     store_hours: Mapped[dict]            = mapped_column(JSONB, default=dict)
     custom_css: Mapped[Optional[str]]    = mapped_column(Text)
+    # Pixels de marketing del propio vendedor — para que mida sus campañas
+    # de anuncios (TikTok/Meta/Google), no confundir con StoreEvent/SiteEvent
+    # que es el analytics interno de qtienda.
+    tiktok_pixel_id: Mapped[Optional[str]]      = mapped_column(String(40))
+    meta_pixel_id: Mapped[Optional[str]]        = mapped_column(String(40))
+    google_analytics_id: Mapped[Optional[str]]  = mapped_column(String(40))
     updated_at: Mapped[datetime]         = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     store: Mapped["Store"] = relationship(back_populates="settings")

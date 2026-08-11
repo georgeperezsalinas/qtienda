@@ -454,9 +454,13 @@ function RegisterForm() {
 
         <p className="text-center text-xs px-4 animate-fade-up delay-400" style={{ color: "var(--ink-4)" }}>
           Al registrarte aceptas nuestros{" "}
-          <span style={{ color: "var(--ink-3)" }}>Términos de uso</span>
+          <Link href="/terminos" className="font-semibold underline" style={{ color: "var(--ink-3)" }}>
+            Términos de uso
+          </Link>
           {" "}y{" "}
-          <span style={{ color: "var(--ink-3)" }}>Política de privacidad</span>.
+          <Link href="/privacidad" className="font-semibold underline" style={{ color: "var(--ink-3)" }}>
+            Política de privacidad
+          </Link>.
         </p>
       </form>
     </div>

@@ -16,6 +16,7 @@ import { apiClient } from "@/lib/api";
 import toast from "react-hot-toast";
 import PhoneInput from "@/components/ui/PhoneInput";
 import { track } from "@vercel/analytics";
+import { pixelPurchase } from "@/lib/marketingPixels";
 
 interface Props {
   open: boolean;
@@ -285,6 +286,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
       });
 
       setOrderResult(result.data);
+      pixelPurchase(result.data.order_number, result.data.total_cents ?? total);
       recordPurchase(store.slug, items.map((i) => i.id));
       clearCart();
       track("order_placed", {

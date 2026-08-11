@@ -7,6 +7,7 @@ import { useCartStore } from "@/store/cartStore";
 import { useFavoritesStore } from "@/store/favoritesStore";
 import { formatPrice, stripHtml } from "@/lib/utils";
 import { trackStoreEvent } from "@/lib/storeAnalytics";
+import { pixelAddToCart } from "@/lib/marketingPixels";
 import { useSaleCountdown } from "@/hooks/useSaleCountdown";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
@@ -129,6 +130,7 @@ export default function ProductCard({
     );
     setAdded(true);
     trackStoreEvent(storeSlug, "add_to_cart", product.id);
+    pixelAddToCart(product, 1);
     toast.custom(
       (t) => (
         <div

@@ -493,6 +493,8 @@ export default function LandingPage() {
             <Link href="/auth/login" className="hover:underline">Ingresar</Link>
             <Link href="/auth/register" className="hover:underline">Crear tienda</Link>
             <Link href="/mis-pedidos" className="hover:underline">Mis pedidos</Link>
+            <Link href="/terminos" className="hover:underline">Términos</Link>
+            <Link href="/privacidad" className="hover:underline">Privacidad</Link>
           </div>
           <div className="flex flex-col sm:items-end items-center gap-1.5">
             <p className="text-xs" style={{ color: "var(--ink-3)" }}>

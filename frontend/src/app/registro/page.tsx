@@ -270,6 +270,17 @@ export default function RegistroPage() {
             Crear tienda
           </Link>
         </p>
+
+        <p className="text-center text-xs px-4 animate-fade-up delay-400" style={{ color: "var(--ink-4)" }}>
+          Al registrarte aceptas nuestros{" "}
+          <Link href="/terminos" className="font-semibold underline" style={{ color: "var(--ink-3)" }}>
+            Términos de uso
+          </Link>
+          {" "}y{" "}
+          <Link href="/privacidad" className="font-semibold underline" style={{ color: "var(--ink-3)" }}>
+            Política de privacidad
+          </Link>.
+        </p>
       </form>
     </div>
   );

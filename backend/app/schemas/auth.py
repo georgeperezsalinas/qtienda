@@ -146,6 +146,19 @@ class StoreSettingsUpdate(BaseModel):
     welcome_discount_cents: Optional[int] = None
     delivery_zones: Optional[list] = None
     store_hours: Optional[dict] = None
+    tiktok_pixel_id: Optional[str] = None
+    meta_pixel_id: Optional[str] = None
+    google_analytics_id: Optional[str] = None
+
+    @field_validator("tiktok_pixel_id", "meta_pixel_id", "google_analytics_id")
+    @classmethod
+    def valid_pixel_id(cls, v):
+        # Los IDs reales son alfanuméricos (GA4 además usa guiones, ej.
+        # G-XXXXXXXXXX) — se valida el formato porque este valor se inyecta
+        # tal cual dentro de un <script> en la tienda pública.
+        if v is not None and not re.match(r"^[A-Za-z0-9\-]{1,40}$", v):
+            raise ValueError("ID de pixel inválido — solo letras, números y guiones")
+        return v
 
     @field_validator("welcome_discount_cents")
     @classmethod

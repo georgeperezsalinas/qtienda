@@ -10,6 +10,7 @@ import { useSaleCountdown } from "@/hooks/useSaleCountdown";
 import toast from "react-hot-toast";
 import ProductCard from "./ProductCard";
 import { fetchProductViewers } from "@/lib/storeAnalytics";
+import { pixelAddToCart } from "@/lib/marketingPixels";
 
 /** Umbral para no mostrar numeros bajos que se sienten peor que no mostrar nada */
 const VIEWERS_THRESHOLD = 3;
@@ -136,6 +137,7 @@ export default function ProductDetailSheet({
       qty,
     );
     setAdded(true);
+    pixelAddToCart(product, qty);
     toast.success(qty > 1 ? `${qty} agregados al carrito` : "Agregado al carrito", { duration: 1500 });
     setTimeout(() => setAdded(false), 2000);
     setQty(1);

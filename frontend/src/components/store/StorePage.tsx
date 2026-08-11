@@ -14,6 +14,8 @@ import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion"
 import ProductCard from "./ProductCard";
 import ProductDetailSheet from "./ProductDetailSheet";
 import CartDrawer from "./CartDrawer";
+import MarketingPixels from "./MarketingPixels";
+import { pixelViewContent, pixelAddToCart, pixelInitiateCheckout } from "@/lib/marketingPixels";
 import StoreTour, { restartStoreTour } from "./StoreTour";
 import { useCartStore } from "@/store/cartStore";
 import { useFavoritesStore } from "@/store/favoritesStore";
@@ -54,6 +56,9 @@ interface StoreData {
     accept_transfer?: boolean;
     accept_card?:     boolean;
     delivery_zones?:  string[];
+    tiktok_pixel_id?:      string | null;
+    meta_pixel_id?:        string | null;
+    google_analytics_id?:  string | null;
   };
 }
 
@@ -377,6 +382,7 @@ export default function StorePage({ store, initialProducts }: Props) {
   const router = useRouter();
 
   const cartCount     = useCartStore((s) => s.totalItems());
+  const cartTotalCents = useCartStore((s) => s.totalCents());
   const favoriteIds    = useFavoritesStore((s) => s.ids);
   const favoritesCount = useFavoritesStore((s) => s.countForStore(store.slug));
   const isLoggedIn = useAuthStore((s) => s.isAuthenticated());
@@ -479,7 +485,10 @@ export default function StorePage({ store, initialProducts }: Props) {
   }, [store.slug]);
 
   useEffect(() => {
-    if (viewProduct) trackStoreEvent(store.slug, "product_view", viewProduct.id);
+    if (viewProduct) {
+      trackStoreEvent(store.slug, "product_view", viewProduct.id);
+      pixelViewContent(viewProduct);
+    }
   }, [viewProduct, store.slug]);
 
   // Abre la ficha directo si llegan por un link compartido (?p=productId)
@@ -492,7 +501,10 @@ export default function StorePage({ store, initialProducts }: Props) {
   }, [initialProducts]);
 
   useEffect(() => {
-    if (cartOpen) trackStoreEvent(store.slug, "checkout_start");
+    if (cartOpen) {
+      trackStoreEvent(store.slug, "checkout_start");
+      pixelInitiateCheckout(cartTotalCents, cartCount);
+    }
   }, [cartOpen, store.slug]);
 
   // Reseñas reales — solo se pide si la tienda ya tiene al menos una
@@ -554,6 +566,12 @@ export default function StorePage({ store, initialProducts }: Props) {
         aria-hidden
         className="h-1"
         style={{ background: `linear-gradient(90deg, ${color}, ${color}66)` }}
+      />
+
+      <MarketingPixels
+        tiktokPixelId={store.settings?.tiktok_pixel_id}
+        metaPixelId={store.settings?.meta_pixel_id}
+        googleAnalyticsId={store.settings?.google_analytics_id}
       />
 
       <FiestasPatriasFloatingBadge country={store.country} />
