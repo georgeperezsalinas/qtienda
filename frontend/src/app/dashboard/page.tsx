@@ -3,7 +3,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -18,7 +18,11 @@ import {
   ShoppingBag,
   TrendingUp,
   Package,
+  QrCode,
+  Download,
+  X,
 } from "lucide-react";
+import { QRCodeCanvas } from "qrcode.react";
 import { apiClient } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import ReferralBanner from "@/components/ui/ReferralBanner";
@@ -92,6 +96,17 @@ export default function DashboardPage() {
   const { user } = useAuthStore();
 
   const [store, setStore] = useState<StoreData | null>(null);
+  const [showQrModal, setShowQrModal] = useState(false);
+  const qrCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  function downloadQr() {
+    const canvas = qrCanvasRef.current;
+    if (!canvas || !store) return;
+    const a = document.createElement("a");
+    a.href = canvas.toDataURL("image/png");
+    a.download = `qr-${store.slug}.png`;
+    a.click();
+  }
   const [stats, setStats] = useState<Stats | null>(null);
   const [recent, setRecent] = useState<RecentOrder[]>([]);
   const [loadingStore, setLoadingStore] = useState(true);
@@ -308,6 +323,17 @@ export default function DashboardPage() {
               <span className="truncate">qtienda.shop/{store.slug}</span>
             </button>
           </div>
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              setShowQrModal(true);
+            }}
+            className="btn-secondary"
+            style={{ padding: "8px 10px", borderRadius: 999 }}
+            aria-label="Código QR"
+          >
+            <QrCode size={14} strokeWidth={1.7} />
+          </button>
           <button
             onClick={(e) => {
               e.preventDefault();
@@ -550,6 +576,56 @@ export default function DashboardPage() {
 
       </div >{/* /grid principal */}
       </div >
+
+      {showQrModal && store && (
+        <>
+          <div
+            className="fixed inset-0 z-[60]"
+            style={{ background: "rgba(20,19,15,.5)", backdropFilter: "blur(2px)" }}
+            onClick={() => setShowQrModal(false)}
+          />
+          <div
+            className="fixed z-[70] left-1/2 top-1/2 w-[90vw] max-w-sm rounded-[24px] p-5 text-center"
+            style={{ background: "var(--surface)", boxShadow: "var(--shadow-float)", transform: "translate(-50%,-50%)" }}
+          >
+            <button
+              onClick={() => setShowQrModal(false)}
+              className="absolute top-4 right-4 w-8 h-8 rounded-xl flex items-center justify-center"
+              style={{ background: "var(--surface-2)" }}
+              aria-label="Cerrar"
+            >
+              <X size={15} style={{ color: "var(--ink-2)" }} />
+            </button>
+            <div
+              className="w-11 h-11 rounded-2xl flex items-center justify-center mb-3 mx-auto"
+              style={{ background: "var(--accent-soft)" }}
+            >
+              <QrCode size={20} style={{ color: "var(--accent)" }} />
+            </div>
+            <h3 className="font-display font-extrabold text-base mb-1" style={{ color: "var(--ink)" }}>
+              Código QR de tu tienda
+            </h3>
+            <p className="text-xs mb-4" style={{ color: "var(--ink-3)" }}>
+              Imprímelo y pégalo en tus paquetes, empaques o volantes — tus clientes lo escanean
+              y llegan directo a tu tienda.
+            </p>
+            <div
+              className="inline-flex p-4 rounded-2xl mb-4"
+              style={{ background: "#fff", border: "1px solid var(--line-2)" }}
+            >
+              <QRCodeCanvas ref={qrCanvasRef} value={`https://qtienda.shop/tienda/${store.slug}`} size={180} marginSize={0} />
+            </div>
+            <button
+              type="button"
+              onClick={downloadQr}
+              className="mx-auto flex items-center justify-center gap-2 rounded-2xl py-3 px-6 font-bold text-sm text-white transition-all active:scale-[.98]"
+              style={{ background: "var(--accent)" }}
+            >
+              <Download size={15} /> Descargar QR
+            </button>
+          </div>
+        </>
+      )}
     </div >
   );
 }

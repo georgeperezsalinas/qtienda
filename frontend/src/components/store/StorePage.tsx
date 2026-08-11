@@ -883,18 +883,6 @@ export default function StorePage({ store, initialProducts }: Props) {
         />
       </div>
 
-      {/* Redes sociales — visibles apenas se entra en móvil (antes solo
-          estaban en el footer, al final de todo el catálogo). En desktop no
-          se repite acá porque ya están en el rail lateral. */}
-      {(store.instagram || store.tiktok || store.facebook) && (
-        <div
-          className="lg:hidden flex items-center justify-center gap-2 py-2.5"
-          style={{ background: "var(--surface)", borderBottom: "1px solid var(--line)" }}
-        >
-          <SocialLinks store={store} size={28} />
-        </div>
-      )}
-
       {/* ══════════════════════════════════
           BANNERS (PWA + buyer)
       ══════════════════════════════════ */}
@@ -1325,9 +1313,35 @@ export default function StorePage({ store, initialProducts }: Props) {
                 )}
               </div>
             </div>
-            {(store.instagram || store.tiktok || store.facebook) && (
-              <div className="flex justify-center pb-4">
-                <SocialLinks store={store} />
+            {/* Sobre esta tienda — descripción, rubros y redes juntas, no
+                solo íconos sueltos, para que aporte confianza real al final
+                del recorrido (no compite por espacio con el banner de arriba) */}
+            {(store.description || hasCategories || store.instagram || store.tiktok || store.facebook) && (
+              <div className="rounded-2xl p-4 mb-4" style={{ background: "var(--surface-2)" }}>
+                <p className="eyebrow mb-2">Sobre esta tienda</p>
+                {store.description && (
+                  <p className="text-xs leading-relaxed mb-2.5" style={{ color: "var(--ink-2)" }}>
+                    {store.description}
+                  </p>
+                )}
+                {hasCategories && (
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    {store.categories!.map((c) => (
+                      <span
+                        key={c.id}
+                        className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-full"
+                        style={{ background: "var(--surface)", color: "var(--ink-2)" }}
+                      >
+                        {c.icon} {c.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {(store.instagram || store.tiktok || store.facebook) && (
+                  <div className="flex items-center gap-2 pt-1">
+                    <SocialLinks store={store} size={34} />
+                  </div>
+                )}
               </div>
             )}
             <div className="flex justify-center items-center gap-2 pt-4" style={{ borderTop: "1px solid var(--line)" }}>
