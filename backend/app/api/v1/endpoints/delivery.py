@@ -335,6 +335,8 @@ async def delivery_update_status(
 
     if new_status == "delivered":
         now = datetime.now(timezone.utc)
+        if not order.delivered_at:
+            order.delivered_at = now
         delivery_q = await db.execute(select(Delivery).where(Delivery.order_id == order.id))
         delivery = delivery_q.scalar_one_or_none()
         if delivery:

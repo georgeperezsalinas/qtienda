@@ -137,6 +137,7 @@ async def my_store(
         "instagram": store.instagram,
         "tiktok": store.tiktok,
         "facebook": store.facebook,
+        "mall_category": store.mall_category,
         "status": store.status,
         "primary_color": store.primary_color,
         "theme": store.theme,

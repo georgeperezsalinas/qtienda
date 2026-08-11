@@ -30,13 +30,16 @@ async def lifespan(app: FastAPI):
     import asyncio
     from app.services.plan_expiry import expiry_watcher
     from app.services.store_health_watcher import store_health_watcher
+    from app.services.review_reminder import review_reminder_watcher
     app.state.started_at = datetime.now(timezone.utc)
     expiry_task = asyncio.create_task(expiry_watcher())
     store_health_task = asyncio.create_task(store_health_watcher())
+    review_reminder_task = asyncio.create_task(review_reminder_watcher())
     yield
     # shutdown
     expiry_task.cancel()
     store_health_task.cancel()
+    review_reminder_task.cancel()
     await engine.dispose()
 
 

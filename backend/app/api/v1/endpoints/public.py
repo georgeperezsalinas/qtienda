@@ -5,7 +5,7 @@ No authentication required.
 import re
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from urllib.parse import quote
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import case, func, select, and_, or_
@@ -129,6 +129,7 @@ async def list_stores(
     page: int = 1,
     limit: int = 24,
     category: Optional[str] = None,
+    mall_category: Optional[str] = None,
     city: Optional[str] = None,
     q: Optional[str] = None,
     sort: str = "recent",
@@ -143,6 +144,8 @@ async def list_stores(
     filters = [Store.status == "active", Store.deleted_at.is_(None)]
     if city:
         filters.append(Store.city == city)
+    if mall_category:
+        filters.append(Store.mall_category == mall_category)
     if q:
         like = f"%{q}%"
         filters.append(or_(Store.name.ilike(like), Store.description.ilike(like), Store.city.ilike(like)))
@@ -240,6 +243,7 @@ async def list_stores(
                 "primary_color": s.primary_color,
                 "product_count": count_map.get(s.id, 0),
                 "categories": categories_map.get(s.id, []),
+                "mall_category": s.mall_category,
                 "store_hours": s.settings.store_hours if s.settings else None,
                 "updated_at": max(filter(None, [s.updated_at, product_updated_map.get(s.id)])),
                 "is_verified": trust_map.get(s.id, {}).get("is_verified", False),
@@ -281,6 +285,31 @@ async def public_categories(request: Request, db: AsyncSession = Depends(get_db)
 
     merged = sorted(agg.values(), key=lambda c: c["count"], reverse=True)[:24]
     return [{"name": c["name"], "icon": c["icon"], "product_count": c["count"]} for c in merged]
+
+
+@router.get("/mall-categories")
+@limiter.limit("60/minute")
+async def public_mall_categories(request: Request, db: AsyncSession = Depends(get_db)):
+    """Los 7 departamentos fijos del Mall, con la cantidad real de tiendas
+    activas en cada uno — nunca inventado, y siempre se listan los 7 aunque
+    alguno tenga 0 tiendas todavía (es la taxonomía completa, no derivada)."""
+    from app.core.mall_categories import MALL_CATEGORIES
+
+    rows = await db.execute(
+        select(Store.mall_category, func.count())
+        .where(
+            Store.status == "active",
+            Store.deleted_at.is_(None),
+            Store.mall_category.is_not(None),
+        )
+        .group_by(Store.mall_category)
+    )
+    count_map = dict(rows.all())
+
+    return [
+        {"slug": c["slug"], "label": c["label"], "icon": c["icon"], "store_count": count_map.get(c["slug"], 0)}
+        for c in MALL_CATEGORIES
+    ]
 
 
 @router.get("/store-cities")
@@ -405,6 +434,7 @@ async def get_store(request: Request, slug: str, db: AsyncSession = Depends(get_
         "instagram": store.instagram,
         "tiktok": store.tiktok,
         "facebook": store.facebook,
+        "mall_category": store.mall_category,
         "primary_color": store.primary_color,
         "theme": store.theme,
         "city": store.city,
@@ -559,6 +589,89 @@ async def get_store_products(
         }
         for p in products
     ]
+
+
+_CURRENCY_BY_COUNTRY = {
+    "PE": "PEN", "CL": "CLP", "CO": "COP", "MX": "MXN", "AR": "ARS",
+}
+
+
+def _strip_html_basic(html: str) -> str:
+    """Limpieza simple para el feed — no necesita ser perfecta, solo texto
+    legible sin tags para el catálogo de anuncios."""
+    text = re.sub(r"<[^>]+>", " ", html or "")
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+@router.get("/store/{slug}/catalog.xml")
+@limiter.limit("30/minute")
+async def store_catalog_feed(request: Request, slug: str, db: AsyncSession = Depends(get_db)):
+    """Feed de catálogo de productos en formato RSS 2.0 + namespace de Google
+    (el mismo que usan Shopify/WooCommerce) — el vendedor lo sube a TikTok
+    Ads Manager (Catalog Manager) para correr anuncios de shopping con sus
+    productos reales. Un feed por tienda: cada vendedor tiene su propia
+    cuenta de anuncios, no tiene sentido un catálogo combinado."""
+    import xml.etree.ElementTree as ET
+
+    store_q = await db.execute(
+        select(Store).where(
+            Store.slug == slug, Store.status == "active", Store.deleted_at.is_(None)
+        )
+    )
+    store = store_q.scalar_one_or_none()
+    if not store:
+        raise HTTPException(status_code=404, detail="Tienda no encontrada")
+
+    result = await db.execute(
+        select(Product)
+        .options(selectinload(Product.images))
+        .where(
+            Product.store_id == store.id,
+            Product.status == "active",
+            Product.deleted_at.is_(None),
+        )
+        .order_by(Product.sort_order)
+    )
+    products = result.scalars().all()
+    currency = _CURRENCY_BY_COUNTRY.get(store.country or "PE", "PEN")
+
+    G_NS = "http://base.google.com/ns/1.0"
+    ET.register_namespace("g", G_NS)
+
+    rss = ET.Element("rss", attrib={"version": "2.0"})
+    channel = ET.SubElement(rss, "channel")
+    ET.SubElement(channel, "title").text = store.name
+    ET.SubElement(channel, "link").text = f"https://qtienda.shop/tienda/{store.slug}"
+    ET.SubElement(channel, "description").text = f"Catálogo de productos de {store.name}"
+
+    for p in products:
+        images = sorted(p.images, key=lambda i: (not i.is_primary, i.sort_order))
+        if not images:
+            continue  # TikTok requiere imagen — un producto sin foto no sirve en el feed
+
+        item = ET.SubElement(channel, "item")
+        ET.SubElement(item, f"{{{G_NS}}}id").text = str(p.id)
+        ET.SubElement(item, "title").text = p.name
+        ET.SubElement(item, "description").text = _strip_html_basic(p.description)[:5000] or p.name
+        ET.SubElement(item, "link").text = f"https://qtienda.shop/tienda/{store.slug}?p={p.id}"
+        ET.SubElement(item, f"{{{G_NS}}}image_link").text = images[0].url
+        for img in images[1:11]:
+            ET.SubElement(item, f"{{{G_NS}}}additional_image_link").text = img.url
+
+        in_stock = p.stock is None or p.stock > 0
+        ET.SubElement(item, f"{{{G_NS}}}availability").text = "in stock" if in_stock else "out of stock"
+        ET.SubElement(item, f"{{{G_NS}}}condition").text = "new"
+        ET.SubElement(item, f"{{{G_NS}}}brand").text = store.name
+
+        if p.compare_price and p.compare_price > p.price_cents:
+            ET.SubElement(item, f"{{{G_NS}}}price").text = f"{p.compare_price / 100:.2f} {currency}"
+            ET.SubElement(item, f"{{{G_NS}}}sale_price").text = f"{p.price_cents / 100:.2f} {currency}"
+        else:
+            ET.SubElement(item, f"{{{G_NS}}}price").text = f"{p.price_cents / 100:.2f} {currency}"
+
+    xml_bytes = ET.tostring(rss, encoding="utf-8", xml_declaration=True)
+    return Response(content=xml_bytes, media_type="application/xml")
 
 
 @router.get("/store/{slug}/buyer-first-order")

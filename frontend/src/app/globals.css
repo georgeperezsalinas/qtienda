@@ -105,6 +105,45 @@
   --line:      #FFD9C7;
   --line-2:    #FFC7AC;
 }
+[data-theme="pastel"] {
+  --bg:        #FDF6F9;
+  --surface:   #FFFFFF;
+  --surface-2: #FBEAF1;
+  --tint:      #FBEAF1;
+  --ink:       #3A2A33;
+  --ink-2:     #6b5560;
+  --ink-3:     #A88F98;
+  --ink-4:     #D6C2CC;
+  --ink-5:     #EAD9E0;
+  --line:      #F3DCE6;
+  --line-2:    #EEC9DA;
+}
+[data-theme="monocromo"] {
+  --bg:        #FFFFFF;
+  --surface:   #FFFFFF;
+  --surface-2: #F2F2F2;
+  --tint:      #F2F2F2;
+  --ink:       #0A0A0A;
+  --ink-2:     #3D3D3D;
+  --ink-3:     #757575;
+  --ink-4:     #A8A8A8;
+  --ink-5:     #D4D4D4;
+  --line:      #E5E5E5;
+  --line-2:    #D0D0D0;
+}
+[data-theme="fresco"] {
+  --bg:        #F2FAF8;
+  --surface:   #FFFFFF;
+  --surface-2: #E3F3EF;
+  --tint:      #E3F3EF;
+  --ink:       #12302A;
+  --ink-2:     #3E5F58;
+  --ink-3:     #7A9C94;
+  --ink-4:     #AFC9C2;
+  --ink-5:     #D3E5E0;
+  --line:      #D6ECE5;
+  --line-2:    #C2E1D8;
+}
 
 /* ─── Base ─── */
 @layer base {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ExternalLink, Save, Plus, Trash2, Bike, Eye, EyeOff, UserX, Store, CreditCard, Tag, Truck, QrCode, Download, Megaphone } from "lucide-react";
+import { ExternalLink, Save, Plus, Trash2, Bike, Eye, EyeOff, UserX, Store, CreditCard, Tag, Truck, QrCode, Download, Megaphone, Copy, ListChecks } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
@@ -19,7 +19,7 @@ interface StoreData {
   banner_url?: string;
   banner_link?: string;
   city?: string;
-  theme?: "clasico" | "elegante" | "vibrante";
+  theme?: StoreTheme;
 }
 
 interface StaffMember {
@@ -34,14 +34,33 @@ interface StaffMember {
 
 interface CategoryForm { name: string; icon: string }
 
-const COLORS = ["#6366f1", "#ec4899", "#f97316", "#10b981", "#3b82f6", "#8b5cf6", "#ef4444", "#14b8a6"];
+// Departamentos fijos del Mall Qtienda — distinto de las categorías internas
+// de productos (esas siguen siendo libres, se editan en la pestaña Categorías).
+const MALL_CATEGORIES = [
+  { slug: "moda", label: "Moda", icon: "🛍️" },
+  { slug: "belleza", label: "Belleza", icon: "💄" },
+  { slug: "hogar", label: "Hogar", icon: "🏠" },
+  { slug: "tecnologia", label: "Tecnología", icon: "📱" },
+  { slug: "mascotas", label: "Mascotas", icon: "🐶" },
+  { slug: "videojuegos", label: "Videojuegos", icon: "🎮" },
+  { slug: "deportes", label: "Deportes", icon: "⚽" },
+];
+
+const COLORS = [
+  "#6366f1", "#ec4899", "#f97316", "#10b981", "#3b82f6", "#8b5cf6", "#ef4444", "#14b8a6",
+  "#F59E0B", "#FB7185", "#64748B", "#84CC16",
+];
 
 // Temas de vitrina: cambian layout/neutros de la tienda pública. El color de
 // marca (primary_color) es independiente y se aplica dentro de cualquier tema.
-const THEMES: { value: "clasico" | "elegante" | "vibrante"; label: string; bg: string; text: string }[] = [
+export type StoreTheme = "clasico" | "elegante" | "vibrante" | "pastel" | "monocromo" | "fresco";
+const THEMES: { value: StoreTheme; label: string; bg: string; text: string }[] = [
   { value: "clasico", label: "Clásico", bg: "#FCFBF7", text: "#14130F" },
   { value: "elegante", label: "Elegante", bg: "#1A1712", text: "#F3ECDD" },
   { value: "vibrante", label: "Vibrante", bg: "#FFFFFF", text: "#3A1F16" },
+  { value: "pastel", label: "Pastel", bg: "#FDF6F9", text: "#3A2A33" },
+  { value: "monocromo", label: "Monocromo", bg: "#FFFFFF", text: "#0A0A0A" },
+  { value: "fresco", label: "Fresco", bg: "#F2FAF8", text: "#12302A" },
 ];
 
 // País de la tienda: define los campos de dirección y documento en el checkout
@@ -144,9 +163,9 @@ export default function ConfiguracionPage() {
 
   const [info, setInfo] = useState({
     name: "", description: "", whatsapp: "",
-    instagram: "", tiktok: "", facebook: "",
+    instagram: "", tiktok: "", facebook: "", mall_category: "",
     primary_color: "#6366f1", logo_url: "", banner_url: "", banner_link: "", city: "",
-    country: "PE", theme: "clasico" as "clasico" | "elegante" | "vibrante",
+    country: "PE", theme: "clasico" as StoreTheme,
   });
 
   const [settings, setSettings] = useState({
@@ -191,6 +210,7 @@ export default function ConfiguracionPage() {
           instagram: storeData.instagram || "",
           tiktok: storeData.tiktok || "",
           facebook: storeData.facebook || "",
+          mall_category: storeData.mall_category || "",
           primary_color: storeData.primary_color || "#6366f1",
           logo_url: storeData.logo_url || "",
           banner_url: storeData.banner_url || "",
@@ -285,6 +305,7 @@ export default function ConfiguracionPage() {
         instagram: info.instagram,
         tiktok: info.tiktok,
         facebook: info.facebook,
+        mall_category: info.mall_category,
         primary_color: info.primary_color,
         logo_url: info.logo_url || undefined,
         city: info.city || undefined,
@@ -597,6 +618,37 @@ export default function ConfiguracionPage() {
               <div>
                 <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">Ciudad</label>
                 <input className="input" placeholder="Lima" value={info.city} onChange={(e) => setInfo({ ...info, city: e.target.value })} />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">
+                Categoría en el Mall Qtienda
+              </label>
+              <p className="text-[11px] mb-2" style={{ color: "var(--ink-4)" }}>
+                Para que los compradores te encuentren navegando por rubro en el Mall.
+              </p>
+              <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
+                {MALL_CATEGORIES.map((c) => {
+                  const active = info.mall_category === c.slug;
+                  return (
+                    <button
+                      key={c.slug}
+                      type="button"
+                      onClick={() => setInfo({ ...info, mall_category: active ? "" : c.slug })}
+                      className="flex flex-col items-center gap-1 py-2.5 rounded-xl transition-all"
+                      style={{
+                        background: active ? "var(--accent-soft)" : "var(--bg)",
+                        border: `1.5px solid ${active ? "var(--accent)" : "var(--line-2)"}`,
+                      }}
+                    >
+                      <span style={{ fontSize: 18 }}>{c.icon}</span>
+                      <span className="text-[10px] font-bold text-center leading-tight" style={{ color: active ? "var(--accent-ink)" : "var(--ink-3)" }}>
+                        {c.label}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -1328,6 +1380,7 @@ export default function ConfiguracionPage() {
 
       {/* Tab: Marketing */}
       {activeTab === "marketing" && (
+        <>
         <section className="card p-5">
           <div className="flex items-center gap-2 mb-1">
             <Megaphone size={18} style={{ color: "var(--accent)" }} />
@@ -1399,6 +1452,49 @@ export default function ConfiguracionPage() {
             </button>
           </form>
         </section>
+
+        {store && (
+          <section className="card p-5 mt-4">
+            <div className="flex items-center gap-2 mb-1">
+              <ListChecks size={18} style={{ color: "var(--accent)" }} />
+              <h2 className="font-semibold" style={{ color: "var(--ink)" }}>Catálogo para TikTok Ads</h2>
+            </div>
+            <p className="text-xs mb-3" style={{ color: "var(--ink-3)" }}>
+              Link con tus productos actualizados en tiempo real, listo para subir a{" "}
+              <strong>TikTok Ads Manager → Catálogo → Crear catálogo → Feed de datos (URL programada)</strong>{" "}
+              y correr anuncios de shopping con tus productos reales. Se actualiza solo, no hay que
+              volver a subirlo cada vez que cambias algo.
+            </p>
+            <div
+              className="flex items-center gap-2 rounded-xl px-3 py-2.5"
+              style={{ background: "var(--surface-2)", border: "1.5px solid var(--line-2)" }}
+            >
+              <input
+                readOnly
+                className="flex-1 bg-transparent text-xs outline-none truncate"
+                style={{ color: "var(--ink-2)" }}
+                value={`${process.env.NEXT_PUBLIC_API_URL ?? "https://qtienda.shop/api/v1"}/public/store/${store.slug}/catalog.xml`}
+                onFocus={(e) => e.target.select()}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const url = `${process.env.NEXT_PUBLIC_API_URL ?? "https://qtienda.shop/api/v1"}/public/store/${store.slug}/catalog.xml`;
+                  navigator.clipboard.writeText(url);
+                  toast.success("Link copiado");
+                }}
+                className="flex-shrink-0 flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg"
+                style={{ background: "var(--ink)", color: "var(--bg)" }}
+              >
+                <Copy size={12} /> Copiar
+              </button>
+            </div>
+            <p className="text-[11px] mt-2" style={{ color: "var(--ink-4)" }}>
+              Solo incluye productos publicados y con al menos una foto — TikTok no acepta productos sin imagen.
+            </p>
+          </section>
+        )}
+        </>
       )}
       </div>{/* /contenido */}
       </div>{/* /md:flex */}

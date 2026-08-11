@@ -115,6 +115,9 @@ class Store(Base):
     instagram: Mapped[Optional[str]] = mapped_column(String(50))
     tiktok: Mapped[Optional[str]]    = mapped_column(String(50))
     facebook: Mapped[Optional[str]]  = mapped_column(String(50))
+    # Departamento fijo del Mall (moda/belleza/hogar/...) — distinto de las
+    # categorías internas de productos, que siguen siendo libres por tienda.
+    mall_category: Mapped[Optional[str]] = mapped_column(String(20))
     status: Mapped[str]             = mapped_column(
         Enum("pending", "active", "suspended", "banned", name="store_status", create_type=False),
         default="pending",
@@ -281,7 +284,9 @@ class Order(Base):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     created_at: Mapped[datetime]    = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime]    = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime]    = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    delivered_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    review_reminder_sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
     store: Mapped["Store"]                  = relationship(back_populates="orders")
     items: Mapped[List["OrderItem"]]        = relationship(back_populates="order", cascade="all, delete-orphan")

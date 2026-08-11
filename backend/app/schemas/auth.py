@@ -85,6 +85,17 @@ class StoreUpdate(BaseModel):
     instagram: Optional[str] = None
     tiktok: Optional[str] = None
     facebook: Optional[str] = None
+    mall_category: Optional[str] = None
+
+    @field_validator("mall_category")
+    @classmethod
+    def valid_mall_category(cls, v):
+        if v is None or v == "":
+            return None
+        from app.core.mall_categories import MALL_CATEGORY_SLUGS
+        if v not in MALL_CATEGORY_SLUGS:
+            raise ValueError("Departamento inválido")
+        return v
 
     @field_validator("instagram", "tiktok", "facebook")
     @classmethod
@@ -117,7 +128,7 @@ class StoreUpdate(BaseModel):
     def valid_theme(cls, v):
         if v is None:
             return v
-        if v not in ("clasico", "elegante", "vibrante"):
+        if v not in ("clasico", "elegante", "vibrante", "pastel", "monocromo", "fresco"):
             raise ValueError("Tema inválido")
         return v
 

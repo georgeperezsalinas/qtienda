@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Store, ChevronRight, ChevronLeft, MapPin, ArrowLeft, Package, Clock, Tag, Sparkles, ShoppingBag, ShieldCheck, Star, Loader2 } from "lucide-react";
+import { Search, Store, ChevronRight, ChevronLeft, MapPin, ArrowLeft, Package, Clock, Sparkles, ShoppingBag, ShieldCheck, Star, Loader2 } from "lucide-react";
 import Logo from "@/components/ui/Logo";
 import { useAuthStore } from "@/store/authStore";
 import { getOpenStatus } from "@/lib/storeHours";
@@ -29,10 +29,11 @@ interface StoreCard {
   rating_count?: number;
 }
 
-interface CategoryItem {
-  name: string;
+interface MallCategoryItem {
+  slug: string;
+  label: string;
   icon: string | null;
-  product_count: number;
+  store_count: number;
 }
 
 interface CityItem {
@@ -341,11 +342,9 @@ export default function TiendasPage() {
   const [storesPage, setStoresPage] = useState(1);
   const [storesPages, setStoresPages] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [categoriesList, setCategoriesList] = useState<CategoryItem[]>([]);
+  const [mallCategories, setMallCategories] = useState<MallCategoryItem[]>([]);
   const [cities, setCities] = useState<CityItem[]>([]);
   const [latestProducts, setLatestProducts] = useState<LatestProduct[]>([]);
-  const [categoryProducts, setCategoryProducts] = useState<LatestProduct[]>([]);
-  const [categoryLoading, setCategoryLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [query, setQuery] = useState("");
@@ -357,13 +356,13 @@ export default function TiendasPage() {
   useEffect(() => {
     setMounted(true);
     trackPageView("/tiendas");
-    // Categorías y ciudades: agregadas en el backend sobre TODO el catálogo/
-    // directorio real (no derivadas de la página de tiendas cargada), para
-    // que sigan siendo correctas aunque existan miles de tiendas/productos.
-    fetch(`${API}/public/categories`)
+    // Departamentos fijos del Mall y ciudades: agregados en el backend sobre
+    // TODO el directorio real (no derivado de la página de tiendas cargada),
+    // para que sigan siendo correctos aunque existan miles de tiendas.
+    fetch(`${API}/public/mall-categories`)
       .then((r) => r.json())
-      .then((data) => setCategoriesList(Array.isArray(data) ? data : []))
-      .catch(() => setCategoriesList([]));
+      .then((data) => setMallCategories(Array.isArray(data) ? data : []))
+      .catch(() => setMallCategories([]));
     fetch(`${API}/public/store-cities`)
       .then((r) => r.json())
       .then((data) => setCities(Array.isArray(data) ? data : []))
@@ -381,12 +380,13 @@ export default function TiendasPage() {
   }, [query]);
 
   // Directorio de tiendas paginado en el servidor — se recarga desde la
-  // página 1 cuando cambia búsqueda/ciudad/orden.
+  // página 1 cuando cambia búsqueda/ciudad/departamento/orden.
   useEffect(() => {
     setLoading(true);
     const params = new URLSearchParams({ page: "1", limit: String(STORES_PAGE_SIZE) });
     if (debouncedQuery) params.set("q", debouncedQuery);
     if (cityFilter) params.set("city", cityFilter);
+    if (categoryFilter) params.set("mall_category", categoryFilter);
     if (sort === "az") params.set("sort", "az");
     fetch(`${API}/public/stores?${params}`)
       .then((r) => r.json())
@@ -402,7 +402,7 @@ export default function TiendasPage() {
         setStoresPages(1);
       })
       .finally(() => setLoading(false));
-  }, [debouncedQuery, cityFilter, sort]);
+  }, [debouncedQuery, cityFilter, categoryFilter, sort]);
 
   async function loadMoreStores() {
     if (loadingMore || storesPage >= storesPages) return;
@@ -411,6 +411,7 @@ export default function TiendasPage() {
     const params = new URLSearchParams({ page: String(nextPage), limit: String(STORES_PAGE_SIZE) });
     if (debouncedQuery) params.set("q", debouncedQuery);
     if (cityFilter) params.set("city", cityFilter);
+    if (categoryFilter) params.set("mall_category", categoryFilter);
     if (sort === "az") params.set("sort", "az");
     try {
       const res = await fetch(`${API}/public/stores?${params}`);
@@ -423,26 +424,6 @@ export default function TiendasPage() {
       setLoadingMore(false);
     }
   }
-
-  // Al elegir un rubro, el mall muestra productos de ese rubro (todas las tiendas), no solo la lista de tiendas
-  useEffect(() => {
-    if (!categoryFilter) {
-      setCategoryProducts([]);
-      return;
-    }
-    setCategoryLoading(true);
-    fetch(`${API}/public/latest-products?category=${encodeURIComponent(categoryFilter)}&limit=48`)
-      .then((r) => r.json())
-      .then((data) => setCategoryProducts(Array.isArray(data) ? data : []))
-      .catch(() => setCategoryProducts([]))
-      .finally(() => setCategoryLoading(false));
-  }, [categoryFilter]);
-
-  // Productos del rubro elegido — combinando ciudad ya activa (la búsqueda
-  // por texto y el filtro de rubro son mutuamente excluyentes en la UI)
-  const filteredCategoryProducts = useMemo(() => {
-    return categoryProducts.filter((p) => !cityFilter || p.store_city === cityFilter);
-  }, [categoryProducts, cityFilter]);
 
   // Destacadas: las tiendas con más catálogo activo dentro de la página actual — vitrina real, no manual.
   const featured = useMemo(
@@ -531,16 +512,16 @@ export default function TiendasPage() {
             />
           </div>
 
-          {/* Filtro por rubro — íconos reales en vez de solo texto, para que
-              se distingan de un vistazo sin ocupar una sección aparte */}
-          {categoriesList.length > 1 && (
+          {/* Departamentos fijos del Mall — taxonomía curada (no nombres
+              libres escritos por cada vendedor), con ícono real por rubro */}
+          {mallCategories.length > 0 && (
             <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1 mb-1.5">
-              {categoriesList.map((c) => {
-                const active = categoryFilter === c.name;
+              {mallCategories.map((c) => {
+                const active = categoryFilter === c.slug;
                 return (
                   <button
-                    key={c.name}
-                    onClick={() => setCategoryFilter(active ? null : c.name)}
+                    key={c.slug}
+                    onClick={() => setCategoryFilter(active ? null : c.slug)}
                     className="flex-shrink-0 flex items-center gap-1.5 pl-1.5 pr-3 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap"
                     style={
                       active
@@ -554,7 +535,7 @@ export default function TiendasPage() {
                     >
                       {c.icon || "🛍️"}
                     </span>
-                    {c.name}
+                    {c.label}
                   </button>
                 );
               })}
@@ -660,7 +641,7 @@ export default function TiendasPage() {
         )}
 
         {/* Skeletons */}
-        {(categoryFilter ? loading || categoryLoading : loading) && (
+        {loading && (
           <div className="space-y-2.5">
             {[...Array(5)].map((_, i) => (
               <div key={i} className="skeleton h-[76px] rounded-2xl" />
@@ -669,82 +650,26 @@ export default function TiendasPage() {
         )}
 
         {/* Empty state */}
-        {!loading &&
-          (categoryFilter
-            ? !categoryLoading && filteredCategoryProducts.length === 0
-            : stores.length === 0) && (
-            <div className="text-center py-20">
-              <div
-                className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
-                style={{ background: "var(--surface-2)" }}
-              >
-                <Store size={28} style={{ color: "var(--ink-4)" }} />
-              </div>
-              <p className="font-display font-bold text-base mb-1" style={{ color: "var(--ink)" }}>
-                {debouncedQuery || cityFilter || categoryFilter ? "Sin resultados" : "No hay tiendas disponibles"}
-              </p>
-              <p className="text-sm" style={{ color: "var(--ink-3)" }}>
-                {categoryFilter
-                  ? `Ningún producto de "${categoryFilter}" por ahora${cityFilter ? ` en ${cityFilter}` : ""}`
-                  : debouncedQuery
-                  ? `No encontramos tiendas con "${debouncedQuery}"`
-                  : cityFilter
-                  ? `Ninguna tienda en ${cityFilter} por ahora`
-                  : "Vuelve pronto para descubrir nuevas tiendas"}
-              </p>
+        {!loading && stores.length === 0 && (
+          <div className="text-center py-20">
+            <div
+              className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
+              style={{ background: "var(--surface-2)" }}
+            >
+              <Store size={28} style={{ color: "var(--ink-4)" }} />
             </div>
-          )}
-
-        {/* Productos del rubro elegido — el mall navega por catálogo, no solo por tienda */}
-        {!categoryLoading && categoryFilter && filteredCategoryProducts.length > 0 && (
-          <div className="mb-4">
-            <div className="flex items-center gap-1.5 mb-2.5 px-0.5">
-              <Tag size={13} style={{ color: "var(--accent)" }} />
-              <p className="font-display font-bold text-sm" style={{ color: "var(--ink)" }}>
-                {categoryFilter}
-              </p>
-              <span className="text-xs" style={{ color: "var(--ink-4)" }}>
-                {filteredCategoryProducts.length} producto{filteredCategoryProducts.length !== 1 ? "s" : ""}
-              </span>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2.5">
-              {filteredCategoryProducts.map((p) => {
-                const color = p.primary_color ?? "#C5613B";
-                return (
-                  <Link
-                    key={p.id}
-                    href={`/tienda/${p.store_slug}?p=${p.id}`}
-                    className="rounded-2xl overflow-hidden transition-all active:scale-[.97]"
-                    style={{ background: "var(--surface)", boxShadow: "0 1px 8px rgba(20,19,15,.06), 0 0 0 1px var(--line)" }}
-                  >
-                    <div className="relative w-full h-[110px] flex items-center justify-center overflow-hidden" style={{ background: "var(--surface-2)" }}>
-                      {p.image_url ? (
-                        <Image
-                          src={p.image_url}
-                          alt={p.name}
-                          fill
-                          sizes="(min-width: 1280px) 16vw, (min-width: 640px) 33vw, 50vw"
-                          className="object-cover"
-                        />
-                      ) : (
-                        <Package size={24} style={{ color: "var(--ink-4)" }} />
-                      )}
-                    </div>
-                    <div className="p-2.5">
-                      <p className="text-xs font-semibold truncate" style={{ color: "var(--ink)" }}>
-                        {p.name}
-                      </p>
-                      <p className="text-xs font-bold mt-0.5" style={{ color }}>
-                        {formatPrice(p.price_cents)}
-                      </p>
-                      <p className="text-[10px] truncate mt-0.5" style={{ color: "var(--ink-4)" }}>
-                        {p.store_name}
-                      </p>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
+            <p className="font-display font-bold text-base mb-1" style={{ color: "var(--ink)" }}>
+              {debouncedQuery || cityFilter || categoryFilter ? "Sin resultados" : "No hay tiendas disponibles"}
+            </p>
+            <p className="text-sm" style={{ color: "var(--ink-3)" }}>
+              {debouncedQuery
+                ? `No encontramos tiendas con "${debouncedQuery}"`
+                : categoryFilter
+                ? `Ninguna tienda en este rubro por ahora${cityFilter ? ` en ${cityFilter}` : ""}`
+                : cityFilter
+                ? `Ninguna tienda en ${cityFilter} por ahora`
+                : "Vuelve pronto para descubrir nuevas tiendas"}
+            </p>
           </div>
         )}
 
@@ -792,8 +717,7 @@ export default function TiendasPage() {
           </div>
         )}
 
-        {/* Store list */}
-        {!categoryFilter && (
+        {/* Store list — filtrado en el servidor (búsqueda/ciudad/departamento) */}
         <div className="space-y-2.5 lg:space-y-0 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-3">
           {stores.map((s) => {
             // Hex real (no var CSS): se concatena alfa "15" abajo para el fondo de la flecha
@@ -886,11 +810,10 @@ export default function TiendasPage() {
             );
           })}
         </div>
-        )}
 
         {/* Cargar más — el directorio ya no trae todas las tiendas de una
             vez, se pagina para seguir siendo rápido con miles de tiendas */}
-        {!categoryFilter && !loading && storesPage < storesPages && (
+        {!loading && storesPage < storesPages && (
           <div className="flex justify-center mt-4">
             <button
               onClick={loadMoreStores}

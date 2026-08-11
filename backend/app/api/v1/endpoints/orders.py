@@ -436,6 +436,8 @@ async def update_order_status(
 
     old_status = order.status
     order.status = new_status
+    if new_status == "delivered" and not order.delivered_at:
+        order.delivered_at = datetime.now(timezone.utc)
 
     # Audit
     db.add(AuditLog(

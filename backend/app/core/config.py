@@ -80,6 +80,16 @@ class Settings(BaseSettings):
     STORE_VERIFIED_MAX_CANCEL_RATE: float = 0.2
     STORE_VERIFIED_MIN_SAMPLE: int = 10   # pedidos entregados+cancelados minimos para evaluar tasa
 
+    # Recordatorio de reseña — se envía una vez por pedido entregado, pasado
+    # este tiempo desde la entrega (da margen a que el comprador ya haya
+    # usado/revisado lo que compró antes de pedirle que califique).
+    REVIEW_REMINDER_DELAY_HOURS: int = 36
+    REVIEW_REMINDER_CHECK_HOURS: int = 6
+    # Pedidos entregados hace más de esto se saltan (marcados como ya
+    # "recordados" sin enviar nada) — evita mandar de golpe recordatorios
+    # de pedidos viejos la primera vez que corre este watcher.
+    REVIEW_REMINDER_MAX_AGE_DAYS: int = 14
+
     UPLOADS_DIR: str = "/tmp/qtienda-uploads"
     UPLOADS_BASE_URL: str = "http://localhost:8000/uploads"
 

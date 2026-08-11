@@ -44,7 +44,7 @@ interface StoreData {
   instagram?:    string;
   tiktok?:       string;
   facebook?:     string;
-  theme?:        "clasico" | "elegante" | "vibrante";
+  theme?:        "clasico" | "elegante" | "vibrante" | "pastel" | "monocromo" | "fresco";
   meta_title?:   string;
   orders_delivered_count?: number;
   is_verified?:  boolean;
