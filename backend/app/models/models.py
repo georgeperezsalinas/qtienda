@@ -122,7 +122,7 @@ class Store(Base):
     is_test: Mapped[bool]           = mapped_column(Boolean, default=False)
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime]    = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime]    = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime]    = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     inactive_notified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     no_sales_notified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     shared_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
@@ -209,7 +209,7 @@ class Product(Base):
     sort_order: Mapped[int]         = mapped_column(Integer, default=0)
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime]    = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime]    = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime]    = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     store: Mapped["Store"]           = relationship(back_populates="products")
     category: Mapped[Optional["Category"]] = relationship(back_populates="products")

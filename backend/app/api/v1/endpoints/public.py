@@ -211,6 +211,18 @@ async def list_stores(
             if len(categories_map[store_id]) < 3:
                 categories_map[store_id].append(name)
 
+    # Última modificación real (tienda o su catálogo) — usada como
+    # lastModified del sitemap. Nunca "ahora": eso le miente a Google sobre
+    # qué cambió de verdad y le hace perder confianza en la señal.
+    product_updated_map: dict = {}
+    if store_ids:
+        prod_updated_rows = await db.execute(
+            select(Product.store_id, func.max(Product.updated_at))
+            .where(Product.store_id.in_(store_ids), Product.deleted_at.is_(None))
+            .group_by(Product.store_id)
+        )
+        product_updated_map = dict(prod_updated_rows.all())
+
     return {
         "total": total,
         "page": page,
@@ -229,6 +241,7 @@ async def list_stores(
                 "product_count": count_map.get(s.id, 0),
                 "categories": categories_map.get(s.id, []),
                 "store_hours": s.settings.store_hours if s.settings else None,
+                "updated_at": max(filter(None, [s.updated_at, product_updated_map.get(s.id)])),
                 "is_verified": trust_map.get(s.id, {}).get("is_verified", False),
                 "rating_avg": trust_map.get(s.id, {}).get("rating_avg"),
                 "rating_count": trust_map.get(s.id, {}).get("rating_count", 0),

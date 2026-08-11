@@ -154,6 +154,19 @@ export default async function TiendaPage({ params }: Props) {
       priceRange: currency.symbol,
       currenciesAccepted: currency.code,
       paymentAccepted,
+      // Rating real de compradores — solo si hay reseñas de verdad (nunca
+      // un aggregateRating inventado; Google penaliza el markup sin
+      // contenido visible que lo respalde, y las reseñas sí se muestran
+      // en la página cuando existen).
+      ...(store.rating_count > 0 && store.rating_avg != null && {
+        aggregateRating: {
+          "@type": "AggregateRating",
+          ratingValue: store.rating_avg,
+          reviewCount: store.rating_count,
+          bestRating: 5,
+          worstRating: 1,
+        },
+      }),
     };
 
     // ── JSON-LD: ItemList de productos (primeros 10) ───────
