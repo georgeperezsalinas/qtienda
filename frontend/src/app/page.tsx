@@ -1,5 +1,6 @@
 // src/app/page.tsx — qtienda v2 (landing pública)
 
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   ArrowRight, ChevronRight, Package, Store, Share2, Wallet,
@@ -25,6 +26,12 @@ interface StoreCard {
 
 const COUNTRY_NAMES: Record<string, string> = {
   PE: "Perú", CL: "Chile", CO: "Colombia", MX: "México", AR: "Argentina",
+};
+
+// Canonical explícito — refuerzo además del redirect www→apex de nginx,
+// para que Google nunca tenga ambigüedad sobre cuál es "la" home.
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
 };
 
 async function getStores(): Promise<StoreCard[]> {
