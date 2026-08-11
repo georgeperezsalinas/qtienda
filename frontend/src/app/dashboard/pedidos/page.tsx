@@ -225,20 +225,39 @@ function StatusRoadmap({
                 </span>
               )}
 
-              {/* La acción vive junto al paso al que lleva: queda claro qué pasará */}
+              {/* La acción vive junto al paso al que lleva: queda claro qué pasará.
+                  Con un solo repartidor no hay una decisión real que tomar —
+                  se envía directo a esa persona (con opción de cambiarlo abajo)
+                  en vez de forzar una pantalla extra a elegir entre 1 opción. */}
               {isNext && action && !choosing && (
-                <button
-                  onClick={() => {
-                    // El envío exige decidir quién entrega (si hay repartidores)
-                    if (action.next === "on_the_way" && staff.length > 0) setChoosing(true);
-                    else onAdvance(action.next);
-                  }}
-                  disabled={updating}
-                  className="mt-1.5 mb-1 flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-lg transition-opacity disabled:opacity-50"
-                  style={{ background: "var(--ink)", color: "var(--bg)" }}
-                >
-                  {updating ? "Guardando…" : `${action.label} →`}
-                </button>
+                <>
+                  <button
+                    onClick={() => {
+                      if (action.next === "on_the_way" && staff.length > 1) setChoosing(true);
+                      else if (action.next === "on_the_way" && staff.length === 1) onSend(staff[0].id);
+                      else onAdvance(action.next);
+                    }}
+                    disabled={updating}
+                    className="mt-1.5 mb-1 flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-lg transition-opacity disabled:opacity-50"
+                    style={{ background: "var(--ink)", color: "var(--bg)" }}
+                  >
+                    {updating
+                      ? "Guardando…"
+                      : action.next === "on_the_way" && staff.length === 1
+                      ? `Enviar con ${staff[0].full_name} →`
+                      : `${action.label} →`}
+                  </button>
+                  {action.next === "on_the_way" && staff.length === 1 && (
+                    <button
+                      onClick={() => onSend(null)}
+                      disabled={updating}
+                      className="block text-[11px] font-semibold disabled:opacity-50"
+                      style={{ color: "var(--ink-3)" }}
+                    >
+                      Entregar tú mismo en su lugar
+                    </button>
+                  )}
+                </>
               )}
 
               {/* Selector explícito de quién entrega, al momento de enviar */}
@@ -661,8 +680,20 @@ export default function PedidosPage() {
                 </div>
 
                 {/* La gestión del estado se hace en el detalle (hoja de ruta),
-                    aquí solo se invita a abrirlo — evita cambios accidentales */}
-                {NEXT_ACTION[order.status] && (
+                    aquí solo se invita a abrirlo — evita cambios accidentales.
+                    Excepción: confirmar un pedido nuevo es la acción más
+                    frecuente y no ambigua (no hay repartidor que elegir), así
+                    que se puede resolver en 1 toque sin abrir el detalle. */}
+                {order.status === "pending" ? (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); changeStatus(order.id, "confirmed"); }}
+                    disabled={updating}
+                    className="w-full mt-3 pt-2.5 flex items-center justify-center gap-1.5 text-xs font-bold disabled:opacity-50"
+                    style={{ borderTop: "1px solid var(--line)", color: "var(--success)" }}
+                  >
+                    ✓ Confirmar pedido
+                  </button>
+                ) : NEXT_ACTION[order.status] && (
                   <div
                     className="flex items-center justify-between mt-3 pt-2.5 text-xs font-semibold"
                     style={{ borderTop: "1px solid var(--line)", color: "var(--ink-3)" }}

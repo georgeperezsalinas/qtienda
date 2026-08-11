@@ -4,8 +4,9 @@ import { useEffect, useState, useCallback } from "react";
 import {
   TrendingUp, ShoppingBag, CheckCircle2,
   XCircle, CreditCard, ChevronDown, Banknote,
-  Smartphone, Building2, BarChart2,
+  Smartphone, Building2, BarChart2, Download,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
 
@@ -44,6 +45,7 @@ interface Order {
   order_number: string;
   status:       string;
   buyer_name:   string;
+  buyer_phone:  string;
   total_cents:  number;
   items_count:  number;
   created_at:   string;
@@ -395,6 +397,7 @@ export default function FinanzasPage() {
   const [loadingStats, setLoadingStats] = useState(true);
   const [loadingDaily, setLoadingDaily] = useState(true);
   const [loadingList,  setLoadingList]  = useState(true);
+  const [exporting,    setExporting]    = useState(false);
 
   /* ── Sub (once) ── */
   useEffect(() => {
@@ -452,6 +455,68 @@ export default function FinanzasPage() {
 
   useEffect(() => { setPage(1); }, [statusFilter]);
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
+
+  /* ── Exportar CSV ── */
+  // Sigue el período elegido arriba (mismo que el gráfico), no la paginación
+  // de "Movimientos" — es lo que un vendedor espera al exportar "este mes".
+  function csvField(value: string | number): string {
+    const s = String(value);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  }
+
+  async function exportCSV() {
+    setExporting(true);
+    try {
+      const dates = periodDates(period);
+      const baseParams: Record<string, string> = {};
+      if (dates) { baseParams.from_date = dates.from; baseParams.to_date = dates.to; }
+      if (statusFilter) baseParams.status = statusFilter;
+
+      const all: Order[] = [];
+      let p = 1;
+      // Tope de seguridad (5000 pedidos) — evita un loop infinito si algo
+      // en la respuesta no calza; ninguna tienda real exporta tantos de golpe.
+      while (p <= 50) {
+        const { data } = await apiClient.get("/orders/", { params: { ...baseParams, page: p, limit: 100 } });
+        all.push(...(data.items ?? []));
+        if (!data.pages || p >= data.pages) break;
+        p++;
+      }
+
+      if (all.length === 0) {
+        toast.error("No hay pedidos en este período para exportar");
+        return;
+      }
+
+      const header = ["Número", "Fecha", "Cliente", "Teléfono", "Estado", "Ítems", "Total (S/)"];
+      const rows = all.map((o) => [
+        o.order_number,
+        new Date(o.created_at).toLocaleString("es-PE"),
+        o.buyer_name,
+        o.buyer_phone,
+        STATUS_CFG[o.status]?.label ?? o.status,
+        o.items_count,
+        (o.total_cents / 100).toFixed(2),
+      ]);
+      const csv = [header, ...rows].map((r) => r.map(csvField).join(",")).join("\n");
+
+      // BOM UTF-8 — Excel abre tildes/ñ correctamente sin él se ven mal
+      const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const periodLabel = PERIODS.find((p) => p.key === period)?.label ?? period;
+      a.href = url;
+      a.download = `pedidos-${periodLabel.toLowerCase().replace(/\s+/g, "-")}-${toISO(new Date())}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error("No se pudo exportar el CSV");
+    } finally {
+      setExporting(false);
+    }
+  }
 
   /* ── Derived ── */
   const revenue       = stats?.revenue_cents ?? 0;
@@ -600,26 +665,42 @@ export default function FinanzasPage() {
             <h2 className="font-display font-bold text-sm" style={{ color: "var(--ink)" }}>
               Movimientos
             </h2>
-            <div className="relative">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="text-xs font-semibold appearance-none pl-3 pr-7 py-1.5 rounded-xl cursor-pointer"
+            <div className="flex items-center gap-2">
+              <button
+                onClick={exportCSV}
+                disabled={exporting}
+                title="Exportar pedidos del período elegido a CSV"
+                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl disabled:opacity-50"
                 style={{
                   background: "var(--surface)",
                   border: "1.5px solid var(--line-2)",
                   color: "var(--ink-2)",
                 }}
               >
-                {STATUS_FILTERS.map((s) => (
-                  <option key={s.value} value={s.value}>{s.label}</option>
-                ))}
-              </select>
-              <ChevronDown
-                size={13}
-                className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"
-                style={{ color: "var(--ink-3)" }}
-              />
+                <Download size={13} />
+                {exporting ? "Exportando..." : "CSV"}
+              </button>
+              <div className="relative">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="text-xs font-semibold appearance-none pl-3 pr-7 py-1.5 rounded-xl cursor-pointer"
+                  style={{
+                    background: "var(--surface)",
+                    border: "1.5px solid var(--line-2)",
+                    color: "var(--ink-2)",
+                  }}
+                >
+                  {STATUS_FILTERS.map((s) => (
+                    <option key={s.value} value={s.value}>{s.label}</option>
+                  ))}
+                </select>
+                <ChevronDown
+                  size={13}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"
+                  style={{ color: "var(--ink-3)" }}
+                />
+              </div>
             </div>
           </div>
 
