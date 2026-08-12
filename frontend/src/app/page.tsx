@@ -123,22 +123,24 @@ async function HeroSocialProof() {
       </div>
 
       {/* Números reales de la plataforma — se omite cada campo si no hay
-          muestra suficiente para ser representativo (nunca un dato inflado) */}
-      {stats && (stats.stores_count > 0 || stats.rating_count > 0 || stats.delivered_count > 0) && (
+          muestra suficiente para ser representativo (nunca un dato inflado).
+          Umbrales altos a propósito: con pocas tiendas/pedidos el número
+          resta confianza en vez de sumarla — mejor no mostrar nada todavía. */}
+      {stats && (stats.stores_count >= 25 || stats.rating_count >= 15 || stats.delivered_count >= 50) && (
         <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 mt-5 pt-5" style={{ borderTop: "1px solid var(--line)" }}>
-          {stats.stores_count > 0 && (
+          {stats.stores_count >= 25 && (
             <span className="text-sm">
               <strong className="mono num" style={{ color: "var(--ink)" }}>{stats.stores_count.toLocaleString()}</strong>{" "}
               <span style={{ color: "var(--ink-3)" }}>tienda{stats.stores_count !== 1 ? "s" : ""} activa{stats.stores_count !== 1 ? "s" : ""}</span>
             </span>
           )}
-          {stats.rating_count > 0 && stats.rating_avg != null && (
+          {stats.rating_count >= 15 && stats.rating_avg != null && (
             <span className="text-sm">
               <strong className="mono num" style={{ color: "var(--ink)" }}>{stats.rating_avg.toFixed(1)}★</strong>{" "}
               <span style={{ color: "var(--ink-3)" }}>({stats.rating_count} reseña{stats.rating_count !== 1 ? "s" : ""})</span>
             </span>
           )}
-          {stats.delivered_count > 0 && (
+          {stats.delivered_count >= 50 && (
             <span className="text-sm">
               <strong className="mono num" style={{ color: "var(--ink)" }}>{stats.delivered_count.toLocaleString()}</strong>{" "}
               <span style={{ color: "var(--ink-3)" }}>pedidos entregados</span>
