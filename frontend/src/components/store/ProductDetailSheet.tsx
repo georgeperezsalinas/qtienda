@@ -280,7 +280,7 @@ export default function ProductDetailSheet({
           {hasImages && (
             <button
               onClick={() => {
-                const url = `${location.origin}/catalogo?p=${product.id}`;
+                const url = `${location.origin}/producto/${product.id}`;
                 if (navigator.share) {
                   navigator.share({ title: displayName, text: `Mira ${displayName}`, url });
                 } else {
@@ -395,12 +395,12 @@ export default function ProductDetailSheet({
                 </p>
                 {isHTML(product.description) ? (
                   <div
-                    className="product-description"
+                    className="product-description line-clamp-6"
                     dangerouslySetInnerHTML={{ __html: product.description! }}
                   />
                 ) : (
                   <p
-                    className="text-sm leading-relaxed whitespace-pre-wrap"
+                    className="text-sm leading-relaxed whitespace-pre-wrap line-clamp-6"
                     style={{ color: "var(--ink-2)" }}
                   >
                     {product.description}
@@ -408,6 +408,17 @@ export default function ProductDetailSheet({
                 )}
               </div>
             )}
+
+            {/* Página completa — más espacio para fotos/descripción larga,
+                y la URL que se indexa en Google al compartir este producto. */}
+            <a
+              href={`/producto/${product.id}`}
+              className="flex items-center justify-center gap-1.5 mt-4 text-xs font-bold"
+              style={{ color: storeColor }}
+            >
+              Ver detalle completo
+              <ChevronRight size={13} />
+            </a>
 
             {/* Cross-sell: mismo catálogo, sin datos inventados */}
             {related.length > 0 && (

@@ -79,7 +79,7 @@ export default async function TiendaCatalogoPage({ params }: Props) {
                 "@type": "Product",
                 name: p.name,
                 description: p.description || "",
-                url: `https://${store.slug}.qtienda.shop/catalogo?p=${p.id}`,
+                url: `https://${store.slug}.qtienda.shop/producto/${p.id}`,
                 ...(p.images?.[0]?.url && { image: p.images[0].url }),
                 offers: {
                   "@type": "Offer",

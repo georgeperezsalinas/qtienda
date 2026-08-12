@@ -28,7 +28,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     // termina viviendo tras el redirect) — así el link compartido y lo que
     // Google indexa coinciden con la URL final.
     const canonicalUrl = product
-      ? `https://${params.slug}.qtienda.shop/catalogo?p=${searchParams.p}`
+      ? `https://${params.slug}.qtienda.shop/producto/${searchParams.p}`
       : `https://${params.slug}.qtienda.shop/`;
 
     return {
@@ -59,7 +59,9 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 export default async function TiendaDoorPage({ params, searchParams }: Props) {
   // Link a un producto puntual: se salta la puerta, va directo a verlo.
   if (searchParams?.p) {
-    redirect(`/catalogo?p=${searchParams.p}`);
+    // Página completa del producto (mejor que el sheet del catálogo para
+    // un link compartido/indexado, que llega "en frío" sin haber navegado).
+    redirect(`/producto/${searchParams.p}`);
   }
 
   try {

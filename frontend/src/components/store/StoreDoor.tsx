@@ -85,11 +85,14 @@ export default function StoreDoor({ store }: { store: DoorStoreData }) {
 
   return (
     <div
-      className="min-h-dvh flex flex-col items-center justify-center px-4 py-10 text-center relative"
-      style={{ background: store.banner_url ? undefined : `linear-gradient(180deg, ${color}14, var(--bg) 55%)` }}
+      className="min-h-dvh flex flex-col items-center justify-center px-4 py-10 text-center relative overflow-hidden"
+      style={{ background: store.banner_url ? "var(--bg)" : `linear-gradient(180deg, ${color}14, var(--bg) 55%)` }}
     >
-      {/* Fondo con el banner real de la tienda — se ve muy plano sin esto.
-          Overlay para que el contenido siga siendo legible encima. */}
+      {/* Fondo con el banner real de la tienda — desenfocado y oscurecido
+          (estilo "portada difuminada") en vez de la foto nítida: así el logo
+          y los textos siempre se leen bien, sin importar qué tan clara,
+          oscura o cargada sea la imagen que subió el vendedor. Se escala
+          115% para que el desenfoque no deje bordes transparentes. */}
       {store.banner_url && (
         <>
           <Image
@@ -98,12 +101,13 @@ export default function StoreDoor({ store }: { store: DoorStoreData }) {
             fill
             priority
             sizes="100vw"
-            className="object-cover"
+            className="object-cover scale-[1.15]"
+            style={{ filter: "blur(28px) brightness(.5) saturate(1.15)" }}
             aria-hidden
           />
           <div
             className="absolute inset-0"
-            style={{ background: `linear-gradient(180deg, ${color}55, var(--bg) 75%)` }}
+            style={{ background: `linear-gradient(180deg, ${color}40 0%, rgba(0,0,0,.25) 45%, var(--bg) 88%)` }}
             aria-hidden
           />
         </>
