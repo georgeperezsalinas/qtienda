@@ -7,7 +7,7 @@ import {
   ShoppingCart, Search, ChevronRight, Zap, Heart,
   MapPin, X, MessageCircle, Share2, Download,
   LayoutGrid, List, Clock, Truck, ShieldCheck, PackageSearch,
-  HelpCircle, CheckCircle2, Star, Instagram, Facebook,
+  HelpCircle, CheckCircle2, Star, Instagram, Facebook, SlidersHorizontal,
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
@@ -419,7 +419,19 @@ export default function StorePage({ store, initialProducts }: Props) {
   const [qrOpen,              setQrOpen]              = useState(false);
   const [trackNum,            setTrackNum]            = useState("");
   const [showFavorites,       setShowFavorites]       = useState(false);
-  const [reviews, setReviews] = useState<{ rating: number; comment?: string; buyer_name: string; created_at: string }[]>([]);
+  const [reviews, setReviews] = useState<{ rating: number; comment?: string; photo_urls?: string[]; buyer_name: string; created_at: string }[]>([]);
+  const [reviewPhotoPreview, setReviewPhotoPreview] = useState<string | null>(null);
+
+  // Orden + rango de precio — filtrado 100% en cliente, igual que categoría/
+  // búsqueda: el catálogo completo ya vive en memoria (ver comentario en
+  // PRODUCTS_PAGE_SIZE más abajo), así que no hace falta ida y vuelta al
+  // backend para reordenar o acotar un rango.
+  const [sortBy,         setSortBy]         = useState<"default" | "price_asc" | "price_desc">("default");
+  const [priceFilterOpen,setPriceFilterOpen] = useState(false);
+  const [priceMinInput,  setPriceMinInput]  = useState("");
+  const [priceMaxInput,  setPriceMaxInput]  = useState("");
+  const [priceMin,       setPriceMin]       = useState<number | null>(null);
+  const [priceMax,       setPriceMax]       = useState<number | null>(null);
 
   const router = useRouter();
 
@@ -581,12 +593,27 @@ export default function StorePage({ store, initialProducts }: Props) {
         (p) => p.name.toLowerCase().includes(q) || p.description?.toLowerCase().includes(q)
       );
     }
+    if (priceMin != null) items = items.filter((p) => p.price_cents >= priceMin);
+    if (priceMax != null) items = items.filter((p) => p.price_cents <= priceMax);
+    if (sortBy === "price_asc") items = [...items].sort((a, b) => a.price_cents - b.price_cents);
+    else if (sortBy === "price_desc") items = [...items].sort((a, b) => b.price_cents - a.price_cents);
     return items;
-  }, [initialProducts, activeCategory, debouncedSearch, showFavorites, favoriteIds, store.slug]);
+  }, [initialProducts, activeCategory, debouncedSearch, showFavorites, favoriteIds, store.slug, priceMin, priceMax, sortBy]);
 
   const featured        = initialProducts.filter((p) => p.is_featured).slice(0, 8);
   const hasCategories    = (store.categories?.length ?? 0) > 0;
-  const isFiltering      = !!debouncedSearch || !!activeCategory || showFavorites;
+  const hasPriceFilter   = priceMin != null || priceMax != null;
+  const isFiltering      = !!debouncedSearch || !!activeCategory || showFavorites || hasPriceFilter;
+
+  function clearAllFilters() {
+    setSearch("");
+    setActiveCategory(null);
+    setPriceMin(null);
+    setPriceMax(null);
+    setPriceMinInput("");
+    setPriceMaxInput("");
+    setSortBy("default");
+  }
 
   // Paginación de renderizado (no del fetch): el catálogo completo ya está en
   // memoria para que el filtro siga siendo instantáneo, pero una tienda con
@@ -596,7 +623,7 @@ export default function StorePage({ store, initialProducts }: Props) {
   const [visibleCount, setVisibleCount] = useState(PRODUCTS_PAGE_SIZE);
   useEffect(() => {
     setVisibleCount(PRODUCTS_PAGE_SIZE);
-  }, [activeCategory, debouncedSearch, showFavorites]);
+  }, [activeCategory, debouncedSearch, showFavorites, priceMin, priceMax, sortBy]);
   const visibleProducts = filtered.slice(0, visibleCount);
   const hasMoreProducts = filtered.length > visibleCount;
 
@@ -1092,8 +1119,102 @@ export default function StorePage({ store, initialProducts }: Props) {
             )}
           </AnimatePresence>
 
+          {/* Orden + rango de precio */}
+          {initialProducts.length > 3 && (
+            <div className="flex items-center gap-2 px-4 pt-3 lg:px-0 lg:pt-4">
+              <div className="relative">
+                <button
+                  onClick={() => setPriceFilterOpen((v) => !v)}
+                  className="flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-full whitespace-nowrap transition-all"
+                  style={{
+                    background: hasPriceFilter ? `${color}15` : "var(--surface-2)",
+                    color:      hasPriceFilter ? color : "var(--ink-2)",
+                  }}
+                >
+                  <SlidersHorizontal size={12} />
+                  {hasPriceFilter
+                    ? `${priceMin != null ? formatPrice(priceMin, storeCurrency, storeLocale) : "0"} – ${priceMax != null ? formatPrice(priceMax, storeCurrency, storeLocale) : "∞"}`
+                    : "Precio"}
+                </button>
+                {priceFilterOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setPriceFilterOpen(false)} />
+                    <div
+                      className="absolute z-50 top-full left-0 mt-2 w-64 rounded-2xl p-4"
+                      style={{ background: "var(--surface)", boxShadow: "var(--shadow-float)", border: "1px solid var(--line)" }}
+                    >
+                      <p className="text-xs font-bold mb-3" style={{ color: "var(--ink)" }}>Rango de precio</p>
+                      <div className="flex items-center gap-2 mb-3">
+                        <input
+                          type="number"
+                          min={0}
+                          inputMode="decimal"
+                          placeholder="Desde"
+                          value={priceMinInput}
+                          onChange={(e) => setPriceMinInput(e.target.value)}
+                          className="w-full text-xs rounded-xl px-3 py-2 outline-none"
+                          style={{ background: "var(--surface-2)", border: "1px solid var(--line-2)", color: "var(--ink)" }}
+                        />
+                        <span style={{ color: "var(--ink-4)" }}>–</span>
+                        <input
+                          type="number"
+                          min={0}
+                          inputMode="decimal"
+                          placeholder="Hasta"
+                          value={priceMaxInput}
+                          onChange={(e) => setPriceMaxInput(e.target.value)}
+                          className="w-full text-xs rounded-xl px-3 py-2 outline-none"
+                          style={{ background: "var(--surface-2)", border: "1px solid var(--line-2)", color: "var(--ink)" }}
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            const min = priceMinInput ? Math.round(parseFloat(priceMinInput) * 100) : null;
+                            const max = priceMaxInput ? Math.round(parseFloat(priceMaxInput) * 100) : null;
+                            setPriceMin(min != null && !isNaN(min) ? min : null);
+                            setPriceMax(max != null && !isNaN(max) ? max : null);
+                            setPriceFilterOpen(false);
+                          }}
+                          className="flex-1 text-xs font-bold py-2 rounded-xl text-white"
+                          style={{ background: color }}
+                        >
+                          Aplicar
+                        </button>
+                        <button
+                          onClick={() => {
+                            setPriceMinInput("");
+                            setPriceMaxInput("");
+                            setPriceMin(null);
+                            setPriceMax(null);
+                          }}
+                          className="text-xs font-bold py-2 px-3 rounded-xl"
+                          style={{ background: "var(--surface-2)", color: "var(--ink-2)" }}
+                        >
+                          Limpiar
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                className="text-[11px] font-bold pl-3 pr-2 py-1.5 rounded-full outline-none"
+                style={{ background: "var(--surface-2)", color: "var(--ink-2)", border: "none" }}
+                aria-label="Ordenar productos"
+              >
+                <option value="default">Recomendado</option>
+                <option value="price_asc">Precio: menor a mayor</option>
+                <option value="price_desc">Precio: mayor a menor</option>
+              </select>
+            </div>
+          )}
+
           {/* Section header */}
-          <div className="flex items-center justify-between px-4 pt-4 pb-2 lg:px-0 lg:pt-6 lg:pb-4">
+          <div className="flex items-center justify-between px-4 pt-2 pb-2 lg:px-0 lg:pt-3 lg:pb-4">
             <div className="flex items-center gap-2">
               <span className="text-sm lg:text-xl font-bold" style={{ color: "var(--ink)" }}>
                 {showFavorites ? "Favoritos" : isFiltering ? "Resultados" : "Productos"}
@@ -1153,10 +1274,10 @@ export default function StorePage({ store, initialProducts }: Props) {
                     Sin resultados
                   </p>
                   <p className="text-sm" style={{ color: "var(--ink-3)" }}>
-                    Prueba con otro término o categoría
+                    Prueba con otro término, categoría o rango de precio
                   </p>
                   <button
-                    onClick={() => { setSearch(""); setActiveCategory(null); }}
+                    onClick={clearAllFilters}
                     className="mt-4 text-xs font-bold px-4 py-2 rounded-full"
                     style={{ background: `${color}15`, color }}
                   >
@@ -1271,10 +1392,50 @@ export default function StorePage({ store, initialProducts }: Props) {
                     {r.comment && (
                       <p className="text-xs" style={{ color: "var(--ink-3)" }}>{r.comment}</p>
                     )}
+                    {r.photo_urls && r.photo_urls.length > 0 && (
+                      <div className="flex gap-1.5 mt-2">
+                        {r.photo_urls.map((url, pi) => (
+                          <button
+                            key={pi}
+                            type="button"
+                            onClick={() => setReviewPhotoPreview(url)}
+                            className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0"
+                            style={{ border: "1px solid var(--line)" }}
+                          >
+                            <img src={url} alt="Foto de la reseña" className="w-full h-full object-cover" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
             </section>
+          )}
+
+          {reviewPhotoPreview && (
+            <div
+              className="fixed inset-0 z-[90] flex items-center justify-center p-4"
+              style={{ background: "rgba(0,0,0,.92)" }}
+              onClick={() => setReviewPhotoPreview(null)}
+            >
+              <img
+                src={reviewPhotoPreview}
+                alt="Foto de la reseña"
+                className="max-w-full max-h-full object-contain rounded-lg"
+                style={{ maxHeight: "90dvh" }}
+                onClick={(e) => e.stopPropagation()}
+              />
+              <button
+                type="button"
+                onClick={() => setReviewPhotoPreview(null)}
+                className="absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center"
+                style={{ background: "rgba(255,255,255,.15)" }}
+                aria-label="Cerrar"
+              >
+                <X size={20} color="white" />
+              </button>
+            </div>
           )}
 
           {/* Footer con identidad de la tienda */}

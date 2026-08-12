@@ -18,9 +18,11 @@ interface Props {
   images: FormImage[];
   onChange: (images: FormImage[]) => void;
   maxImages?: number;
+  endpoint?: string;
+  itemLabel?: string;
 }
 
-export function MultiImageUpload({ images, onChange, maxImages = 6 }: Props) {
+export function MultiImageUpload({ images, onChange, maxImages = 6, endpoint = "/uploads/image", itemLabel = "fotos por producto" }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -44,7 +46,7 @@ export function MultiImageUpload({ images, onChange, maxImages = 6 }: Props) {
       const slots = maxImages - images.length;
       const batch = valid.slice(0, slots);
       if (valid.length > slots) {
-        toast(`Máximo ${maxImages} fotos por producto`);
+        toast(`Máximo ${maxImages} ${itemLabel}`);
       }
       if (batch.length === 0) return;
 
@@ -55,7 +57,7 @@ export function MultiImageUpload({ images, onChange, maxImages = 6 }: Props) {
           const compressed = await compressImage(file, MAX_DIMENSION);
           const fd = new FormData();
           fd.append("file", compressed);
-          const { data } = await apiClient.post("/uploads/image", fd, {
+          const { data } = await apiClient.post(endpoint, fd, {
             headers: { "Content-Type": "multipart/form-data" },
           });
           uploaded.push({ url: data.url });

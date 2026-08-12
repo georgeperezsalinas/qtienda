@@ -13,6 +13,7 @@ interface ReviewItem {
   id: string;
   rating: number;
   comment: string | null;
+  photo_urls: string[];
   buyer_name: string;
   store_name: string;
   store_slug: string;
@@ -202,6 +203,17 @@ export default function AdminResenasPage() {
               </div>
               {r.comment && (
                 <p className="text-sm mt-1.5" style={{ color: "var(--ink-2)" }}>{r.comment}</p>
+              )}
+              {r.photo_urls?.length > 0 && (
+                <div className="flex gap-1.5 mt-2">
+                  {r.photo_urls.map((url, pi) => (
+                    <a key={pi} href={url} target="_blank" rel="noopener noreferrer"
+                      className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0"
+                      style={{ border: "1px solid var(--line-2)" }}>
+                      <img src={url} alt="Foto de la reseña" className="w-full h-full object-cover" />
+                    </a>
+                  ))}
+                </div>
               )}
             </div>
           ))}

@@ -511,6 +511,7 @@ async def get_store_reviews(request: Request, slug: str, limit: int = 20, db: As
         {
             "rating": review.rating,
             "comment": review.comment,
+            "photo_urls": review.photo_urls or [],
             "buyer_name": _mask_buyer_name(buyer_name),
             "created_at": review.created_at,
         }
@@ -524,9 +525,19 @@ async def get_store_products(
     request: Request,
     slug: str,
     category: str = None,
+    price_min: int = None,
+    price_max: int = None,
+    sort_by: str = "default",
     db: AsyncSession = Depends(get_db),
 ):
-    """Get active products for a store, optionally filtered by category slug."""
+    """Get active products for a store, optionally filtered by category slug
+    and price range (price_min/price_max en centavos), y ordenados por
+    sort_by ("default" = destacados primero + orden manual del vendedor,
+    "price_asc", "price_desc"). Nota: la tienda pública (StorePage.tsx) hoy
+    carga el catálogo completo una sola vez y filtra/ordena en cliente para
+    que la búsqueda y categoría respondan al instante — estos params quedan
+    disponibles a nivel SQL para otros consumidores (o si el catálogo público
+    pasa a paginarse server-side más adelante)."""
     store_q = await db.execute(
         select(Store.id).where(
             Store.slug == slug,
@@ -554,12 +565,23 @@ async def get_store_products(
         cat_id = cat_q.scalar_one_or_none()
         if cat_id:
             filters.append(Product.category_id == cat_id)
+    if price_min is not None:
+        filters.append(Product.price_cents >= price_min)
+    if price_max is not None:
+        filters.append(Product.price_cents <= price_max)
+
+    if sort_by == "price_asc":
+        order = (Product.price_cents.asc(),)
+    elif sort_by == "price_desc":
+        order = (Product.price_cents.desc(),)
+    else:
+        order = (Product.is_featured.desc(), Product.sort_order)
 
     result = await db.execute(
         select(Product)
         .options(selectinload(Product.images))
         .where(and_(*filters))
-        .order_by(Product.is_featured.desc(), Product.sort_order)
+        .order_by(*order)
     )
     products = result.scalars().all()
 

@@ -5,8 +5,10 @@ from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
+from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import delete as sql_delete, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -15,6 +17,7 @@ from sqlalchemy.orm import selectinload
 from app.db.session import get_db
 from app.models.models import User, Order, Product, Store, Favorite, Review
 from app.core.security import get_current_user
+from app.api.v1.endpoints.uploads import is_own_upload_url, MAX_REVIEW_PHOTOS
 
 router = APIRouter()
 
@@ -93,7 +96,7 @@ async def get_buyer_order_detail(
         "subtotal_cents": order.subtotal_cents,
         "delivery_cents": order.delivery_cents,
         "created_at": order.created_at,
-        "review": {"rating": review.rating, "comment": review.comment} if review else None,
+        "review": {"rating": review.rating, "comment": review.comment, "photo_urls": review.photo_urls or []} if review else None,
         "buyer_name": order.buyer_name,
         "buyer_phone": order.buyer_phone,
         "buyer_address": order.buyer_address,
@@ -120,6 +123,18 @@ async def get_buyer_order_detail(
 class ReviewIn(BaseModel):
     rating: int = Field(ge=1, le=5)
     comment: Optional[str] = None
+    photo_urls: Optional[List[str]] = None
+
+    @field_validator("photo_urls")
+    @classmethod
+    def valid_photo_urls(cls, v):
+        if not v:
+            return None
+        v = [u for u in v if u][:MAX_REVIEW_PHOTOS]
+        for url in v:
+            if not is_own_upload_url(url):
+                raise ValueError("Foto inválida")
+        return v or None
 
 
 @router.post("/orders/{order_number}/review")
@@ -143,18 +158,24 @@ async def submit_order_review(
 
     comment = (payload.comment or "").strip() or None
 
+    photo_urls = payload.photo_urls or []
+
     existing = (
         await db.execute(select(Review).where(Review.order_id == order.id))
     ).scalar_one_or_none()
     if existing:
         existing.rating = payload.rating
         existing.comment = comment
+        existing.photo_urls = photo_urls
         existing.updated_at = datetime.now(timezone.utc)
     else:
-        db.add(Review(order_id=order.id, store_id=order.store_id, rating=payload.rating, comment=comment))
+        db.add(Review(
+            order_id=order.id, store_id=order.store_id,
+            rating=payload.rating, comment=comment, photo_urls=photo_urls,
+        ))
 
     await db.commit()
-    return {"rating": payload.rating, "comment": comment}
+    return {"rating": payload.rating, "comment": comment, "photo_urls": photo_urls}
 
 
 # ── Favoritos — el localStorage del navegador es la fuente de verdad

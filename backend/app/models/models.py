@@ -126,6 +126,9 @@ class Store(Base):
     theme: Mapped[str]              = mapped_column(String(20), default="clasico")
     city: Mapped[Optional[str]]     = mapped_column(String(80))
     country: Mapped[str]            = mapped_column(String(2), default="PE")
+    # Override explícito de moneda — si es NULL, el frontend la deriva de
+    # `country` (ver CURRENCY_BY_COUNTRY en frontend/src/lib/utils.ts).
+    currency: Mapped[Optional[str]] = mapped_column(String(3))
     meta_title: Mapped[Optional[str]] = mapped_column(String(120))
     meta_desc: Mapped[Optional[str]]  = mapped_column(String(300))
     is_test: Mapped[bool]           = mapped_column(Boolean, default=False)
@@ -486,6 +489,7 @@ class Review(Base):
     store_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("stores.id", ondelete="CASCADE"), nullable=False)
     rating: Mapped[int]         = mapped_column(SmallInteger)
     comment: Mapped[Optional[str]] = mapped_column(Text)
+    photo_urls: Mapped[list]    = mapped_column(JSONB, default=list)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     hidden_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))

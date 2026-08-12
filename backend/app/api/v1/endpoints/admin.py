@@ -1429,6 +1429,7 @@ async def list_reviews(
                 "id": review.id,
                 "rating": review.rating,
                 "comment": review.comment,
+                "photo_urls": review.photo_urls or [],
                 "buyer_name": buyer_name,
                 "store_name": store.name,
                 "store_slug": store.slug,

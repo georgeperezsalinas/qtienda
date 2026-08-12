@@ -11,6 +11,7 @@ import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import { formatPrice, getStoreCurrency } from "@/lib/utils";
+import { MultiImageUpload, type FormImage } from "@/components/ui/MultiImageUpload";
 
 /* ── Types ── */
 interface OrderItem {
@@ -171,6 +172,7 @@ function OrderCard({ order }: { order: Order }) {
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [formRating,    setFormRating]    = useState(order.rating ?? 5);
   const [comment,       setComment]       = useState("");
+  const [photos,        setPhotos]        = useState<FormImage[]>([]);
   const [submittingReview, setSubmittingReview] = useState(false);
   const color = order.store_color || "var(--accent)";
   const { code: currency, locale } = getStoreCurrency({ currency: order.store_currency, country: order.store_country });
@@ -181,6 +183,7 @@ function OrderCard({ order }: { order: Order }) {
       await apiClient.post(`/buyer/orders/${order.order_number}/review`, {
         rating: formRating,
         comment: comment.trim() || undefined,
+        photo_urls: photos.map((p) => p.url),
       });
       setRating(formRating);
       setShowReviewForm(false);
@@ -321,6 +324,18 @@ function OrderCard({ order }: { order: Order }) {
                         value={comment}
                         onChange={(e) => setComment(e.target.value)}
                       />
+                      <div className="mt-2.5">
+                        <p className="text-[11px] font-bold mb-1.5" style={{ color: "var(--ink-3)" }}>
+                          Fotos (opcional) — las reseñas con foto ayudan más a otros compradores
+                        </p>
+                        <MultiImageUpload
+                          images={photos}
+                          onChange={setPhotos}
+                          maxImages={4}
+                          endpoint="/uploads/review-photo"
+                          itemLabel="fotos por reseña"
+                        />
+                      </div>
                       <div className="flex gap-2 mt-2">
                         <button
                           onClick={() => setShowReviewForm(false)}

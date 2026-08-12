@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from PIL import Image, ImageOps
 
 from app.core.config import settings
-from app.core.security import require_vendor
+from app.core.security import require_vendor, get_current_user
 
 router = APIRouter()
 
@@ -18,6 +18,7 @@ MAX_SIZE_MB = 5
 MAX_DIMENSION = 1600  # lado mas largo tras el resize; el cliente ya manda logos mas chicos (512)
 JPEG_QUALITY = 85
 UPLOADS_DIR = Path(settings.UPLOADS_DIR)
+MAX_REVIEW_PHOTOS = 4
 
 
 def _process_image(content: bytes) -> tuple[bytes, str, str]:
@@ -72,6 +73,42 @@ async def upload_image(
         url = _save_local(content, filename)
 
     return {"url": url, "filename": filename}
+
+
+@router.post("/review-photo")
+async def upload_review_photo(
+    file: UploadFile = File(...),
+    _=Depends(get_current_user),
+):
+    """Foto adjunta a una reseña de comprador — cualquier usuario autenticado
+    puede subir (no solo vendedores, a diferencia de /uploads/image), porque
+    quien deja una reseña es el comprador."""
+    if file.content_type not in ALLOWED_TYPES:
+        raise HTTPException(status_code=422, detail="Tipo de archivo no permitido. Use JPEG, PNG o WebP.")
+
+    content = await file.read()
+    if len(content) > MAX_SIZE_MB * 1024 * 1024:
+        raise HTTPException(status_code=422, detail=f"Imagen muy grande. Máximo {MAX_SIZE_MB}MB.")
+
+    content, ext, content_type = await asyncio.to_thread(_process_image, content)
+    filename = f"{uuid.uuid4()}.{ext}"
+
+    if settings.S3_ENDPOINT and settings.S3_ACCESS_KEY:
+        url = await _upload_r2(content, filename, content_type, object_key=f"reviews/{filename}")
+    else:
+        url = _save_local(content, filename)
+
+    return {"url": url, "filename": filename}
+
+
+def is_own_upload_url(url: str) -> bool:
+    """Confirma que una URL de foto realmente viene de nuestro storage (local,
+    R2/CDN) y no es un link arbitrario que el cliente intenta colar — se usa
+    para validar photo_urls antes de guardarlos en una reseña."""
+    if not url:
+        return False
+    bases = [settings.UPLOADS_BASE_URL, settings.CDN_URL, f"{settings.S3_ENDPOINT}/{settings.S3_BUCKET}" if settings.S3_ENDPOINT else ""]
+    return any(base and url.startswith(base) for base in bases)
 
 
 def _save_local(content: bytes, filename: str) -> str:
