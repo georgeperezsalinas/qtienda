@@ -1014,7 +1014,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                           </a>
                         )}
                         <a
-                          href={`/tienda/${store.slug}/pedido/${orderResult.order_number}`}
+                          href={`/pedido/${orderResult.order_number}`}
                           className="flex items-center justify-center gap-2 w-full rounded-2xl py-3.5 font-bold text-sm transition-all active:scale-[.98]"
                           style={{ background: `${color}12`, color, border: `1.5px solid ${color}25` }}
                         >

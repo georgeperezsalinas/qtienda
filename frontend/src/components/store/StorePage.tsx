@@ -501,7 +501,7 @@ export default function StorePage({ store, initialProducts }: Props) {
     // Acepta "42", "00042" o "QT-00042" — normaliza al formato QT-#####
     if (/^\d+$/.test(num)) num = `QT-${num.padStart(5, "0")}`;
     setTrackOpen(false);
-    router.push(`/tienda/${store.slug}/pedido/${num}`);
+    router.push(`/pedido/${num}`);
   }
 
   useEffect(() => {
@@ -673,93 +673,6 @@ export default function StorePage({ store, initialProducts }: Props) {
         </div>
       )}
 
-      {/* ══════════════════════════════════
-          PORTADA — primera impresión de la tienda: logo, letrero de
-          abierto/cerrado, nombre, CTA hacia el catálogo (baja a la sección
-          con id="tienda-catalogo") y un resumen real de envío/pago/sobre
-          nosotros. Se muestra siempre, en cada visita.
-      ══════════════════════════════════ */}
-      <section
-        className="px-4 pt-10 pb-8 text-center lg:pt-14 lg:pb-10"
-        style={{ background: `linear-gradient(180deg, ${color}12, transparent)` }}
-      >
-        <div className="max-w-xl md:max-w-3xl lg:max-w-[1360px] mx-auto flex flex-col items-center">
-          {/* Logo circular + letrero colgante de abierto/cerrado */}
-          <div className="relative mb-4">
-            {store.logo_url ? (
-              <Image
-                src={store.logo_url}
-                alt={store.name}
-                width={96}
-                height={96}
-                className="rounded-full object-cover"
-                style={{ width: 96, height: 96, border: "4px solid var(--surface)", boxShadow: "var(--shadow-md)" }}
-              />
-            ) : (
-              <div
-                className="rounded-full flex items-center justify-center font-bold text-white"
-                style={{ width: 96, height: 96, background: color, fontSize: 34, border: "4px solid var(--surface)", boxShadow: "var(--shadow-md)" }}
-              >
-                {store.name[0]?.toUpperCase()}
-              </div>
-            )}
-            {mounted && openStatus && (
-              <div
-                className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold whitespace-nowrap"
-                style={{
-                  background: openStatus.open ? "var(--success)" : "var(--ink-3)",
-                  color: "#fff",
-                  boxShadow: "var(--shadow-sm)",
-                }}
-              >
-                <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#fff" }} />
-                {openStatus.label}
-              </div>
-            )}
-          </div>
-
-          <h1 className="font-display font-extrabold text-2xl lg:text-3xl mt-3" style={{ color: "var(--ink)" }}>
-            {store.name}
-          </h1>
-          {store.city && (
-            <p className="flex items-center gap-1 text-xs mt-1" style={{ color: "var(--ink-3)" }}>
-              <MapPin size={11} /> {store.city}
-            </p>
-          )}
-
-          <button
-            onClick={() => document.getElementById("tienda-catalogo")?.scrollIntoView({ behavior: "smooth", block: "start" })}
-            className="mt-5 flex items-center gap-2 rounded-full px-6 py-3 font-bold text-sm text-white transition-all active:scale-[.97]"
-            style={{ background: color, boxShadow: `0 8px 24px ${color}40` }}
-          >
-            Entrar a la tienda
-            <ChevronRight size={16} />
-          </button>
-
-          {/* Info rápida — solo lo que la tienda realmente ofrece, nada de cifras */}
-          <div className="flex flex-wrap items-center justify-center gap-2 mt-5">
-            <span
-              className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-full"
-              style={{ background: "var(--surface-2)", color: "var(--ink-2)" }}
-            >
-              <Truck size={12} /> Envío a domicilio
-            </span>
-            <span
-              className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-full"
-              style={{ background: "var(--surface-2)", color: "var(--ink-2)" }}
-            >
-              <ShieldCheck size={12} /> {paymentMethodsLabel}
-            </span>
-          </div>
-
-          {/* Sobre nosotros — solo si el vendedor escribió una descripción real */}
-          {store.description && (
-            <p className="max-w-md text-xs leading-relaxed mt-5" style={{ color: "var(--ink-3)" }}>
-              {store.description}
-            </p>
-          )}
-        </div>
-      </section>
 
       {/* ══════════════════════════════════
           STICKY HEADER (logo + search + categorías)
@@ -778,8 +691,8 @@ export default function StorePage({ store, initialProducts }: Props) {
 
           {/* Row 1: logo + name (+ búsqueda inline en desktop) + actions */}
           <div className="flex items-center gap-3 px-4 pt-3 pb-2 lg:px-8 lg:py-4">
-            {/* Logo */}
-            <div className="flex-shrink-0">
+            {/* Logo — vuelve a la puerta de la tienda (salir del catálogo) */}
+            <a href="/" className="flex-shrink-0" aria-label="Salir al inicio de la tienda">
               {store.logo_url ? (
                 <Image src={store.logo_url} alt={store.name} width={36} height={36}
                   className="rounded-[12px] object-cover lg:w-11 lg:h-11" />
@@ -791,7 +704,7 @@ export default function StorePage({ store, initialProducts }: Props) {
                   {store.name[0]?.toUpperCase()}
                 </div>
               )}
-            </div>
+            </a>
 
             {/* Store name */}
             <div className="flex-1 min-w-0 lg:flex-none lg:max-w-[280px]">

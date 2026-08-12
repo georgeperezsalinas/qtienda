@@ -6,7 +6,7 @@
 // animamos hacia un resultado que el servidor ya decidió.
 
 import { useEffect, useState } from "react";
-import { X, Copy } from "lucide-react";
+import { X, Copy, ChevronRight as ChevronRightIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
@@ -20,7 +20,16 @@ interface Segment {
   color: string;
 }
 
-export default function WheelWidget({ slug, accentColor }: { slug: string; accentColor: string }) {
+interface WheelWidgetProps {
+  slug: string;
+  accentColor: string;
+  // "floating": botón circular flotante (catálogo, comportamiento de siempre).
+  // "banner": bloque ancho e invitador para la puerta de la tienda — mismo
+  // estado/lógica, solo cambia el disparador visual.
+  variant?: "floating" | "banner";
+}
+
+export default function WheelWidget({ slug, accentColor, variant = "floating" }: WheelWidgetProps) {
   const [segments, setSegments] = useState<Segment[] | null>(null);
   const [open, setOpen] = useState(false);
   const [spinning, setSpinning] = useState(false);
@@ -101,17 +110,40 @@ export default function WheelWidget({ slug, accentColor }: { slug: string; accen
 
   return (
     <>
-      <motion.button
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ delay: 1, type: "spring", stiffness: 300 }}
-        onClick={() => setOpen(true)}
-        className="fixed left-3 bottom-6 z-20 w-14 h-14 rounded-full flex items-center justify-center text-2xl"
-        style={{ background: accentColor, boxShadow: `0 4px 20px ${accentColor}66` }}
-        aria-label="Girar la ruleta de premios"
-      >
-        🎁
-      </motion.button>
+      {variant === "banner" ? (
+        <motion.button
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          onClick={() => setOpen(true)}
+          className="w-full flex items-center gap-3 rounded-2xl px-4 py-3.5 text-left transition-all active:scale-[.98]"
+          style={{ background: `${accentColor}14`, border: `1.5px dashed ${accentColor}55` }}
+          aria-label="Girar la ruleta de premios"
+        >
+          <span className="text-2xl flex-shrink-0">🎁</span>
+          <span className="flex-1 min-w-0">
+            <span className="block font-extrabold text-sm" style={{ color: "var(--ink)" }}>
+              Antes de entrar, gira la ruleta
+            </span>
+            <span className="block text-xs" style={{ color: "var(--ink-3)" }}>
+              Un giro gratis — puede tocarte un descuento
+            </span>
+          </span>
+          <ChevronRightIcon size={18} style={{ color: accentColor }} className="flex-shrink-0" />
+        </motion.button>
+      ) : (
+        <motion.button
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 1, type: "spring", stiffness: 300 }}
+          onClick={() => setOpen(true)}
+          className="fixed left-3 bottom-6 z-20 w-14 h-14 rounded-full flex items-center justify-center text-2xl"
+          style={{ background: accentColor, boxShadow: `0 4px 20px ${accentColor}66` }}
+          aria-label="Girar la ruleta de premios"
+        >
+          🎁
+        </motion.button>
+      )}
 
       <AnimatePresence>
         {open && (

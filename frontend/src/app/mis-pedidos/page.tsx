@@ -413,7 +413,7 @@ function OrderCard({ order }: { order: Order }) {
                   </div>
 
                   <Link
-                    href={`/tienda/${detail.store_slug}`}
+                    href={`https://${detail.store_slug}.qtienda.shop/`}
                     className="flex items-center justify-center gap-2 text-xs font-bold py-2.5 rounded-xl"
                     style={{ background: `${color}12`, color }}
                   >
@@ -524,7 +524,7 @@ function MyStores({ orders }: { orders: Order[] }) {
           return (
             <Link
               key={o.store_slug}
-              href={`/tienda/${o.store_slug}`}
+              href={`https://${o.store_slug}.qtienda.shop/`}
               className="flex flex-col items-center gap-1.5 flex-shrink-0 transition-all active:scale-95"
               style={{ width: 60 }}
             >

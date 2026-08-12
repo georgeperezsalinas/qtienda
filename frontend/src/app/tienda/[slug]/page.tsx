@@ -1,91 +1,46 @@
-// src/app/tienda/[slug]/page.tsx — qtienda v2 (con JSON-LD SEO)
+// src/app/tienda/[slug]/page.tsx — puerta de la tienda (slug.qtienda.shop/)
 //
-// CAMBIOS vs versión anterior:
-//   - Agrega structured data JSON-LD tipo "Store" + "ItemList" de productos
-//   - Google puede mostrar rich snippets: nombre, logo, productos con precio
-//   - Agrega canonical URL para evitar contenido duplicado
-//   - Revalidación explícita cada 60s (más estable que el default de api-server)
+// Primera pantalla al entrar a una tienda: logo, abierto/cerrado, URL para
+// compartir, ruleta si está activa, y botón para pasar al catálogo real
+// (/tienda/[slug]/catalogo). El catálogo completo con productos, filtros,
+// carrito y checkout vive en esa otra ruta — ver ese archivo.
+//
+// Un link compartido de un producto puntual (?p=id) redirige directo al
+// catálogo con ese mismo query, para no obligar a pasar por la puerta.
 
 import { Metadata } from "next";
-import { notFound } from "next/navigation";
-import { apiServer } from "@/lib/api-server";
-import StorePage from "@/components/store/StorePage";
+import { notFound, redirect } from "next/navigation";
 import Script from "next/script";
-import { formatPrice, stripHtml } from "@/lib/utils";
+import StoreDoor from "@/components/store/StoreDoor";
+import { fetchStoreAndProductMeta } from "./seo";
 
 interface Props {
   params: { slug: string };
   searchParams: { p?: string };
 }
 
-const LOCALE_BY_COUNTRY: Record<string, string> = {
-  PE: "es_PE", CL: "es_CL", CO: "es_CO", MX: "es_MX", AR: "es_AR",
-};
-
-const CURRENCY_BY_COUNTRY: Record<string, { code: string; symbol: string }> = {
-  PE: { code: "PEN", symbol: "S/" },
-  CL: { code: "CLP", symbol: "$" },
-  CO: { code: "COP", symbol: "$" },
-  MX: { code: "MXN", symbol: "$" },
-  AR: { code: "ARS", symbol: "$" },
-};
-
-// ── Metadata para Open Graph y Twitter ──────────────────────
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   try {
-    const store = await apiServer(`/public/store/${params.slug}`);
+    const { store, product, ogLocale, title, description, productImage } =
+      await fetchStoreAndProductMeta(params.slug, searchParams?.p);
 
-    // Link a un producto puntual (?p=id) — antes SIEMPRE mostraba la vista
-    // previa genérica de la tienda al compartir, aunque el link apuntara a
-    // un producto específico. Con tanto tráfico de gente compartiendo un
-    // solo producto (TikTok, WhatsApp), vale la pena que se vea su propia
-    // foto/nombre/precio en la vista previa, no la de la tienda entera.
-    const productId = searchParams?.p;
-    let product: any = null;
-    if (productId) {
-      try {
-        const products = await apiServer(`/public/store/${params.slug}/products`, { revalidate: 20 });
-        product = (products as any[]).find((p) => p.id === productId) ?? null;
-      } catch {
-        product = null;
-      }
-    }
-
-    const currency = CURRENCY_BY_COUNTRY[store.country] || CURRENCY_BY_COUNTRY.PE;
-    const ogLocale = LOCALE_BY_COUNTRY[store.country] || "es_PE";
+    // Si hay producto, el canonical apunta directo al catálogo (ahí es donde
+    // termina viviendo tras el redirect) — así el link compartido y lo que
+    // Google indexa coinciden con la URL final.
     const canonicalUrl = product
-      ? `https://${params.slug}.qtienda.shop/?p=${productId}`
+      ? `https://${params.slug}.qtienda.shop/catalogo?p=${searchParams.p}`
       : `https://${params.slug}.qtienda.shop/`;
-
-    const title = product
-      ? `${product.name} · ${store.name}`
-      : store.meta_title || store.name;
-    const description = product
-      ? stripHtml(product.description).slice(0, 155) ||
-        `${formatPrice(product.price_cents, currency.code, ogLocale.replace("_", "-"))} · Cómpralo en ${store.name}`
-      : store.meta_desc || `Compra en ${store.name} · qtienda.shop`;
-    const productImage = product
-      ? product.images?.find((im: any) => im.is_primary)?.url ?? product.images?.[0]?.url
-      : null;
 
     return {
       title,
       description,
-      alternates: {
-        // Canonical evita que Google indexe la misma tienda/producto con params duplicados
-        canonical: canonicalUrl,
-      },
+      alternates: { canonical: canonicalUrl },
       openGraph: {
-        // Mismo titulo que la pestaña — si el vendedor configuro un titulo SEO
-        // custom, tambien se ve al compartir el link, no solo en el navegador.
         title,
         description,
-        // Sin "images" (caso tienda): la genera /tienda/[slug]/opengraph-image.tsx
-        // (PNG real, WhatsApp/Facebook no renderizan el SVG de marca de antes).
-        // Con producto: su propia foto real, no hace falta generar nada.
         ...(productImage ? { images: [{ url: productImage, width: 1200, height: 1200 }] } : {}),
         type: "website",
-        locale: LOCALE_BY_COUNTRY[store.country] || "es_PE",
+        locale: ogLocale,
         url: canonicalUrl,
         siteName: "qtienda",
       },
@@ -101,19 +56,15 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   }
 }
 
-// ── Página principal con JSON-LD ─────────────────────────────
-export default async function TiendaPage({ params }: Props) {
-  try {
-    // Revalidación corta (20s): precios, envío y demás Ajustes del vendedor
-    // afectan el checkout directamente y deben reflejarse casi al instante.
-    const [store, products] = await Promise.all([
-      apiServer(`/public/store/${params.slug}`, { revalidate: 20 }),
-      apiServer(`/public/store/${params.slug}/products`, { revalidate: 20 }),
-    ]);
+export default async function TiendaDoorPage({ params, searchParams }: Props) {
+  // Link a un producto puntual: se salta la puerta, va directo a verlo.
+  if (searchParams?.p) {
+    redirect(`/catalogo?p=${searchParams.p}`);
+  }
 
-    // Metodos de pago y moneda reales de esta tienda — nunca un valor
-    // generico igual para todas (antes asumia siempre Peru/soles).
-    const currency = CURRENCY_BY_COUNTRY[store.country] || CURRENCY_BY_COUNTRY.PE;
+  try {
+    const { store, currency } = await fetchStoreAndProductMeta(params.slug);
+
     const paymentLabels: [string, string][] = [
       ["accept_cash", "Cash"],
       ["accept_card", "Credit Card"],
@@ -127,7 +78,9 @@ export default async function TiendaPage({ params }: Props) {
         .map(([, label]) => label)
         .join(", ") || "Cash";
 
-    // ── JSON-LD: LocalBusiness / Store ────────────────────
+    // JSON-LD: LocalBusiness / Store — la puerta es la URL canónica de la
+    // tienda, así que este es su lugar natural (el ItemList de productos
+    // vive en /catalogo, que es donde de verdad están).
     const storeSchema = {
       "@context": "https://schema.org",
       "@type": "Store",
@@ -155,10 +108,6 @@ export default async function TiendaPage({ params }: Props) {
       priceRange: currency.symbol,
       currenciesAccepted: currency.code,
       paymentAccepted,
-      // Rating real de compradores — solo si hay reseñas de verdad (nunca
-      // un aggregateRating inventado; Google penaliza el markup sin
-      // contenido visible que lo respalde, y las reseñas sí se muestran
-      // en la página cuando existen).
       ...(store.rating_count > 0 && store.rating_avg != null && {
         aggregateRating: {
           "@type": "AggregateRating",
@@ -170,64 +119,15 @@ export default async function TiendaPage({ params }: Props) {
       }),
     };
 
-    // ── JSON-LD: ItemList de productos (primeros 10) ───────
-    // Google puede mostrar los productos directamente en resultados de búsqueda
-    const topProducts = (products as any[]).slice(0, 10);
-    const productListSchema =
-      topProducts.length > 0
-        ? {
-            "@context": "https://schema.org",
-            "@type": "ItemList",
-            name: `Productos de ${store.name}`,
-            url: `https://${store.slug}.qtienda.shop/`,
-            numberOfItems: topProducts.length,
-            itemListElement: topProducts.map((p: any, idx: number) => ({
-              "@type": "ListItem",
-              position: idx + 1,
-              item: {
-                "@type": "Product",
-                name: p.name,
-                description: p.description || "",
-                url: `https://${store.slug}.qtienda.shop/?p=${p.id}`,
-                ...(p.images?.[0]?.url && { image: p.images[0].url }),
-                offers: {
-                  "@type": "Offer",
-                  priceCurrency: currency.code,
-                  price: (p.price_cents / 100).toFixed(2),
-                  availability:
-                    p.stock === 0
-                      ? "https://schema.org/OutOfStock"
-                      : "https://schema.org/InStock",
-                  seller: {
-                    "@type": "Store",
-                    name: store.name,
-                  },
-                },
-              },
-            })),
-          }
-        : null;
-
     return (
       <>
-        {/* JSON-LD inyectado en el <head> via next/script */}
         <Script
           id="schema-store"
           type="application/ld+json"
           strategy="afterInteractive"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(storeSchema) }}
         />
-        {productListSchema && (
-          <Script
-            id="schema-products"
-            type="application/ld+json"
-            strategy="afterInteractive"
-            dangerouslySetInnerHTML={{
-              __html: JSON.stringify(productListSchema),
-            }}
-          />
-        )}
-        <StorePage store={store} initialProducts={products} />
+        <StoreDoor store={store} />
       </>
     );
   } catch {

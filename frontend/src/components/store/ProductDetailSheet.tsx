@@ -280,7 +280,7 @@ export default function ProductDetailSheet({
           {hasImages && (
             <button
               onClick={() => {
-                const url = `${location.origin}/tienda/${storeSlug}?p=${product.id}`;
+                const url = `${location.origin}/catalogo?p=${product.id}`;
                 if (navigator.share) {
                   navigator.share({ title: displayName, text: `Mira ${displayName}`, url });
                 } else {

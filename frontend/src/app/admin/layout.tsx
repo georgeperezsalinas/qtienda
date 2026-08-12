@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import {
-  LayoutDashboard, Store, Users, LogOut, ChevronRight, ShieldCheck, Smartphone, ScrollText, ShoppingBag, MessageCircle,
+  LayoutDashboard, Store, Users, LogOut, ChevronRight, ShieldCheck, Smartphone, ScrollText, ShoppingBag, MessageCircle, Megaphone,
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 
@@ -15,6 +15,7 @@ const NAV = [
   { href: "/admin/usuarios",  label: "Usuarios",   icon: Users,            exact: false },
   { href: "/admin/pagos",     label: "Pagos",      icon: Smartphone,       exact: false },
   { href: "/admin/campana",   label: "Campaña",    icon: MessageCircle,    exact: false },
+  { href: "/admin/anuncios",  label: "Anuncios",   icon: Megaphone,        exact: false },
   { href: "/admin/auditoria", label: "Auditoría",  icon: ScrollText,       exact: false },
 ];
 

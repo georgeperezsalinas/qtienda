@@ -53,7 +53,7 @@ export default function OnboardingProgress({ store }: Props) {
     navigator.share?.({
       title: store.name,
       text: `Visita mi tienda: ${store.name}`,
-      url: `${window.location.origin}/tienda/${store.slug}`,
+      url: `https://${store.slug}.qtienda.shop/`,
     });
   }
 

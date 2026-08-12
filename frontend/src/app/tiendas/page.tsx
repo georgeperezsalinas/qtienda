@@ -625,7 +625,7 @@ export default function TiendasPage() {
                 return (
                   <Link
                     key={p.id}
-                    href={`/tienda/${p.store_slug}?p=${p.id}`}
+                    href={`https://${p.store_slug}.qtienda.shop/catalogo?p=${p.id}`}
                     className="rounded-2xl overflow-hidden transition-all active:scale-[.97]"
                     style={{ background: "var(--surface)", boxShadow: "0 1px 8px rgba(20,19,15,.06), 0 0 0 1px var(--line)" }}
                   >
@@ -688,7 +688,7 @@ export default function TiendasPage() {
                   return (
                     <Link
                       key={p.id}
-                      href={`/tienda/${p.store_slug}?p=${p.id}`}
+                      href={`https://${p.store_slug}.qtienda.shop/catalogo?p=${p.id}`}
                       className="rounded-2xl overflow-hidden transition-all active:scale-[.97]"
                       style={{ background: "var(--surface)", boxShadow: "0 1px 8px rgba(20,19,15,.06), 0 0 0 1px var(--line)" }}
                     >
@@ -772,7 +772,7 @@ export default function TiendasPage() {
                 return (
                   <Link
                     key={s.slug}
-                    href={`/tienda/${s.slug}`}
+                    href={`https://${s.slug}.qtienda.shop/`}
                     className="flex-shrink-0 w-[104px] flex flex-col items-center gap-1.5 p-2.5 rounded-2xl transition-all active:scale-[.97]"
                     style={{ background: "var(--surface)", boxShadow: "0 1px 8px rgba(20,19,15,.06), 0 0 0 1px var(--line)" }}
                   >
@@ -810,7 +810,7 @@ export default function TiendasPage() {
             return (
               <Link
                 key={s.slug}
-                href={`/tienda/${s.slug}`}
+                href={`https://${s.slug}.qtienda.shop/`}
                 className="flex items-center gap-3.5 p-3.5 rounded-2xl transition-all active:scale-[.98]"
                 style={{
                   background: "var(--surface)",
