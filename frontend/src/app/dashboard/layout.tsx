@@ -211,7 +211,7 @@ export default function DashboardLayout({
         {/* User block */}
         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
           <a
-            href={storeSlug ? `/tienda/${storeSlug}` : "#"}
+            href={storeSlug ? `https://${storeSlug}.qtienda.shop/` : "#"}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl text-sm font-medium transition-colors"
@@ -498,7 +498,7 @@ export default function DashboardLayout({
                 { href: "/dashboard/delivery", label: "Delivery", icon: Bike },
                 { href: "/mis-pedidos", label: "Mis compras", icon: ShoppingCart },
                 {
-                  href: storeSlug ? `/tienda/${storeSlug}` : "#",
+                  href: storeSlug ? `https://${storeSlug}.qtienda.shop/` : "#",
                   label: "Ver mi tienda",
                   icon: ExternalLink,
                   external: true,

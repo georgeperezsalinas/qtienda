@@ -507,7 +507,7 @@ export default function PedidosPage() {
 
       {storeSlug && (
         <a
-          href={`/tienda/${storeSlug}/pedido/${selected.order_number}`}
+          href={`https://${storeSlug}.qtienda.shop/pedido/${selected.order_number}`}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-1.5 text-xs font-bold mb-4 -mt-2"

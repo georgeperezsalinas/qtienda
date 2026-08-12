@@ -429,7 +429,7 @@ export default function AdminTiendasPage() {
                   Ver detalle
                 </button>
                 <a
-                  href={`/tienda/${s.slug}`}
+                  href={`https://${s.slug}.qtienda.shop/`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold"
@@ -544,7 +544,7 @@ export default function AdminTiendasPage() {
                       </button>
                       <a
                         title="Ver tienda pública"
-                        href={`/tienda/${s.slug}`}
+                        href={`https://${s.slug}.qtienda.shop/`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="w-7 h-7 rounded-lg flex items-center justify-center"
@@ -749,7 +749,7 @@ export default function AdminTiendasPage() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 pb-4">
-                  <a href={`/tienda/${detail.slug}`} target="_blank" rel="noopener noreferrer" className="btn-secondary justify-center text-sm">
+                  <a href={`https://${detail.slug}.qtienda.shop/`} target="_blank" rel="noopener noreferrer" className="btn-secondary justify-center text-sm">
                     <ExternalLink size={15} />
                     Ver pública
                   </a>

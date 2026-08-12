@@ -314,13 +314,13 @@ export default function DashboardPage() {
             <button
               onClick={(e) => {
                 e.preventDefault();
-                window.open(`/tienda/${store.slug}`, "_blank", "noopener");
+                window.open(`https://${store.slug}.qtienda.shop/`, "_blank", "noopener");
               }}
               className="mono inline-flex items-center gap-1.5 mt-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold max-w-full"
               style={{ background: "var(--accent-soft)", color: "var(--accent-ink)" }}
             >
               <ExternalLink size={11} strokeWidth={2.2} className="flex-shrink-0" />
-              <span className="truncate">qtienda.shop/{store.slug}</span>
+              <span className="truncate">{store.slug}.qtienda.shop</span>
             </button>
           </div>
           <button
@@ -340,7 +340,7 @@ export default function DashboardPage() {
               navigator.share?.({
                 title: store.name,
                 text: `Visita mi tienda: ${store.name}`,
-                url: `${window.location.origin}/tienda/${store.slug}`,
+                url: `https://${store.slug}.qtienda.shop/`,
               });
             }}
             className="btn-secondary"

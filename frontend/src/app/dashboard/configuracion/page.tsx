@@ -518,7 +518,7 @@ export default function ConfiguracionPage() {
         <h1 className="font-display font-bold text-xl" style={{ color: "var(--ink)" }}>Configuración</h1>
         {store && (
           <a
-            href={`/tienda/${store.slug}`}
+            href={`https://${store.slug}.qtienda.shop/`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 text-xs font-bold"
