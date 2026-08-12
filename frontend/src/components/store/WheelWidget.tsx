@@ -100,13 +100,15 @@ export default function WheelWidget({ slug, accentColor, variant = "floating" }:
 
   const totalWeight = segments.reduce((sum, s) => sum + s.weight, 0);
   let acc = 0;
-  const gradientStops = segments.map((s) => {
+  const segmentAngles = segments.map((s) => {
     const start = (acc / totalWeight) * 360;
     acc += s.weight;
     const end = (acc / totalWeight) * 360;
-    return `${s.color} ${start}deg ${end}deg`;
+    return { start, end, mid: (start + end) / 2 };
   });
-  const gradient = `conic-gradient(${gradientStops.join(", ")})`;
+  const gradient = `conic-gradient(${segments
+    .map((s, i) => `${s.color} ${segmentAngles[i].start}deg ${segmentAngles[i].end}deg`)
+    .join(", ")})`;
 
   return (
     <>
@@ -216,7 +218,7 @@ export default function WheelWidget({ slug, accentColor, variant = "floating" }:
 
                   <div className="relative mx-auto mb-5" style={{ width: 220, height: 220 }}>
                     <div
-                      className="absolute inset-0 rounded-full"
+                      className="absolute inset-0 rounded-full overflow-hidden"
                       style={{
                         background: gradient,
                         transform: `rotate(${rotation}deg)`,
@@ -224,7 +226,21 @@ export default function WheelWidget({ slug, accentColor, variant = "floating" }:
                         border: "4px solid var(--surface)",
                         boxShadow: "0 4px 20px rgba(0,0,0,.15)",
                       }}
-                    />
+                    >
+                      {segments.map((s, i) => (
+                        <span
+                          key={i}
+                          className="absolute left-1/2 top-1/2 text-[10px] font-extrabold text-white text-center leading-tight"
+                          style={{
+                            width: 64,
+                            transform: `translate(-50%, -50%) rotate(${segmentAngles[i].mid}deg) translateY(-72px)`,
+                            textShadow: "0 1px 2px rgba(0,0,0,.4)",
+                          }}
+                        >
+                          {s.label}
+                        </span>
+                      ))}
+                    </div>
                     <div
                       className="absolute left-1/2 -translate-x-1/2 -top-1 w-0 h-0"
                       style={{

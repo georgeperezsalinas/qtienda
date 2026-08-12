@@ -7,13 +7,14 @@ import {
   ShoppingCart, Search, ChevronRight, Zap, Heart,
   MapPin, X, MessageCircle, Share2, Download,
   LayoutGrid, List, Clock, Truck, ShieldCheck, PackageSearch,
-  HelpCircle, CheckCircle2, Star, Instagram, Facebook, SlidersHorizontal,
+  HelpCircle, CheckCircle2, Star, SlidersHorizontal, DoorOpen,
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
 import ProductCard from "./ProductCard";
 import ProductDetailSheet from "./ProductDetailSheet";
 import CartDrawer from "./CartDrawer";
+import { SocialLinks } from "./SocialLinks";
 import MarketingPixels from "./MarketingPixels";
 import { pixelViewContent, pixelAddToCart, pixelInitiateCheckout } from "@/lib/marketingPixels";
 import StoreTour, { restartStoreTour } from "./StoreTour";
@@ -355,44 +356,6 @@ function CategoryList({ store, activeCategory, setActiveCategory, color, vertica
         className="absolute right-0 top-0 bottom-3 w-8 pointer-events-none"
         style={{ background: "linear-gradient(90deg, transparent, var(--surface))" }}
       />
-    </div>
-  );
-}
-
-function TikTokIcon({ size = 14 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-      <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z" />
-    </svg>
-  );
-}
-
-/* Redes sociales de la tienda — señal que el comprador puede verificar por
-   su cuenta (seguidores, historial real), no una garantía de qtienda. */
-function SocialLinks({ store, size = 32 }: { store: StoreData; size?: number }) {
-  const links = [
-    store.instagram && { key: "instagram", href: `https://instagram.com/${store.instagram}`, icon: Instagram },
-    store.tiktok && { key: "tiktok", href: `https://tiktok.com/@${store.tiktok}`, icon: TikTokIcon },
-    store.facebook && { key: "facebook", href: `https://facebook.com/${store.facebook}`, icon: Facebook },
-  ].filter(Boolean) as { key: string; href: string; icon: React.ElementType }[];
-
-  if (links.length === 0) return null;
-
-  return (
-    <div className="flex items-center gap-2">
-      {links.map(({ key, href, icon: Icon }) => (
-        <a
-          key={key}
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center justify-center rounded-full flex-shrink-0 transition-transform active:scale-90"
-          style={{ width: size, height: size, background: "var(--surface-2)", color: "var(--ink-2)" }}
-          aria-label={key}
-        >
-          <Icon size={Math.round(size * 0.45)} />
-        </a>
-      ))}
     </div>
   );
 }
@@ -748,6 +711,17 @@ export default function StorePage({ store, initialProducts }: Props) {
               />
             </div>
 
+            {/* Salir de la tienda — vuelve a la puerta (ruleta, cupón, sobre nosotros) */}
+            <a
+              href="/"
+              className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: `${color}12` }}
+              aria-label="Salir de la tienda"
+              title="Salir de la tienda"
+            >
+              <DoorOpen size={16} style={{ color }} />
+            </a>
+
             {/* Ayuda: relanza el tour guiado de la tienda */}
             <button
               onClick={() => restartStoreTour()}
@@ -916,67 +890,71 @@ export default function StorePage({ store, initialProducts }: Props) {
       </div>
 
       {/* ══════════════════════════════════
-          BANNERS (PWA + buyer)
+          AVISOS FLOTANTES (descuento bienvenida, instalar PWA, crear cuenta)
+          No empujan el contenido — flotan sobre la tienda, uno debajo del
+          otro, y cada uno se puede cerrar por separado.
       ══════════════════════════════════ */}
-      <AnimatePresence>
-        {mounted && store.settings?.welcome_discount_enabled && !!store.settings?.welcome_discount_cents && !welcomeBannerDismissed && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-            className="flex items-center gap-3 px-4 py-2.5 max-w-xl md:max-w-3xl lg:max-w-[1360px] mx-auto lg:px-8"
-            style={{ background: `${color}12`, borderBottom: `1px solid ${color}22` }}
-          >
-            <span className="text-lg flex-shrink-0">🎁</span>
-            <p className="flex-1 text-xs font-bold leading-snug" style={{ color: "var(--ink)" }}>
-              {formatPrice(store.settings.welcome_discount_cents, storeCurrency, storeLocale)} de descuento en tu primera compra aquí
-            </p>
-            <button onClick={dismissWelcomeBanner}><X size={14} style={{ color: "var(--ink-4)" }} /></button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {mounted && installPrompt && !installDismissed && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-            className="flex items-center gap-3 px-4 py-2.5 max-w-xl md:max-w-3xl lg:max-w-[1360px] mx-auto lg:px-8"
-            style={{ background: `${color}10`, borderBottom: `1px solid ${color}18` }}
-          >
-            <span className="text-lg flex-shrink-0">📲</span>
-            <p className="flex-1 text-xs font-medium" style={{ color: "var(--ink-2)" }}>
-              Instala la tienda para acceso rápido
-            </p>
-            <button
-              onClick={handleInstall}
-              className="flex-shrink-0 flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full text-white"
-              style={{ background: color }}
+      <div className="fixed top-20 right-3 z-30 flex flex-col gap-2 w-[calc(100vw-24px)] max-w-[300px] pointer-events-none lg:top-24 lg:right-6">
+        <AnimatePresence>
+          {mounted && store.settings?.welcome_discount_enabled && !!store.settings?.welcome_discount_cents && !welcomeBannerDismissed && (
+            <motion.div
+              initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 24 }}
+              className="pointer-events-auto flex items-center gap-2.5 px-3.5 py-3 rounded-2xl"
+              style={{ background: "var(--surface)", boxShadow: "var(--shadow-float)", border: `1px solid ${color}25` }}
             >
-              <Download size={11} /> Instalar
-            </button>
-            <button onClick={() => { setInstallDismissed(true); localStorage.setItem("pwa-banner-dismissed", "1"); }}><X size={14} style={{ color: "var(--ink-4)" }} /></button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              <span className="text-lg flex-shrink-0">🎁</span>
+              <p className="flex-1 text-xs font-bold leading-snug" style={{ color: "var(--ink)" }}>
+                {formatPrice(store.settings.welcome_discount_cents, storeCurrency, storeLocale)} de descuento en tu primera compra aquí
+              </p>
+              <button onClick={dismissWelcomeBanner} className="flex-shrink-0"><X size={14} style={{ color: "var(--ink-4)" }} /></button>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-      <AnimatePresence>
-        {mounted && !isLoggedIn && !buyerBannerDismissed && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-            className="flex items-center gap-3 px-4 py-2.5 max-w-xl md:max-w-3xl lg:max-w-[1360px] mx-auto lg:px-8"
-            style={{ background: "var(--success-soft)", borderBottom: "1px solid var(--line-2)" }}
-          >
-            <span className="text-lg flex-shrink-0">🛍️</span>
-            <p className="flex-1 text-xs font-medium leading-snug" style={{ color: "var(--success)" }}>
-              ¿Compras aquí seguido? Crea una cuenta para ver tus pedidos
-            </p>
-            <a href="/registro"
-              className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-full text-white whitespace-nowrap"
-              style={{ background: "var(--success)" }}>
-              Crear cuenta
-            </a>
-            <button onClick={dismissBuyerBanner}><X size={14} style={{ color: "var(--ink-3)" }} /></button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        <AnimatePresence>
+          {mounted && installPrompt && !installDismissed && (
+            <motion.div
+              initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 24 }}
+              className="pointer-events-auto flex items-center gap-2.5 px-3.5 py-3 rounded-2xl"
+              style={{ background: "var(--surface)", boxShadow: "var(--shadow-float)", border: `1px solid ${color}25` }}
+            >
+              <span className="text-lg flex-shrink-0">📲</span>
+              <p className="flex-1 text-xs font-medium" style={{ color: "var(--ink-2)" }}>
+                Instala la tienda para acceso rápido
+              </p>
+              <button
+                onClick={handleInstall}
+                className="flex-shrink-0 flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full text-white"
+                style={{ background: color }}
+              >
+                <Download size={11} /> Instalar
+              </button>
+              <button onClick={() => { setInstallDismissed(true); localStorage.setItem("pwa-banner-dismissed", "1"); }} className="flex-shrink-0"><X size={14} style={{ color: "var(--ink-4)" }} /></button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {mounted && !isLoggedIn && !buyerBannerDismissed && (
+            <motion.div
+              initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 24 }}
+              className="pointer-events-auto flex items-center gap-2.5 px-3.5 py-3 rounded-2xl"
+              style={{ background: "var(--success-soft)", boxShadow: "var(--shadow-float)", border: "1px solid var(--line-2)" }}
+            >
+              <span className="text-lg flex-shrink-0">🛍️</span>
+              <p className="flex-1 text-xs font-medium leading-snug" style={{ color: "var(--success)" }}>
+                ¿Compras aquí seguido? Crea una cuenta para ver tus pedidos
+              </p>
+              <a href="/registro"
+                className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-full text-white whitespace-nowrap"
+                style={{ background: "var(--success)" }}>
+                Crear cuenta
+              </a>
+              <button onClick={dismissBuyerBanner} className="flex-shrink-0"><X size={14} style={{ color: "var(--ink-3)" }} /></button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       {/* ══════════════════════════════════
           LAYOUT: rail lateral (desktop) + contenido

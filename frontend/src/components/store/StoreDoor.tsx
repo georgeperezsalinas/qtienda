@@ -11,6 +11,7 @@ import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 import { getOpenStatus } from "@/lib/storeHours";
 import WheelWidget from "./WheelWidget";
+import { SocialLinks } from "./SocialLinks";
 
 interface DoorStoreData {
   slug: string;
@@ -20,6 +21,9 @@ interface DoorStoreData {
   city?: string;
   primary_color: string;
   store_hours?: Record<string, { open: string; close: string }> | null;
+  instagram?: string | null;
+  tiktok?: string | null;
+  facebook?: string | null;
   settings?: {
     accept_cash?: boolean;
     accept_yape?: boolean;
@@ -156,11 +160,21 @@ export default function StoreDoor({ store }: { store: DoorStoreData }) {
           )}
         </div>
 
-        {/* Sobre nosotros — solo si el vendedor escribió una descripción real */}
-        {store.description && (
-          <p className="max-w-md text-xs leading-relaxed mt-5" style={{ color: "var(--ink-3)" }}>
-            {store.description}
-          </p>
+        {/* Acerca de la tienda — descripción real + redes sociales, solo si hay algo que mostrar */}
+        {(store.description || store.instagram || store.tiktok || store.facebook) && (
+          <div className="w-full max-w-md rounded-2xl p-4 mt-5" style={{ background: "var(--surface)", boxShadow: "var(--shadow-sm)" }}>
+            <p className="eyebrow mb-2">Acerca de la tienda</p>
+            {store.description && (
+              <p className="text-xs leading-relaxed" style={{ color: "var(--ink-3)" }}>
+                {store.description}
+              </p>
+            )}
+            {(store.instagram || store.tiktok || store.facebook) && (
+              <div className="flex items-center justify-center gap-2 mt-3">
+                <SocialLinks store={store} size={32} />
+              </div>
+            )}
+          </div>
         )}
       </motion.div>
     </div>
