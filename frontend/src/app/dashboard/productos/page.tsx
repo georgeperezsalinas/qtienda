@@ -6,6 +6,7 @@ import {
   Plus, Pencil, Trash2, Package, PackagePlus, X,
   Search, Copy, CheckSquare, Square, Percent,
   Star, Eye, EyeOff, Tag, Images, Clock, ChevronDown,
+  Download, Check,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
@@ -30,6 +31,22 @@ interface Product {
   is_featured: boolean;
   category_id?: string;
   images: ProductImage[];
+  sold_count?: number;
+}
+
+type SortKey = "recent" | "best_selling" | "low_stock" | "price_asc" | "price_desc";
+
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: "recent", label: "Más recientes" },
+  { value: "best_selling", label: "Más vendidos" },
+  { value: "low_stock", label: "Stock más bajo" },
+  { value: "price_asc", label: "Precio: menor a mayor" },
+  { value: "price_desc", label: "Precio: mayor a menor" },
+];
+
+function csvField(value: string | number): string {
+  const s = String(value);
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
 const EMPTY_FORM = {
@@ -70,7 +87,7 @@ function discountPct(price: number, compare?: number) {
 ════════════════════════════ */
 function ProductCard({
   product, onEdit, onDelete, onToggleStatus, onDuplicate, duplicating,
-  selectMode, selected, onToggleSelect, currency, locale,
+  selectMode, selected, onToggleSelect, currency, locale, onQuickUpdate,
 }: {
   product: Product;
   onEdit: () => void;
@@ -83,12 +100,47 @@ function ProductCard({
   onToggleSelect: () => void;
   currency: string;
   locale: string;
+  onQuickUpdate: (field: "price_cents" | "stock", value: number) => Promise<boolean>;
 }) {
   const img = getPrimaryImg(product);
   const discount = discountPct(product.price_cents, product.compare_price);
   const active = product.status === "active";
   const countdown = useSaleCountdown(product.sale_ends_at);
   const [imgError, setImgError] = useState(false);
+  const [editingField, setEditingField] = useState<"price" | "stock" | null>(null);
+  const [quickValue, setQuickValue] = useState("");
+  const [savedFlash, setSavedFlash] = useState<"price" | "stock" | null>(null);
+  const quickInputRef = useRef<HTMLInputElement>(null);
+
+  function startQuickEdit(field: "price" | "stock", e: React.MouseEvent) {
+    if (selectMode) return;
+    e.stopPropagation();
+    setEditingField(field);
+    setQuickValue(field === "price" ? String(product.price_cents / 100) : String(product.stock ?? ""));
+    setTimeout(() => { quickInputRef.current?.focus(); quickInputRef.current?.select(); }, 0);
+  }
+
+  async function commitQuickEdit() {
+    if (!editingField) return;
+    const field = editingField;
+    const raw = quickValue.trim();
+    setEditingField(null);
+    if (raw === "") return;
+    const num = field === "price" ? Math.round(parseFloat(raw) * 100) : parseInt(raw, 10);
+    if (isNaN(num) || num < 0) { toast.error("Valor inválido"); return; }
+    if (field === "price" && num === product.price_cents) return;
+    if (field === "stock" && num === product.stock) return;
+    const ok = await onQuickUpdate(field === "price" ? "price_cents" : "stock", num);
+    if (ok) {
+      setSavedFlash(field);
+      setTimeout(() => setSavedFlash(null), 1200);
+    }
+  }
+
+  function quickEditKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") { e.currentTarget.blur(); }
+    else if (e.key === "Escape") { setEditingField(null); }
+  }
 
   return (
     <div
@@ -159,9 +211,32 @@ function ProductCard({
           {product.name}
         </p>
         <div className="flex items-center gap-2 mt-0.5">
-          <span className="font-display font-bold text-sm" style={{ color: "var(--brand-600)" }}>
-            {formatPrice(product.price_cents, currency, locale)}
-          </span>
+          {editingField === "price" ? (
+            <input
+              ref={quickInputRef}
+              type="number"
+              step="0.10"
+              min="0.10"
+              className="input py-0.5 px-1.5 text-sm font-bold"
+              style={{ width: 80, color: "var(--brand-600)" }}
+              value={quickValue}
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => setQuickValue(e.target.value)}
+              onBlur={commitQuickEdit}
+              onKeyDown={quickEditKeyDown}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={(e) => startQuickEdit("price", e)}
+              className="font-display font-bold text-sm flex items-center gap-1 rounded transition-colors"
+              style={{ color: "var(--brand-600)" }}
+              title="Click para editar el precio"
+            >
+              {formatPrice(product.price_cents, currency, locale)}
+              {savedFlash === "price" && <Check size={12} style={{ color: "var(--success)" }} />}
+            </button>
+          )}
           {product.compare_price && (
             <span className="text-xs line-through" style={{ color: "var(--ink-3)" }}>
               {formatPrice(product.compare_price, currency, locale)}
@@ -170,15 +245,34 @@ function ProductCard({
         </div>
         <div className="flex items-center gap-2 mt-1">
           {product.stock != null && (
-            <span
-              className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-              style={{
-                background: product.stock > 0 ? "var(--success-soft)" : "var(--danger-soft)",
-                color: product.stock > 0 ? "var(--success)" : "var(--danger)",
-              }}
-            >
-              {product.stock > 0 ? `${product.stock} en stock` : "Agotado"}
-            </span>
+            editingField === "stock" ? (
+              <input
+                ref={quickInputRef}
+                type="number"
+                min="0"
+                className="input py-0.5 px-1.5 text-[10px] font-semibold"
+                style={{ width: 64 }}
+                value={quickValue}
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => setQuickValue(e.target.value)}
+                onBlur={commitQuickEdit}
+                onKeyDown={quickEditKeyDown}
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={(e) => startQuickEdit("stock", e)}
+                className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                style={{
+                  background: product.stock > 0 ? "var(--success-soft)" : "var(--danger-soft)",
+                  color: product.stock > 0 ? "var(--success)" : "var(--danger)",
+                }}
+                title="Click para editar el stock"
+              >
+                {product.stock > 0 ? `${product.stock} en stock` : "Agotado"}
+                {savedFlash === "stock" && <Check size={10} />}
+              </button>
+            )
           )}
           {countdown && (
             <span
@@ -324,6 +418,8 @@ export default function ProductosPage() {
   const [discountPercent, setDiscountPercent] = useState("");
   const [showStockModal, setShowStockModal] = useState(false);
   const [stockDelta, setStockDelta] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("recent");
+  const [exporting, setExporting] = useState(false);
 
   /* IDs de imágenes originales al abrir edición (para saber cuáles borrar) */
   const origImagesRef = useRef<ProductImage[]>([]);
@@ -346,16 +442,79 @@ export default function ProductosPage() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  /* ── Filtered list ── */
-  const visible = products.filter((p) => {
-    const q = search.toLowerCase();
-    const matchSearch = !q || p.name.toLowerCase().includes(q);
-    const matchFilter =
-      filter === "all" ? true :
-        filter === "active" ? p.status === "active" :
-          p.status !== "active";
-    return matchSearch && matchFilter;
-  });
+  /* ── Filtered + sorted list ── */
+  const visible = products
+    .filter((p) => {
+      const q = search.toLowerCase();
+      const matchSearch = !q || p.name.toLowerCase().includes(q);
+      const matchFilter =
+        filter === "all" ? true :
+          filter === "active" ? p.status === "active" :
+            p.status !== "active";
+      return matchSearch && matchFilter;
+    })
+    .sort((a, b) => {
+      switch (sortKey) {
+        case "best_selling":
+          return (b.sold_count ?? 0) - (a.sold_count ?? 0);
+        case "low_stock":
+          // Sin límite de stock (null) va al final — no es "poco stock", es infinito.
+          if (a.stock == null && b.stock == null) return 0;
+          if (a.stock == null) return 1;
+          if (b.stock == null) return -1;
+          return a.stock - b.stock;
+        case "price_asc":
+          return a.price_cents - b.price_cents;
+        case "price_desc":
+          return b.price_cents - a.price_cents;
+        default:
+          return 0; // "recent" — el orden que ya trae del servidor
+      }
+    });
+
+  /* ── Edición rápida de precio/stock (sin abrir el modal completo) ── */
+  async function quickUpdate(id: string, field: "price_cents" | "stock", value: number): Promise<boolean> {
+    try {
+      await apiClient.patch(`/products/${id}`, { [field]: value });
+      setProducts((prev) => prev.map((p) => p.id === id ? { ...p, [field]: value } : p));
+      return true;
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail ?? "No se pudo guardar");
+      return false;
+    }
+  }
+
+  /* ── Exportar CSV ── */
+  async function exportCSV() {
+    if (visible.length === 0) {
+      toast.error("No hay productos para exportar");
+      return;
+    }
+    setExporting(true);
+    try {
+      const header = ["Nombre", "Precio", "Stock", "Categoría", "Estado", "Vendidos"];
+      const rows = visible.map((p) => [
+        p.name,
+        (p.price_cents / 100).toFixed(2),
+        p.stock != null ? String(p.stock) : "Ilimitado",
+        categories.find((c) => c.id === p.category_id)?.name ?? "",
+        p.status === "active" ? "Activo" : "Inactivo",
+        String(p.sold_count ?? 0),
+      ]);
+      const csv = [header, ...rows].map((r) => r.map(csvField).join(",")).join("\n");
+      const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `productos-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
+    }
+  }
 
   /* ── Open / close form ── */
   function openCreate() {
@@ -581,6 +740,22 @@ export default function ProductosPage() {
           <div className="flex items-center gap-2">
             {products.length > 0 && (
               <button
+                onClick={exportCSV}
+                disabled={exporting}
+                title="Exportar catálogo a CSV"
+                className="rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50"
+                style={{
+                  padding: "10px 12px",
+                  background: "var(--surface)",
+                  color: "var(--ink-2)",
+                  border: "1.5px solid var(--line-2)",
+                }}
+              >
+                <Download size={14} /> {exporting ? "..." : "CSV"}
+              </button>
+            )}
+            {products.length > 0 && (
+              <button
                 onClick={toggleSelectMode}
                 className="rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
                 style={{
@@ -635,6 +810,27 @@ export default function ProductosPage() {
             ))}
           </div>
         </div>
+
+        {/* Orden */}
+        <div className="mt-2">
+          <div className="relative inline-block">
+            <select
+              className="input pr-8 py-2 text-xs font-semibold w-auto"
+              value={sortKey}
+              onChange={(e) => setSortKey(e.target.value as SortKey)}
+              style={{ appearance: "none" }}
+            >
+              {SORT_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+            <ChevronDown
+              size={12}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
+              style={{ color: "var(--ink-3)" }}
+            />
+          </div>
+        </div>
       </div>
 
       {/* ── List ── */}
@@ -678,6 +874,7 @@ export default function ProductosPage() {
               onToggleSelect={() => toggleSelected(p.id)}
               currency={currency}
               locale={locale}
+              onQuickUpdate={(field, value) => quickUpdate(p.id, field, value)}
             />
           ))
         )}

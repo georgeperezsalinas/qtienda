@@ -3,10 +3,18 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
-import { Search, Phone, MapPin, Package, ExternalLink } from "lucide-react";
+import { Search, Phone, MapPin, Package, ExternalLink, Volume2, VolumeX, Download, Printer } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
 import { formatPrice, getStoreCurrency, type StoreCurrency } from "@/lib/utils";
+import { playNewOrderBeep } from "@/lib/beep";
+
+const SOUND_KEY = "qtienda_order_sound_enabled";
+
+function csvField(value: string | number): string {
+  const s = String(value);
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
 
 const STATUSES = [
   { value: "", label: "Todos" },
@@ -349,6 +357,19 @@ export default function PedidosPage() {
   // IDs de la última carga — para detectar pedidos nuevos en el polling
   // silencioso sin necesitar otro endpoint.
   const knownOrderIds = useRef<Set<string> | null>(null);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+
+  useEffect(() => {
+    setSoundEnabled(localStorage.getItem(SOUND_KEY) !== "0");
+  }, []);
+
+  function toggleSound() {
+    setSoundEnabled((prev) => {
+      const next = !prev;
+      localStorage.setItem(SOUND_KEY, next ? "1" : "0");
+      return next;
+    });
+  }
 
   // Slug de la tienda: para el link "Ver como comprador" en el detalle del pedido
   useEffect(() => {
@@ -387,6 +408,7 @@ export default function PedidosPage() {
         fresh.forEach((o: Order) => {
           toast.success(`🛎️ Nuevo pedido #${o.order_number} — ${o.buyer_name}`, { duration: 6000 });
         });
+        if (fresh.length > 0 && soundEnabled) playNewOrderBeep();
       }
       knownOrderIds.current = new Set(data.items.map((o: Order) => o.id));
 
@@ -395,7 +417,7 @@ export default function PedidosPage() {
     } finally {
       if (!opts?.silent) setLoading(false);
     }
-  }, [statusFilter, search, page, dateRange]);
+  }, [statusFilter, search, page, dateRange, soundEnabled]);
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
@@ -496,14 +518,137 @@ export default function PedidosPage() {
     }).format(new Date(iso));
   }
 
+  /* ── Exportar CSV — respeta los filtros activos (estado, fecha, búsqueda) ── */
+  const [exporting, setExporting] = useState(false);
+  async function exportCSV() {
+    setExporting(true);
+    try {
+      const params = new URLSearchParams({ limit: "100" });
+      if (statusFilter) params.set("status", statusFilter);
+      if (search) params.set("search", search);
+      if (dateRange !== "") {
+        const from = new Date();
+        from.setDate(from.getDate() - Number(dateRange));
+        params.set("from_date", toISODate(from));
+      }
+      const all: Order[] = [];
+      let p = 1;
+      while (p <= 50) {
+        params.set("page", String(p));
+        const { data } = await apiClient.get(`/orders/?${params}`);
+        all.push(...(data.items ?? []));
+        if (!data.pages || p >= data.pages) break;
+        p++;
+      }
+      if (all.length === 0) {
+        toast.error("No hay pedidos para exportar con estos filtros");
+        return;
+      }
+      const header = ["Número", "Fecha", "Cliente", "Teléfono", "Total", "Estado", "Entrega"];
+      const rows = all.map((o) => [
+        o.order_number,
+        new Date(o.created_at).toLocaleString("es-PE"),
+        o.buyer_name,
+        o.buyer_phone,
+        (o.total_cents / 100).toFixed(2),
+        STATUS_LABELS[o.status]?.label ?? o.status,
+        o.service_type === "pickup" ? "Recojo en tienda" : "Delivery",
+      ]);
+      const csv = [header, ...rows].map((r) => r.map(csvField).join(",")).join("\n");
+      const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `pedidos-${toISODate(new Date())}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error("No se pudo exportar el CSV");
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  /* ── Imprimir boleta/etiqueta del pedido seleccionado ──
+     Ventana aparte con solo el recibo — más simple y confiable que pelear
+     con @media print contra todo el layout del dashboard (sidebar, header). */
+  function printOrder() {
+    if (!selected) return;
+    const o = selected;
+    const win = window.open("", "_blank", "width=420,height=600");
+    if (!win) { toast.error("Habilita las ventanas emergentes para imprimir"); return; }
+
+    const itemsRows = o.items.map((it) => `
+      <tr>
+        <td style="padding:6px 0;">${it.product_name}</td>
+        <td style="padding:6px 0;text-align:center;">x${it.quantity}</td>
+        <td style="padding:6px 0;text-align:right;">${formatPrice(it.unit_price * it.quantity, storeCurrency.code, storeCurrency.locale)}</td>
+      </tr>
+    `).join("");
+
+    const deliveryLine = o.service_type === "pickup"
+      ? "<strong>Recojo en tienda</strong> — no enviar"
+      : [o.buyer_address, [o.buyer_district, o.buyer_province, o.buyer_department].filter(Boolean).join(", ")]
+          .filter(Boolean).join("<br>") || "Sin dirección registrada";
+
+    win.document.write(`
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="utf-8">
+        <title>Pedido #${o.order_number}</title>
+        <style>
+          * { box-sizing: border-box; }
+          body { font-family: Arial, Helvetica, sans-serif; color: #111; padding: 20px; max-width: 380px; margin: 0 auto; }
+          h1 { font-size: 18px; margin: 0 0 2px; }
+          .muted { color: #555; font-size: 12px; }
+          hr { border: none; border-top: 1px solid #ccc; margin: 12px 0; }
+          table { width: 100%; border-collapse: collapse; font-size: 13px; }
+          .total-row td { border-top: 2px solid #111; font-weight: bold; padding-top: 8px; }
+          .box { border: 1px solid #999; border-radius: 6px; padding: 10px; margin: 10px 0; font-size: 13px; }
+          @media print { body { padding: 0; } }
+        </style>
+      </head>
+      <body>
+        <h1>Pedido #${o.order_number}</h1>
+        <p class="muted">${new Date(o.created_at).toLocaleString("es-PE")} · Estado: ${STATUS_LABELS[o.status]?.label ?? o.status}</p>
+        <hr>
+        <p><strong>${o.buyer_name}</strong><br>${o.buyer_phone}</p>
+        <div class="box">${deliveryLine}</div>
+        <table>
+          ${itemsRows}
+          <tr class="total-row">
+            <td colspan="2">Total</td>
+            <td style="text-align:right;">${formatPrice(o.total_cents, storeCurrency.code, storeCurrency.locale)}</td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `);
+    win.document.close();
+    win.onload = () => { win.focus(); win.print(); };
+  }
+
   /* Detalle de pedido: se reutiliza en el drawer móvil y el panel lateral desktop */
   const detailContent = selected && (
     <>
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-display font-bold text-lg" style={{ color: "var(--ink)" }}>Pedido #{selected.order_number}</h2>
-        <span className={`badge ${STATUS_LABELS[selected.status]?.cls}`}>
-          {STATUS_LABELS[selected.status]?.label}
-        </span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={printOrder}
+            title="Imprimir boleta"
+            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+            style={{ background: "var(--surface-2)", color: "var(--ink-2)" }}
+          >
+            <Printer size={14} />
+          </button>
+          <span className={`badge ${STATUS_LABELS[selected.status]?.cls}`}>
+            {STATUS_LABELS[selected.status]?.label}
+          </span>
+        </div>
       </div>
 
       {storeSlug && (
@@ -617,7 +762,28 @@ export default function PedidosPage() {
 
   return (
     <div className="p-5 md:p-8 max-w-2xl lg:max-w-6xl mx-auto">
-      <h1 className="font-display font-bold text-xl lg:text-2xl mb-4 lg:mb-6" style={{ color: "var(--ink)" }}>Pedidos</h1>
+      <div className="flex items-center justify-between mb-4 lg:mb-6">
+        <h1 className="font-display font-bold text-xl lg:text-2xl" style={{ color: "var(--ink)" }}>Pedidos</h1>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={toggleSound}
+            title={soundEnabled ? "Silenciar aviso de pedido nuevo" : "Activar aviso de pedido nuevo"}
+            className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ background: "var(--surface-2)", color: "var(--ink-2)", border: "1.5px solid var(--line-2)" }}
+          >
+            {soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
+          </button>
+          <button
+            onClick={exportCSV}
+            disabled={exporting}
+            title="Exportar pedidos (según filtros) a CSV"
+            className="rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50"
+            style={{ padding: "9px 12px", background: "var(--surface-2)", color: "var(--ink-2)", border: "1.5px solid var(--line-2)" }}
+          >
+            <Download size={14} /> {exporting ? "..." : "CSV"}
+          </button>
+        </div>
+      </div>
 
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-6 lg:items-start">
       <div>

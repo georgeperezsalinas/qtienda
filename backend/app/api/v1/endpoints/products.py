@@ -13,7 +13,7 @@ from sqlalchemy.orm import selectinload
 from app.db.session import get_db
 from app.core.config import settings
 from app.core.security import require_vendor
-from app.models.models import Category, Plan, Product, ProductImage, Store, Subscription
+from app.models.models import Category, Order, OrderItem, Plan, Product, ProductImage, Store, Subscription
 from app.schemas.auth import ProductCreate, ProductUpdate
 from app.services.referrals import referral_bonus
 
@@ -113,12 +113,25 @@ async def list_products(
     )
     products = result.scalars().all()
 
+    # Vendidos (histórico, no ligado a un período) — para poder ordenar por
+    # "más vendido" en el dashboard sin una llamada aparte por producto.
+    product_ids = [p.id for p in products]
+    sold_map: dict = {}
+    if product_ids:
+        sold_rows = (await db.execute(
+            select(OrderItem.product_id, func.sum(OrderItem.quantity))
+            .join(Order, Order.id == OrderItem.order_id)
+            .where(OrderItem.product_id.in_(product_ids), Order.status != "cancelled")
+            .group_by(OrderItem.product_id)
+        )).all()
+        sold_map = {pid: int(qty) for pid, qty in sold_rows}
+
     return {
         "total": total,
         "page": page,
         "limit": limit,
         "pages": -(-total // limit),
-        "items": [_serialize(p) for p in products],
+        "items": [{**_serialize(p), "sold_count": sold_map.get(p.id, 0)} for p in products],
     }
 
 
