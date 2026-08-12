@@ -1,6 +1,7 @@
 // src/app/page.tsx — qtienda v2 (landing pública)
 
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import Link from "next/link";
 import {
   ArrowRight, ChevronRight, Package, Store, Share2, Wallet,
@@ -305,8 +306,12 @@ export default function LandingPage() {
             ))}
           </div>
 
-          {/* Social proof — tiendas reales, no un conteo inventado */}
-          <HeroSocialProof />
+          {/* Social proof — tiendas reales, no un conteo inventado. En Suspense
+              para que dos llamadas a la API no dejen la landing entera en
+              blanco mientras cargan — el resto de la página ya se ve. */}
+          <Suspense fallback={null}>
+            <HeroSocialProof />
+          </Suspense>
         </div>
 
         {/* Vitrina de ejemplo (solo desktop) — mockup con contenido real
