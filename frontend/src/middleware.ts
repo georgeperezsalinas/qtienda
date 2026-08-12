@@ -38,6 +38,12 @@ export function middleware(req: NextRequest) {
     if (match) {
       const [, slug, rest] = match;
       const url = req.nextUrl.clone();
+      // nextUrl hereda protocolo/puerto de cómo Next.js ve la request
+      // internamente (detrás de nginx, eso es http://<container>:3000) — sin
+      // esto el Location quedaba en "https://slug.qtienda.shop:3000/", un
+      // puerto inalcanzable desde afuera que dejaba el navegador colgado.
+      url.protocol = "https:";
+      url.port = "";
       url.hostname = `${slug}.${ROOT_DOMAIN}`;
       url.pathname = rest || "/";
       return NextResponse.redirect(url, 301);
