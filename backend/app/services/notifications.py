@@ -244,7 +244,14 @@ async def emit_event(store_id: str, event_type: str, **ctx) -> None:
             action_url=action_url,
         )
         if event_type in _ONCE_TYPES:
-            stmt = stmt.on_conflict_do_nothing(index_elements=["store_id", "type"])
+            # uq_notifications_store_once es un índice ÚNICO PARCIAL (solo
+            # cubre los tipos "once") — Postgres exige repetir el mismo WHERE
+            # acá para poder inferirlo, si no tira "no unique or exclusion
+            # constraint matching the ON CONFLICT specification".
+            stmt = stmt.on_conflict_do_nothing(
+                index_elements=["store_id", "type"],
+                index_where=Notification.type.in_(_ONCE_TYPES),
+            )
         stmt = stmt.returning(Notification.id)
 
         try:
