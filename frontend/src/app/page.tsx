@@ -5,10 +5,7 @@ import Link from "next/link";
 import {
   ArrowRight, ChevronRight, Package, Store, Share2, Wallet,
   MessageCircle, Percent, Truck, ShoppingBag,
-  Flashlight,
-  DollarSign,
-  WholeWord,
-  Heart,
+  Heart, Ticket, Sparkles, Star, RotateCcw,
 } from "lucide-react";
 import Logo from "@/components/ui/Logo";
 import HomeInstallBanner from "@/components/ui/HomeInstallBanner";
@@ -154,7 +151,7 @@ async function HeroSocialProof() {
 
 const STEPS = [
   [Store, "Crea tu tienda en 2 minutos", "Nombre, logo y color. Sin tarjeta, sin pasos técnicos — 2 minutos."],
-  [Share2, "Publica tus productos y comparte", "Foto, precio y descripción. Tu link qtienda.shop/tu-nombre queda listo para difundir."],
+  [Share2, "Publica tus productos y comparte", "Foto, precio y descripción. Tu link tu-nombre.qtienda.shop queda listo para difundir — tu propia web."],
   [MessageCircle, "Empieza a vender por WhatsApp", "Cada venta cae a tu chat. Cobras por Yape, Plin, transferencia o efectivo."],
   [Heart, "Aparece en el Mall QTienda", "Gana visibilidad adicional para atraer nuevos clientes."],
 
@@ -162,10 +159,14 @@ const STEPS = [
 
 
 const FEATURES = [
-  [Share2, "Link propio", "qtienda.shop/tu-nombre, listo al crear tu cuenta."],
+  [Share2, "Tu propia web", "tu-nombre.qtienda.shop — tu link, tu marca, no una página adentro de otra."],
   [MessageCircle, "WhatsApp directo", "Cada pedido cae a tu chat, sin intermediarios."],
   [Wallet, "Pagos como vendes", "Tarjeta, Yape/Plin, transferencia o efectivo."],
-  [Truck, "Envíos sin calculadora", "Costo por zona o gratis sobre cierto monto."],
+  [Ticket, "Cupones de descuento", "Crea códigos como \"TIKTOK20\" para tus lives y campañas."],
+  [Sparkles, "Ruleta de premios", "Sorprende a quien entra por primera vez con un descuento sorpresa."],
+  [Truck, "Envío o recojo en tienda", "Vos decides cómo entregas — el comprador elige al pagar."],
+  [Star, "Reseñas con fotos", "Tus compradores dejan reseñas verificadas, con foto incluida."],
+  [RotateCcw, "Recuperas carritos abandonados", "Si alguien casi compra y se fue, te avisamos para que lo contactes."],
   [Percent, "Sin comisión", "Cobras todo. El plan free dura para siempre."],
 ] as const;
 
@@ -323,7 +324,7 @@ export default function LandingPage() {
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p className="text-sm font-bold truncate" style={{ color: "var(--ink)" }}>Dulces de Mica</p>
-                <p className="text-[11px] mono" style={{ color: "var(--ink-3)" }}>qtienda.shop/dulcesdemica</p>
+                <p className="text-[11px] mono" style={{ color: "var(--ink-3)" }}>dulcesdemica.qtienda.shop</p>
               </div>
               <span className="badge badge-success">Abierto</span>
             </div>
@@ -396,7 +397,7 @@ export default function LandingPage() {
         <div className="card p-5 md:p-7 animate-fade-up delay-200">
           <p className="eyebrow mb-3">Cómo se ve tu link</p>
           <p className="mono mb-5" style={{ fontSize: 22, fontWeight: 500, letterSpacing: "-0.01em" }}>
-            qtienda.shop/<span style={{ color: "var(--accent)" }}>tu-nombre</span>
+            <span style={{ color: "var(--accent)" }}>tu-nombre</span>.qtienda.shop
           </p>
           {/* Vista previa genérica de la grilla de productos — sin datos
               inventados, solo la forma de una tarjeta (foto + nombre + precio) */}
