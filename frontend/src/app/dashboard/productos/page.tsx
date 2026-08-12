@@ -728,8 +728,8 @@ export default function ProductosPage() {
         className="sticky top-0 z-10 px-5 pt-[max(20px,env(safe-area-inset-top))] md:pt-[max(28px,env(safe-area-inset-top))] pb-4"
         style={{ background: "var(--surface)", borderBottom: "1px solid var(--line)" }}
       >
-        <div className="flex items-center justify-between mb-4">
-          <div>
+        <div className="flex items-center justify-between gap-2 flex-wrap mb-4">
+          <div className="min-w-0">
             <h1 className="font-display font-extrabold text-xl" style={{ color: "var(--ink)" }}>
               Productos
             </h1>
@@ -737,41 +737,42 @@ export default function ProductosPage() {
               {products.length} producto{products.length !== 1 ? "s" : ""}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
             {products.length > 0 && (
               <button
                 onClick={exportCSV}
                 disabled={exporting}
                 title="Exportar catálogo a CSV"
-                className="rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50"
+                className="rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 flex-shrink-0"
                 style={{
-                  padding: "10px 12px",
+                  padding: "10px",
                   background: "var(--surface)",
                   color: "var(--ink-2)",
                   border: "1.5px solid var(--line-2)",
                 }}
               >
-                <Download size={14} /> {exporting ? "..." : "CSV"}
+                <Download size={14} /> <span className="hidden sm:inline">{exporting ? "..." : "CSV"}</span>
               </button>
             )}
             {products.length > 0 && (
               <button
                 onClick={toggleSelectMode}
-                className="rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+                title={selectMode ? "Cancelar selección" : "Seleccionar productos"}
+                className="rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 flex-shrink-0"
                 style={{
-                  padding: "10px 12px",
+                  padding: "10px",
                   background: selectMode ? "var(--ink)" : "var(--surface)",
                   color: selectMode ? "var(--bg)" : "var(--ink-2)",
                   border: `1.5px solid ${selectMode ? "var(--ink)" : "var(--line-2)"}`,
                 }}
               >
-                <CheckSquare size={14} /> {selectMode ? "Cancelar" : "Seleccionar"}
+                <CheckSquare size={14} /> <span className="hidden sm:inline">{selectMode ? "Cancelar" : "Seleccionar"}</span>
               </button>
             )}
             <button
               onClick={openCreate}
-              className="btn-primary"
-              style={{ width: "auto", padding: "10px 16px" }}
+              className="btn-primary flex-shrink-0"
+              style={{ width: "auto", padding: "10px 14px" }}
             >
               <Plus size={16} /> Agregar
             </button>
