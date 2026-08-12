@@ -326,6 +326,7 @@ async def list_orders(
                 "created_at": o.created_at,
                 "assigned_to_id": o.assigned_to_id,
                 "assigned_to_name": o.assigned_to.full_name if o.assigned_to else None,
+                "service_type": o.service_type,
             }
             for o in orders
         ],
@@ -367,6 +368,7 @@ async def get_order(
         "buyer_district": order.buyer_district,
         "buyer_address": order.buyer_address,
         "buyer_reference": order.buyer_reference,
+        "service_type": order.service_type,
         "subtotal_cents": order.subtotal_cents,
         "delivery_cents": order.delivery_cents,
         "discount_cents": order.discount_cents,

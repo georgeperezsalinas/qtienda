@@ -476,6 +476,8 @@ async def get_store(request: Request, slug: str, db: AsyncSession = Depends(get_
             "tiktok_pixel_id": store.settings.tiktok_pixel_id if store.settings else None,
             "meta_pixel_id": store.settings.meta_pixel_id if store.settings else None,
             "google_analytics_id": store.settings.google_analytics_id if store.settings else None,
+            "accept_pickup": store.settings.accept_pickup if store.settings else False,
+            "pickup_instructions": store.settings.pickup_instructions if store.settings else None,
         } if store.settings else {},
         "meta_title": store.meta_title or store.name,
         "meta_desc": store.meta_desc,
@@ -884,9 +886,20 @@ async def create_order(
         )
 
     settings = store.settings
-    delivery_cents = settings.delivery_fee_cents if settings else 0
-    if settings and settings.free_delivery_above and subtotal >= settings.free_delivery_above:
+
+    # Recojo en tienda: solo valido si el vendedor lo activó — evita que se
+    # pueda esquivar el costo de delivery pidiendo pickup en una tienda que
+    # nunca lo ofreció.
+    service_type = payload.service_type or "delivery"
+    if service_type == "pickup" and not (settings and settings.accept_pickup):
+        raise HTTPException(status_code=422, detail="Esta tienda no ofrece recojo en tienda")
+
+    if service_type == "pickup":
         delivery_cents = 0
+    else:
+        delivery_cents = settings.delivery_fee_cents if settings else 0
+        if settings and settings.free_delivery_above and subtotal >= settings.free_delivery_above:
+            delivery_cents = 0
 
     total = subtotal + delivery_cents
 
@@ -976,6 +989,7 @@ async def create_order(
         utm_source=payload.utm_source,
         utm_campaign=payload.utm_campaign,
         coupon_code=coupon_code,
+        service_type=service_type,
         ip_address=request.client.host if request.client else None,
         user_agent=request.headers.get("user-agent"),
     )

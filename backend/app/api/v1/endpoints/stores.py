@@ -180,6 +180,8 @@ async def my_store(
             "tiktok_pixel_id": store.settings.tiktok_pixel_id,
             "meta_pixel_id": store.settings.meta_pixel_id,
             "google_analytics_id": store.settings.google_analytics_id,
+            "accept_pickup": store.settings.accept_pickup,
+            "pickup_instructions": store.settings.pickup_instructions,
         } if store.settings else None,
         "created_at": store.created_at,
     }

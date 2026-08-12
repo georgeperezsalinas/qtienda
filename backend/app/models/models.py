@@ -179,6 +179,11 @@ class StoreSettings(Base):
     tiktok_pixel_id: Mapped[Optional[str]]      = mapped_column(String(40))
     meta_pixel_id: Mapped[Optional[str]]        = mapped_column(String(40))
     google_analytics_id: Mapped[Optional[str]]  = mapped_column(String(40))
+    # Recojo en tienda — alternativa al delivery. accept_pickup activa el
+    # selector en el checkout; pickup_instructions es texto libre del
+    # vendedor (dirección + referencia), no una dirección estructurada.
+    accept_pickup: Mapped[bool]          = mapped_column(Boolean, default=False)
+    pickup_instructions: Mapped[Optional[str]] = mapped_column(Text)
     updated_at: Mapped[datetime]         = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     store: Mapped["Store"] = relationship(back_populates="settings")
@@ -292,6 +297,8 @@ class Order(Base):
     delivered_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     review_reminder_sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     coupon_code: Mapped[Optional[str]] = mapped_column(String(30))
+    # 'delivery' | 'pickup' — default 'delivery' para no romper pedidos viejos.
+    service_type: Mapped[str] = mapped_column(String(10), default="delivery")
 
     store: Mapped["Store"]                  = relationship(back_populates="orders")
     items: Mapped[List["OrderItem"]]        = relationship(back_populates="order", cascade="all, delete-orphan")

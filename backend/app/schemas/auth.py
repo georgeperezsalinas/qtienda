@@ -191,6 +191,8 @@ class StoreSettingsUpdate(BaseModel):
     tiktok_pixel_id: Optional[str] = None
     meta_pixel_id: Optional[str] = None
     google_analytics_id: Optional[str] = None
+    accept_pickup: Optional[bool] = None
+    pickup_instructions: Optional[str] = None
 
     @field_validator("tiktok_pixel_id", "meta_pixel_id", "google_analytics_id")
     @classmethod
@@ -301,6 +303,16 @@ class PublicOrderCreate(BaseModel):
     # session_id del carrito (analyticsSession.ts) — permite marcar el
     # AbandonedCart de esta sesión como 'recovered' al completar el pedido.
     cart_session_id: Optional[str] = None
+    # 'delivery' (default, compatible con clientes viejos como la app móvil)
+    # o 'pickup' — si es pickup, el backend no cobra delivery_cents.
+    service_type: Optional[str] = "delivery"
+
+    @field_validator("service_type")
+    @classmethod
+    def valid_service_type(cls, v):
+        if v not in ("delivery", "pickup"):
+            raise ValueError("Tipo de servicio inválido")
+        return v
 
     @field_validator("items")
     @classmethod

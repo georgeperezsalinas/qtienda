@@ -62,6 +62,7 @@ interface Order {
   created_at: string;
   assigned_to_id?: string | null;
   assigned_to_name?: string | null;
+  service_type?: string;
 }
 
 interface Staff {
@@ -543,6 +544,14 @@ export default function PedidosPage() {
             {selected.buyer_dni}
           </div>
         )}
+        {selected.service_type === "pickup" && (
+          <div
+            className="flex items-center gap-2 text-sm font-bold px-3 py-2 rounded-xl"
+            style={{ background: "var(--success-soft)", color: "var(--success)" }}
+          >
+            🏪 Recoge su pedido en la tienda — no hay que enviarlo
+          </div>
+        )}
         {(selected.buyer_address || selected.buyer_district) && (
           <div className="flex items-start gap-2 text-sm" style={{ color: "var(--ink-2)" }}>
             <MapPin size={14} className="mt-0.5" style={{ color: "var(--ink-4)" }} />
@@ -590,7 +599,8 @@ export default function PedidosPage() {
           <span>Subtotal</span><span>{formatPrice(selected.subtotal_cents, storeCurrency.code, storeCurrency.locale)}</span>
         </div>
         <div className="flex justify-between" style={{ color: "var(--ink-2)" }}>
-          <span>Delivery</span><span>{formatPrice(selected.delivery_cents, storeCurrency.code, storeCurrency.locale)}</span>
+          <span>{selected.service_type === "pickup" ? "Recojo en tienda" : "Delivery"}</span>
+          <span>{formatPrice(selected.delivery_cents, storeCurrency.code, storeCurrency.locale)}</span>
         </div>
         {!!selected.discount_cents && (
           <div className="flex justify-between" style={{ color: "var(--success)" }}>
@@ -673,6 +683,9 @@ export default function PedidosPage() {
                     <div className="flex items-center gap-2 mb-1">
                       <span className="font-bold text-sm" style={{ color: "var(--ink)" }}>#{order.order_number}</span>
                       <span className={`badge ${s.cls}`}>{s.label}</span>
+                      {order.service_type === "pickup" && (
+                        <span className="badge badge-info">🏪 Recojo</span>
+                      )}
                     </div>
                     <p className="text-sm font-medium truncate" style={{ color: "var(--ink-2)" }}>{order.buyer_name}</p>
                     <p className="text-xs" style={{ color: "var(--ink-4)" }}>{order.buyer_phone} · {order.items_count} ítem{order.items_count !== 1 ? "s" : ""}</p>

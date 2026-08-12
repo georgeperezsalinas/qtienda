@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { ChevronRight, MapPin, Truck, ShieldCheck, Copy, Check, Download, UserPlus, X } from "lucide-react";
+import { ChevronRight, MapPin, Truck, ShieldCheck, Copy, Check, Download, UserPlus, X, Store as StoreIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import { getOpenStatus } from "@/lib/storeHours";
@@ -34,6 +34,7 @@ interface DoorStoreData {
     accept_plin?: boolean;
     accept_transfer?: boolean;
     accept_card?: boolean;
+    accept_pickup?: boolean;
   };
 }
 
@@ -248,6 +249,14 @@ export default function StoreDoor({ store }: { store: DoorStoreData }) {
           >
             <Truck size={12} /> Envío a domicilio
           </span>
+          {store.settings?.accept_pickup && (
+            <span
+              className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-full"
+              style={{ background: "var(--surface-2)", color: "var(--ink-2)" }}
+            >
+              <StoreIcon size={12} /> Recojo en tienda
+            </span>
+          )}
           {paymentMethodsLabel && (
             <span
               className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-full"

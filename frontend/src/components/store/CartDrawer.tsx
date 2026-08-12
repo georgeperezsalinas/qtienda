@@ -188,10 +188,13 @@ export default function CartDrawer({ open, onClose, store }: Props) {
   // Checkout adaptado al país de la tienda: Perú usa DNI + ubigeo;
   // otros países ven etiquetas y validaciones genéricas.
   const isPE = (store.country || "PE") === "PE";
+  const canPickup = !!store.settings?.accept_pickup;
+  const [serviceType, setServiceType] = useState<"delivery" | "pickup">("delivery");
+  const isPickup = canPickup && serviceType === "pickup";
   const deliveryFee = store.settings?.delivery_fee_cents || 0;
   const freeAbove = store.settings?.free_delivery_above;
   const subtotal = totalCents();
-  const effectiveDel = freeAbove && subtotal >= freeAbove ? 0 : deliveryFee;
+  const effectiveDel = isPickup ? 0 : (freeAbove && subtotal >= freeAbove ? 0 : deliveryFee);
   const total = subtotal + effectiveDel;
   const minOrder = store.settings?.min_order_cents || 0;
   const belowMin = minOrder > 0 && total < minOrder;
@@ -281,11 +284,13 @@ export default function CartDrawer({ open, onClose, store }: Props) {
     }
     // El DNI/documento es opcional — el backend lo acepta vacío. Si el
     // comprador lo llena igual se valida el formato, para no guardar basura.
+    if (isPE && form.buyer_dni.trim() && !/^\d{8}$/.test(form.buyer_dni.trim())) {
+      toast.error("El DNI debe tener 8 dígitos");
+      return false;
+    }
+    // Recojo en tienda: no hay a dónde enviar, así que no se piden estos datos.
+    if (isPickup) return true;
     if (isPE) {
-      if (form.buyer_dni.trim() && !/^\d{8}$/.test(form.buyer_dni.trim())) {
-        toast.error("El DNI debe tener 8 dígitos");
-        return false;
-      }
       if (!form.buyer_department || !form.buyer_province.trim() || !form.buyer_district.trim()) {
         toast.error("Completa departamento, provincia y distrito");
         return false;
@@ -323,6 +328,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
         buyer_reference: form.buyer_reference.trim() || undefined,
         notes: form.notes.trim() || undefined,
         payment_method: form.payment_method,
+        service_type: isPickup ? "pickup" : "delivery",
         source: "tiktok",
         coupon_code: couponApplied?.code || undefined,
         cart_session_id: getSessionId(),
@@ -402,7 +408,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
               )}
               <h2 className="font-extrabold text-lg flex-1" style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}>
                 {step === "cart" && `Mi pedido (${items.length})`}
-                {step === "info" && "¿A dónde enviamos?"}
+                {step === "info" && (isPickup ? "Tus datos" : "¿A dónde enviamos?")}
                 {step === "payment" && "¿Cómo pagas?"}
                 {step === "success" && "¡Pedido enviado!"}
               </h2>
@@ -580,6 +586,29 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                   {/* ── STEP: INFO ── */}
                   {step === "info" && (
                     <div className="px-4 py-4 space-y-4">
+                      {canPickup && (
+                        <div className="grid grid-cols-2 gap-2">
+                          {(["delivery", "pickup"] as const).map((t) => {
+                            const selected = serviceType === t;
+                            return (
+                              <button
+                                key={t}
+                                type="button"
+                                onClick={() => setServiceType(t)}
+                                className="flex flex-col items-center gap-1 rounded-2xl py-3 text-xs font-bold transition-all active:scale-[.98]"
+                                style={{
+                                  border: `2px solid ${selected ? color : "var(--line-2)"}`,
+                                  background: selected ? `${color}09` : "var(--surface)",
+                                  color: selected ? color : "var(--ink-2)",
+                                }}
+                              >
+                                {t === "delivery" ? "🚚 Envío a domicilio" : "🏪 Recojo en tienda"}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+
                       <Field label="Nombre completo *" icon={<User size={11} />}>
                         <input
                           className="input"
@@ -634,7 +663,18 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                         )}
                       </Field>
 
-                      {isPE ? (
+                      {isPickup ? (
+                        <div
+                          className="rounded-2xl p-3.5 text-xs leading-relaxed"
+                          style={{ background: "var(--success-soft)", color: "var(--success)", border: "1px solid var(--line-2)" }}
+                        >
+                          <p className="font-bold mb-1">🏪 Recoges tu pedido en la tienda</p>
+                          <p>
+                            {store.settings?.pickup_instructions?.trim() ||
+                              "El vendedor te confirmará la dirección y el horario para recogerlo."}
+                          </p>
+                        </div>
+                      ) : isPE ? (
                         <>
                           <Field label="Departamento *" icon={<Landmark size={11} />}>
                             <select
@@ -701,24 +741,28 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                         </>
                       )}
 
-                      <Field label="Dirección de entrega *" icon={<MapPin size={11} />}>
-                        <input
-                          className="input"
-                          placeholder="Calle, número, urbanización…"
-                          autoComplete="street-address"
-                          value={form.buyer_address}
-                          onChange={(e) => setForm({ ...form, buyer_address: e.target.value })}
-                        />
-                      </Field>
+                      {!isPickup && (
+                        <>
+                          <Field label="Dirección de entrega *" icon={<MapPin size={11} />}>
+                            <input
+                              className="input"
+                              placeholder="Calle, número, urbanización…"
+                              autoComplete="street-address"
+                              value={form.buyer_address}
+                              onChange={(e) => setForm({ ...form, buyer_address: e.target.value })}
+                            />
+                          </Field>
 
-                      <Field label="Referencia de la dirección" icon={<MapPin size={11} />}>
-                        <input
-                          className="input"
-                          placeholder="Ej: frente al parque, casa de portón azul…"
-                          value={form.buyer_reference}
-                          onChange={(e) => setForm({ ...form, buyer_reference: e.target.value })}
-                        />
-                      </Field>
+                          <Field label="Referencia de la dirección" icon={<MapPin size={11} />}>
+                            <input
+                              className="input"
+                              placeholder="Ej: frente al parque, casa de portón azul…"
+                              value={form.buyer_reference}
+                              onChange={(e) => setForm({ ...form, buyer_reference: e.target.value })}
+                            />
+                          </Field>
+                        </>
+                      )}
 
                       <Field label="Nota para el vendedor" icon={<FileText size={11} />}>
                         <textarea
@@ -772,14 +816,21 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                           </p>
                         </div>
                         <div className="flex flex-col items-end gap-1.5">
-                          {deliveryFee > 0 && effectiveDel === 0 && (
+                          {isPickup ? (
+                            <span
+                              className="text-xs font-bold px-3 py-1.5 rounded-full whitespace-nowrap"
+                              style={{ background: "var(--success-soft)", color: "var(--success)" }}
+                            >
+                              🏪 Recojo en tienda
+                            </span>
+                          ) : deliveryFee > 0 && effectiveDel === 0 ? (
                             <span
                               className="text-xs font-bold px-3 py-1.5 rounded-full"
                               style={{ background: "var(--success-soft)", color: "var(--success)" }}
                             >
                               Delivery gratis 🎉
                             </span>
-                          )}
+                          ) : null}
                           {appliedDiscount > 0 && (
                             <span
                               className="text-xs font-bold px-3 py-1.5 rounded-full whitespace-nowrap"

@@ -29,6 +29,8 @@ import { getOpenStatus } from "@/lib/storeHours";
 import FiestasPatriasFloatingBadge from "@/components/ui/FiestasPatriasFloatingBadge";
 import WheelWidget from "./WheelWidget";
 import ClaimsModal from "./ClaimsModal";
+import IdleRedirectOverlay from "./IdleRedirectOverlay";
+import { useIdleRedirect } from "@/hooks/useIdleRedirect";
 
 interface StoreData {
   slug:          string;
@@ -499,6 +501,17 @@ export default function StorePage({ store, initialProducts }: Props) {
     }
   }, [cartOpen, store.slug]);
 
+  // Sin actividad por un rato → avisa con cuenta regresiva y vuelve a la
+  // puerta. Pausado mientras haya algo abierto (carrito, producto, cuenta,
+  // QR, filtro de precio, seguimiento de pedido) para no interrumpir nunca
+  // a alguien que está activamente mirando o comprando.
+  const idleRedirect = useIdleRedirect({
+    idleMs: 3 * 60_000,
+    warningMs: 15_000,
+    paused: cartOpen || !!viewProduct || accountOpen || qrOpen || trackOpen || priceFilterOpen,
+    onRedirect: () => router.push("/"),
+  });
+
   // Reseñas reales — solo se pide si la tienda ya tiene al menos una
   // (evita una llamada de red que siempre volvería vacía).
   useEffect(() => {
@@ -583,6 +596,14 @@ export default function StorePage({ store, initialProducts }: Props) {
 
       <FiestasPatriasFloatingBadge country={store.country} />
       <WheelWidget slug={store.slug} accentColor={color} />
+
+      <IdleRedirectOverlay
+        visible={idleRedirect.warning}
+        secondsLeft={idleRedirect.secondsLeft}
+        totalSeconds={15}
+        accentColor={color}
+        onStay={idleRedirect.stay}
+      />
 
       {/* Barra de dueño: así el vendedor no se pierde al ver su tienda pública */}
       {mounted && isOwner && (

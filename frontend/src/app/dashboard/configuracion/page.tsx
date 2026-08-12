@@ -176,6 +176,7 @@ export default function ConfiguracionPage() {
     welcome_discount_enabled: false, welcome_discount_cents: "5",
     delivery_zones: [] as string[],
     tiktok_pixel_id: "", meta_pixel_id: "", google_analytics_id: "",
+    accept_pickup: false, pickup_instructions: "",
   });
   const [newZone, setNewZone] = useState("");
 
@@ -249,6 +250,8 @@ export default function ConfiguracionPage() {
             welcome_discount_cents: storeData.settings.welcome_discount_cents
               ? String(storeData.settings.welcome_discount_cents / 100)
               : "5",
+            accept_pickup: storeData.settings.accept_pickup ?? false,
+            pickup_instructions: storeData.settings.pickup_instructions || "",
             delivery_zones: Array.isArray(storeData.settings.delivery_zones)
               ? storeData.settings.delivery_zones
               : [],
@@ -350,6 +353,8 @@ export default function ConfiguracionPage() {
         welcome_discount_enabled: settings.welcome_discount_enabled,
         welcome_discount_cents: Math.round(parseFloat(settings.welcome_discount_cents || "0") * 100),
         delivery_zones: settings.delivery_zones,
+        accept_pickup: settings.accept_pickup,
+        pickup_instructions: settings.pickup_instructions.trim() || undefined,
       });
       toast.success("Configuración guardada");
     } catch {
@@ -1016,6 +1021,33 @@ export default function ConfiguracionPage() {
                 <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">Delivery gratis desde (S/)</label>
                 <input className="input" type="number" min="0" step="0.50" placeholder="0 = sin mínimo" value={settings.free_delivery_above} onChange={(e) => setSettings({ ...settings, free_delivery_above: e.target.value })} />
               </div>
+            </div>
+
+            <div className="pt-2 border-t border-gray-100 space-y-3">
+              <Toggle
+                value={settings.accept_pickup}
+                onChange={(v) => setSettings({ ...settings, accept_pickup: v })}
+                label="Ofrezco recojo en tienda"
+              />
+              {settings.accept_pickup && (
+                <div>
+                  <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">
+                    Dirección e instrucciones de recojo
+                  </label>
+                  <textarea
+                    className="input resize-none"
+                    rows={2}
+                    placeholder="Ej: Av. Los Olivos 123, tienda al lado de la farmacia. Horario de recojo: 9am-7pm."
+                    value={settings.pickup_instructions}
+                    onChange={(e) => setSettings({ ...settings, pickup_instructions: e.target.value })}
+                  />
+                  {!settings.pickup_instructions.trim() && (
+                    <p className="text-[11px] font-semibold mt-1.5" style={{ color: "var(--warn)" }}>
+                      ⚠️ Sin esto, el comprador no sabrá dónde recoger su pedido.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="pt-2 border-t border-gray-100 space-y-2">
