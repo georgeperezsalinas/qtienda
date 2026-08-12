@@ -11,7 +11,7 @@ import {
   MessageCircle, RefreshCw, Store as StoreIcon, ChevronLeft,
 } from "lucide-react";
 import { apiClient } from "@/lib/api";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, getStoreCurrency } from "@/lib/utils";
 
 interface Props {
   params: { slug: string; order: string };
@@ -31,6 +31,8 @@ interface StoreInfo {
   logo_url?: string;
   primary_color?: string;
   whatsapp?: string;
+  country?: string;
+  currency?: string;
 }
 
 const TIMELINE = [
@@ -85,6 +87,7 @@ export default function TrackOrderPage({ params }: Props) {
   }, [order, load]);
 
   const color = store?.primary_color || "#2563EB";
+  const storeCurrency = getStoreCurrency(store);
   const cancelled = order?.status === "cancelled";
   const currentIdx = order ? STATUS_IDX[order.status] ?? 0 : 0;
 
@@ -277,7 +280,7 @@ export default function TrackOrderPage({ params }: Props) {
                 style={{ borderTop: "1px solid var(--line)", color: "var(--ink)" }}
               >
                 <span>Total</span>
-                <span style={{ color }}>{formatPrice(order.total_cents)}</span>
+                <span style={{ color }}>{formatPrice(order.total_cents, storeCurrency.code, storeCurrency.locale)}</span>
               </div>
             </div>
 

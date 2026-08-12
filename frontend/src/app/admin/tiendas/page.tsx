@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, getStoreCurrency } from "@/lib/utils";
 import { ConfirmModal } from "../_components/ConfirmModal";
 
 interface StoreItem {
@@ -32,6 +32,8 @@ interface StoreItem {
   status: string;
   is_test: boolean;
   city: string | null;
+  country?: string | null;
+  currency?: string | null;
   created_at: string;
   owner_email: string | null;
   owner_name: string | null;
@@ -43,6 +45,7 @@ interface StoreItem {
 
 interface StoreDetail extends StoreItem {
   country: string;
+  currency?: string | null;
   whatsapp: string | null;
   description: string | null;
   logo_url: string | null;
@@ -412,7 +415,7 @@ export default function AdminTiendasPage() {
                 </div>
                 <div className="rounded-xl p-2" style={{ background: "var(--surface-2)" }}>
                   <p className="text-[10px]" style={{ color: "var(--ink-3)" }}>Ventas</p>
-                  <p className="text-sm font-bold truncate" style={{ color: "var(--ink)" }}>{formatPrice(s.revenue_cents)}</p>
+                  <p className="text-sm font-bold truncate" style={{ color: "var(--ink)" }}>{formatPrice(s.revenue_cents, getStoreCurrency(s).code, getStoreCurrency(s).locale)}</p>
                 </div>
               </div>
 
@@ -527,7 +530,7 @@ export default function AdminTiendasPage() {
                   <td className="px-4 py-3"><StatusBadge status={s.status} /></td>
                   <td className="px-4 py-3 text-right font-semibold" style={{ color: "var(--ink)" }}>{s.products_count}</td>
                   <td className="px-4 py-3 text-right font-semibold" style={{ color: "var(--ink)" }}>{s.orders_count}</td>
-                  <td className="px-4 py-3 text-right font-bold whitespace-nowrap" style={{ color: "var(--ink)" }}>{formatPrice(s.revenue_cents)}</td>
+                  <td className="px-4 py-3 text-right font-bold whitespace-nowrap" style={{ color: "var(--ink)" }}>{formatPrice(s.revenue_cents, getStoreCurrency(s).code, getStoreCurrency(s).locale)}</td>
                   <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: "var(--ink-3)" }}>{datePE(s.created_at)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
@@ -683,7 +686,7 @@ export default function AdminTiendasPage() {
                   </div>
                   <div className="rounded-2xl p-3" style={{ background: "var(--surface-0)", border: "1.5px solid var(--line-2)" }}>
                     <Store size={15} style={{ color: "var(--brand-600)" }} />
-                    <p className="text-lg font-bold mt-1">{formatPrice(detail.revenue_cents)}</p>
+                    <p className="text-lg font-bold mt-1">{formatPrice(detail.revenue_cents, getStoreCurrency(detail).code, getStoreCurrency(detail).locale)}</p>
                     <p className="text-[10px]" style={{ color: "var(--ink-3)" }}>ventas</p>
                   </div>
                 </div>
@@ -710,7 +713,7 @@ export default function AdminTiendasPage() {
                             <p className="font-semibold truncate">{p.name}</p>
                             <p style={{ color: "var(--ink-3)" }}>{p.status} · stock {p.stock ?? "sin control"}</p>
                           </div>
-                          <p className="font-bold">{formatPrice(p.price_cents)}</p>
+                          <p className="font-bold">{formatPrice(p.price_cents, getStoreCurrency(detail).code, getStoreCurrency(detail).locale)}</p>
                         </div>
                       ))}
                     </div>
@@ -729,7 +732,7 @@ export default function AdminTiendasPage() {
                             <p className="font-semibold">#{o.order_number} · {o.buyer_name}</p>
                             <p style={{ color: "var(--ink-3)" }}>{o.status} · {datePE(o.created_at)}</p>
                           </div>
-                          <p className="font-bold">{formatPrice(o.total_cents)}</p>
+                          <p className="font-bold">{formatPrice(o.total_cents, getStoreCurrency(detail).code, getStoreCurrency(detail).locale)}</p>
                         </div>
                       ))}
                     </div>

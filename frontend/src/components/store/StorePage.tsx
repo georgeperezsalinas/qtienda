@@ -23,7 +23,7 @@ import { useAuthStore } from "@/store/authStore";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
 import { trackStoreEvent } from "@/lib/storeAnalytics";
 import { apiClient } from "@/lib/api";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, getStoreCurrency } from "@/lib/utils";
 import { getOpenStatus } from "@/lib/storeHours";
 import FiestasPatriasFloatingBadge from "@/components/ui/FiestasPatriasFloatingBadge";
 
@@ -399,6 +399,7 @@ function SocialLinks({ store, size = 32 }: { store: StoreData; size?: number }) 
    STORE PAGE
 ════════════════════════════════════════ */
 export default function StorePage({ store, initialProducts }: Props) {
+  const { code: storeCurrency, locale: storeLocale } = getStoreCurrency(store);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [search,         setSearch]         = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -895,7 +896,7 @@ export default function StorePage({ store, initialProducts }: Props) {
           >
             <span className="text-lg flex-shrink-0">🎁</span>
             <p className="flex-1 text-xs font-bold leading-snug" style={{ color: "var(--ink)" }}>
-              {formatPrice(store.settings.welcome_discount_cents)} de descuento en tu primera compra aquí
+              {formatPrice(store.settings.welcome_discount_cents, storeCurrency, storeLocale)} de descuento en tu primera compra aquí
             </p>
             <button onClick={dismissWelcomeBanner}><X size={14} style={{ color: "var(--ink-4)" }} /></button>
           </motion.div>
@@ -1079,6 +1080,8 @@ export default function StorePage({ store, initialProducts }: Props) {
                       product={p}
                       storeColor={color}
                       storeSlug={store.slug}
+                      storeCurrency={storeCurrency}
+                      storeLocale={storeLocale}
                       featured
                       onTap={() => setViewProduct(p)}
                       onOpenCart={() => setCartOpen(true)}
@@ -1182,6 +1185,8 @@ export default function StorePage({ store, initialProducts }: Props) {
                         product={product}
                         storeColor={color}
                         storeSlug={store.slug}
+                        storeCurrency={storeCurrency}
+                        storeLocale={storeLocale}
                         compact
                         onTap={() => setViewProduct(product)}
                         onOpenCart={() => setCartOpen(true)}
@@ -1210,6 +1215,8 @@ export default function StorePage({ store, initialProducts }: Props) {
                         product={product}
                         storeColor={color}
                         storeSlug={store.slug}
+                        storeCurrency={storeCurrency}
+                        storeLocale={storeLocale}
                         onTap={() => setViewProduct(product)}
                         onOpenCart={() => setCartOpen(true)}
                       />
@@ -1609,6 +1616,8 @@ export default function StorePage({ store, initialProducts }: Props) {
             product={viewProduct}
             storeColor={color}
             storeSlug={store.slug}
+            storeCurrency={storeCurrency}
+            storeLocale={storeLocale}
             onClose={() => setViewProduct(null)}
             allProducts={initialProducts}
             onSelectRelated={(p) => setViewProduct(p as ProductData)}

@@ -11,6 +11,7 @@ import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
 import { useSaleCountdown } from "@/hooks/useSaleCountdown";
+import { useStoreCurrency } from "@/hooks/useStoreCurrency";
 import { MultiImageUpload, type FormImage } from "@/components/ui/MultiImageUpload";
 import { RichTextEditor } from "@/components/ui/RichTextEditor";
 
@@ -69,7 +70,7 @@ function discountPct(price: number, compare?: number) {
 ════════════════════════════ */
 function ProductCard({
   product, onEdit, onDelete, onToggleStatus, onDuplicate, duplicating,
-  selectMode, selected, onToggleSelect,
+  selectMode, selected, onToggleSelect, currency, locale,
 }: {
   product: Product;
   onEdit: () => void;
@@ -80,6 +81,8 @@ function ProductCard({
   selectMode: boolean;
   selected: boolean;
   onToggleSelect: () => void;
+  currency: string;
+  locale: string;
 }) {
   const img = getPrimaryImg(product);
   const discount = discountPct(product.price_cents, product.compare_price);
@@ -157,11 +160,11 @@ function ProductCard({
         </p>
         <div className="flex items-center gap-2 mt-0.5">
           <span className="font-display font-bold text-sm" style={{ color: "var(--brand-600)" }}>
-            {formatPrice(product.price_cents)}
+            {formatPrice(product.price_cents, currency, locale)}
           </span>
           {product.compare_price && (
             <span className="text-xs line-through" style={{ color: "var(--ink-3)" }}>
-              {formatPrice(product.compare_price)}
+              {formatPrice(product.compare_price, currency, locale)}
             </span>
           )}
         </div>
@@ -302,6 +305,7 @@ function Skel({ h = 80 }: { h?: number }) {
    PAGE
 ════════════════════════════ */
 export default function ProductosPage() {
+  const { code: currency, locale } = useStoreCurrency();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -672,6 +676,8 @@ export default function ProductosPage() {
               selectMode={selectMode}
               selected={selectedIds.has(p.id)}
               onToggleSelect={() => toggleSelected(p.id)}
+              currency={currency}
+              locale={locale}
             />
           ))
         )}
@@ -926,10 +932,10 @@ export default function ProductosPage() {
                     <p className="text-xs font-semibold" style={{ color: "var(--warn)" }}>
                       Descuento activo: clientes verán{" "}
                       <strong style={{ color: "var(--warn)" }}>
-                        {formatPrice(Math.round(parseFloat(form.price_cents) * 100))}
+                        {formatPrice(Math.round(parseFloat(form.price_cents) * 100), currency, locale)}
                       </strong>{" "}
                       en lugar de{" "}
-                      <s>{formatPrice(Math.round(parseFloat(form.compare_price) * 100))}</s>
+                      <s>{formatPrice(Math.round(parseFloat(form.compare_price) * 100), currency, locale)}</s>
                     </p>
                   </div>
                 )}

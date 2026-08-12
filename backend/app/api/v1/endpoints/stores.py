@@ -143,6 +143,7 @@ async def my_store(
         "theme": store.theme,
         "city": store.city,
         "country": store.country,
+        "currency": store.currency,
         "meta_title": store.meta_title,
         "meta_desc": store.meta_desc,
         "store_url": f"https://qtienda.shop/tienda/{store.slug}",

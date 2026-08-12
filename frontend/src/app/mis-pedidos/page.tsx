@@ -10,7 +10,7 @@ import {
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, getStoreCurrency } from "@/lib/utils";
 
 /* ── Types ── */
 interface OrderItem {
@@ -29,6 +29,8 @@ interface Order {
   store_slug:     string;
   store_logo_url: string | null;
   store_color:    string;
+  store_country?: string | null;
+  store_currency?: string | null;
   items_count:    number;
   rating?:        number | null;
 }
@@ -171,6 +173,7 @@ function OrderCard({ order }: { order: Order }) {
   const [comment,       setComment]       = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
   const color = order.store_color || "var(--accent)";
+  const { code: currency, locale } = getStoreCurrency({ currency: order.store_currency, country: order.store_country });
 
   async function submitReview() {
     setSubmittingReview(true);
@@ -241,7 +244,7 @@ function OrderCard({ order }: { order: Order }) {
         </div>
         <div className="text-right flex-shrink-0 ml-1">
           <p className="font-extrabold text-sm" style={{ color }}>
-            {formatPrice(order.total_cents)}
+            {formatPrice(order.total_cents, currency, locale)}
           </p>
           <div className="flex justify-end mt-1.5">
             {expanded
@@ -370,11 +373,11 @@ function OrderCard({ order }: { order: Order }) {
                             {item.product_name}
                           </p>
                           <p className="text-xs" style={{ color: "var(--ink-3)" }}>
-                            {item.quantity} × {formatPrice(item.unit_price)}
+                            {item.quantity} × {formatPrice(item.unit_price, currency, locale)}
                           </p>
                         </div>
                         <span className="text-xs font-bold flex-shrink-0" style={{ color: "var(--ink-2)" }}>
-                          {formatPrice(item.subtotal)}
+                          {formatPrice(item.subtotal, currency, locale)}
                         </span>
                       </div>
                     ))}
@@ -382,15 +385,15 @@ function OrderCard({ order }: { order: Order }) {
 
                   <div className="rounded-xl p-3 text-xs space-y-1.5 mb-3" style={{ background: "var(--bg)" }}>
                     <div className="flex justify-between" style={{ color: "var(--ink-3)" }}>
-                      <span>Subtotal</span><span>{formatPrice(detail.subtotal_cents)}</span>
+                      <span>Subtotal</span><span>{formatPrice(detail.subtotal_cents, currency, locale)}</span>
                     </div>
                     <div className="flex justify-between" style={{ color: "var(--ink-3)" }}>
-                      <span>Delivery</span><span>{formatPrice(detail.delivery_cents)}</span>
+                      <span>Delivery</span><span>{formatPrice(detail.delivery_cents, currency, locale)}</span>
                     </div>
                     <div className="flex justify-between font-bold pt-1.5 border-t"
                       style={{ color: "var(--ink)", borderColor: "var(--line-2)" }}>
                       <span>Total</span>
-                      <span style={{ color }}>{formatPrice(detail.total_cents)}</span>
+                      <span style={{ color }}>{formatPrice(detail.total_cents, currency, locale)}</span>
                     </div>
                   </div>
 
@@ -609,6 +612,7 @@ function ManualTrack() {
   const [storeSlug,   setStoreSlug]   = useState("");
   const [loading,     setLoading]     = useState(false);
   const [result,      setResult]      = useState<any>(null);
+  const resultCurrency = getStoreCurrency({ currency: result?.store_currency, country: result?.store_country });
 
   async function track() {
     if (!orderNumber.trim() || !storeSlug.trim()) {
@@ -681,7 +685,7 @@ function ManualTrack() {
             <StatusBadge status={result.status} />
           </div>
           <p className="text-xs mb-2" style={{ color: "var(--ink-3)" }}>
-            Total: {formatPrice(result.total_cents)}
+            Total: {formatPrice(result.total_cents, resultCurrency.code, resultCurrency.locale)}
           </p>
           <StatusStepper status={result.status} />
         </div>

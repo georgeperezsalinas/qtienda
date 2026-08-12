@@ -33,6 +33,8 @@ interface Props {
   product: ProductForSheet;
   storeColor: string;
   storeSlug: string;
+  storeCurrency?: string;
+  storeLocale?: string;
   onClose: () => void;
   /** Catálogo completo de la tienda, ya cargado en StorePage — sin fetch extra */
   allProducts?: ProductForSheet[];
@@ -59,7 +61,7 @@ function isHTML(str?: string) {
 }
 
 export default function ProductDetailSheet({
-  product, storeColor, storeSlug, onClose, allProducts, onSelectRelated, onOpenCart,
+  product, storeColor, storeSlug, storeCurrency = "PEN", storeLocale = "es-PE", onClose, allProducts, onSelectRelated, onOpenCart,
 }: Props) {
   const [current, setCurrent] = useState(
     () => Math.max(0, product.images.findIndex((i) => i.is_primary))
@@ -322,11 +324,11 @@ export default function ProductDetailSheet({
                 className="font-display font-extrabold text-2xl"
                 style={{ color: storeColor }}
               >
-                {formatPrice(product.price_cents)}
+                {formatPrice(product.price_cents, storeCurrency, storeLocale)}
               </span>
               {product.compare_price && (
                 <span className="text-sm line-through" style={{ color: "var(--ink-4)" }}>
-                  {formatPrice(product.compare_price)}
+                  {formatPrice(product.compare_price, storeCurrency, storeLocale)}
                 </span>
               )}
               {discount && (
@@ -423,6 +425,8 @@ export default function ProductDetailSheet({
                       product={p}
                       storeColor={storeColor}
                       storeSlug={storeSlug}
+                      storeCurrency={storeCurrency}
+                      storeLocale={storeLocale}
                       featured
                       onTap={() => onSelectRelated?.(p)}
                       onOpenCart={onOpenCart}
@@ -487,7 +491,7 @@ export default function ProductDetailSheet({
               ) : outOfStock ? (
                 "Producto agotado"
               ) : (
-                <><ShoppingCart size={18} /> Agregar · {formatPrice(product.price_cents * qty)}</>
+                <><ShoppingCart size={18} /> Agregar · {formatPrice(product.price_cents * qty, storeCurrency, storeLocale)}</>
               )}
             </motion.button>
           </div>

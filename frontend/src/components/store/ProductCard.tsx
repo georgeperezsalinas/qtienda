@@ -27,6 +27,8 @@ interface Props {
   };
   storeColor: string;
   storeSlug: string;
+  storeCurrency?: string;
+  storeLocale?: string;
   featured?: boolean;
   compact?: boolean;   // list-view mode
   onTap?: () => void;
@@ -62,7 +64,7 @@ function CardImage({ src, alt, sizes }: { src: string; alt: string; sizes: strin
 }
 
 export default function ProductCard({
-  product, storeColor, storeSlug, featured, compact, onTap, onOpenCart,
+  product, storeColor, storeSlug, storeCurrency = "PEN", storeLocale = "es-PE", featured, compact, onTap, onOpenCart,
 }: Props) {
   const [added, setAdded] = useState(false);
   const addItem = useCartStore((s) => s.addItem);
@@ -223,11 +225,11 @@ export default function ProductCard({
             <div className="flex items-center justify-between mt-2">
               <div>
                 <span className="font-extrabold text-sm lg:text-base" style={{ color: storeColor }}>
-                  {formatPrice(product.price_cents)}
+                  {formatPrice(product.price_cents, storeCurrency, storeLocale)}
                 </span>
                 {product.compare_price && (
                   <span className="block text-[11px] line-through" style={{ color: "var(--ink-4)" }}>
-                    {formatPrice(product.compare_price)}
+                    {formatPrice(product.compare_price, storeCurrency, storeLocale)}
                   </span>
                 )}
               </div>
@@ -300,7 +302,7 @@ export default function ProductCard({
           )}
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
             <span className="font-extrabold text-sm lg:text-base" style={{ color: storeColor }}>
-              {formatPrice(product.price_cents)}
+              {formatPrice(product.price_cents, storeCurrency, storeLocale)}
             </span>
             {discount && (
               <span
@@ -312,7 +314,7 @@ export default function ProductCard({
             )}
             {product.compare_price && (
               <span className="text-xs line-through" style={{ color: "var(--ink-4)" }}>
-                {formatPrice(product.compare_price)}
+                {formatPrice(product.compare_price, storeCurrency, storeLocale)}
               </span>
             )}
             {countdown && (
@@ -409,11 +411,11 @@ export default function ProductCard({
         <div className="mt-2 flex items-center justify-between gap-1">
           <div>
             <span className="font-extrabold text-base lg:text-lg" style={{ color: storeColor }}>
-              {formatPrice(product.price_cents)}
+              {formatPrice(product.price_cents, storeCurrency, storeLocale)}
             </span>
             {product.compare_price && (
               <span className="block text-xs line-through" style={{ color: "var(--ink-4)" }}>
-                {formatPrice(product.compare_price)}
+                {formatPrice(product.compare_price, storeCurrency, storeLocale)}
               </span>
             )}
           </div>

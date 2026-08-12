@@ -124,6 +124,8 @@ async def list_stores(
                 "status": s.status,
                 "is_test": s.is_test,
                 "city": s.city,
+                "country": s.country,
+                "currency": s.currency,
                 "created_at": s.created_at,
                 "owner_email": s.user.email if s.user else None,
                 "owner_name": s.user.full_name if s.user else None,
@@ -202,6 +204,7 @@ async def get_store(
         "is_test": store.is_test,
         "city": store.city,
         "country": store.country,
+        "currency": store.currency,
         "whatsapp": store.whatsapp,
         "created_at": store.created_at,
         "deleted_at": store.deleted_at,
@@ -521,7 +524,7 @@ async def list_orders(
     ).scalar()
 
     result = await db.execute(
-        select(Order, Store.name, Store.slug)
+        select(Order, Store.name, Store.slug, Store.country, Store.currency)
         .join(Store, Order.store_id == Store.id)
         .where(where_clause)
         .order_by(Order.created_at.desc())
@@ -545,9 +548,9 @@ async def list_orders(
                 "total_cents": o.total_cents,
                 "payment_method": o.payment_method,
                 "created_at": o.created_at,
-                "store": {"name": sname, "slug": sslug},
+                "store": {"name": sname, "slug": sslug, "country": scountry, "currency": scurrency},
             }
-            for o, sname, sslug in rows
+            for o, sname, sslug, scountry, scurrency in rows
         ],
     }
 
@@ -850,7 +853,7 @@ async def global_metrics(
     top_rows = (
         await db.execute(
             select(
-                Store.id, Store.name, Store.slug,
+                Store.id, Store.name, Store.slug, Store.country, Store.currency,
                 func.count(Order.id),
                 func.coalesce(func.sum(Order.total_cents), 0),
             )
@@ -860,14 +863,17 @@ async def global_metrics(
                 Store.is_test.is_(False),
                 Order.status != "cancelled",
             )
-            .group_by(Store.id, Store.name, Store.slug)
+            .group_by(Store.id, Store.name, Store.slug, Store.country, Store.currency)
             .order_by(func.coalesce(func.sum(Order.total_cents), 0).desc())
             .limit(5)
         )
     ).all()
     top_stores = [
-        {"id": sid, "name": name, "slug": slug, "orders": orders, "revenue_cents": revenue}
-        for sid, name, slug, orders, revenue in top_rows
+        {
+            "id": sid, "name": name, "slug": slug, "country": country, "currency": currency,
+            "orders": orders, "revenue_cents": revenue,
+        }
+        for sid, name, slug, country, currency, orders, revenue in top_rows
     ]
 
     started_at = getattr(request.app.state, "started_at", None)

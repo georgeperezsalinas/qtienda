@@ -5,6 +5,7 @@ import { Plus, Tag, X, Trash2, Percent, DollarSign, Copy } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
+import { useStoreCurrency } from "@/hooks/useStoreCurrency";
 
 interface Coupon {
   id: string;
@@ -36,10 +37,12 @@ function isExpired(c: Coupon) {
   return !!c.expires_at && new Date(c.expires_at).getTime() < Date.now();
 }
 
-function CouponRow({ coupon, onToggle, onDelete }: {
+function CouponRow({ coupon, onToggle, onDelete, currency, locale }: {
   coupon: Coupon;
   onToggle: () => void;
   onDelete: () => void;
+  currency: string;
+  locale: string;
 }) {
   const expired = isExpired(coupon);
   const exhausted = !!coupon.max_uses && coupon.uses_count >= coupon.max_uses;
@@ -83,8 +86,8 @@ function CouponRow({ coupon, onToggle, onDelete }: {
           )}
         </div>
         <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
-          {coupon.discount_type === "percent" ? `${coupon.discount_value}% de descuento` : `${formatPrice(coupon.discount_value)} de descuento`}
-          {coupon.min_order_cents ? ` · mín. ${formatPrice(coupon.min_order_cents)}` : ""}
+          {coupon.discount_type === "percent" ? `${coupon.discount_value}% de descuento` : `${formatPrice(coupon.discount_value, currency, locale)} de descuento`}
+          {coupon.min_order_cents ? ` · mín. ${formatPrice(coupon.min_order_cents, currency, locale)}` : ""}
         </p>
         <p className="text-[11px] mt-0.5" style={{ color: "var(--ink-4)" }}>
           Usado {coupon.uses_count}{coupon.max_uses ? ` / ${coupon.max_uses}` : ""} vez{coupon.uses_count !== 1 ? "es" : ""}
@@ -116,6 +119,7 @@ function CouponRow({ coupon, onToggle, onDelete }: {
 }
 
 export default function CuponesPage() {
+  const { code: currency, locale } = useStoreCurrency();
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -237,6 +241,8 @@ export default function CuponesPage() {
               coupon={c}
               onToggle={() => toggleActive(c)}
               onDelete={() => deleteCoupon(c)}
+              currency={currency}
+              locale={locale}
             />
           ))
         )}

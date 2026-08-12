@@ -52,6 +52,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     }
 
     const currency = CURRENCY_BY_COUNTRY[store.country] || CURRENCY_BY_COUNTRY.PE;
+    const ogLocale = LOCALE_BY_COUNTRY[store.country] || "es_PE";
     const canonicalUrl = product
       ? `https://qtienda.shop/tienda/${params.slug}?p=${productId}`
       : `https://qtienda.shop/tienda/${params.slug}`;
@@ -61,7 +62,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
       : store.meta_title || store.name;
     const description = product
       ? stripHtml(product.description).slice(0, 155) ||
-        `${formatPrice(product.price_cents, currency.code)} · Cómpralo en ${store.name}`
+        `${formatPrice(product.price_cents, currency.code, ogLocale.replace("_", "-"))} · Cómpralo en ${store.name}`
       : store.meta_desc || `Compra en ${store.name} · qtienda.shop`;
     const productImage = product
       ? product.images?.find((im: any) => im.is_primary)?.url ?? product.images?.[0]?.url

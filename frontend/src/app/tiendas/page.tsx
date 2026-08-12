@@ -9,7 +9,7 @@ import Logo from "@/components/ui/Logo";
 import { useAuthStore } from "@/store/authStore";
 import { getOpenStatus } from "@/lib/storeHours";
 import { trackPageView } from "@/lib/siteAnalytics";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, getStoreCurrency } from "@/lib/utils";
 import MallInstallLink from "@/components/ui/MallInstallLink";
 import FiestasPatriasFloatingBadge from "@/components/ui/FiestasPatriasFloatingBadge";
 
@@ -79,6 +79,8 @@ interface LatestProduct {
   store_city?: string;
   store_logo_url?: string;
   primary_color?: string;
+  store_country?: string;
+  store_currency?: string;
 }
 
 type SortMode = "recent" | "az";
@@ -619,6 +621,7 @@ export default function TiendasPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2.5">
               {latestProducts.map((p) => {
                 const color = p.primary_color ?? "#C5613B";
+                const pCurrency = getStoreCurrency({ currency: p.store_currency, country: p.store_country });
                 return (
                   <Link
                     key={p.id}
@@ -644,7 +647,7 @@ export default function TiendasPage() {
                         {p.name}
                       </p>
                       <p className="text-xs font-bold mt-0.5" style={{ color }}>
-                        {formatPrice(p.price_cents)}
+                        {formatPrice(p.price_cents, pCurrency.code, pCurrency.locale)}
                       </p>
                       <p className="text-[10px] truncate mt-0.5" style={{ color: "var(--ink-4)" }}>
                         {p.store_name}
@@ -681,6 +684,7 @@ export default function TiendasPage() {
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2.5">
                 {categoryProducts.map((p) => {
                   const color = p.primary_color ?? "#C5613B";
+                  const pCurrency = getStoreCurrency({ currency: p.store_currency, country: p.store_country });
                   return (
                     <Link
                       key={p.id}
@@ -706,7 +710,7 @@ export default function TiendasPage() {
                           {p.name}
                         </p>
                         <p className="text-xs font-bold mt-0.5" style={{ color }}>
-                          {formatPrice(p.price_cents)}
+                          {formatPrice(p.price_cents, pCurrency.code, pCurrency.locale)}
                         </p>
                         <p className="text-[10px] truncate mt-0.5" style={{ color: "var(--ink-4)" }}>
                           {p.store_name}

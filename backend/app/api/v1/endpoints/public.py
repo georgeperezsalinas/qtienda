@@ -240,6 +240,7 @@ async def list_stores(
                 "banner_url": s.banner_url,
                 "city": s.city,
                 "country": s.country,
+                "currency": s.currency,
                 "primary_color": s.primary_color,
                 "product_count": count_map.get(s.id, 0),
                 "categories": categories_map.get(s.id, []),
@@ -382,6 +383,8 @@ async def latest_products(
             "store_city": s.city,
             "store_logo_url": s.logo_url,
             "primary_color": s.primary_color,
+            "store_country": s.country,
+            "store_currency": s.currency,
         }
         for p, s in picked
     ]
@@ -443,6 +446,7 @@ async def get_store(request: Request, slug: str, db: AsyncSession = Depends(get_
         "theme": store.theme,
         "city": store.city,
         "country": store.country,
+        "currency": store.currency,
         "categories": [
             {"id": c.id, "name": c.name, "slug": c.slug, "icon": c.icon}
             for c in sorted(store.categories, key=lambda x: x.sort_order)
@@ -1151,10 +1155,13 @@ async def _check_order_limit(store: Store, db: AsyncSession) -> None:
 @limiter.limit("30/minute")
 async def track_order(request: Request, slug: str, order_number: str, db: AsyncSession = Depends(get_db)):
     """Buyer order tracking — public."""
-    store_q = await db.execute(select(Store.id).where(Store.slug == slug))
-    store_id = store_q.scalar_one_or_none()
-    if not store_id:
+    store_q = await db.execute(
+        select(Store.id, Store.country, Store.currency).where(Store.slug == slug)
+    )
+    store_row = store_q.first()
+    if not store_row:
         raise HTTPException(status_code=404, detail="Tienda no encontrada")
+    store_id, store_country, store_currency = store_row
 
     order_q = await db.execute(
         select(Order)
@@ -1173,6 +1180,8 @@ async def track_order(request: Request, slug: str, order_number: str, db: AsyncS
         "status": order.status,
         "created_at": order.created_at,
         "total_cents": order.total_cents,
+        "store_country": store_country,
+        "store_currency": store_currency,
         "items": [
             {"name": i.product_name, "qty": i.quantity, "image_url": i.image_url}
             for i in order.items

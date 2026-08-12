@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Search, ShoppingBag, ChevronLeft, ChevronRight as ChevronRightIcon, Store } from "lucide-react";
 import { apiClient } from "@/lib/api";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, getStoreCurrency } from "@/lib/utils";
 
 interface OrderItem {
   id: string;
@@ -15,7 +15,7 @@ interface OrderItem {
   total_cents: number;
   payment_method: string;
   created_at: string;
-  store: { name: string; slug: string };
+  store: { name: string; slug: string; country?: string | null; currency?: string | null };
 }
 
 interface OrdersResponse {
@@ -201,7 +201,7 @@ export default function AdminPedidosPage() {
                   </p>
                 </div>
                 <p className="font-display font-extrabold text-base flex-shrink-0" style={{ color: "var(--ink)" }}>
-                  {formatPrice(o.total_cents)}
+                  {formatPrice(o.total_cents, getStoreCurrency(o.store).code, getStoreCurrency(o.store).locale)}
                 </p>
               </div>
             </div>
@@ -236,7 +236,7 @@ export default function AdminPedidosPage() {
                   </td>
                   <td className="px-4 py-3"><span className={`badge ${STATUS_CLS[o.status] ?? "badge-mute"}`}>{statusLabel(o.status)}</span></td>
                   <td className="px-4 py-3 text-xs" style={{ color: "var(--ink-3)" }}>{PAYMENT_LABELS[o.payment_method] ?? o.payment_method}</td>
-                  <td className="px-4 py-3 text-right font-bold whitespace-nowrap" style={{ color: "var(--ink)" }}>{formatPrice(o.total_cents)}</td>
+                  <td className="px-4 py-3 text-right font-bold whitespace-nowrap" style={{ color: "var(--ink)" }}>{formatPrice(o.total_cents, getStoreCurrency(o.store).code, getStoreCurrency(o.store).locale)}</td>
                   <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: "var(--ink-3)" }}>{dateTimePE(o.created_at)}</td>
                 </tr>
               ))}

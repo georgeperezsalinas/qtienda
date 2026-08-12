@@ -10,6 +10,7 @@ import {
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
+import { useStoreCurrency } from "@/hooks/useStoreCurrency";
 
 /* ── Types ── */
 interface PaymentEntry {
@@ -207,7 +208,7 @@ function KpiTile({ label, value, sub, trend, icon, color, bg }: {
 /* ── Daily chart ── */
 type ChartMode = "revenue" | "orders";
 
-function DailyChart({ data, loading }: { data: DailyPoint[]; loading: boolean }) {
+function DailyChart({ data, loading, currency, locale }: { data: DailyPoint[]; loading: boolean; currency: string; locale: string }) {
   const [mode, setMode] = useState<ChartMode>("revenue");
 
   if (loading) return <Skel h={120} />;
@@ -255,7 +256,7 @@ function DailyChart({ data, loading }: { data: DailyPoint[]; loading: boolean })
           return (
             <div key={i} className="flex flex-col items-center gap-1 flex-shrink-0" style={{ minWidth: 20 }}>
               <div
-                title={`${fmtDay(d.date)}: ${mode === "revenue" ? formatPrice(d.revenue_cents) : d.orders + " pedidos"}`}
+                title={`${fmtDay(d.date)}: ${mode === "revenue" ? formatPrice(d.revenue_cents, currency, locale) : d.orders + " pedidos"}`}
                 style={{
                   height: barH,
                   width: 14,
@@ -332,7 +333,7 @@ function PlanUsage({ sub, ordersThisMonth }: { sub: Subscription | null; ordersT
 }
 
 /* ── Payment breakdown ── */
-function PaymentBreakdown({ entries, loading }: { entries: PaymentEntry[]; loading: boolean }) {
+function PaymentBreakdown({ entries, loading, currency, locale }: { entries: PaymentEntry[]; loading: boolean; currency: string; locale: string }) {
   if (loading) return <Skel h={80} />;
   if (entries.length === 0) return null;
 
@@ -368,7 +369,7 @@ function PaymentBreakdown({ entries, loading }: { entries: PaymentEntry[]; loadi
                   </span>
                 </div>
                 <span className="text-xs font-bold" style={{ color: "var(--ink)" }}>
-                  {formatPrice(e.revenue_cents)}
+                  {formatPrice(e.revenue_cents, currency, locale)}
                 </span>
               </div>
               <div className="w-full rounded-full overflow-hidden" style={{ height: 4, background: "var(--line-2)" }}>
@@ -392,7 +393,7 @@ function PaymentBreakdown({ entries, loading }: { entries: PaymentEntry[]; loadi
 
 type TopSort = "revenue" | "units";
 
-function TopProducts({ items, loading }: { items: TopProduct[]; loading: boolean }) {
+function TopProducts({ items, loading, currency, locale }: { items: TopProduct[]; loading: boolean; currency: string; locale: string }) {
   const [sort, setSort] = useState<TopSort>("revenue");
 
   if (loading) return <Skel h={220} />;
@@ -460,7 +461,7 @@ function TopProducts({ items, loading }: { items: TopProduct[]; loading: boolean
                     {p.product_name}
                   </p>
                   <span className="text-xs font-bold flex-shrink-0" style={{ color: "var(--ink)" }}>
-                    {sort === "revenue" ? formatPrice(p.revenue_cents) : `${p.units_sold} und.`}
+                    {sort === "revenue" ? formatPrice(p.revenue_cents, currency, locale) : `${p.units_sold} und.`}
                   </span>
                 </div>
                 <div className="w-full rounded-full overflow-hidden" style={{ height: 3, background: "var(--line-2)" }}>
@@ -487,6 +488,7 @@ function TopProducts({ items, loading }: { items: TopProduct[]; loading: boolean
    PAGE
 ══════════════════════════════════════ */
 export default function FinanzasPage() {
+  const { code: currency, locale } = useStoreCurrency();
   const [period,       setPeriod]       = useState<PeriodKey>("this_month");
   const [stats,        setStats]        = useState<Stats | null>(null);
   const [prevStats,    setPrevStats]    = useState<Stats | null>(null);
@@ -696,7 +698,7 @@ export default function FinanzasPage() {
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <p className="font-display font-extrabold text-3xl text-white leading-none">
-                {formatPrice(revenue)}
+                {formatPrice(revenue, currency, locale)}
               </p>
               {revenueTrend && (
                 <span
@@ -748,7 +750,7 @@ export default function FinanzasPage() {
             />
             <KpiTile
               label="Ticket promedio"
-              value={avgTicket > 0 ? formatPrice(avgTicket) : "—"}
+              value={avgTicket > 0 ? formatPrice(avgTicket, currency, locale) : "—"}
               sub="por pedido entregado"
               icon={<CreditCard size={15} />}
               color="#D97706" bg="#FEF3C7"
@@ -758,7 +760,7 @@ export default function FinanzasPage() {
 
         {/* ── Daily chart ── */}
         <div className="lg:col-span-2">
-          <DailyChart data={daily} loading={loadingDaily} />
+          <DailyChart data={daily} loading={loadingDaily} currency={currency} locale={locale} />
         </div>
 
         {/* ── Plan usage ── */}
@@ -767,11 +769,11 @@ export default function FinanzasPage() {
         )}
 
         {/* ── Payment breakdown ── */}
-        <PaymentBreakdown entries={byPayment} loading={loadingStats} />
+        <PaymentBreakdown entries={byPayment} loading={loadingStats} currency={currency} locale={locale} />
 
         {/* ── Top productos ── */}
         <div className="lg:col-span-2">
-          <TopProducts items={topProducts} loading={loadingTop} />
+          <TopProducts items={topProducts} loading={loadingTop} currency={currency} locale={locale} />
         </div>
 
         {/* ── Detalle de movimientos ── */}
@@ -882,7 +884,7 @@ export default function FinanzasPage() {
                             textDecoration: order.status === "cancelled" ? "line-through" : "none",
                           }}
                         >
-                          {formatPrice(order.total_cents)}
+                          {formatPrice(order.total_cents, currency, locale)}
                         </p>
                         <p className="text-[10px] mt-0.5" style={{ color: "var(--ink-4)" }}>
                           {order.items_count} ítem{order.items_count !== 1 ? "s" : ""}

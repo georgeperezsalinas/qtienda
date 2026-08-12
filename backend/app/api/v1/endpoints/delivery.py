@@ -169,7 +169,13 @@ async def delivery_store_info(
     store = store_q.scalar_one_or_none()
     if not store:
         raise HTTPException(status_code=404, detail="Tienda no encontrada")
-    return {"name": store.name, "logo_url": store.logo_url, "slug": store.slug}
+    return {
+        "name": store.name,
+        "logo_url": store.logo_url,
+        "slug": store.slug,
+        "country": store.country,
+        "currency": store.currency,
+    }
 
 
 # ── Delivery: ver y actualizar pedidos ────────────────────────

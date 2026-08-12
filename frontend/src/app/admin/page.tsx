@@ -8,7 +8,7 @@ import {
   CreditCard, MessageCircle, Image as ImageIcon, Star,
 } from "lucide-react";
 import { apiClient } from "@/lib/api";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, getStoreCurrency } from "@/lib/utils";
 
 interface Metrics {
   stores: { total: number; active: number; pending: number; suspended: number; test: number; without_products: number; onboarding_incomplete: number };
@@ -19,7 +19,7 @@ interface Metrics {
   subscriptions: { expiring_soon: number };
   this_month: { orders: number; revenue_cents: number };
   trend: { date: string; stores: number; users: number }[];
-  top_stores: { id: string; name: string; slug: string; orders: number; revenue_cents: number }[];
+  top_stores: { id: string; name: string; slug: string; country?: string | null; currency?: string | null; orders: number; revenue_cents: number }[];
   technical: {
     version: string;
     environment: string;
@@ -335,7 +335,7 @@ export default function AdminDashboardPage() {
                       <p className="text-xs" style={{ color: "var(--ink-3)" }}>{s.orders} pedido{s.orders !== 1 ? "s" : ""}</p>
                     </div>
                     <p className="text-sm font-bold flex-shrink-0" style={{ color: "var(--ink)" }}>
-                      {formatPrice(s.revenue_cents)}
+                      {formatPrice(s.revenue_cents, getStoreCurrency(s).code, getStoreCurrency(s).locale)}
                     </p>
                   </Link>
                 ))

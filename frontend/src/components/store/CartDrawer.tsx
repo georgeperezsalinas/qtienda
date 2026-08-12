@@ -11,7 +11,7 @@ import {
 import { useCartStore } from "@/store/cartStore";
 import { useRecentPurchasesStore } from "@/store/recentPurchasesStore";
 import { useAuthStore } from "@/store/authStore";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, getStoreCurrency } from "@/lib/utils";
 import { apiClient } from "@/lib/api";
 import toast from "react-hot-toast";
 import PhoneInput from "@/components/ui/PhoneInput";
@@ -87,7 +87,7 @@ function Stepper({ step, color }: { step: Step; color: string }) {
 }
 
 /* ── Barra de progreso hacia el envío gratis ── */
-function FreeShippingBar({ subtotal, freeAbove, color }: { subtotal: number; freeAbove: number; color: string }) {
+function FreeShippingBar({ subtotal, freeAbove, color, currency, locale }: { subtotal: number; freeAbove: number; color: string; currency: string; locale: string }) {
   const qualifies = subtotal >= freeAbove;
   const pct = Math.min(100, Math.round((subtotal / freeAbove) * 100));
   const missing = freeAbove - subtotal;
@@ -106,7 +106,7 @@ function FreeShippingBar({ subtotal, freeAbove, color }: { subtotal: number; fre
       >
         {qualifies
           ? "¡Envío gratis desbloqueado! 🎉"
-          : <>Te faltan <strong>{formatPrice(missing)}</strong> para envío gratis</>}
+          : <>Te faltan <strong>{formatPrice(missing, currency, locale)}</strong> para envío gratis</>}
       </p>
       <div
         className="h-2 rounded-full overflow-hidden"
@@ -141,6 +141,7 @@ function Field({ label, icon, children }: { label: string; icon: React.ReactNode
    CART DRAWER
 ════════════════════════════════════════ */
 export default function CartDrawer({ open, onClose, store }: Props) {
+  const { code: currency, locale } = getStoreCurrency(store);
   const { items, updateQty, removeItem, clearCart, totalCents } = useCartStore();
   const recordPurchase = useRecentPurchasesStore((s) => s.record);
   const { user } = useAuthStore();
@@ -483,7 +484,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                             </details>
                           )}
                           {!!freeAbove && deliveryFee > 0 && (
-                            <FreeShippingBar subtotal={subtotal} freeAbove={freeAbove} color={color} />
+                            <FreeShippingBar subtotal={subtotal} freeAbove={freeAbove} color={color} currency={currency} locale={locale} />
                           )}
                           {items.map((item) => (
                             <div
@@ -511,10 +512,10 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                                   {item.name}
                                 </p>
                                 <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
-                                  {formatPrice(item.price_cents)} c/u
+                                  {formatPrice(item.price_cents, currency, locale)} c/u
                                 </p>
                                 <p className="text-sm font-extrabold mt-1" style={{ color }}>
-                                  {formatPrice(item.price_cents * item.quantity)}
+                                  {formatPrice(item.price_cents * item.quantity, currency, locale)}
                                 </p>
                               </div>
 
@@ -551,7 +552,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                           >
                             <div className="flex justify-between text-sm" style={{ color: "var(--ink-2)" }}>
                               <span>Subtotal</span>
-                              <span className="font-semibold">{formatPrice(subtotal)}</span>
+                              <span className="font-semibold">{formatPrice(subtotal, currency, locale)}</span>
                             </div>
                             {deliveryFee > 0 && (
                               <div className="flex justify-between text-sm" style={{ color: "var(--ink-2)" }}>
@@ -559,7 +560,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                                 <span className="font-semibold">
                                   {effectiveDel === 0 ? (
                                     <span style={{ color: "var(--success)" }}>Gratis 🎉</span>
-                                  ) : formatPrice(effectiveDel)}
+                                  ) : formatPrice(effectiveDel, currency, locale)}
                                 </span>
                               </div>
                             )}
@@ -568,7 +569,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                               style={{ borderTop: "1px solid var(--line-2)", color: "var(--ink)" }}
                             >
                               <span>Total</span>
-                              <span style={{ color }}>{formatPrice(total)}</span>
+                              <span style={{ color }}>{formatPrice(total, currency, locale)}</span>
                             </div>
                           </div>
                         </div>
@@ -747,7 +748,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                                 {item.quantity}× {item.name}
                               </span>
                               <span className="flex-shrink-0 font-semibold" style={{ color: "var(--ink)" }}>
-                                {formatPrice(item.price_cents * item.quantity)}
+                                {formatPrice(item.price_cents * item.quantity, currency, locale)}
                               </span>
                             </div>
                           ))}
@@ -763,11 +764,11 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                           <p className="text-xs font-semibold" style={{ color: "var(--ink-2)" }}>Total a pagar</p>
                           {(appliedDiscount > 0 || couponDiscountCents > 0) && (
                             <p className="text-xs line-through" style={{ color: "var(--ink-4)" }}>
-                              {formatPrice(total)}
+                              {formatPrice(total, currency, locale)}
                             </p>
                           )}
                           <p className="font-extrabold text-2xl mt-0.5" style={{ color, fontFamily: "var(--font-display)" }}>
-                            {formatPrice(displayTotal)}
+                            {formatPrice(displayTotal, currency, locale)}
                           </p>
                         </div>
                         <div className="flex flex-col items-end gap-1.5">
@@ -784,7 +785,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                               className="text-xs font-bold px-3 py-1.5 rounded-full whitespace-nowrap"
                               style={{ background: "var(--success-soft)", color: "var(--success)" }}
                             >
-                              🎁 -{formatPrice(appliedDiscount)} bienvenida
+                              🎁 -{formatPrice(appliedDiscount, currency, locale)} bienvenida
                             </span>
                           )}
                           {couponDiscountCents > 0 && (
@@ -792,7 +793,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                               className="text-xs font-bold px-3 py-1.5 rounded-full whitespace-nowrap"
                               style={{ background: "var(--success-soft)", color: "var(--success)" }}
                             >
-                              🏷️ -{formatPrice(couponDiscountCents)} cupón
+                              🏷️ -{formatPrice(couponDiscountCents, currency, locale)} cupón
                             </span>
                           )}
                           {checkingWelcome && (
@@ -985,7 +986,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
 
                         {orderResult.discount_cents > 0 && (
                           <p className="text-xs font-bold mt-3" style={{ color: "var(--success)" }}>
-                            🎁 Se aplicó tu descuento: -{formatPrice(orderResult.discount_cents)}
+                            🎁 Se aplicó tu descuento: -{formatPrice(orderResult.discount_cents, currency, locale)}
                           </p>
                         )}
 
@@ -1058,7 +1059,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                   <>
                     {belowMin && items.length > 0 && (
                       <p className="text-xs text-center mb-2 font-medium" style={{ color: "var(--warn)" }}>
-                        Agrega <strong>{formatPrice(minOrder - total)}</strong> más para el pedido mínimo
+                        Agrega <strong>{formatPrice(minOrder - total, currency, locale)}</strong> más para el pedido mínimo
                       </p>
                     )}
                     <button
@@ -1072,7 +1073,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                     >
                       <span>Continuar</span>
                       <div className="flex items-center gap-2">
-                        <span className="font-extrabold">{formatPrice(total)}</span>
+                        <span className="font-extrabold">{formatPrice(total, currency, locale)}</span>
                         <ChevronRight size={18} />
                       </div>
                     </button>
@@ -1105,7 +1106,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                   >
                     <span>{loading ? "Procesando…" : "Confirmar pedido"}</span>
                     <div className="flex items-center gap-2">
-                      <span className="font-extrabold">{formatPrice(displayTotal)}</span>
+                      <span className="font-extrabold">{formatPrice(displayTotal, currency, locale)}</span>
                       <ChevronRight size={18} />
                     </div>
                   </button>

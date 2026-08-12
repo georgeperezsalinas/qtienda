@@ -53,6 +53,8 @@ async def get_buyer_orders(
             "store_slug": o.store.slug if o.store else None,
             "store_logo_url": o.store.logo_url if o.store else None,
             "store_color": o.store.primary_color if o.store else "#6366f1",
+            "store_country": o.store.country if o.store else None,
+            "store_currency": o.store.currency if o.store else None,
             "items_count": len(o.items),
             "rating": review_map.get(o.id),
         }
@@ -100,6 +102,8 @@ async def get_buyer_order_detail(
         "store_slug": order.store.slug if order.store else None,
         "store_logo_url": order.store.logo_url if order.store else None,
         "store_color": order.store.primary_color if order.store else "#6366f1",
+        "store_country": order.store.country if order.store else None,
+        "store_currency": order.store.currency if order.store else None,
         "items": [
             {
                 "product_name": i.product_name,

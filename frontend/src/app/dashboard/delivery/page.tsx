@@ -5,6 +5,7 @@ import { Phone, MapPin, MessageCircle, RefreshCw, Package, Bike, CheckCircle2, C
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
+import { useStoreCurrency } from "@/hooks/useStoreCurrency";
 
 interface StaffMember {
   id: string;
@@ -42,6 +43,8 @@ function OrderCard({
   onAssign,
   updating,
   assigning,
+  currency,
+  locale,
 }: {
   order: DeliveryOrder;
   staff: StaffMember[];
@@ -49,6 +52,8 @@ function OrderCard({
   onAssign: (orderId: string, staffId: string | null) => void;
   updating: boolean;
   assigning: boolean;
+  currency: string;
+  locale: string;
 }) {
   const isPreparing = order.status === "preparing";
   const accentColor = isPreparing ? "var(--accent-ink)" : "var(--ink-2)";
@@ -193,7 +198,7 @@ function OrderCard({
             {order.items_count} producto{order.items_count !== 1 ? "s" : ""}
           </span>
           <span className="font-display font-extrabold text-sm" style={{ color: "var(--ink)" }}>
-            {formatPrice(order.total_cents)}
+            {formatPrice(order.total_cents, currency, locale)}
           </span>
         </div>
       </div>
@@ -227,6 +232,7 @@ function OrderCard({
 }
 
 export default function DeliveryPage() {
+  const { code: currency, locale } = useStoreCurrency();
   const [orders,    setOrders]    = useState<DeliveryOrder[]>([]);
   const [staff,     setStaff]     = useState<StaffMember[]>([]);
   const [loading,   setLoading]   = useState(true);
@@ -393,6 +399,8 @@ export default function DeliveryPage() {
                     onAssign={handleAssign}
                     updating={updatingId === o.id}
                     assigning={assigning === o.id}
+                    currency={currency}
+                    locale={locale}
                   />
                 ))}
               </div>
@@ -417,6 +425,8 @@ export default function DeliveryPage() {
                     onAssign={handleAssign}
                     updating={updatingId === o.id}
                     assigning={assigning === o.id}
+                    currency={currency}
+                    locale={locale}
                   />
                 ))}
               </div>

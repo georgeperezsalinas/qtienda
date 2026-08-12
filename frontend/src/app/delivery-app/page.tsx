@@ -10,7 +10,7 @@ import {
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, getStoreCurrency, type StoreCurrency } from "@/lib/utils";
 import Logo from "@/components/ui/Logo";
 
 interface DeliveryOrder {
@@ -49,6 +49,7 @@ export default function DeliveryAppPage() {
   const { user, accessToken, logout } = useAuthStore();
   const [tab,        setTab]        = useState<"active" | "history">("active");
   const [storeName,  setStoreName]  = useState<string>("");
+  const [storeCurrency, setStoreCurrency] = useState<StoreCurrency>(() => getStoreCurrency(null));
   const [orders,     setOrders]     = useState<DeliveryOrder[]>([]);
   const [history,    setHistory]    = useState<DeliveredOrder[]>([]);
   const [loading,    setLoading]    = useState(true);
@@ -75,7 +76,10 @@ export default function DeliveryAppPage() {
   useEffect(() => {
     if (!accessToken) return;
     apiClient.get("/delivery/store")
-      .then(({ data }) => setStoreName(data.name))
+      .then(({ data }) => {
+        setStoreName(data.name);
+        setStoreCurrency(getStoreCurrency(data));
+      })
       .catch(() => {});
   }, [accessToken]);
 
@@ -342,7 +346,7 @@ export default function DeliveryAppPage() {
             <div className="space-y-3">
               {preparing.map((o) => (
                 <OrderCard key={o.id} order={o} onAction={handleAction}
-                           updating={updating === o.id} />
+                           updating={updating === o.id} currency={storeCurrency.code} locale={storeCurrency.locale} />
               ))}
             </div>
           </section>
@@ -360,7 +364,7 @@ export default function DeliveryAppPage() {
             <div className="space-y-3">
               {on_the_way.map((o) => (
                 <OrderCard key={o.id} order={o} onAction={handleAction}
-                           updating={updating === o.id} />
+                           updating={updating === o.id} currency={storeCurrency.code} locale={storeCurrency.locale} />
               ))}
             </div>
           </section>
@@ -404,7 +408,7 @@ export default function DeliveryAppPage() {
                     </div>
                     <div className="text-right flex-shrink-0 ml-3">
                       <p className="font-display font-extrabold text-sm" style={{ color: "var(--ink)" }}>
-                        {formatPrice(o.total_cents)}
+                        {formatPrice(o.total_cents, storeCurrency.code, storeCurrency.locale)}
                       </p>
                       <p className="text-[11px] mt-0.5" style={{ color: "var(--ink-3)" }}>
                         {timeAgo(o.updated_at)}
@@ -520,7 +524,7 @@ export default function DeliveryAppPage() {
                       {methodLabel[method] ?? method}
                     </span>
                     <span className="font-display font-extrabold text-sm" style={{ color: "var(--ink)" }}>
-                      {formatPrice(confirmOrder.total_cents)}
+                      {formatPrice(confirmOrder.total_cents, storeCurrency.code, storeCurrency.locale)}
                     </span>
                   </div>
                   {isPrepaid ? (
@@ -609,10 +613,12 @@ export default function DeliveryAppPage() {
   );
 }
 
-function OrderCard({ order, onAction, updating }: {
+function OrderCard({ order, onAction, updating, currency, locale }: {
   order: DeliveryOrder;
   onAction: (id: string, status: string) => void;
   updating: boolean;
+  currency: string;
+  locale: string;
 }) {
   const isPreparing  = order.status === "preparing";
   const accentColor  = isPreparing ? "var(--accent-ink)" : "var(--ink-2)";
@@ -697,7 +703,7 @@ function OrderCard({ order, onAction, updating }: {
             : "🏦 Transferencia" }
           </span>
           <span className="font-display font-extrabold text-sm" style={{ color: "var(--ink)" }}>
-            {formatPrice(order.total_cents)}
+            {formatPrice(order.total_cents, currency, locale)}
           </span>
         </div>
       </div>

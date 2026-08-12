@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { Search, Phone, MapPin, Package, ExternalLink } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, getStoreCurrency, type StoreCurrency } from "@/lib/utils";
 
 const STATUSES = [
   { value: "", label: "Todos" },
@@ -344,13 +344,17 @@ export default function PedidosPage() {
   const [updating, setUpdating] = useState(false);
   const [staff, setStaff] = useState<Staff[]>([]);
   const [storeSlug, setStoreSlug] = useState<string | null>(null);
+  const [storeCurrency, setStoreCurrency] = useState<StoreCurrency>(() => getStoreCurrency(null));
   // IDs de la última carga — para detectar pedidos nuevos en el polling
   // silencioso sin necesitar otro endpoint.
   const knownOrderIds = useRef<Set<string> | null>(null);
 
   // Slug de la tienda: para el link "Ver como comprador" en el detalle del pedido
   useEffect(() => {
-    apiClient.get("/stores/me").then(({ data }) => setStoreSlug(data.slug)).catch(() => {});
+    apiClient.get("/stores/me").then(({ data }) => {
+      setStoreSlug(data.slug);
+      setStoreCurrency(getStoreCurrency(data));
+    }).catch(() => {});
   }, []);
 
   // Repartidores activos: integran la entrega al flujo del pedido
@@ -574,27 +578,27 @@ export default function PedidosPage() {
             )}
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate" style={{ color: "var(--ink)" }}>{item.product_name}</p>
-              <p className="text-xs" style={{ color: "var(--ink-3)" }}>x{item.quantity} · {formatPrice(item.unit_price)}</p>
+              <p className="text-xs" style={{ color: "var(--ink-3)" }}>x{item.quantity} · {formatPrice(item.unit_price, storeCurrency.code, storeCurrency.locale)}</p>
             </div>
-            <p className="text-sm font-bold" style={{ color: "var(--ink)" }}>{formatPrice(item.unit_price * item.quantity)}</p>
+            <p className="text-sm font-bold" style={{ color: "var(--ink)" }}>{formatPrice(item.unit_price * item.quantity, storeCurrency.code, storeCurrency.locale)}</p>
           </div>
         ))}
       </div>
 
       <div className="rounded-xl p-3 space-y-1 text-sm mb-4" style={{ background: "var(--bg)" }}>
         <div className="flex justify-between" style={{ color: "var(--ink-2)" }}>
-          <span>Subtotal</span><span>{formatPrice(selected.subtotal_cents)}</span>
+          <span>Subtotal</span><span>{formatPrice(selected.subtotal_cents, storeCurrency.code, storeCurrency.locale)}</span>
         </div>
         <div className="flex justify-between" style={{ color: "var(--ink-2)" }}>
-          <span>Delivery</span><span>{formatPrice(selected.delivery_cents)}</span>
+          <span>Delivery</span><span>{formatPrice(selected.delivery_cents, storeCurrency.code, storeCurrency.locale)}</span>
         </div>
         {!!selected.discount_cents && (
           <div className="flex justify-between" style={{ color: "var(--success)" }}>
-            <span>🎁 Descuento de bienvenida</span><span>-{formatPrice(selected.discount_cents)}</span>
+            <span>🎁 Descuento de bienvenida</span><span>-{formatPrice(selected.discount_cents, storeCurrency.code, storeCurrency.locale)}</span>
           </div>
         )}
         <div className="flex justify-between font-bold pt-1" style={{ color: "var(--ink)", borderTop: "1px solid var(--line-2)" }}>
-          <span>Total</span><span>{formatPrice(selected.total_cents)}</span>
+          <span>Total</span><span>{formatPrice(selected.total_cents, storeCurrency.code, storeCurrency.locale)}</span>
         </div>
       </div>
 
@@ -674,7 +678,7 @@ export default function PedidosPage() {
                     <p className="text-xs" style={{ color: "var(--ink-4)" }}>{order.buyer_phone} · {order.items_count} ítem{order.items_count !== 1 ? "s" : ""}</p>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <p className="font-bold" style={{ color: "var(--ink)" }}>{formatPrice(order.total_cents)}</p>
+                    <p className="font-bold" style={{ color: "var(--ink)" }}>{formatPrice(order.total_cents, storeCurrency.code, storeCurrency.locale)}</p>
                     <p className="text-xs" style={{ color: "var(--ink-4)" }}>{formatDate(order.created_at)}</p>
                   </div>
                 </div>
