@@ -26,6 +26,8 @@ import { apiClient } from "@/lib/api";
 import { formatPrice, getStoreCurrency } from "@/lib/utils";
 import { getOpenStatus } from "@/lib/storeHours";
 import FiestasPatriasFloatingBadge from "@/components/ui/FiestasPatriasFloatingBadge";
+import WheelWidget from "./WheelWidget";
+import ClaimsModal from "./ClaimsModal";
 
 interface StoreData {
   slug:          string;
@@ -644,6 +646,7 @@ export default function StorePage({ store, initialProducts }: Props) {
       />
 
       <FiestasPatriasFloatingBadge country={store.country} />
+      <WheelWidget slug={store.slug} accentColor={color} />
 
       {/* Barra de dueño: así el vendedor no se pierde al ver su tienda pública */}
       {mounted && isOwner && (
@@ -1518,6 +1521,9 @@ export default function StorePage({ store, initialProducts }: Props) {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src="/brand/qtienda-wordmark.svg" alt="qtienda" style={{ height: 16, width: "auto", opacity: 0.4 }} />
               </a>
+            </div>
+            <div className="flex justify-center pt-3">
+              <ClaimsModal slug={store.slug} accentColor={color} />
             </div>
           </footer>
         </div>

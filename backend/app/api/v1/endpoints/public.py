@@ -2,18 +2,22 @@
 Public endpoints — accessed by buyers via /tienda/{slug}
 No authentication required.
 """
+import random
 import re
+import secrets
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from urllib.parse import quote
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import case, func, select, and_, or_
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
-from app.models.models import Plan, Store, Product, Category, Order, OrderItem, Payment, Review, StoreSettings, StoreEvent, SiteEvent, Subscription, MallBanner, AbandonedCart, Coupon
+from app.models.models import Plan, Store, Product, Category, Order, OrderItem, Payment, Review, StoreSettings, StoreEvent, SiteEvent, Subscription, MallBanner, AbandonedCart, Coupon, StoreClaim, StoreWheelConfig, WheelSpin
 from app.schemas.orders import PublicOrderCreate, OrderResponse
+from app.schemas.claims import ClaimCreate
 from app.core.limiter import limiter
 from app.core.config import settings as app_settings
 
@@ -1408,3 +1412,192 @@ async def track_site_event(
         ip_address=ip_address,
     ))
     await db.commit()
+
+
+# ── Libro de Reclamaciones ────────────────────────────────────
+
+@router.post("/store/{slug}/claims", status_code=201)
+@limiter.limit("5/minute")
+async def create_claim(
+    request: Request,
+    slug: str,
+    payload: ClaimCreate,
+    db: AsyncSession = Depends(get_db),
+):
+    """Libro de Reclamaciones Virtual — requisito legal en Perú (Código de
+    Protección y Defensa del Consumidor). claim_number es secuencial por
+    tienda (reclamos y quejas comparten la misma numeración) — el volumen de
+    reclamos es bajo, así que una ventana de carrera al contar es un riesgo
+    aceptado; si dos llegan a la vez, el índice único la resuelve y se
+    reintenta con el siguiente número."""
+    store_q = await db.execute(
+        select(Store.id).where(
+            Store.slug == slug, Store.status == "active", Store.deleted_at.is_(None)
+        )
+    )
+    store_id = store_q.scalar_one_or_none()
+    if not store_id:
+        raise HTTPException(status_code=404, detail="Tienda no encontrada")
+
+    if payload.order_id:
+        order_check = await db.execute(
+            select(Order.id).where(Order.id == payload.order_id, Order.store_id == store_id)
+        )
+        if not order_check.scalar_one_or_none():
+            raise HTTPException(status_code=422, detail="El pedido indicado no pertenece a esta tienda")
+
+    claim = None
+    for attempt in range(3):
+        count_q = await db.execute(
+            select(func.count()).select_from(StoreClaim).where(StoreClaim.store_id == store_id)
+        )
+        claim_number = f"RC-{(count_q.scalar() or 0) + 1 + attempt:04d}"
+        claim = StoreClaim(
+            store_id=store_id,
+            claim_number=claim_number,
+            type=payload.type,
+            consumer_name=payload.consumer_name,
+            consumer_dni=payload.consumer_dni,
+            consumer_address=payload.consumer_address,
+            consumer_phone=payload.consumer_phone,
+            consumer_email=payload.consumer_email,
+            order_id=payload.order_id,
+            detail=payload.detail,
+            claimed_amount_cents=payload.claimed_amount_cents,
+        )
+        db.add(claim)
+        try:
+            await db.commit()
+            break
+        except IntegrityError:
+            await db.rollback()
+            claim = None
+    if claim is None:
+        raise HTTPException(status_code=500, detail="No se pudo registrar el reclamo, intenta de nuevo")
+
+    import asyncio
+    from app.services.notifications import emit_event
+    asyncio.ensure_future(emit_event(
+        str(store_id), "new_claim",
+        claim_number=claim_number,
+        claim_type=payload.type,
+        consumer_name=payload.consumer_name,
+    ))
+
+    return {"claim_number": claim_number}
+
+
+# ── Ruleta de premios ─────────────────────────────────────────
+
+@router.get("/store/{slug}/wheel")
+async def get_public_wheel(
+    slug: str,
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Config de la ruleta para un visitante — nunca revela cuál segmento va
+    a salir. Si esa sesión ya giró, devuelve el premio que ya ganó en vez de
+    los segmentos, para que el frontend muestre el resultado y no la ruleta."""
+    store_q = await db.execute(
+        select(Store.id).where(Store.slug == slug, Store.status == "active", Store.deleted_at.is_(None))
+    )
+    store_id = store_q.scalar_one_or_none()
+    if not store_id:
+        raise HTTPException(status_code=404, detail="Tienda no encontrada")
+
+    config = (await db.execute(
+        select(StoreWheelConfig).where(
+            StoreWheelConfig.store_id == store_id, StoreWheelConfig.enabled.is_(True)
+        )
+    )).scalar_one_or_none()
+    if not config or not config.segments:
+        return {"enabled": False}
+
+    existing_spin = (await db.execute(
+        select(WheelSpin).where(WheelSpin.store_id == store_id, WheelSpin.session_id == session_id)
+    )).scalar_one_or_none()
+    if existing_spin:
+        return {
+            "enabled": True,
+            "already_spun": True,
+            "prize_label": existing_spin.prize_label,
+            "coupon_code": existing_spin.coupon_code,
+        }
+
+    return {"enabled": True, "already_spun": False, "segments": config.segments}
+
+
+@router.post("/store/{slug}/wheel/spin", status_code=201)
+@limiter.limit("10/minute")
+async def spin_wheel(
+    request: Request,
+    slug: str,
+    payload: dict,
+    db: AsyncSession = Depends(get_db),
+):
+    """Elige el premio en el servidor (nunca en el cliente) y, si tiene
+    descuento, crea un cupón real de un solo uso reusando el sistema de
+    cupones ya existente — el frontend solo anima hacia un resultado que el
+    backend ya decidió. Un giro por (store_id, session_id) para siempre."""
+    session_id = str(payload.get("session_id") or "").strip()
+    if not session_id:
+        raise HTTPException(status_code=422, detail="Falta identificador de sesión")
+
+    store_q = await db.execute(
+        select(Store.id).where(Store.slug == slug, Store.status == "active", Store.deleted_at.is_(None))
+    )
+    store_id = store_q.scalar_one_or_none()
+    if not store_id:
+        raise HTTPException(status_code=404, detail="Tienda no encontrada")
+
+    config = (await db.execute(
+        select(StoreWheelConfig).where(
+            StoreWheelConfig.store_id == store_id, StoreWheelConfig.enabled.is_(True)
+        )
+    )).scalar_one_or_none()
+    if not config or not config.segments:
+        raise HTTPException(status_code=404, detail="La ruleta no está disponible en esta tienda")
+
+    existing_spin = (await db.execute(
+        select(WheelSpin).where(WheelSpin.store_id == store_id, WheelSpin.session_id == session_id)
+    )).scalar_one_or_none()
+    if existing_spin:
+        return {"prize_label": existing_spin.prize_label, "coupon_code": existing_spin.coupon_code}
+
+    segments = config.segments
+    weights = [max(1, int(s.get("weight", 1))) for s in segments]
+    winner_idx = random.choices(range(len(segments)), weights=weights, k=1)[0]
+    winner = segments[winner_idx]
+
+    coupon_code = None
+    if winner.get("discount_type") in ("percent", "fixed") and int(winner.get("discount_value") or 0) > 0:
+        coupon_code = f"RULETA-{secrets.token_hex(3).upper()}"
+        db.add(Coupon(
+            store_id=store_id,
+            code=coupon_code,
+            discount_type=winner["discount_type"],
+            discount_value=int(winner["discount_value"]),
+            max_uses=1,
+            expires_at=datetime.now(timezone.utc) + timedelta(hours=48),
+        ))
+
+    spin = WheelSpin(
+        store_id=store_id,
+        session_id=session_id,
+        prize_label=winner.get("label", "Premio"),
+        coupon_code=coupon_code,
+    )
+    db.add(spin)
+
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        existing_spin = (await db.execute(
+            select(WheelSpin).where(WheelSpin.store_id == store_id, WheelSpin.session_id == session_id)
+        )).scalar_one_or_none()
+        if existing_spin:
+            return {"prize_label": existing_spin.prize_label, "coupon_code": existing_spin.coupon_code}
+        raise HTTPException(status_code=500, detail="No se pudo procesar el giro, intenta de nuevo")
+
+    return {"prize_label": spin.prize_label, "coupon_code": coupon_code, "segment_index": winner_idx}

@@ -579,3 +579,59 @@ class Coupon(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (UniqueConstraint("store_id", "code", name="uq_coupons_store_code"),)
+
+
+# ── Libro de Reclamaciones ───────────────────────────────────────
+
+class StoreClaim(Base):
+    """Libro de Reclamaciones Virtual — requisito legal en Perú (Código de
+    Protección y Defensa del Consumidor) para tiendas online."""
+    __tablename__ = "store_claims"
+
+    id: Mapped[uuid.UUID]        = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    store_id: Mapped[uuid.UUID]  = mapped_column(UUID(as_uuid=True), ForeignKey("stores.id", ondelete="CASCADE"), nullable=False)
+    claim_number: Mapped[str]    = mapped_column(String(20), nullable=False)
+    type: Mapped[str]            = mapped_column(String(10), nullable=False)  # 'reclamo' | 'queja'
+    consumer_name: Mapped[str]   = mapped_column(String(150), nullable=False)
+    consumer_dni: Mapped[str]    = mapped_column(String(20), nullable=False)
+    consumer_address: Mapped[str] = mapped_column(String(300), nullable=False)
+    consumer_phone: Mapped[Optional[str]] = mapped_column(String(20))
+    consumer_email: Mapped[Optional[str]] = mapped_column(String(150))
+    order_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("orders.id", ondelete="SET NULL"))
+    detail: Mapped[str]          = mapped_column(Text, nullable=False)
+    claimed_amount_cents: Mapped[Optional[int]] = mapped_column(Integer)
+    vendor_response: Mapped[Optional[str]] = mapped_column(Text)
+    status: Mapped[str]          = mapped_column(String(15), default="open")  # open | responded | closed
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    responded_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (UniqueConstraint("store_id", "claim_number", name="uq_claims_store_number"),)
+
+
+# ── Ruleta de premios ────────────────────────────────────────────
+
+class StoreWheelConfig(Base):
+    """Configuración de la ruleta por tienda — 1 fila por tienda, editable
+    desde el dashboard. `segments` es una lista de premios con su peso
+    relativo de probabilidad, definida por el vendedor."""
+    __tablename__ = "store_wheel_config"
+
+    store_id: Mapped[uuid.UUID]  = mapped_column(UUID(as_uuid=True), ForeignKey("stores.id", ondelete="CASCADE"), primary_key=True)
+    enabled: Mapped[bool]        = mapped_column(Boolean, default=False)
+    segments: Mapped[list]       = mapped_column(JSONB, default=list)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class WheelSpin(Base):
+    """Un giro por (store_id, session_id) — para siempre, no por día (más
+    simple de razonar y evita abuso reseteando localStorage)."""
+    __tablename__ = "wheel_spins"
+
+    id: Mapped[uuid.UUID]        = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    store_id: Mapped[uuid.UUID]  = mapped_column(UUID(as_uuid=True), ForeignKey("stores.id", ondelete="CASCADE"), nullable=False)
+    session_id: Mapped[str]      = mapped_column(String(64), nullable=False)
+    prize_label: Mapped[str]     = mapped_column(String(60), nullable=False)
+    coupon_code: Mapped[Optional[str]] = mapped_column(String(30))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (UniqueConstraint("store_id", "session_id", name="uq_wheel_spins_store_session"),)

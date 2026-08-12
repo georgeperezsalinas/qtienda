@@ -17,6 +17,8 @@ from app.api.v1.endpoints import (
     referrals,
     notifications,
     coupons,
+    claims,
+    wheel,
 )
 
 api_router = APIRouter()
@@ -33,6 +35,8 @@ api_router.include_router(products.router,  prefix="/products",  tags=["Products
 api_router.include_router(categories.router,prefix="/categories",tags=["Categories"])
 api_router.include_router(orders.router,    prefix="/orders",    tags=["Orders"])
 api_router.include_router(coupons.router,   prefix="/coupons",   tags=["Coupons"])
+api_router.include_router(claims.router,    prefix="/claims",    tags=["Claims"])
+api_router.include_router(wheel.router,     prefix="/wheel-config", tags=["Wheel"])
 api_router.include_router(uploads.router,   prefix="/uploads",   tags=["Uploads"])
 
 # Buyer

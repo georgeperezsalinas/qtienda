@@ -180,6 +180,14 @@ TEMPLATES: dict[str, NotifTemplate] = {
         ),
         action_url="/dashboard",
     ),
+    # Libro de Reclamaciones — no es "once" (una tienda puede recibir varios).
+    "new_claim": NotifTemplate(
+        icon="📋",
+        title=lambda ctx: f"Nuevo {ctx.get('claim_type', 'reclamo')} — {ctx.get('claim_number', '')}",
+        body=lambda ctx: f"{ctx.get('consumer_name', 'Un cliente')} registró un {ctx.get('claim_type', 'reclamo')} en tu Libro de Reclamaciones. Revísalo y responde cuanto antes.",
+        action_url="/dashboard/reclamos",
+        email=True,
+    ),
     "announcement": NotifTemplate(
         icon="✨",
         title=lambda ctx: ctx.get("title", "Novedades en QTienda"),
