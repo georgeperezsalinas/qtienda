@@ -12,7 +12,7 @@ from sqlalchemy import case, func, select, and_, or_
 from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
-from app.models.models import Plan, Store, Product, Category, Order, OrderItem, Payment, Review, StoreSettings, StoreEvent, SiteEvent, Subscription, MallBanner
+from app.models.models import Plan, Store, Product, Category, Order, OrderItem, Payment, Review, StoreSettings, StoreEvent, SiteEvent, Subscription, MallBanner, AbandonedCart, Coupon
 from app.schemas.orders import PublicOrderCreate, OrderResponse
 from app.core.limiter import limiter
 from app.core.config import settings as app_settings
@@ -712,6 +712,65 @@ async def check_first_order(
     return {"is_first_order": is_first}
 
 
+def _check_coupon(coupon: Optional["Coupon"], subtotal_cents: int) -> tuple[bool, int, str]:
+    """Valida un cupón cargado y calcula el descuento. Pura — sin I/O, la
+    reusan tanto la validación en vivo (checkout) como create_order (autoridad
+    final, nunca confía en lo que calculó el frontend)."""
+    if coupon is None:
+        return False, 0, "Cupón no válido"
+    if not coupon.active:
+        return False, 0, "Este cupón ya no está activo"
+    if coupon.expires_at and coupon.expires_at < datetime.now(timezone.utc):
+        return False, 0, "Este cupón venció"
+    if coupon.max_uses is not None and coupon.uses_count >= coupon.max_uses:
+        return False, 0, "Este cupón alcanzó su límite de usos"
+    if coupon.min_order_cents and subtotal_cents < coupon.min_order_cents:
+        return False, 0, f"El pedido mínimo para este cupón es S/ {coupon.min_order_cents / 100:.2f}"
+
+    if coupon.discount_type == "percent":
+        discount = round(subtotal_cents * coupon.discount_value / 100)
+    else:
+        discount = coupon.discount_value
+    discount = max(0, min(discount, subtotal_cents))
+    return True, discount, "Cupón aplicado"
+
+
+@router.post("/store/{slug}/coupons/validate")
+@limiter.limit("30/minute")
+async def validate_coupon(
+    request: Request,
+    slug: str,
+    payload: dict,
+    db: AsyncSession = Depends(get_db),
+):
+    """Valida un código de cupón en vivo durante el checkout — solo devuelve
+    si es válido y el descuento, nunca la lista de cupones de la tienda."""
+    code = str(payload.get("code") or "").strip().upper()
+    try:
+        subtotal_cents = max(0, int(payload.get("subtotal_cents") or 0))
+    except (TypeError, ValueError):
+        subtotal_cents = 0
+
+    if not code:
+        return {"valid": False, "discount_cents": 0, "message": "Ingresa un código"}
+
+    store_q = await db.execute(
+        select(Store.id).where(
+            Store.slug == slug, Store.status == "active", Store.deleted_at.is_(None)
+        )
+    )
+    store_id = store_q.scalar_one_or_none()
+    if not store_id:
+        raise HTTPException(status_code=404, detail="Tienda no encontrada")
+
+    coupon = (await db.execute(
+        select(Coupon).where(Coupon.store_id == store_id, Coupon.code == code)
+    )).scalar_one_or_none()
+
+    valid, discount_cents, message = _check_coupon(coupon, subtotal_cents)
+    return {"valid": valid, "discount_cents": discount_cents, "message": message}
+
+
 @router.post("/store/{slug}/orders", status_code=201)
 @limiter.limit("8/minute")
 async def create_order(
@@ -824,6 +883,28 @@ async def create_order(
             discount_cents = min(settings.welcome_discount_cents, subtotal)
             total -= discount_cents
 
+    # Cupón — re-validado server-side (nunca se confía en el descuento que
+    # calculó el frontend). Lock de fila para incrementar uses_count sin
+    # condiciones de carrera, mismo patrón que el descuento de stock.
+    coupon_code = None
+    applied_coupon = None
+    if payload.coupon_code:
+        code = payload.coupon_code.strip().upper()
+        coupon_q = await db.execute(
+            select(Coupon)
+            .where(Coupon.store_id == store.id, Coupon.code == code)
+            .with_for_update()
+        )
+        coupon = coupon_q.scalar_one_or_none()
+        valid, coupon_discount, message = _check_coupon(coupon, subtotal)
+        if not valid:
+            raise HTTPException(status_code=422, detail=message)
+        coupon_discount = min(coupon_discount, total)
+        discount_cents += coupon_discount
+        total -= coupon_discount
+        coupon_code = coupon.code
+        applied_coupon = coupon
+
     # Validate payment method
     _method = (payload.payment_method or "cash").lower().strip()
     _allowed: list[str] = []
@@ -864,11 +945,28 @@ async def create_order(
         source=payload.source or "tiktok",
         utm_source=payload.utm_source,
         utm_campaign=payload.utm_campaign,
+        coupon_code=coupon_code,
         ip_address=request.client.host if request.client else None,
         user_agent=request.headers.get("user-agent"),
     )
     db.add(order)
     await db.flush()
+
+    if applied_coupon is not None:
+        applied_coupon.uses_count += 1
+
+    # Carrito recuperado — la sesión que abandonó el carrito completó el pedido
+    if payload.cart_session_id:
+        cart_q = await db.execute(
+            select(AbandonedCart).where(
+                AbandonedCart.store_id == store.id,
+                AbandonedCart.session_id == payload.cart_session_id,
+                AbandonedCart.status.in_(("open", "notified")),
+            )
+        )
+        cart = cart_q.scalar_one_or_none()
+        if cart:
+            cart.status = "recovered"
 
     low_stock_alerts = []  # (product_name, stock) — se avisa fire-and-forget después del commit
     for oi in order_items:
@@ -976,7 +1074,8 @@ async def create_order(
         if delivery_cents > 0:
             lines.append(f"🚚 Delivery: S/ {delivery_cents/100:.2f}")
         if discount_cents > 0:
-            lines.append(f"🎁 Descuento de bienvenida: -S/ {discount_cents/100:.2f}")
+            _discount_label = f"🏷️ Descuento (cupón {coupon_code})" if coupon_code else "🎁 Descuento de bienvenida"
+            lines.append(f"{_discount_label}: -S/ {discount_cents/100:.2f}")
         lines += [
             f"💵 *TOTAL: S/ {total/100:.2f}*",
             "━━━━━━━━━━━━━━━━━━━━━━",
@@ -1133,6 +1232,52 @@ async def track_event(
         session_id=session_id,
         device=device,
     ))
+
+    # Snapshot del carrito para recuperación de abandono — el frontend manda
+    # el contenido actual del carrito junto con el evento add_to_cart. Best
+    # effort: si el payload no trae items válidos, no se rompe el tracking.
+    if event == "add_to_cart" and session_id:
+        cart_items = payload.get("cart_items")
+        if isinstance(cart_items, list) and cart_items:
+            clean_items = []
+            subtotal_cents = 0
+            for it in cart_items[:50]:
+                if not isinstance(it, dict):
+                    continue
+                try:
+                    qty = max(1, int(it.get("qty", 1)))
+                    price = max(0, int(it.get("price_cents", 0)))
+                except (TypeError, ValueError):
+                    continue
+                clean_items.append({
+                    "product_id": str(it.get("product_id") or ""),
+                    "name": str(it.get("name") or "")[:200],
+                    "qty": qty,
+                    "price_cents": price,
+                })
+                subtotal_cents += qty * price
+
+            if clean_items:
+                from sqlalchemy.dialects.postgresql import insert as pg_insert
+                stmt = pg_insert(AbandonedCart).values(
+                    store_id=store_id,
+                    session_id=session_id,
+                    items=clean_items,
+                    subtotal_cents=subtotal_cents,
+                    status="open",
+                )
+                stmt = stmt.on_conflict_do_update(
+                    index_elements=["store_id", "session_id"],
+                    set_={
+                        "items": clean_items,
+                        "subtotal_cents": subtotal_cents,
+                        "status": "open",
+                        "notified_at": None,
+                        "updated_at": func.now(),
+                    },
+                )
+                await db.execute(stmt)
+
     await db.commit()
 
     # Hitos de onboarding — el dedupe de "primera vez" lo resuelve el ON CONFLICT

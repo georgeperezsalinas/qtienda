@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   X, Minus, Plus, ShoppingBag, MessageCircle,
   CheckCircle2, ChevronRight, MapPin, User, Phone,
-  Mail, FileText, ArrowLeft, CreditCard, Landmark, AlertTriangle,
+  Mail, FileText, ArrowLeft, CreditCard, Landmark, AlertTriangle, Tag,
 } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
 import { useRecentPurchasesStore } from "@/store/recentPurchasesStore";
@@ -17,6 +17,7 @@ import toast from "react-hot-toast";
 import PhoneInput from "@/components/ui/PhoneInput";
 import { track } from "@vercel/analytics";
 import { pixelPurchase } from "@/lib/marketingPixels";
+import { getSessionId } from "@/lib/analyticsSession";
 
 interface Props {
   open: boolean;
@@ -202,7 +203,47 @@ export default function CartDrawer({ open, onClose, store }: Props) {
   const [isFirstOrder, setIsFirstOrder] = useState<boolean | null>(null);
   const [checkingWelcome, setCheckingWelcome] = useState(false);
   const appliedDiscount = welcomeEnabled && isFirstOrder ? Math.min(welcomeDiscountCents, subtotal) : 0;
-  const displayTotal = total - appliedDiscount;
+
+  // Cupón — el descuento mostrado es solo un preview; el backend es la
+  // autoridad final y re-valida todo al crear el pedido.
+  const [couponCode, setCouponCode] = useState("");
+  const [couponApplying, setCouponApplying] = useState(false);
+  const [couponApplied, setCouponApplied] = useState<{ code: string; discount_cents: number } | null>(null);
+  const [couponError, setCouponError] = useState("");
+
+  async function applyCoupon() {
+    const code = couponCode.trim();
+    if (!code) return;
+    setCouponApplying(true);
+    setCouponError("");
+    try {
+      const { data } = await apiClient.post(`/public/store/${store.slug}/coupons/validate`, {
+        code,
+        subtotal_cents: subtotal,
+      });
+      if (data.valid) {
+        setCouponApplied({ code: code.toUpperCase(), discount_cents: data.discount_cents });
+        toast.success(data.message || "Cupón aplicado");
+      } else {
+        setCouponApplied(null);
+        setCouponError(data.message || "Cupón no válido");
+      }
+    } catch {
+      setCouponApplied(null);
+      setCouponError("No se pudo validar el cupón");
+    } finally {
+      setCouponApplying(false);
+    }
+  }
+
+  function removeCoupon() {
+    setCouponApplied(null);
+    setCouponCode("");
+    setCouponError("");
+  }
+
+  const couponDiscountCents = couponApplied ? Math.min(couponApplied.discount_cents, total - appliedDiscount) : 0;
+  const displayTotal = total - appliedDiscount - couponDiscountCents;
 
   useEffect(() => {
     if (step !== "payment" || !welcomeEnabled || isFirstOrder !== null || !form.buyer_phone.trim()) return;
@@ -282,6 +323,8 @@ export default function CartDrawer({ open, onClose, store }: Props) {
         notes: form.notes.trim() || undefined,
         payment_method: form.payment_method,
         source: "tiktok",
+        coupon_code: couponApplied?.code || undefined,
+        cart_session_id: getSessionId(),
         items: items.map((i) => ({ product_id: i.id, quantity: i.quantity })),
       });
 
@@ -718,7 +761,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                       >
                         <div>
                           <p className="text-xs font-semibold" style={{ color: "var(--ink-2)" }}>Total a pagar</p>
-                          {appliedDiscount > 0 && (
+                          {(appliedDiscount > 0 || couponDiscountCents > 0) && (
                             <p className="text-xs line-through" style={{ color: "var(--ink-4)" }}>
                               {formatPrice(total)}
                             </p>
@@ -744,12 +787,69 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                               🎁 -{formatPrice(appliedDiscount)} bienvenida
                             </span>
                           )}
+                          {couponDiscountCents > 0 && (
+                            <span
+                              className="text-xs font-bold px-3 py-1.5 rounded-full whitespace-nowrap"
+                              style={{ background: "var(--success-soft)", color: "var(--success)" }}
+                            >
+                              🏷️ -{formatPrice(couponDiscountCents)} cupón
+                            </span>
+                          )}
                           {checkingWelcome && (
                             <span className="text-[11px] font-medium" style={{ color: "var(--ink-4)" }}>
                               Verificando descuento…
                             </span>
                           )}
                         </div>
+                      </div>
+
+                      {/* Cupón de descuento */}
+                      <div className="rounded-2xl p-3.5" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
+                        {couponApplied ? (
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Tag size={15} style={{ color: "var(--success)" }} className="flex-shrink-0" />
+                              <p className="text-sm font-bold truncate" style={{ color: "var(--ink)" }}>
+                                Cupón {couponApplied.code} aplicado
+                              </p>
+                            </div>
+                            <button
+                              onClick={removeCoupon}
+                              className="text-xs font-semibold flex-shrink-0"
+                              style={{ color: "var(--ink-3)" }}
+                            >
+                              Quitar
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <label className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "var(--ink-3)" }}>
+                              <Tag size={11} />
+                              ¿Tienes un cupón?
+                            </label>
+                            <div className="flex gap-2">
+                              <input
+                                className="input flex-1"
+                                placeholder="Código"
+                                autoCapitalize="characters"
+                                value={couponCode}
+                                onChange={(e) => { setCouponCode(e.target.value.toUpperCase()); setCouponError(""); }}
+                                onKeyDown={(e) => { if (e.key === "Enter") applyCoupon(); }}
+                              />
+                              <button
+                                onClick={applyCoupon}
+                                disabled={couponApplying || !couponCode.trim()}
+                                className="px-4 rounded-xl font-bold text-sm flex-shrink-0 transition-all active:scale-95 disabled:opacity-50"
+                                style={{ background: "var(--surface-2)", color: "var(--ink)" }}
+                              >
+                                {couponApplying ? "…" : "Aplicar"}
+                              </button>
+                            </div>
+                            {couponError && (
+                              <p className="text-xs font-medium mt-1.5" style={{ color: "var(--danger)" }}>{couponError}</p>
+                            )}
+                          </>
+                        )}
                       </div>
 
                       {store.settings?.require_prepayment && (
@@ -885,7 +985,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
 
                         {orderResult.discount_cents > 0 && (
                           <p className="text-xs font-bold mt-3" style={{ color: "var(--success)" }}>
-                            🎁 Se aplicó tu descuento de bienvenida: -{formatPrice(orderResult.discount_cents)}
+                            🎁 Se aplicó tu descuento: -{formatPrice(orderResult.discount_cents)}
                           </p>
                         )}
 

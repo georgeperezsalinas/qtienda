@@ -129,7 +129,12 @@ export default function ProductCard({
       storeSlug,
     );
     setAdded(true);
-    trackStoreEvent(storeSlug, "add_to_cart", product.id);
+    // Snapshot del carrito actualizado — alimenta la recuperación de
+    // carrito abandonado en el backend, sin tracking nuevo del lado cliente.
+    const cartItems = useCartStore.getState().items.map((i) => ({
+      product_id: i.id, name: i.name, qty: i.quantity, price_cents: i.price_cents,
+    }));
+    trackStoreEvent(storeSlug, "add_to_cart", product.id, { cart_items: cartItems });
     pixelAddToCart(product, 1);
     toast.custom(
       (t) => (

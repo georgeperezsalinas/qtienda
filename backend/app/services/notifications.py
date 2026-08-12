@@ -168,6 +168,18 @@ TEMPLATES: dict[str, NotifTemplate] = {
         body=lambda ctx: f"A \"{ctx.get('product_name', '')}\" le quedan {ctx.get('stock', 0)} unidades. Actualiza el stock antes de que se agote.",
         action_url="/dashboard/productos",
     ),
+    # Carrito abandonado — no es "once" por tienda, el dedupe es por carrito
+    # (AbandonedCart.notified_at), controlado por quien llama a emit_event
+    # (abandoned_cart_watcher.py).
+    "abandoned_cart": NotifTemplate(
+        icon="🛒",
+        title="Un cliente dejó su carrito a medias",
+        body=lambda ctx: (
+            f"Agregó {ctx.get('items_count', 0)} producto(s) por S/ {ctx.get('subtotal_cents', 0) / 100:.2f} "
+            + (f"y dejó su teléfono {ctx.get('buyer_phone')} — escríbele para ayudarlo a completar la compra." if ctx.get("buyer_phone") else "pero no completó el pedido — vale la pena revisar si algo trabó el checkout.")
+        ),
+        action_url="/dashboard",
+    ),
     "announcement": NotifTemplate(
         icon="✨",
         title=lambda ctx: ctx.get("title", "Novedades en QTienda"),

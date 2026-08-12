@@ -297,6 +297,10 @@ class PublicOrderCreate(BaseModel):
     source: Optional[str] = "tiktok"
     utm_source: Optional[str] = None
     utm_campaign: Optional[str] = None
+    coupon_code: Optional[str] = None
+    # session_id del carrito (analyticsSession.ts) — permite marcar el
+    # AbandonedCart de esta sesión como 'recovered' al completar el pedido.
+    cart_session_id: Optional[str] = None
 
     @field_validator("items")
     @classmethod

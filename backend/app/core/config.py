@@ -94,6 +94,11 @@ class Settings(BaseSettings):
     # cae a este número o menos tras una venta (se resetea al editar el stock).
     LOW_STOCK_THRESHOLD: int = 3
 
+    # Carrito abandonado — un carrito 'open' sin pedido asociado pasado este
+    # tiempo dispara una notificación al vendedor (una sola vez por carrito).
+    ABANDONED_CART_THRESHOLD_MINUTES: int = 30
+    ABANDONED_CART_CHECK_MINUTES: int = 15
+
     UPLOADS_DIR: str = "/tmp/qtienda-uploads"
     UPLOADS_BASE_URL: str = "http://localhost:8000/uploads"
 

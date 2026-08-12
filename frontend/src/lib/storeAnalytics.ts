@@ -12,6 +12,7 @@ export function trackStoreEvent(
   storeSlug: string,
   event: StoreEventName,
   productId?: string,
+  extra?: Record<string, unknown>,
 ) {
   if (typeof window === "undefined") return;
   try {
@@ -20,6 +21,7 @@ export function trackStoreEvent(
       product_id: productId,
       session_id: getSessionId(),
       device: getDevice(),
+      ...extra,
     });
     const url = `${BASE}/public/store/${storeSlug}/events`;
     if (navigator.sendBeacon) {

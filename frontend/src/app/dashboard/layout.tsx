@@ -23,6 +23,7 @@ import {
   Search,
   ShoppingCart,
   HelpCircle,
+  Tag,
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import DashboardTour, { restartQtiendaTour } from "@/components/onboarding/DashboardTour";
@@ -89,6 +90,7 @@ const SIDE_NAV = [
   { href: "/dashboard", label: "Inicio", icon: LayoutDashboard, exact: true },
   { href: "/dashboard/pedidos", label: "Pedidos", icon: ShoppingBag, exact: false },
   { href: "/dashboard/productos", label: "Productos", icon: Package, exact: false },
+  { href: "/dashboard/cupones", label: "Cupones", icon: Tag, exact: false },
   { href: "/dashboard/delivery", label: "Delivery", icon: Bike, exact: false },
   { href: "/dashboard/finanzas", label: "Finanzas", icon: BarChart2, exact: false },
   { href: "/dashboard/configuracion", label: "Ajustes", icon: Settings, exact: false },
@@ -485,6 +487,7 @@ export default function DashboardLayout({
             {/* Secondary nav */}
             <div className="flex flex-col gap-1">
               {[
+                { href: "/dashboard/cupones", label: "Cupones", icon: Tag },
                 { href: "/dashboard/configuracion", label: "Ajustes", icon: Settings },
                 { href: "/dashboard/delivery", label: "Delivery", icon: Bike },
                 { href: "/mis-pedidos", label: "Mis compras", icon: ShoppingCart },

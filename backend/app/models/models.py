@@ -288,6 +288,7 @@ class Order(Base):
     updated_at: Mapped[datetime]    = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     delivered_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     review_reminder_sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    coupon_code: Mapped[Optional[str]] = mapped_column(String(30))
 
     store: Mapped["Store"]                  = relationship(back_populates="orders")
     items: Mapped[List["OrderItem"]]        = relationship(back_populates="order", cascade="all, delete-orphan")
@@ -533,3 +534,44 @@ class Notification(Base):
     action_url: Mapped[Optional[str]] = mapped_column(String(200))
     read_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+# ── Carrito abandonado ───────────────────────────────────────
+
+class AbandonedCart(Base):
+    """Snapshot del carrito de una sesion de comprador, actualizado en cada
+    add_to_cart (track_event). El watcher notifica al vendedor cuando pasa
+    ABANDONED_CART_THRESHOLD_MINUTES sin que la sesion complete un pedido."""
+    __tablename__ = "abandoned_carts"
+
+    id: Mapped[uuid.UUID]        = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    store_id: Mapped[uuid.UUID]  = mapped_column(UUID(as_uuid=True), ForeignKey("stores.id", ondelete="CASCADE"), nullable=False)
+    session_id: Mapped[str]      = mapped_column(String(64), nullable=False)
+    items: Mapped[list]          = mapped_column(JSONB, default=list)
+    subtotal_cents: Mapped[int]  = mapped_column(Integer, default=0)
+    buyer_name: Mapped[Optional[str]]  = mapped_column(String(150))
+    buyer_phone: Mapped[Optional[str]] = mapped_column(String(20))
+    status: Mapped[str]          = mapped_column(String(20), default="open")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    notified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+
+# ── Cupones ───────────────────────────────────────────────────
+
+class Coupon(Base):
+    __tablename__ = "coupons"
+
+    id: Mapped[uuid.UUID]        = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    store_id: Mapped[uuid.UUID]  = mapped_column(UUID(as_uuid=True), ForeignKey("stores.id", ondelete="CASCADE"), nullable=False)
+    code: Mapped[str]            = mapped_column(String(30), nullable=False)
+    discount_type: Mapped[str]   = mapped_column(String(10), nullable=False)  # 'percent' | 'fixed'
+    discount_value: Mapped[int]  = mapped_column(Integer, nullable=False)
+    min_order_cents: Mapped[Optional[int]] = mapped_column(Integer)
+    max_uses: Mapped[Optional[int]] = mapped_column(Integer)
+    uses_count: Mapped[int]      = mapped_column(Integer, default=0)
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    active: Mapped[bool]         = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (UniqueConstraint("store_id", "code", name="uq_coupons_store_code"),)
