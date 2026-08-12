@@ -75,12 +75,18 @@ export default function PWARegister() {
     const dismissed = localStorage.getItem("pwa-banner-dismissed");
     if (dismissed) return;
 
-    // Páginas con su propio banner de instalación (no duplicar aquí):
-    // /tienda/* (StorePage), "/" (landing) y /tiendas (Mall, con su propio manifest/icono)
-    const hasOwnBanner = () =>
-      window.location.pathname.startsWith("/tienda/") ||
-      window.location.pathname === "/" ||
-      window.location.pathname === "/tiendas";
+    // Páginas con su propio banner de instalación (no duplicar aquí): la
+    // puerta de cualquier tienda (slug.qtienda.shop/*, incluye catálogo),
+    // el landing ("/") y el Mall ("/tiendas"). Las tiendas ya NO viven bajo
+    // /tienda/* en el navegador (eso quedó solo como ruta interna detrás
+    // del subdominio) — hay que distinguir por host, no por path.
+    const ROOT_DOMAIN = "qtienda.shop";
+    const hasOwnBanner = () => {
+      const host = window.location.hostname;
+      const isApex = host === ROOT_DOMAIN || host === `www.${ROOT_DOMAIN}`;
+      if (!isApex) return true; // cualquier subdominio de tienda
+      return window.location.pathname === "/" || window.location.pathname === "/tiendas";
+    };
 
     // Android / Chrome: capturar evento de instalación
     const handler = (e: Event) => {

@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   ShoppingCart, Search, ChevronRight, Zap, Heart,
-  MapPin, X, MessageCircle, Share2, Download,
+  MapPin, X, MessageCircle, Share2,
   LayoutGrid, List, Clock, Truck, ShieldCheck, PackageSearch,
   HelpCircle, CheckCircle2, Star, SlidersHorizontal, DoorOpen,
 } from "lucide-react";
@@ -93,11 +93,6 @@ interface ProductData {
 interface Props {
   store:           StoreData;
   initialProducts: ProductData[];
-}
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt(): Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
 /* Buscador de la tienda: se renderiza inline en el header desktop y como fila propia en móvil */
@@ -375,9 +370,6 @@ export default function StorePage({ store, initialProducts }: Props) {
   const [viewProduct,    setViewProduct]    = useState<ProductData | null>(null);
   const [listView,       setListView]       = useState(true);
   const [accountOpen,    setAccountOpen]    = useState(false);
-  const [installPrompt,       setInstallPrompt]       = useState<BeforeInstallPromptEvent | null>(null);
-  const [installDismissed,    setInstallDismissed]    = useState(false);
-  const [buyerBannerDismissed,setBuyerBannerDismissed]= useState(false);
   const [welcomeBannerDismissed, setWelcomeBannerDismissed] = useState(false);
   const [isOwner,             setIsOwner]             = useState(false);
   const [trackOpen,           setTrackOpen]           = useState(false);
@@ -441,17 +433,6 @@ export default function StorePage({ store, initialProducts }: Props) {
   const bannerOpacity = useTransform(scrollY, [0, 180], [1, 0]);
   const bannerScale   = useTransform(scrollY, [0, 200], [1, 0.96]);
 
-  async function handleInstall() {
-    if (!installPrompt) return;
-    await installPrompt.prompt();
-    setInstallPrompt(null);
-  }
-
-  function dismissBuyerBanner() {
-    setBuyerBannerDismissed(true);
-    localStorage.setItem("qtienda_buyer_banner_dismissed", "1");
-  }
-
   function dismissWelcomeBanner() {
     setWelcomeBannerDismissed(true);
     localStorage.setItem(`qtienda_welcome_banner_dismissed_${store.slug}`, "1");
@@ -469,18 +450,10 @@ export default function StorePage({ store, initialProducts }: Props) {
 
   useEffect(() => {
     setMounted(true);
-    if (localStorage.getItem("qtienda_buyer_banner_dismissed") === "1")
-      setBuyerBannerDismissed(true);
     if (localStorage.getItem(`qtienda_welcome_banner_dismissed_${store.slug}`) === "1")
       setWelcomeBannerDismissed(true);
     // En pantallas grandes la grilla aprovecha mejor el espacio que la lista
     if (window.innerWidth >= 1024) setListView(false);
-  }, []);
-
-  useEffect(() => {
-    const handler = (e: Event) => { e.preventDefault(); setInstallPrompt(e as BeforeInstallPromptEvent); };
-    window.addEventListener("beforeinstallprompt", handler as EventListener);
-    return () => window.removeEventListener("beforeinstallprompt", handler as EventListener);
   }, []);
 
   useEffect(() => {
@@ -890,9 +863,9 @@ export default function StorePage({ store, initialProducts }: Props) {
       </div>
 
       {/* ══════════════════════════════════
-          AVISOS FLOTANTES (descuento bienvenida, instalar PWA, crear cuenta)
-          No empujan el contenido — flotan sobre la tienda, uno debajo del
-          otro, y cada uno se puede cerrar por separado.
+          AVISO FLOTANTE de descuento de bienvenida — no empuja el contenido.
+          Instalar/crear cuenta ahora viven en la puerta (StoreDoor), donde
+          tiene más sentido pedirlo antes de entrar a comprar.
       ══════════════════════════════════ */}
       <div className="fixed top-20 right-3 z-30 flex flex-col gap-2 w-[calc(100vw-24px)] max-w-[300px] pointer-events-none lg:top-24 lg:right-6">
         <AnimatePresence>
@@ -907,50 +880,6 @@ export default function StorePage({ store, initialProducts }: Props) {
                 {formatPrice(store.settings.welcome_discount_cents, storeCurrency, storeLocale)} de descuento en tu primera compra aquí
               </p>
               <button onClick={dismissWelcomeBanner} className="flex-shrink-0"><X size={14} style={{ color: "var(--ink-4)" }} /></button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <AnimatePresence>
-          {mounted && installPrompt && !installDismissed && (
-            <motion.div
-              initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 24 }}
-              className="pointer-events-auto flex items-center gap-2.5 px-3.5 py-3 rounded-2xl"
-              style={{ background: "var(--surface)", boxShadow: "var(--shadow-float)", border: `1px solid ${color}25` }}
-            >
-              <span className="text-lg flex-shrink-0">📲</span>
-              <p className="flex-1 text-xs font-medium" style={{ color: "var(--ink-2)" }}>
-                Instala la tienda para acceso rápido
-              </p>
-              <button
-                onClick={handleInstall}
-                className="flex-shrink-0 flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full text-white"
-                style={{ background: color }}
-              >
-                <Download size={11} /> Instalar
-              </button>
-              <button onClick={() => { setInstallDismissed(true); localStorage.setItem("pwa-banner-dismissed", "1"); }} className="flex-shrink-0"><X size={14} style={{ color: "var(--ink-4)" }} /></button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <AnimatePresence>
-          {mounted && !isLoggedIn && !buyerBannerDismissed && (
-            <motion.div
-              initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 24 }}
-              className="pointer-events-auto flex items-center gap-2.5 px-3.5 py-3 rounded-2xl"
-              style={{ background: "var(--success-soft)", boxShadow: "var(--shadow-float)", border: "1px solid var(--line-2)" }}
-            >
-              <span className="text-lg flex-shrink-0">🛍️</span>
-              <p className="flex-1 text-xs font-medium leading-snug" style={{ color: "var(--success)" }}>
-                ¿Compras aquí seguido? Crea una cuenta para ver tus pedidos
-              </p>
-              <a href="/registro"
-                className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-full text-white whitespace-nowrap"
-                style={{ background: "var(--success)" }}>
-                Crear cuenta
-              </a>
-              <button onClick={dismissBuyerBanner} className="flex-shrink-0"><X size={14} style={{ color: "var(--ink-3)" }} /></button>
             </motion.div>
           )}
         </AnimatePresence>
