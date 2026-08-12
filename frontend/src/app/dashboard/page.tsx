@@ -613,7 +613,7 @@ export default function DashboardPage() {
               className="inline-flex p-4 rounded-2xl mb-4"
               style={{ background: "#fff", border: "1px solid var(--line-2)" }}
             >
-              <QRCodeCanvas ref={qrCanvasRef} value={`https://qtienda.shop/tienda/${store.slug}`} size={180} marginSize={0} />
+              <QRCodeCanvas ref={qrCanvasRef} value={`https://${store.slug}.qtienda.shop/`} size={180} marginSize={0} />
             </div>
             <button
               type="button"

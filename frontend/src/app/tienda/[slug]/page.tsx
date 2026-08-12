@@ -54,8 +54,8 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     const currency = CURRENCY_BY_COUNTRY[store.country] || CURRENCY_BY_COUNTRY.PE;
     const ogLocale = LOCALE_BY_COUNTRY[store.country] || "es_PE";
     const canonicalUrl = product
-      ? `https://qtienda.shop/tienda/${params.slug}?p=${productId}`
-      : `https://qtienda.shop/tienda/${params.slug}`;
+      ? `https://${params.slug}.qtienda.shop/?p=${productId}`
+      : `https://${params.slug}.qtienda.shop/`;
 
     const title = product
       ? `${product.name} · ${store.name}`
@@ -133,7 +133,7 @@ export default async function TiendaPage({ params }: Props) {
       "@type": "Store",
       name: store.name,
       description: store.description || `Tienda online de ${store.name}`,
-      url: `https://qtienda.shop/tienda/${store.slug}`,
+      url: `https://${store.slug}.qtienda.shop/`,
       ...(store.logo_url && { logo: store.logo_url }),
       ...(store.banner_url && { image: store.banner_url }),
       ...(store.city && {
@@ -179,7 +179,7 @@ export default async function TiendaPage({ params }: Props) {
             "@context": "https://schema.org",
             "@type": "ItemList",
             name: `Productos de ${store.name}`,
-            url: `https://qtienda.shop/tienda/${store.slug}`,
+            url: `https://${store.slug}.qtienda.shop/`,
             numberOfItems: topProducts.length,
             itemListElement: topProducts.map((p: any, idx: number) => ({
               "@type": "ListItem",
@@ -188,11 +188,11 @@ export default async function TiendaPage({ params }: Props) {
                 "@type": "Product",
                 name: p.name,
                 description: p.description || "",
-                url: `https://qtienda.shop/tienda/${store.slug}?p=${p.id}`,
+                url: `https://${store.slug}.qtienda.shop/?p=${p.id}`,
                 ...(p.images?.[0]?.url && { image: p.images[0].url }),
                 offers: {
                   "@type": "Offer",
-                  priceCurrency: "PEN",
+                  priceCurrency: currency.code,
                   price: (p.price_cents / 100).toFixed(2),
                   availability:
                     p.stock === 0

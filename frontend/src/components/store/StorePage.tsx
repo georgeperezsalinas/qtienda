@@ -449,7 +449,7 @@ export default function StorePage({ store, initialProducts }: Props) {
   const searchRef  = useRef<HTMLInputElement>(null);
   const color      = store.primary_color || "#2563EB";
   const openStatus = getOpenStatus(store.store_hours);
-  const storeUrl   = `https://qtienda.shop/tienda/${store.slug}`;
+  const storeUrl   = `https://${store.slug}.qtienda.shop/`;
 
   // Métodos de pago reales de la tienda — antes decía "Yape, Plin o efectivo"
   // fijo aunque el vendedor no los hubiera activado; ahora refleja lo que de

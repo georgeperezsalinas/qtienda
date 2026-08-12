@@ -460,13 +460,13 @@ export default function ConfiguracionPage() {
           <div>
             <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">URL *</label>
             <div className="flex items-center gap-1">
-              <span className="text-xs text-[var(--ink-4)] whitespace-nowrap">qtienda.shop/tienda/</span>
               <input
                 className="input"
                 placeholder="anapostres"
                 value={newStore.slug}
                 onChange={(e) => setNewStore({ ...newStore, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") })}
               />
+              <span className="text-xs text-[var(--ink-4)] whitespace-nowrap">.qtienda.shop</span>
             </div>
           </div>
           <div>
@@ -913,7 +913,7 @@ export default function ConfiguracionPage() {
             className="inline-flex p-4 rounded-2xl mb-4"
             style={{ background: "#fff", border: "1px solid var(--line-2)" }}
           >
-            <QRCodeCanvas ref={qrCanvasRef} value={`https://qtienda.shop/tienda/${store.slug}`} size={180} marginSize={0} />
+            <QRCodeCanvas ref={qrCanvasRef} value={`https://${store.slug}.qtienda.shop/`} size={180} marginSize={0} />
           </div>
           <button
             type="button"

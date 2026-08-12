@@ -57,7 +57,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Rutas dinámicas: una por tienda, con la fecha real de su último cambio
   // (datos de la tienda o de su catálogo, lo que sea más reciente).
   const storeRoutes: MetadataRoute.Sitemap = stores.map((s) => ({
-    url: `${BASE_URL}/tienda/${s.slug}`,
+    // Cada tienda vive en su propio subdominio (slug.qtienda.shop) — el
+    // sitemap debe listar la URL final, no la que redirige hacia ella.
+    url: `https://${s.slug}.qtienda.shop/`,
     ...(s.updated_at ? { lastModified: new Date(s.updated_at) } : {}),
     changeFrequency: "daily" as const,
     priority: 0.9,           // Alta prioridad — son las páginas más valiosas
