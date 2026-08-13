@@ -139,6 +139,11 @@ class Store(Base):
     no_sales_notified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     shared_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     campaign_contacted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    # Apelación de suspensión: el vendedor pide revisión con un mensaje: el
+    # admin lo ve en admin/tiendas y aprueba o rechaza. Se limpia (vuelve a
+    # NULL) al resolverse, para no quedar colgado para la próxima vez.
+    reactivation_requested_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    reactivation_message: Mapped[Optional[str]] = mapped_column(Text)
 
     user: Mapped["User"]            = relationship(back_populates="store", foreign_keys="[Store.user_id]")
     plan: Mapped[Optional["Plan"]]  = relationship(back_populates="stores")

@@ -41,6 +41,7 @@ interface StoreItem {
   products_count: number;
   orders_count: number;
   revenue_cents: number;
+  reactivation_requested_at?: string | null;
 }
 
 interface StoreDetail extends StoreItem {
@@ -51,6 +52,8 @@ interface StoreDetail extends StoreItem {
   logo_url: string | null;
   banner_url: string | null;
   primary_color: string;
+  reactivation_requested_at: string | null;
+  reactivation_message: string | null;
   order_count: number;
   product_count: number;
   revenue_cents: number;
@@ -253,6 +256,20 @@ export default function AdminTiendasPage() {
     }
   }
 
+  async function rejectReactivation(id: string) {
+    setActing(id);
+    try {
+      await apiClient.post(`/admin/stores/${id}/reject-reactivation`);
+      toast.success("Solicitud descartada");
+      await fetchStores();
+      if (detail?.id === id) await loadDetail(id);
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail ?? "No se pudo descartar");
+    } finally {
+      setActing(null);
+    }
+  }
+
   async function markTest(id: string, isTest: boolean) {
     setActing(id);
     try {
@@ -394,6 +411,11 @@ export default function AdminTiendasPage() {
                     </p>
                     <StatusBadge status={s.status} />
                     {s.is_test && <TestBadge />}
+                    {s.reactivation_requested_at && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "var(--danger-soft)", color: "var(--danger)" }}>
+                        Pidió reactivación
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs mt-0.5 truncate" style={{ color: "var(--ink-3)" }}>
                     {s.owner_name ?? "Sin dueño"} · {s.owner_email ?? "sin email"}
@@ -527,7 +549,16 @@ export default function AdminTiendasPage() {
                     <p className="truncate max-w-[160px]" style={{ color: "var(--ink-2)" }}>{s.owner_name ?? "Sin dueño"}</p>
                     <p className="text-xs truncate max-w-[180px]" style={{ color: "var(--ink-4)" }}>{s.owner_email ?? "—"}</p>
                   </td>
-                  <td className="px-4 py-3"><StatusBadge status={s.status} /></td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <StatusBadge status={s.status} />
+                      {s.reactivation_requested_at && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: "var(--danger-soft)", color: "var(--danger)" }}>
+                          Pidió reactivación
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td className="px-4 py-3 text-right font-semibold" style={{ color: "var(--ink)" }}>{s.products_count}</td>
                   <td className="px-4 py-3 text-right font-semibold" style={{ color: "var(--ink)" }}>{s.orders_count}</td>
                   <td className="px-4 py-3 text-right font-bold whitespace-nowrap" style={{ color: "var(--ink)" }}>{formatPrice(s.revenue_cents, getStoreCurrency(s).code, getStoreCurrency(s).locale)}</td>
@@ -738,6 +769,33 @@ export default function AdminTiendasPage() {
                     </div>
                   )}
                 </div>
+
+                {detail.reactivation_requested_at && (
+                  <div className="rounded-2xl p-4" style={{ background: "var(--danger-soft)", border: "1.5px solid var(--line-2)" }}>
+                    <p className="text-sm font-bold mb-1" style={{ color: "var(--danger)" }}>
+                      Solicitud de reactivación · {datePE(detail.reactivation_requested_at)}
+                    </p>
+                    <p className="text-xs leading-relaxed mb-3" style={{ color: "var(--ink-2)" }}>
+                      {detail.reactivation_message || "(sin mensaje)"}
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => approve(detail.id)}
+                        disabled={acting === detail.id}
+                        className="btn-primary justify-center text-sm disabled:opacity-50"
+                      >
+                        <CheckCircle2 size={15} /> Aprobar y reactivar
+                      </button>
+                      <button
+                        onClick={() => rejectReactivation(detail.id)}
+                        disabled={acting === detail.id}
+                        className="btn-secondary justify-center text-sm disabled:opacity-50"
+                      >
+                        <X size={15} /> Rechazar
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 <div className="rounded-2xl p-4" style={{ background: "var(--warn-soft)", border: "1.5px solid var(--line-2)" }}>
                   <div className="flex items-start gap-2">

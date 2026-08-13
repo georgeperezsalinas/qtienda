@@ -137,6 +137,7 @@ async def list_stores(
                 "banner_url": s.banner_url,
                 "whatsapp": s.whatsapp,
                 "campaign_contacted_at": s.campaign_contacted_at,
+                "reactivation_requested_at": s.reactivation_requested_at,
             }
             for s in stores
         ],
@@ -212,6 +213,8 @@ async def get_store(
         "banner_url": store.banner_url,
         "primary_color": store.primary_color,
         "description": store.description,
+        "reactivation_requested_at": store.reactivation_requested_at,
+        "reactivation_message": store.reactivation_message,
         "owner": {
             "id": store.user.id,
             "email": store.user.email,
@@ -269,6 +272,9 @@ async def approve_store(
 
     old_status = store.status
     store.status = "active"
+    # La apelación (si había) ya se resolvió — no debe quedar colgada.
+    store.reactivation_requested_at = None
+    store.reactivation_message = None
     db.add(AuditLog(
         user_id=current_admin.id,
         store_id=store.id,
@@ -295,6 +301,8 @@ async def suspend_store(
 
     old_status = store.status
     store.status = "suspended"
+    store.reactivation_requested_at = None
+    store.reactivation_message = None
     db.add(AuditLog(
         user_id=current_admin.id,
         store_id=store.id,
@@ -303,6 +311,37 @@ async def suspend_store(
         entity_id=store.id,
         old_value={"status": old_status},
         new_value={"status": "suspended"},
+    ))
+    await db.commit()
+    return {"store_id": store.id, "status": store.status}
+
+
+@router.post("/stores/{store_id}/reject-reactivation")
+async def reject_reactivation(
+    store_id: UUID,
+    current_admin=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Descarta la solicitud de reactivación sin cambiar el status — la
+    tienda sigue suspendida/baneada, el vendedor puede volver a pedir."""
+    result = await db.execute(select(Store).where(Store.id == store_id))
+    store = result.scalar_one_or_none()
+    if not store:
+        raise HTTPException(status_code=404, detail="Tienda no encontrada")
+    if not store.reactivation_requested_at:
+        raise HTTPException(status_code=400, detail="Esta tienda no tiene una solicitud pendiente")
+
+    old_message = store.reactivation_message
+    store.reactivation_requested_at = None
+    store.reactivation_message = None
+    db.add(AuditLog(
+        user_id=current_admin.id,
+        store_id=store.id,
+        action="store.reactivation_rejected",
+        entity="stores",
+        entity_id=store.id,
+        old_value={"reactivation_message": old_message},
+        new_value={"reactivation_requested_at": None},
     ))
     await db.commit()
     return {"store_id": store.id, "status": store.status}

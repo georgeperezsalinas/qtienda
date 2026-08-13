@@ -139,6 +139,8 @@ async def my_store(
         "facebook": store.facebook,
         "mall_category": store.mall_category,
         "status": store.status,
+        "reactivation_requested_at": store.reactivation_requested_at,
+        "reactivation_message": store.reactivation_message,
         "primary_color": store.primary_color,
         "theme": store.theme,
         "city": store.city,
@@ -292,6 +294,43 @@ async def mark_store_shared(
         await db.commit()
 
     return {"shared_at": store.shared_at}
+
+
+@router.post("/me/request-reactivation")
+async def request_reactivation(
+    payload: dict,
+    current_user=Depends(require_vendor),
+    db: AsyncSession = Depends(get_db),
+):
+    """Apelación de suspensión: el vendedor pide revisión con un mensaje.
+    Solo tiene sentido si la tienda está suspendida o baneada — una tienda
+    activa no tiene nada que "reactivar"."""
+    result = await db.execute(
+        select(Store).where(Store.user_id == current_user.id, Store.deleted_at.is_(None))
+    )
+    store = result.scalar_one_or_none()
+    if not store:
+        raise HTTPException(status_code=404, detail="Tienda no encontrada")
+
+    if store.status not in ("suspended", "banned"):
+        raise HTTPException(status_code=400, detail="Tu tienda no está suspendida")
+
+    message = (payload.get("message") or "").strip()
+    if not message:
+        raise HTTPException(status_code=422, detail="Explica brevemente tu solicitud")
+
+    now = datetime.now(timezone.utc)
+    if store.reactivation_requested_at and (now - store.reactivation_requested_at) < timedelta(hours=24):
+        raise HTTPException(
+            status_code=429,
+            detail="Ya enviaste una solicitud, espera a que la revisen antes de mandar otra.",
+        )
+
+    store.reactivation_requested_at = now
+    store.reactivation_message = message
+    await db.commit()
+
+    return {"reactivation_requested_at": store.reactivation_requested_at}
 
 
 @router.put("/me/banners")

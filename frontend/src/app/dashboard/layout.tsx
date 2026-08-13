@@ -75,6 +75,115 @@ function VerifyBanner({ email }: { email: string }) {
   );
 }
 
+/* ─── Banner de tienda suspendida/baneada — apelación de reactivación ───
+   No es descartable: es información crítica, el vendedor debe verla
+   siempre que exista, en cualquier página del dashboard. */
+function SuspendedBanner({
+  status,
+  reactivationRequestedAt,
+  onRequested,
+}: {
+  status: string;
+  reactivationRequestedAt: string | null;
+  onRequested: (at: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
+
+  async function send() {
+    if (!message.trim()) {
+      toast.error("Explica brevemente tu solicitud");
+      return;
+    }
+    setSending(true);
+    try {
+      const { data } = await apiClient.post("/stores/me/request-reactivation", { message: message.trim() });
+      toast.success("Solicitud enviada — el equipo la va a revisar");
+      onRequested(data.reactivation_requested_at);
+      setOpen(false);
+      setMessage("");
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || "No se pudo enviar la solicitud");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  const label = status === "banned" ? "baneada" : "suspendida";
+
+  return (
+    <>
+      <div
+        className="flex items-center gap-3 px-4 py-2.5 text-xs"
+        style={{
+          background: "var(--danger-soft)",
+          borderBottom: "1px solid var(--line-2)",
+          color: "var(--danger)",
+          fontFamily: "var(--font-sans)",
+        }}
+      >
+        <span className="dot dot-danger flex-shrink-0" />
+        <span className="flex-1 font-medium">
+          Tu tienda está <strong>{label}</strong> — tu tienda pública no es visible para compradores.
+          Agregar productos o cambiar la configuración no la reactiva.
+          {reactivationRequestedAt && (
+            <> Ya enviaste tu solicitud el {new Date(reactivationRequestedAt).toLocaleDateString("es-PE", { day: "numeric", month: "short" })} — el equipo la está revisando.</>
+          )}
+        </span>
+        {!reactivationRequestedAt && (
+          <button onClick={() => setOpen(true)} className="font-medium underline flex-shrink-0">
+            Solicitar reactivación
+          </button>
+        )}
+      </div>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-[90]" style={{ background: "rgba(20,19,15,.5)" }} onClick={() => !sending && setOpen(false)} />
+          <div
+            className="fixed z-[91] left-1/2 top-1/2 w-[90vw] max-w-sm rounded-2xl p-5"
+            style={{ background: "var(--surface)", boxShadow: "var(--shadow-float)", transform: "translate(-50%,-50%)" }}
+          >
+            <h3 className="font-display font-extrabold text-base mb-1" style={{ color: "var(--ink)" }}>
+              Solicitar reactivación
+            </h3>
+            <p className="text-xs mb-3" style={{ color: "var(--ink-3)" }}>
+              Explica brevemente qué pasó o por qué debería reactivarse tu tienda. El equipo la revisa y te responde.
+            </p>
+            <textarea
+              className="input text-sm"
+              rows={4}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Ej: No sabía que esto incumplía las reglas, ya lo corregí..."
+              maxLength={500}
+            />
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={() => setOpen(false)}
+                disabled={sending}
+                className="btn-secondary flex-1"
+                style={{ padding: "10px" }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={send}
+                disabled={sending}
+                className="rounded-xl font-bold text-sm text-white flex-1 disabled:opacity-60"
+                style={{ background: "var(--danger)", padding: "10px" }}
+              >
+                {sending ? "Enviando…" : "Enviar"}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
 /* ─── Bottom nav: solo 4 items (lo importante) ───
    El ítem activo se muestra como botón elevado con color de acento */
 // Finanzas se revisa a diario igual que Pedidos/Productos — antes quedaba
@@ -125,6 +234,8 @@ export default function DashboardLayout({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [storeSlug, setStoreSlug] = useState<string | null>(null);
+  const [storeStatus, setStoreStatus] = useState<string | null>(null);
+  const [reactivationRequestedAt, setReactivationRequestedAt] = useState<string | null>(null);
   const loggingOut = useRef(false);
 
   useSellerPushSubscription(user?.email);
@@ -138,7 +249,11 @@ export default function DashboardLayout({
     if (hydrated && accessToken)
       apiClient
         .get("/stores/me")
-        .then(({ data }) => setStoreSlug(data.slug))
+        .then(({ data }) => {
+          setStoreSlug(data.slug);
+          setStoreStatus(data.status);
+          setReactivationRequestedAt(data.reactivation_requested_at ?? null);
+        })
         .catch(() => {});
   }, [hydrated, accessToken]);
   useEffect(() => setDrawerOpen(false), [pathname]);
@@ -341,6 +456,22 @@ export default function DashboardLayout({
         </div>
 
         {user && user.is_verified === false && <VerifyBanner email={user.email} />}
+        {(storeStatus === "suspended" || storeStatus === "banned") && (
+          <SuspendedBanner
+            status={storeStatus}
+            reactivationRequestedAt={reactivationRequestedAt}
+            onRequested={setReactivationRequestedAt}
+          />
+        )}
+        {storeStatus === "pending" && (
+          <div
+            className="flex items-center gap-3 px-4 py-2.5 text-xs"
+            style={{ background: "var(--warn-soft)", borderBottom: "1px solid var(--line-2)", color: "var(--warn)" }}
+          >
+            <span className="dot dot-warn flex-shrink-0" />
+            <span className="font-medium">Tu tienda está en revisión antes de publicarse.</span>
+          </div>
+        )}
         {children}
 
         {/* Tour de bienvenida: solo en el inicio, donde están sus targets */}
