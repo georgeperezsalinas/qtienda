@@ -16,6 +16,7 @@ from app.api.v1.endpoints import (
     devices,
     referrals,
     notifications,
+    admin_notifications,
     coupons,
     claims,
     wheel,
@@ -56,6 +57,7 @@ api_router.include_router(referrals.router, prefix="/referrals", tags=["Referral
 
 # Admin
 api_router.include_router(admin.router,     prefix="/admin",     tags=["Admin"])
+api_router.include_router(admin_notifications.router, prefix="/admin/notifications", tags=["Admin Notifications"])
 
 # Device
 api_router.include_router(devices.router,    prefix="/devices",   tags=["Devices"])

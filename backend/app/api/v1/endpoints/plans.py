@@ -138,6 +138,17 @@ async def create_yape_request(
     await db.commit()
     await db.refresh(req)
     await db.refresh(req, ["plan"])
+
+    import asyncio
+    from app.services.admin_notifications import notify_admins
+    asyncio.ensure_future(notify_admins(
+        "yape_payment_pending",
+        "Pago Yape por aprobar",
+        f"{store.name} ({store.slug}) pagó el plan {plan.name} — S/ {plan.price_cents / 100:.2f}, operación {operation}.",
+        icon="💳",
+        action_url="/admin/pagos",
+    ))
+
     return _payment_request_out(req)
 
 

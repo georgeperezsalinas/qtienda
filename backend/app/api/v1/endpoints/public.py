@@ -1498,6 +1498,15 @@ async def create_claim(
         consumer_name=payload.consumer_name,
     ))
 
+    from app.services.admin_notifications import notify_admins
+    asyncio.ensure_future(notify_admins(
+        "new_claim",
+        f"Nuevo {payload.type} — {claim_number}",
+        f"{slug}: {payload.consumer_name} registró un {payload.type} en el Libro de Reclamaciones.",
+        icon="📋",
+        action_url="/admin/tiendas",
+    ))
+
     return {"claim_number": claim_number}
 
 

@@ -552,6 +552,22 @@ class Notification(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class AdminNotification(Base):
+    """Inbox global del admin — sin store_id, no pertenece a una tienda.
+    Eventos que requieren atención: reactivación solicitada, reclamo nuevo,
+    pago Yape pendiente de aprobar."""
+    __tablename__ = "admin_notifications"
+
+    id: Mapped[int]             = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    type: Mapped[str]           = mapped_column(String(40))
+    title: Mapped[str]          = mapped_column(String(150))
+    body: Mapped[str]           = mapped_column(String(300))
+    icon: Mapped[Optional[str]] = mapped_column(String(10))
+    action_url: Mapped[Optional[str]] = mapped_column(String(200))
+    read_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 # ── Carrito abandonado ───────────────────────────────────────
 
 class AbandonedCart(Base):

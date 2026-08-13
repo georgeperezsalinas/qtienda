@@ -330,6 +330,16 @@ async def request_reactivation(
     store.reactivation_message = message
     await db.commit()
 
+    import asyncio
+    from app.services.admin_notifications import notify_admins
+    asyncio.ensure_future(notify_admins(
+        "reactivation_requested",
+        "Solicitud de reactivación",
+        f"{store.name} ({store.slug}) pidió que revisen su suspensión.",
+        icon="🔓",
+        action_url="/admin/tiendas",
+    ))
+
     return {"reactivation_requested_at": store.reactivation_requested_at}
 
 
