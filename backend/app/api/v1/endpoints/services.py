@@ -91,45 +91,6 @@ async def create_service(
     return _service_out(service)
 
 
-@router.patch("/{service_id}")
-async def update_service(
-    service_id: UUID,
-    body: ServiceUpdate,
-    current_user=Depends(require_vendor),
-    db: AsyncSession = Depends(get_db),
-):
-    store = await _get_store(current_user, db)
-    service = (await db.execute(
-        select(Service).where(Service.id == service_id, Service.store_id == store.id)
-    )).scalar_one_or_none()
-    if not service:
-        raise HTTPException(status_code=404, detail="Servicio no encontrado")
-    for k, v in body.model_dump(exclude_unset=True).items():
-        setattr(service, k, v)
-    await db.commit()
-    await db.refresh(service)
-    return _service_out(service)
-
-
-@router.delete("/{service_id}")
-async def delete_service(
-    service_id: UUID,
-    current_user=Depends(require_vendor),
-    db: AsyncSession = Depends(get_db),
-):
-    store = await _get_store(current_user, db)
-    service = (await db.execute(
-        select(Service).where(Service.id == service_id, Service.store_id == store.id)
-    )).scalar_one_or_none()
-    if not service:
-        raise HTTPException(status_code=404, detail="Servicio no encontrado")
-    # Soft: solo se desactiva — no se borra físicamente, porque citas viejas
-    # referencian este servicio (ON DELETE RESTRICT en la FK a propósito).
-    service.is_active = False
-    await db.commit()
-    return {"ok": True}
-
-
 # ── Configuración de horario ──────────────────────────────────────
 
 @router.get("/appointment-settings")
@@ -296,3 +257,47 @@ async def update_appointment(
     await db.commit()
     await db.refresh(appt)
     return _appointment_out(appt)
+
+
+# ── Servicio individual — registrado AL FINAL a propósito: "{service_id}"
+#    es un comodín de un solo segmento que, si va antes, intercepta rutas
+#    fijas como /appointment-settings (FastAPI matchea en orden de registro,
+#    "appointment-settings" terminaba pasando como service_id → 422). ──
+
+@router.patch("/{service_id}")
+async def update_service(
+    service_id: UUID,
+    body: ServiceUpdate,
+    current_user=Depends(require_vendor),
+    db: AsyncSession = Depends(get_db),
+):
+    store = await _get_store(current_user, db)
+    service = (await db.execute(
+        select(Service).where(Service.id == service_id, Service.store_id == store.id)
+    )).scalar_one_or_none()
+    if not service:
+        raise HTTPException(status_code=404, detail="Servicio no encontrado")
+    for k, v in body.model_dump(exclude_unset=True).items():
+        setattr(service, k, v)
+    await db.commit()
+    await db.refresh(service)
+    return _service_out(service)
+
+
+@router.delete("/{service_id}")
+async def delete_service(
+    service_id: UUID,
+    current_user=Depends(require_vendor),
+    db: AsyncSession = Depends(get_db),
+):
+    store = await _get_store(current_user, db)
+    service = (await db.execute(
+        select(Service).where(Service.id == service_id, Service.store_id == store.id)
+    )).scalar_one_or_none()
+    if not service:
+        raise HTTPException(status_code=404, detail="Servicio no encontrado")
+    # Soft: solo se desactiva — no se borra físicamente, porque citas viejas
+    # referencian este servicio (ON DELETE RESTRICT en la FK a propósito).
+    service.is_active = False
+    await db.commit()
+    return {"ok": True}
