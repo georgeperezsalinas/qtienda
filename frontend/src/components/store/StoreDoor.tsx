@@ -310,15 +310,23 @@ export default function StoreDoor({ store }: { store: DoorStoreData }) {
 
         {/* Acerca de la tienda — descripción real + redes sociales, solo si hay algo que mostrar */}
         {(store.description || store.instagram || store.tiktok || store.facebook) && (
-          <div className="w-full max-w-md rounded-2xl p-4 mt-5" style={{ background: "var(--surface)", boxShadow: "var(--shadow-sm)" }}>
-            <p className="eyebrow mb-2">Acerca de la tienda</p>
+          <div
+            className="w-full max-w-md rounded-2xl p-5 mt-5 text-left"
+            style={{ background: "var(--surface)", boxShadow: "var(--shadow-sm)", borderLeft: `3px solid ${color}` }}
+          >
+            <div className="flex items-center gap-2 mb-2.5">
+              <StoreIcon size={15} style={{ color }} />
+              <p className="font-display font-bold text-sm" style={{ color: "var(--ink)" }}>
+                Sobre {store.name}
+              </p>
+            </div>
             {store.description && (
-              <p className="text-xs leading-relaxed" style={{ color: "var(--ink-3)" }}>
+              <p className="text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>
                 {store.description}
               </p>
             )}
             {(store.instagram || store.tiktok || store.facebook) && (
-              <div className="flex items-center justify-center gap-2 mt-3">
+              <div className="flex items-center gap-2 mt-3.5">
                 <SocialLinks store={store} size={32} />
               </div>
             )}
