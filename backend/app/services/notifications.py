@@ -180,6 +180,21 @@ TEMPLATES: dict[str, NotifTemplate] = {
         ),
         action_url="/dashboard",
     ),
+    # Cita nueva reservada — no es "once" (una tienda recibe muchas citas).
+    "new_appointment": NotifTemplate(
+        icon="🗓️",
+        title="Nueva cita reservada",
+        body=lambda ctx: f"{ctx.get('patient_name', '')} reservó \"{ctx.get('service_name', '')}\" para el {ctx.get('scheduled_at', '')}.",
+        action_url="/dashboard/citas",
+    ),
+    # Recordatorio de cita próxima — dedupe por Appointment.reminder_sent_at,
+    # controlado por appointment_reminder_watcher.py (no es "once" por tienda).
+    "appointment_reminder": NotifTemplate(
+        icon="⏰",
+        title="Tienes una cita pronto",
+        body=lambda ctx: f"{ctx.get('patient_name', '')} — \"{ctx.get('service_name', '')}\" el {ctx.get('scheduled_at', '')}.",
+        action_url="/dashboard/citas",
+    ),
     # Libro de Reclamaciones — no es "once" (una tienda puede recibir varios).
     "new_claim": NotifTemplate(
         icon="📋",

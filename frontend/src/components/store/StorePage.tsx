@@ -29,6 +29,7 @@ import { getOpenStatus } from "@/lib/storeHours";
 import FiestasPatriasFloatingBadge from "@/components/ui/FiestasPatriasFloatingBadge";
 import WheelWidget from "./WheelWidget";
 import ClaimsModal from "./ClaimsModal";
+import ServicesSection from "./ServicesSection";
 import IdleRedirectOverlay from "./IdleRedirectOverlay";
 import { useIdleRedirect } from "@/hooks/useIdleRedirect";
 
@@ -992,6 +993,14 @@ export default function StorePage({ store, initialProducts }: Props) {
               <BannerPlaceholder storeName={store.name} logoUrl={store.logo_url} color={color} />
             )}
           </motion.div>
+
+          {/* Servicios con cita — solo aparece si la tienda tiene alguno activo */}
+          <ServicesSection
+            storeSlug={store.slug}
+            accentColor={color}
+            storeCurrency={storeCurrency}
+            storeLocale={storeLocale}
+          />
 
           {/* Featured carousel */}
           <AnimatePresence>

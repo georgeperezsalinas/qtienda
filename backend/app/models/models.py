@@ -3,11 +3,11 @@ SQLAlchemy ORM models — qtienda.shop
 All PKs are UUIDs, soft-delete via deleted_at.
 """
 import uuid
-from datetime import datetime
+from datetime import datetime, date
 from typing import Optional, List
 
 from sqlalchemy import (
-    BigInteger, Boolean, DateTime, Enum, ForeignKey, Integer,
+    BigInteger, Boolean, Date, DateTime, Enum, ForeignKey, Integer,
     SmallInteger, String, Text, func, DECIMAL, UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB, INET
@@ -189,6 +189,12 @@ class StoreSettings(Base):
     # vendedor (dirección + referencia), no una dirección estructurada.
     accept_pickup: Mapped[bool]          = mapped_column(Boolean, default=False)
     pickup_instructions: Mapped[Optional[str]] = mapped_column(Text)
+    # Servicios con cita (odontólogos, peluquerías, tutorías, etc.) — horario
+    # semanal recurrente con múltiples franjas por día (para descanso de
+    # mediodía), forma: {"mon": [{"start":"09:00","end":"13:00"}, ...], ...}.
+    # Distinto de store_hours (horario de atención general/abierto-cerrado).
+    appointment_hours: Mapped[dict]      = mapped_column(JSONB, default=dict)
+    appointments_auto_confirm: Mapped[bool] = mapped_column(Boolean, default=True)
     updated_at: Mapped[datetime]         = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     store: Mapped["Store"] = relationship(back_populates="settings")
@@ -663,3 +669,62 @@ class WheelSpin(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (UniqueConstraint("store_id", "session_id", name="uq_wheel_spins_store_session"),)
+
+
+# ── Servicios con cita ────────────────────────────────────────────
+
+class Service(Base):
+    """Servicio agendable (ej. 'Limpieza dental', 'Corte de cabello') —
+    una tienda puede mezclar productos normales y servicios con cita."""
+    __tablename__ = "services"
+
+    id: Mapped[uuid.UUID]        = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    store_id: Mapped[uuid.UUID]  = mapped_column(UUID(as_uuid=True), ForeignKey("stores.id", ondelete="CASCADE"), nullable=False)
+    name: Mapped[str]            = mapped_column(String(120), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
+    price_cents: Mapped[Optional[int]] = mapped_column(Integer)
+    is_active: Mapped[bool]      = mapped_column(Boolean, default=True)
+    sort_order: Mapped[int]      = mapped_column(SmallInteger, default=0)
+    image_url: Mapped[Optional[str]] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class AvailabilityException(Base):
+    """Bloqueo puntual de disponibilidad (vacaciones, feriado, medio día
+    libre) — se resta al horario semanal recurrente al calcular slots."""
+    __tablename__ = "availability_exceptions"
+
+    id: Mapped[uuid.UUID]        = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    store_id: Mapped[uuid.UUID]  = mapped_column(UUID(as_uuid=True), ForeignKey("stores.id", ondelete="CASCADE"), nullable=False)
+    date: Mapped[date]           = mapped_column(Date, nullable=False)
+    start_time: Mapped[Optional[str]] = mapped_column(String(5))  # "HH:MM", NULL = todo el día
+    end_time: Mapped[Optional[str]]   = mapped_column(String(5))
+    reason: Mapped[Optional[str]] = mapped_column(String(200))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Appointment(Base):
+    """Cita reservada por un comprador/paciente — sin carrito ni pago, es
+    una reserva de horario, no una compra de producto."""
+    __tablename__ = "appointments"
+
+    id: Mapped[uuid.UUID]        = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    store_id: Mapped[uuid.UUID]  = mapped_column(UUID(as_uuid=True), ForeignKey("stores.id", ondelete="CASCADE"), nullable=False)
+    service_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("services.id", ondelete="RESTRICT"), nullable=False)
+    patient_name: Mapped[str]    = mapped_column(String(120), nullable=False)
+    patient_phone: Mapped[str]   = mapped_column(String(20), nullable=False)
+    patient_email: Mapped[Optional[str]] = mapped_column(String(150))
+    scheduled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    # Duración copiada del servicio al momento de reservar — si el vendedor
+    # cambia la duración del servicio después, no debe romper citas viejas.
+    duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str]          = mapped_column(String(15), default="pending")  # pending|confirmed|completed|cancelled|no_show
+    notes: Mapped[Optional[str]] = mapped_column(Text)
+    cancelled_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    cancel_reason: Mapped[Optional[str]]     = mapped_column(String(200))
+    reminder_sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    service: Mapped["Service"] = relationship()

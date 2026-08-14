@@ -99,6 +99,11 @@ class Settings(BaseSettings):
     ABANDONED_CART_THRESHOLD_MINUTES: int = 30
     ABANDONED_CART_CHECK_MINUTES: int = 15
 
+    # Recordatorio de cita próxima — avisa al vendedor (push real) cuando una
+    # cita confirmada ocurre dentro de esta ventana, una sola vez por cita.
+    APPOINTMENT_REMINDER_WINDOW_HOURS: int = 24
+    APPOINTMENT_REMINDER_CHECK_MINUTES: int = 30
+
     UPLOADS_DIR: str = "/tmp/qtienda-uploads"
     UPLOADS_BASE_URL: str = "http://localhost:8000/uploads"
 

@@ -11,6 +11,9 @@ const nextConfig = {
       { protocol: "https", hostname: "**.r2.cloudflarestorage.com" },
       { protocol: "https", hostname: "cdn.qtienda.shop" },
       { protocol: "https", hostname: "**.cloudinary.com" },
+      // Avatares de Google (login social) — Google reparte estas fotos
+      // entre varios subdominios lhN.googleusercontent.com.
+      { protocol: "https", hostname: "*.googleusercontent.com" },
     ],
   },
 

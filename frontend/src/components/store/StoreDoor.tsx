@@ -7,12 +7,13 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { ChevronRight, MapPin, Truck, ShieldCheck, Copy, Check, Download, UserPlus, X, Store as StoreIcon } from "lucide-react";
+import { ChevronRight, MapPin, Truck, ShieldCheck, Copy, Check, Download, UserPlus, X, Store as StoreIcon, CalendarClock } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import { getOpenStatus } from "@/lib/storeHours";
 import { useAuthStore } from "@/store/authStore";
 import { useInstallPrompt } from "@/hooks/useInstallPrompt";
+import { apiClient } from "@/lib/api";
 import WheelWidget from "./WheelWidget";
 import { SocialLinks } from "./SocialLinks";
 
@@ -48,6 +49,7 @@ export default function StoreDoor({ store }: { store: DoorStoreData }) {
   const [copied, setCopied] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [accountDismissed, setAccountDismissed] = useState(false);
+  const [hasServices, setHasServices] = useState(false);
   const color = store.primary_color || "#2563EB";
   const openStatus = getOpenStatus(store.store_hours);
   const storeUrl = `${store.slug}.qtienda.shop`;
@@ -58,7 +60,11 @@ export default function StoreDoor({ store }: { store: DoorStoreData }) {
   useEffect(() => {
     setMounted(true);
     if (localStorage.getItem("qtienda_buyer_banner_dismissed") === "1") setAccountDismissed(true);
-  }, []);
+    apiClient
+      .get(`/public/store/${store.slug}/services`)
+      .then(({ data }) => setHasServices(Array.isArray(data) && data.length > 0))
+      .catch(() => {});
+  }, [store.slug]);
 
   const enabledPaymentMethods = [
     store.settings?.accept_yape && "Yape",
@@ -269,6 +275,15 @@ export default function StoreDoor({ store }: { store: DoorStoreData }) {
 
         {/* Info rápida real — solo lo que la tienda realmente ofrece */}
         <div className="flex flex-wrap items-center justify-center gap-2 mt-5">
+          {hasServices && (
+            <a
+              href="/catalogo#tienda-servicios"
+              className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-full text-white"
+              style={{ background: color }}
+            >
+              <CalendarClock size={12} /> Reserva tu cita
+            </a>
+          )}
           <span
             className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-full"
             style={{ background: "var(--surface-2)", color: "var(--ink-2)" }}

@@ -26,6 +26,8 @@ import {
   Tag,
   ClipboardList,
   Sparkles,
+  CalendarClock,
+  CalendarCheck,
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import DashboardTour, { restartQtiendaTour } from "@/components/onboarding/DashboardTour";
@@ -203,6 +205,8 @@ const SIDE_NAV = [
   { href: "/dashboard/productos", label: "Productos", icon: Package, exact: false },
   { href: "/dashboard/cupones", label: "Cupones", icon: Tag, exact: false },
   { href: "/dashboard/ruleta", label: "Ruleta", icon: Sparkles, exact: false },
+  { href: "/dashboard/servicios", label: "Servicios", icon: CalendarClock, exact: false },
+  { href: "/dashboard/citas", label: "Citas", icon: CalendarCheck, exact: false },
   { href: "/dashboard/delivery", label: "Delivery", icon: Bike, exact: false },
   { href: "/dashboard/finanzas", label: "Finanzas", icon: BarChart2, exact: false },
   { href: "/dashboard/reclamos", label: "Reclamos", icon: ClipboardList, exact: false },
@@ -624,6 +628,8 @@ export default function DashboardLayout({
               {[
                 { href: "/dashboard/cupones", label: "Cupones", icon: Tag },
                 { href: "/dashboard/ruleta", label: "Ruleta", icon: Sparkles },
+                { href: "/dashboard/servicios", label: "Servicios", icon: CalendarClock },
+                { href: "/dashboard/citas", label: "Citas", icon: CalendarCheck },
                 { href: "/dashboard/reclamos", label: "Reclamos", icon: ClipboardList },
                 { href: "/dashboard/configuracion", label: "Ajustes", icon: Settings },
                 { href: "/dashboard/delivery", label: "Delivery", icon: Bike },

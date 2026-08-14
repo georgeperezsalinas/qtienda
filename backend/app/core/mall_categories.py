@@ -13,6 +13,11 @@ MALL_CATEGORIES = [
     {"slug": "mascotas", "label": "Mascotas", "icon": "🐶"},
     {"slug": "videojuegos", "label": "Videojuegos", "icon": "🎮"},
     {"slug": "deportes", "label": "Deportes", "icon": "⚽"},
+    # Negocios de servicios con cita (odontólogos, peluquerías, tutorías,
+    # talleres, consultorios, etc.) — distinto del resto, que son tiendas de
+    # productos físicos. Una tienda de acá puede activar "Servicios con cita"
+    # en su dashboard sin dejar de vender productos si también lo hace.
+    {"slug": "servicios", "label": "Servicios", "icon": "🗓️"},
 ]
 
 MALL_CATEGORY_SLUGS = {c["slug"] for c in MALL_CATEGORIES}

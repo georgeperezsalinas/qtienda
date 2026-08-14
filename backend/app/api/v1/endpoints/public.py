@@ -15,7 +15,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
-from app.models.models import Plan, Store, Product, Category, Order, OrderItem, Payment, Review, StoreSettings, StoreEvent, SiteEvent, Subscription, MallBanner, AbandonedCart, Coupon, StoreClaim, StoreWheelConfig, WheelSpin
+from app.models.models import Plan, Store, Product, Category, Order, OrderItem, Payment, Review, StoreSettings, StoreEvent, SiteEvent, Subscription, MallBanner, AbandonedCart, Coupon, StoreClaim, StoreWheelConfig, WheelSpin, Service, AvailabilityException, Appointment
+from app.schemas.auth import AppointmentCreate
 from app.schemas.orders import PublicOrderCreate, OrderResponse
 from app.schemas.claims import ClaimCreate
 from app.core.limiter import limiter
@@ -1624,3 +1625,230 @@ async def spin_wheel(
         raise HTTPException(status_code=500, detail="No se pudo procesar el giro, intenta de nuevo")
 
     return {"prize_label": spin.prize_label, "coupon_code": coupon_code, "segment_index": winner_idx}
+
+
+# ── Servicios con cita (público) ──────────────────────────────────
+
+_DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]  # date.weekday(): lunes=0
+
+
+@router.get("/store/{slug}/services")
+@limiter.limit("60/minute")
+async def list_public_services(request: Request, slug: str, db: AsyncSession = Depends(get_db)):
+    store_q = await db.execute(
+        select(Store.id).where(Store.slug == slug, Store.status == "active", Store.deleted_at.is_(None))
+    )
+    store_id = store_q.scalar_one_or_none()
+    if not store_id:
+        raise HTTPException(status_code=404, detail="Tienda no encontrada")
+
+    result = await db.execute(
+        select(Service)
+        .where(Service.store_id == store_id, Service.is_active.is_(True))
+        .order_by(Service.sort_order, Service.created_at)
+    )
+    return [
+        {
+            "id": s.id, "name": s.name, "description": s.description,
+            "duration_minutes": s.duration_minutes, "price_cents": s.price_cents,
+            "image_url": s.image_url,
+        }
+        for s in result.scalars().all()
+    ]
+
+
+@router.get("/store/{slug}/services/{service_id}/availability")
+@limiter.limit("60/minute")
+async def service_availability(
+    request: Request,
+    slug: str,
+    service_id: str,
+    date_param: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Calcula los horarios disponibles ese día: horario semanal recurrente,
+    menos bloqueos puntuales, menos citas ya reservadas que se solapen —
+    nunca un slot en el pasado si date_param es hoy."""
+    try:
+        target_date = date.fromisoformat(date_param)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Fecha inválida")
+
+    store_q = await db.execute(
+        select(Store.id).where(Store.slug == slug, Store.status == "active", Store.deleted_at.is_(None))
+    )
+    store_id = store_q.scalar_one_or_none()
+    if not store_id:
+        raise HTTPException(status_code=404, detail="Tienda no encontrada")
+
+    service = (await db.execute(
+        select(Service).where(Service.id == service_id, Service.store_id == store_id, Service.is_active.is_(True))
+    )).scalar_one_or_none()
+    if not service:
+        raise HTTPException(status_code=404, detail="Servicio no encontrado")
+
+    settings_row = (await db.execute(
+        select(StoreSettings).where(StoreSettings.store_id == store_id)
+    )).scalar_one_or_none()
+    hours = (settings_row.appointment_hours if settings_row else {}) or {}
+    day_ranges = hours.get(_DAY_KEYS[target_date.weekday()], [])
+    if not day_ranges:
+        return {"slots": []}
+
+    # Bloqueo puntual de ese día
+    exception = (await db.execute(
+        select(AvailabilityException).where(
+            AvailabilityException.store_id == store_id, AvailabilityException.date == target_date,
+        )
+    )).scalar_one_or_none()
+    if exception and exception.start_time is None:
+        return {"slots": []}  # día completo bloqueado
+
+    duration = timedelta(minutes=service.duration_minutes)
+    day_start = datetime.combine(target_date, datetime.min.time(), tzinfo=timezone.utc)
+
+    def parse_hm(hm: str) -> datetime:
+        h, m = hm.split(":")
+        return day_start + timedelta(hours=int(h), minutes=int(m))
+
+    blocked_start = parse_hm(exception.start_time) if exception and exception.start_time else None
+    blocked_end = parse_hm(exception.end_time) if exception and exception.end_time else None
+
+    # Citas ya reservadas ese día (no canceladas/no-show) — para no solapar
+    day_end = day_start + timedelta(days=1)
+    existing = (await db.execute(
+        select(Appointment.scheduled_at, Appointment.duration_minutes).where(
+            Appointment.store_id == store_id,
+            Appointment.scheduled_at >= day_start,
+            Appointment.scheduled_at < day_end,
+            Appointment.status.in_(["pending", "confirmed"]),
+        )
+    )).all()
+
+    now = datetime.now(timezone.utc)
+    slots: list[str] = []
+    for rng in day_ranges:
+        try:
+            range_start = parse_hm(rng["start"])
+            range_end = parse_hm(rng["end"])
+        except (KeyError, ValueError):
+            continue
+        cursor = range_start
+        while cursor + duration <= range_end:
+            slot_end = cursor + duration
+            if cursor <= now:
+                cursor += duration
+                continue
+            if blocked_start and blocked_end and cursor < blocked_end and blocked_start < slot_end:
+                cursor += duration
+                continue
+            overlaps = any(
+                cursor < (appt_start + timedelta(minutes=appt_dur)) and appt_start < slot_end
+                for appt_start, appt_dur in existing
+            )
+            if not overlaps:
+                slots.append(cursor.strftime("%H:%M"))
+            cursor += duration
+
+    return {"slots": slots}
+
+
+@router.post("/store/{slug}/appointments", status_code=201)
+@limiter.limit("20/minute")
+async def create_appointment(
+    request: Request,
+    slug: str,
+    payload: AppointmentCreate,
+    db: AsyncSession = Depends(get_db),
+):
+    """Reserva una cita — revalida server-side que el slot siga libre, nunca
+    confía en lo que mande el cliente (mismo espíritu que stock/cupones)."""
+    store = (await db.execute(
+        select(Store).where(Store.slug == slug, Store.status == "active", Store.deleted_at.is_(None))
+    )).scalar_one_or_none()
+    if not store:
+        raise HTTPException(status_code=404, detail="Tienda no encontrada")
+
+    service = (await db.execute(
+        select(Service).where(Service.id == payload.service_id, Service.store_id == store.id, Service.is_active.is_(True))
+    )).scalar_one_or_none()
+    if not service:
+        raise HTTPException(status_code=404, detail="Servicio no encontrado")
+
+    scheduled_at = payload.scheduled_at
+    if scheduled_at.tzinfo is None:
+        scheduled_at = scheduled_at.replace(tzinfo=timezone.utc)
+    if scheduled_at <= datetime.now(timezone.utc):
+        raise HTTPException(status_code=422, detail="Ese horario ya no está disponible")
+
+    slot_end = scheduled_at + timedelta(minutes=service.duration_minutes)
+
+    # Bloqueo puntual de ese día
+    exception = (await db.execute(
+        select(AvailabilityException).where(
+            AvailabilityException.store_id == store.id, AvailabilityException.date == scheduled_at.date(),
+        )
+    )).scalar_one_or_none()
+    if exception and exception.start_time is None:
+        raise HTTPException(status_code=409, detail="Ese día no está disponible")
+
+    # Re-valida contra el horario semanal
+    settings_row = (await db.execute(
+        select(StoreSettings).where(StoreSettings.store_id == store.id)
+    )).scalar_one_or_none()
+    hours = (settings_row.appointment_hours if settings_row else {}) or {}
+    day_ranges = hours.get(_DAY_KEYS[scheduled_at.weekday()], [])
+    day_start = datetime.combine(scheduled_at.date(), datetime.min.time(), tzinfo=timezone.utc)
+
+    def parse_hm(hm: str) -> datetime:
+        h, m = hm.split(":")
+        return day_start + timedelta(hours=int(h), minutes=int(m))
+
+    fits_range = any(
+        parse_hm(r["start"]) <= scheduled_at and slot_end <= parse_hm(r["end"])
+        for r in day_ranges if "start" in r and "end" in r
+    )
+    if not fits_range:
+        raise HTTPException(status_code=409, detail="Ese horario ya no está disponible")
+
+    # Re-valida contra citas ya reservadas (evita doble-booking en carrera)
+    conflict = (await db.execute(
+        select(Appointment.id).where(
+            Appointment.store_id == store.id,
+            Appointment.status.in_(["pending", "confirmed"]),
+            Appointment.scheduled_at < slot_end,
+            Appointment.scheduled_at + func.make_interval(0, 0, 0, 0, 0, Appointment.duration_minutes) > scheduled_at,
+        ).limit(1)
+    )).scalar_one_or_none()
+    if conflict:
+        raise HTTPException(status_code=409, detail="Ese horario acaba de ocuparse, elige otro")
+
+    auto_confirm = settings_row.appointments_auto_confirm if settings_row else True
+    appt = Appointment(
+        store_id=store.id,
+        service_id=service.id,
+        patient_name=payload.patient_name,
+        patient_phone=payload.patient_phone,
+        patient_email=payload.patient_email,
+        scheduled_at=scheduled_at,
+        duration_minutes=service.duration_minutes,
+        status="confirmed" if auto_confirm else "pending",
+        notes=payload.notes,
+    )
+    db.add(appt)
+    await db.commit()
+    await db.refresh(appt)
+
+    import asyncio
+    from app.services.notifications import emit_event
+    asyncio.ensure_future(emit_event(
+        str(store.id), "new_appointment",
+        patient_name=payload.patient_name,
+        service_name=service.name,
+        scheduled_at=scheduled_at.strftime("%d/%m %H:%M"),
+    ))
+
+    return {
+        "id": appt.id, "status": appt.status, "scheduled_at": appt.scheduled_at,
+        "service_name": service.name, "duration_minutes": appt.duration_minutes,
+    }

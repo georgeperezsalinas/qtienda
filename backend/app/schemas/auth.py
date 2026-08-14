@@ -193,6 +193,8 @@ class StoreSettingsUpdate(BaseModel):
     google_analytics_id: Optional[str] = None
     accept_pickup: Optional[bool] = None
     pickup_instructions: Optional[str] = None
+    appointment_hours: Optional[dict] = None
+    appointments_auto_confirm: Optional[bool] = None
 
     @field_validator("tiktok_pixel_id", "meta_pixel_id", "google_analytics_id")
     @classmethod
@@ -265,6 +267,78 @@ class ProductUpdate(BaseModel):
     status: Optional[str] = None
     is_featured: Optional[bool] = None
     sort_order: Optional[int] = None
+
+
+# ── Servicios con cita ───────────────────────────────────────────
+
+class ServiceCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    duration_minutes: int = 30
+    price_cents: Optional[int] = None
+    is_active: bool = True
+    image_url: Optional[str] = None
+
+    @field_validator("duration_minutes")
+    @classmethod
+    def positive_duration(cls, v):
+        if v <= 0 or v > 12 * 60:
+            raise ValueError("Duración inválida")
+        return v
+
+
+class ServiceUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    duration_minutes: Optional[int] = None
+    price_cents: Optional[int] = None
+    is_active: Optional[bool] = None
+    sort_order: Optional[int] = None
+    image_url: Optional[str] = None
+
+
+class AvailabilityExceptionCreate(BaseModel):
+    date: str  # "YYYY-MM-DD"
+    start_time: Optional[str] = None  # "HH:MM", None = bloquea el día completo
+    end_time: Optional[str] = None
+    reason: Optional[str] = None
+
+
+class AppointmentCreate(BaseModel):
+    service_id: UUID
+    patient_name: str
+    patient_phone: str
+    patient_email: Optional[EmailStr] = None
+    scheduled_at: datetime
+    notes: Optional[str] = None
+
+    @field_validator("patient_name")
+    @classmethod
+    def name_not_empty(cls, v):
+        if not v.strip():
+            raise ValueError("El nombre no puede estar vacío")
+        return v.strip()
+
+    @field_validator("patient_phone")
+    @classmethod
+    def clean_phone(cls, v):
+        cleaned = re.sub(r"\D", "", v)
+        if len(cleaned) < 7:
+            raise ValueError("Teléfono inválido")
+        return cleaned
+
+
+class AppointmentStatusUpdate(BaseModel):
+    status: str
+    cancel_reason: Optional[str] = None
+    notes: Optional[str] = None
+
+    @field_validator("status")
+    @classmethod
+    def valid_status(cls, v):
+        if v not in ("pending", "confirmed", "completed", "cancelled", "no_show"):
+            raise ValueError("Estado inválido")
+        return v
 
 
 # ── Orders ────────────────────────────────────────────────────
