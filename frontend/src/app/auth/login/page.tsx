@@ -26,14 +26,19 @@ export default function LoginPage() {
   const router = useRouter();
   const { setTokens, setUser } = useAuthStore();
 
-  const [email,    setEmail]    = useState("");
-  const [password, setPassword] = useState("");
-  const [showPass, setShowPass] = useState(false);
-  const [loading,  setLoading]  = useState(false);
+  const [email,      setEmail]      = useState("");
+  const [password,   setPassword]   = useState("");
+  const [showPass,   setShowPass]   = useState(false);
+  const [loading,    setLoading]    = useState(false);
+  const [emailErr,   setEmailErr]   = useState("");
+  const [passErr,    setPassErr]    = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!email || !password) { toast.error("Completa todos los campos"); return; }
+    const emailOk = /\S+@\S+\.\S+/.test(email);
+    setEmailErr(email ? (emailOk ? "" : "Ingresa un email válido") : "Ingresa tu email");
+    setPassErr(password ? "" : "Ingresa tu contraseña");
+    if (!email || !password || !emailOk) return;
     setLoading(true);
     try {
       const { data } = await apiClient.post("/auth/login", {
@@ -116,21 +121,30 @@ export default function LoginPage() {
             ))}
           </ul>
 
-          {/* Vitrina de ejemplo — tarjetas con contraste real (fondo claro +
-              ícono + barra de precio en color de acento), no transparencias
-              sutiles sobre fondo oscuro que terminan viéndose vacías */}
+          {/* Vitrina de ejemplo — misma tienda demo de la página principal
+              (emoji + precio + descuento), no cuadros en blanco */}
           <div className="rounded-2xl p-4 mt-2" style={{ background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.12)" }}>
-            <div className="grid grid-cols-3 gap-2">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="rounded-lg p-1.5" style={{ background: "rgba(255,255,255,.94)" }}>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { name: "Torta de chocolate", emoji: "🎂", bg: "#FBE7D6", price: 35, was: 50 },
+                { name: "Brownie x6", emoji: "🍫", bg: "#E7DCEF", price: 16, was: 20 },
+                { name: "Cupcake decorado", emoji: "🧁", bg: "#FDE8EE", price: 10, was: 15 },
+                { name: "Kit de alfajores", emoji: "🍪", bg: "#EFE6D8", price: 22, was: 28 },
+              ].map((p) => (
+                <div key={p.name} className="rounded-lg p-2 flex items-center gap-2" style={{ background: "rgba(255,255,255,.94)" }}>
                   <div
-                    className="rounded flex items-center justify-center"
-                    style={{ aspectRatio: "1", background: "#F1EEE7" }}
+                    className="rounded flex items-center justify-center flex-shrink-0"
+                    style={{ width: 32, height: 32, background: p.bg, fontSize: 16 }}
                   >
-                    <ShoppingBag size={16} style={{ color: "#B8B0A0" }} />
+                    {p.emoji}
                   </div>
-                  <div className="rounded-full mt-1.5" style={{ height: 4, width: "70%", background: "#D8D2C4" }} />
-                  <div className="rounded-full mt-1" style={{ height: 5, width: "45%", background: "var(--accent)" }} />
+                  <div style={{ minWidth: 0 }}>
+                    <p className="text-[10px] font-semibold truncate" style={{ color: "var(--ink)" }}>{p.name}</p>
+                    <div className="flex items-center gap-1">
+                      <span className="mono font-bold" style={{ fontSize: 11, color: "var(--ink)" }}>S/ {p.price}</span>
+                      <span className="mono" style={{ fontSize: 9, color: "var(--ink-4)", textDecoration: "line-through" }}>S/ {p.was}</span>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -179,7 +193,7 @@ export default function LoginPage() {
             </p>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2" style={loading ? { opacity: 0.5, pointerEvents: "none" } : undefined}>
             <div className="flex-1"><GoogleLoginButton label="Google" /></div>
             <div className="flex-1"><FacebookLoginButton label="Facebook" /></div>
           </div>
@@ -190,10 +204,12 @@ export default function LoginPage() {
             <div>
               <label className="field-label" htmlFor="email">Email</label>
               <input
-                id="email" className="input" type="email" inputMode="email"
+                id="email" className={"input" + (emailErr ? " input-error" : "")} type="email" inputMode="email"
                 placeholder="tu@email.com" autoComplete="email"
-                value={email} onChange={(e) => setEmail(e.target.value)}
+                value={email} onChange={(e) => { setEmail(e.target.value); if (emailErr) setEmailErr(""); }}
+                aria-invalid={!!emailErr} aria-describedby={emailErr ? "email-err" : undefined}
               />
+              {emailErr && <p id="email-err" className="text-xs mt-1.5" style={{ color: "var(--danger)" }}>{emailErr}</p>}
             </div>
 
             <div>
@@ -209,10 +225,11 @@ export default function LoginPage() {
               </div>
               <div className="relative">
                 <input
-                  id="password" className="input pr-12"
+                  id="password" className={"input pr-12" + (passErr ? " input-error" : "")}
                   type={showPass ? "text" : "password"}
                   placeholder="Tu contraseña" autoComplete="current-password"
-                  value={password} onChange={(e) => setPassword(e.target.value)}
+                  value={password} onChange={(e) => { setPassword(e.target.value); if (passErr) setPassErr(""); }}
+                  aria-invalid={!!passErr} aria-describedby={passErr ? "pass-err" : undefined}
                 />
                 <button
                   type="button"
@@ -224,6 +241,7 @@ export default function LoginPage() {
                   {showPass ? <EyeOff size={17} /> : <Eye size={17} />}
                 </button>
               </div>
+              {passErr && <p id="pass-err" className="text-xs mt-1.5" style={{ color: "var(--danger)" }}>{passErr}</p>}
             </div>
 
             <button

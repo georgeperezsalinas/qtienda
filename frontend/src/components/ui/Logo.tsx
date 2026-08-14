@@ -6,7 +6,7 @@
 import Link from "next/link";
 
 type Size = "sm" | "md" | "lg" | "xl";
-type Variant = "default" | "white" | "mark-only" | "brand";
+type Variant = "default" | "white" | "mark-only" | "brand" | "mono";
 
 interface LogoProps {
   size?: Size;
@@ -31,10 +31,11 @@ export default function Logo({
   const { mark, text } = SIZES[size];
   const isWhite = variant === "white";
   const isBrand = variant === "brand";
-  // "brand": la lupa va en color de marca y el texto en negrita — para headers
+  const isMono = variant === "mono";
+  // "brand": el monograma va en color de marca — para headers
+  // "mono": monograma en tinta pura (impresión a 1 color)
   const color = isWhite ? "#FFFFFF" : "var(--ink)";
-  const markColor = isWhite ? "#FFFFFF" : isBrand ? "var(--accent)" : "var(--ink)";
-  const accent = isWhite ? "#FFFFFF" : isBrand ? "var(--accent-ink)" : "var(--accent)";
+  const markColor = isWhite ? "#FFFFFF" : isBrand ? "var(--accent)" : isMono ? "var(--ink)" : "var(--ink)";
 
   const inner = (
     <span
@@ -46,17 +47,14 @@ export default function Logo({
         width={mark}
         height={mark}
         viewBox="0 0 100 100"
-        fill="none"
         aria-hidden="true"
       >
-        <circle cx="38" cy="38" r="28" stroke={markColor} strokeWidth="8" />
         <path
-          d="M58 58 L82 82"
-          stroke={markColor}
-          strokeWidth="8"
-          strokeLinecap="round"
+          fillRule="evenodd"
+          fill={markColor}
+          d="M15 15 H85 V85 H15 Z M32 32 H68 V68 H32 Z"
         />
-        <circle cx="84" cy="84" r="7.6" fill={accent} />
+        <path fill={markColor} d="M58 58 L92 92 L100 84 L66 50 Z" />
       </svg>
       {variant !== "mark-only" && (
         <span

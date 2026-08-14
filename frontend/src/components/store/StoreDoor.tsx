@@ -87,8 +87,26 @@ export default function StoreDoor({ store }: { store: DoorStoreData }) {
   return (
     <div
       className="min-h-dvh flex flex-col items-center justify-center px-4 py-10 text-center relative overflow-hidden"
-      style={{ background: store.banner_url ? "var(--bg)" : `linear-gradient(180deg, ${color}14, var(--bg) 55%)` }}
+      style={{ background: store.banner_url ? "var(--bg)" : `radial-gradient(ellipse 70% 40% at 50% 0%, ${color}22 0%, transparent 60%), var(--bg)` }}
     >
+      {/* Toldo de tienda física — franja a rayas en la parte superior, como el
+          borde de un local en la calle, no un fondo web genérico */}
+      <div
+        aria-hidden
+        className="absolute top-0 left-0 right-0 h-2"
+        style={{ background: `repeating-linear-gradient(45deg, ${color} 0 14px, var(--surface) 14px 28px)` }}
+      />
+      {/* Grilla sutil — mismo lenguaje visual del panel de marca en login */}
+      {!store.banner_url && (
+        <div
+          aria-hidden
+          className="absolute inset-0 pointer-events-none opacity-[0.05]"
+          style={{
+            backgroundImage: `linear-gradient(${color}FF 1px, transparent 1px), linear-gradient(90deg, ${color}FF 1px, transparent 1px)`,
+            backgroundSize: "36px 36px",
+          }}
+        />
+      )}
       {/* Fondo con el banner real de la tienda — desenfocado y oscurecido
           (estilo "portada difuminada") en vez de la foto nítida: así el logo
           y los textos siempre se leen bien, sin importar qué tan clara,
@@ -140,16 +158,24 @@ export default function StoreDoor({ store }: { store: DoorStoreData }) {
             </div>
           )}
           {openStatus && (
-            <div
-              className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold whitespace-nowrap"
-              style={{
-                background: openStatus.open ? "var(--success)" : "var(--ink-3)",
-                color: "#fff",
-                boxShadow: "var(--shadow-sm)",
-              }}
-            >
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#fff" }} />
-              {openStatus.label}
+            /* Letrero colgante estilo puerta física: cordón + placa rotada,
+               en vez de una píldora web genérica */
+            <div className="absolute -bottom-5 left-1/2 flex flex-col items-center" style={{ transform: "translateX(-50%) rotate(-4deg)" }}>
+              <span style={{ width: 1.5, height: 9, background: "var(--ink-4)" }} aria-hidden />
+              <div
+                className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-extrabold uppercase whitespace-nowrap"
+                style={{
+                  letterSpacing: ".05em",
+                  borderRadius: 3,
+                  background: openStatus.open ? "var(--success)" : "var(--ink-2)",
+                  color: "#fff",
+                  border: "1px solid rgba(255,255,255,.3)",
+                  boxShadow: "var(--shadow-md)",
+                }}
+              >
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#fff" }} />
+                {openStatus.label}
+              </div>
             </div>
           )}
         </div>

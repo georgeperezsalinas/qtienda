@@ -1184,7 +1184,9 @@ export default function StorePage({ store, initialProducts }: Props) {
                   animate={{ opacity: 1, y: 0 }}
                   className="flex flex-col items-center py-20 text-center"
                 >
-                  <div className="text-5xl mb-4">🔍</div>
+                  <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ background: `${color}12` }}>
+                    <Search size={26} style={{ color }} />
+                  </div>
                   <p className="font-bold text-base mb-1" style={{ color: "var(--ink)" }}>
                     Sin resultados
                   </p>

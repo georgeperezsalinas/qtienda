@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Plus, Check, Images, Heart, Clock } from "lucide-react";
+import { Plus, Check, Images, Heart, Clock, Package } from "lucide-react";
 import { useState } from "react";
 import { useCartStore } from "@/store/cartStore";
 import { useFavoritesStore } from "@/store/favoritesStore";
@@ -181,7 +181,7 @@ export default function ProductCard({
                 sizes="(min-width: 1024px) 256px, (min-width: 768px) 224px, 144px"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-4xl">🛍️</div>
+              <div className="w-full h-full flex items-center justify-center"><Package size={28} style={{ color: "var(--ink-4)" }} /></div>
             )}
             {discount && (
               <span
@@ -271,7 +271,7 @@ export default function ProductCard({
               sizes="(min-width: 1024px) 92px, 76px"
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-2xl">🛍️</div>
+            <div className="w-full h-full flex items-center justify-center"><Package size={22} style={{ color: "var(--ink-4)" }} /></div>
           )}
           {outOfStock && (
             <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(255,255,255,.75)" }}>
@@ -362,7 +362,7 @@ export default function ProductCard({
             sizes="(min-width: 1280px) 25vw, (min-width: 768px) 33vw, 50vw"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-5xl">🛍️</div>
+          <div className="w-full h-full flex items-center justify-center"><Package size={36} style={{ color: "var(--ink-4)" }} /></div>
         )}
         {discount && (
           <span

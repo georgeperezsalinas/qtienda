@@ -176,8 +176,8 @@
 
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-sans);
-    font-weight: 600;
-    letter-spacing: -0.012em;
+    font-weight: 700;
+    letter-spacing: -0.02em;
   }
 
   :focus-visible {
@@ -390,6 +390,28 @@
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--ink-3);
+  }
+
+  /* Section label — para títulos de sección de la landing (más contraste que .eyebrow,
+     que es para hints secundarios pequeños; esto tiene que verse a primera mirada) */
+  .section-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--accent-ink);
+  }
+  .section-label::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    background: var(--accent);
+    border-radius: 2px;
+    flex-shrink: 0;
   }
 
   /* iOS safe areas */
