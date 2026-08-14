@@ -5,7 +5,7 @@ import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, Minus, Plus, ShoppingBag, MessageCircle,
-  CheckCircle2, ChevronRight, MapPin, User, Phone,
+  CheckCircle2, ChevronRight, MapPin, User, Phone, Package, LogOut,
   Mail, FileText, ArrowLeft, CreditCard, Landmark, AlertTriangle, Tag,
 } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
@@ -508,7 +508,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                                   className="w-16 h-16 rounded-xl flex items-center justify-center flex-shrink-0 text-2xl"
                                   style={{ background: "var(--surface-2)" }}
                                 >
-                                  🛍️
+                                  <ShoppingBag size={20} style={{ color: "var(--ink-4)" }} />
                                 </div>
                               )}
 

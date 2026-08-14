@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import Image from "next/image";
-import { X, ChevronLeft, ChevronRight, Check, ShoppingCart, ZoomIn, Share2, Clock, Minus, Plus } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Check, ShoppingCart, ShoppingBag, ZoomIn, Share2, Clock, Minus, Plus } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCartStore } from "@/store/cartStore";
 import { formatPrice, stripHtml } from "@/lib/utils";

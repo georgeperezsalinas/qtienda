@@ -7,7 +7,7 @@ import {
   ShoppingCart, Search, ChevronRight, Zap, Heart,
   MapPin, X, MessageCircle, Share2,
   LayoutGrid, List, Clock, Truck, ShieldCheck, PackageSearch,
-  HelpCircle, CheckCircle2, Star, SlidersHorizontal, DoorOpen,
+  HelpCircle, CheckCircle2, Star, SlidersHorizontal, DoorOpen, Package, LogOut,
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
@@ -1668,7 +1668,7 @@ export default function StorePage({ store, initialProducts }: Props) {
                     className="flex items-center gap-3 w-full rounded-2xl px-4 py-3.5"
                     style={{ background: `${color}10`, border: `1.5px solid ${color}22` }}
                   >
-                    <span className="text-xl">📦</span>
+                    <Package size={18} style={{ color }} />
                     <div className="flex-1">
                       <p className="text-sm font-bold" style={{ color: "var(--ink)" }}>Mis pedidos</p>
                       <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>Ver historial en todas las tiendas</p>
@@ -1680,7 +1680,7 @@ export default function StorePage({ store, initialProducts }: Props) {
                     className="flex items-center gap-3 w-full rounded-2xl px-4 py-3.5"
                     style={{ background: "var(--danger-soft)", border: "1.5px solid var(--line-2)" }}
                   >
-                    <span className="text-xl">👋</span>
+                    <LogOut size={18} style={{ color: "var(--danger)" }} />
                     <p className="text-sm font-bold" style={{ color: "var(--danger)" }}>Cerrar sesión</p>
                   </button>
                 </div>

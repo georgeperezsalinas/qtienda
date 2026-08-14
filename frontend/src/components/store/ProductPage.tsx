@@ -216,7 +216,7 @@ export default function ProductPage({
                 </motion.div>
               </AnimatePresence>
             ) : (
-              <div className="flex items-center justify-center h-full text-6xl select-none">🛍️</div>
+              <div className="flex items-center justify-center h-full"><ShoppingBag size={48} style={{ color: "var(--ink-4)" }} /></div>
             )}
 
             {product.images.length > 1 && (
