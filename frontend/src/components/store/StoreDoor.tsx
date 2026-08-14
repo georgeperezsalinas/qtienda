@@ -308,25 +308,40 @@ export default function StoreDoor({ store }: { store: DoorStoreData }) {
           )}
         </div>
 
-        {/* Acerca de la tienda — descripción real + redes sociales, solo si hay algo que mostrar */}
+        {/* Acerca de la tienda — descripción real + redes sociales, solo si hay algo que mostrar.
+            Fondo tibio del color de la tienda + comilla decorativa + texto en itálica: se lee
+            como una nota personal del dueño, no como una ficha de datos. */}
         {(store.description || store.instagram || store.tiktok || store.facebook) && (
           <div
-            className="w-full max-w-md rounded-2xl p-5 mt-5 text-left"
-            style={{ background: "var(--surface)", boxShadow: "var(--shadow-sm)", borderLeft: `3px solid ${color}` }}
+            className="relative w-full max-w-md rounded-[28px] p-6 mt-5 text-left overflow-hidden"
+            style={{ background: `linear-gradient(155deg, ${color}14, ${color}06)`, boxShadow: "var(--shadow-sm)" }}
           >
-            <div className="flex items-center gap-2 mb-2.5">
-              <StoreIcon size={15} style={{ color }} />
+            <span
+              aria-hidden
+              className="absolute font-display select-none leading-none"
+              style={{ top: -6, left: 14, fontSize: 76, color, opacity: 0.13 }}
+            >
+              &ldquo;
+            </span>
+
+            <div className="relative flex items-center gap-2 mb-2.5">
+              <div
+                className="flex items-center justify-center rounded-full flex-shrink-0"
+                style={{ width: 26, height: 26, background: `${color}1f` }}
+              >
+                <StoreIcon size={13} style={{ color }} />
+              </div>
               <p className="font-display font-bold text-sm" style={{ color: "var(--ink)" }}>
                 Sobre {store.name}
               </p>
             </div>
             {store.description && (
-              <p className="text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>
+              <p className="relative text-sm leading-relaxed italic" style={{ color: "var(--ink-2)" }}>
                 {store.description}
               </p>
             )}
             {(store.instagram || store.tiktok || store.facebook) && (
-              <div className="flex items-center gap-2 mt-3.5">
+              <div className="relative flex items-center gap-2 mt-4">
                 <SocialLinks store={store} size={32} />
               </div>
             )}
