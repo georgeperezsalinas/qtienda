@@ -111,6 +111,18 @@ class Settings(BaseSettings):
     # Opcional: si se configura, se agrega appsecret_proof a las llamadas a Graph API
     FACEBOOK_APP_SECRET: str = ""
 
+    # WhatsApp (Evolution API, no oficial vía Baileys) — envío de códigos de
+    # verificación por teléfono antes de reservar una cita o confirmar un
+    # pedido. Sin configurar, send_whatsapp_message() falla de forma segura.
+    EVOLUTION_API_URL: str = ""
+    EVOLUTION_API_KEY: str = ""
+    EVOLUTION_INSTANCE: str = ""
+    # Vigencia del código (minutos) y de la verificación ya confirmada
+    # (minutos) — dan tiempo a completar el formulario sin tener que repetir
+    # el código, pero no dejan una verificación "flotando" indefinidamente.
+    PHONE_CODE_EXPIRE_MINUTES: int = 10
+    PHONE_VERIFIED_VALID_MINUTES: int = 30
+
     class Config:
         env_file = ".env"
         case_sensitive = True

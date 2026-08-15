@@ -30,6 +30,7 @@ export default function ServicesSection({
 }) {
   const [services, setServices] = useState<Service[] | null>(null);
   const [booking, setBooking] = useState<Service | null>(null);
+  const [bookedIds, setBookedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     apiClient
@@ -37,6 +38,24 @@ export default function ServicesSection({
       .then(({ data }) => setServices(data))
       .catch(() => setServices([]));
   }, [storeSlug]);
+
+  // Se lee después de montar (localStorage no existe en el server) — marca
+  // qué servicios este mismo comprador ya reservó, para no dejarlo pedir de
+  // nuevo sin darse cuenta y así no toparse con el límite anti-spam del backend.
+  useEffect(() => {
+    if (!services) return;
+    const booked = new Set(
+      services.filter((s) => localStorage.getItem(`qtienda_booked_${storeSlug}_${s.id}`) === "1").map((s) => s.id)
+    );
+    setBookedIds(booked);
+  }, [services, storeSlug]);
+
+  function refreshBooked() {
+    if (!services) return;
+    setBookedIds(new Set(
+      services.filter((s) => localStorage.getItem(`qtienda_booked_${storeSlug}_${s.id}`) === "1").map((s) => s.id)
+    ));
+  }
 
   if (!services || services.length === 0) return null;
 
@@ -75,12 +94,21 @@ export default function ServicesSection({
                 {s.price_cents != null && <> · {formatPrice(s.price_cents, storeCurrency, storeLocale)}</>}
               </p>
             </div>
-            <span
-              className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-full text-white"
-              style={{ background: accentColor }}
-            >
-              Reservar
-            </span>
+            {bookedIds.has(s.id) ? (
+              <span
+                className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-full"
+                style={{ background: "var(--success-soft)", color: "var(--success)" }}
+              >
+                ✓ Ya reservaste
+              </span>
+            ) : (
+              <span
+                className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-full text-white"
+                style={{ background: accentColor }}
+              >
+                Reservar
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -92,7 +120,7 @@ export default function ServicesSection({
           storeCurrency={storeCurrency}
           storeLocale={storeLocale}
           accentColor={accentColor}
-          onClose={() => setBooking(null)}
+          onClose={() => { setBooking(null); refreshBooked(); }}
         />
       )}
     </section>

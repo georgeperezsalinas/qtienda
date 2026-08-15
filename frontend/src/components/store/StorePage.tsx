@@ -32,6 +32,7 @@ import ClaimsModal from "./ClaimsModal";
 import ServicesSection from "./ServicesSection";
 import IdleRedirectOverlay from "./IdleRedirectOverlay";
 import { useIdleRedirect } from "@/hooks/useIdleRedirect";
+import Logo from "@/components/ui/Logo";
 
 interface StoreData {
   slug:          string;
@@ -1441,8 +1442,9 @@ export default function StorePage({ store, initialProducts }: Props) {
             <div className="flex justify-center items-center gap-2 pt-4" style={{ borderTop: "1px solid var(--line)" }}>
               <span className="text-[11px] font-medium" style={{ color: "var(--ink-4)" }}>Powered by</span>
               <a href="https://qtienda.shop" target="_blank" rel="noopener noreferrer">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/brand/qtienda-wordmark.svg" alt="qtienda" style={{ height: 16, width: "auto", opacity: 0.4 }} />
+                <span style={{ opacity: 0.55 }}>
+                  <Logo size="sm" href={null} />
+                </span>
               </a>
             </div>
             <div className="flex justify-center pt-3">

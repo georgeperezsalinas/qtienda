@@ -21,12 +21,14 @@ from app.api.v1.endpoints import (
     claims,
     wheel,
     services,
+    phone_verification,
 )
 
 api_router = APIRouter()
 
 # Public (no auth)
 api_router.include_router(public.router,    prefix="/public",    tags=["Public Store"])
+api_router.include_router(phone_verification.router, prefix="/public/phone", tags=["Phone Verification"])
 
 # Auth
 api_router.include_router(auth.router,      prefix="/auth",      tags=["Auth"])

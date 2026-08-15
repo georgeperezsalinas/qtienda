@@ -372,6 +372,7 @@
   .dot { width: 6px; height: 6px; border-radius: 999px; display: inline-block; flex-shrink: 0; }
   .dot-success { background: var(--success); }
   .dot-warn    { background: var(--warn); }
+  .dot-info    { background: var(--info); }
   .dot-danger  { background: var(--danger); }
   .dot-accent  { background: var(--accent); }
   .dot-mute    { background: var(--ink-4); }

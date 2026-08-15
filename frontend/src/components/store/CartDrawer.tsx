@@ -15,6 +15,7 @@ import { formatPrice, getStoreCurrency } from "@/lib/utils";
 import { apiClient } from "@/lib/api";
 import toast from "react-hot-toast";
 import PhoneInput from "@/components/ui/PhoneInput";
+import PhoneVerifyStep from "./PhoneVerifyStep";
 import { track } from "@vercel/analytics";
 import { pixelPurchase } from "@/lib/marketingPixels";
 import { getSessionId } from "@/lib/analyticsSession";
@@ -25,7 +26,7 @@ interface Props {
   store: any;
 }
 
-type Step = "cart" | "info" | "payment" | "success";
+type Step = "cart" | "info" | "verify" | "payment" | "success";
 
 const STEPS: { key: Step; label: string }[] = [
   { key: "cart", label: "Carrito" },
@@ -33,7 +34,9 @@ const STEPS: { key: Step; label: string }[] = [
   { key: "payment", label: "Pago" },
 ];
 
-const STEP_IDX: Record<Step, number> = { cart: 0, info: 1, payment: 2, success: 3 };
+// "verify" cuenta como parte de "Datos" en la barra de progreso — no es un
+// paso grande aparte, es una validación antes de pasar a pago.
+const STEP_IDX: Record<Step, number> = { cart: 0, info: 1, verify: 1, payment: 2, success: 3 };
 
 const DEPARTAMENTOS = [
   "Amazonas", "Áncash", "Apurímac", "Arequipa", "Ayacucho", "Cajamarca",
@@ -348,7 +351,15 @@ export default function CartDrawer({ open, onClose, store }: Props) {
       go("success");
 
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || "Error al procesar pedido");
+      const detail: string = err.response?.data?.detail || "";
+      if (detail.startsWith("PHONE_NOT_VERIFIED")) {
+        // La verificación expiró justo en el medio — que la repita en vez
+        // de solo mostrarle un error genérico sin salida.
+        toast.error("Tu verificación expiró, verifica tu teléfono de nuevo");
+        go("verify");
+      } else {
+        toast.error(detail || "Error al procesar pedido");
+      }
     } finally {
       setLoading(false);
     }
@@ -399,7 +410,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
             <div className="flex items-center gap-3 px-5 pb-3 flex-shrink-0">
               {step !== "cart" && step !== "success" && (
                 <button
-                  onClick={() => go(step === "payment" ? "info" : "cart", -1)}
+                  onClick={() => go(step === "payment" ? "verify" : step === "verify" ? "info" : "cart", -1)}
                   className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors"
                   style={{ background: "var(--surface-2)" }}
                 >
@@ -409,6 +420,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
               <h2 className="font-extrabold text-lg flex-1" style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}>
                 {step === "cart" && `Mi pedido (${items.length})`}
                 {step === "info" && (isPickup ? "Tus datos" : "¿A dónde enviamos?")}
+                {step === "verify" && "Verifica tu teléfono"}
                 {step === "payment" && "¿Cómo pagas?"}
                 {step === "success" && "¡Pedido enviado!"}
               </h2>
@@ -776,6 +788,18 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                     </div>
                   )}
 
+                  {/* ── STEP: VERIFY (código de WhatsApp) ── */}
+                  {step === "verify" && (
+                    <div className="px-4 py-4">
+                      <PhoneVerifyStep
+                        phone={form.buyer_phone.trim()}
+                        accentColor={color}
+                        onBack={() => go("info", -1)}
+                        onVerified={() => go("payment")}
+                      />
+                    </div>
+                  )}
+
                   {/* ── STEP: PAYMENT ── */}
                   {step === "payment" && (
                     <div className="px-4 py-4 space-y-3">
@@ -1138,7 +1162,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                       if (paymentOptions.length === 1 && !form.payment_method) {
                         setForm((f) => ({ ...f, payment_method: paymentOptions[0].value }));
                       }
-                      go("payment");
+                      go("verify");
                     }}
                     className="w-full flex items-center justify-between rounded-2xl px-5 py-4 font-bold text-white text-sm transition-all active:scale-[.98]"
                     style={{ background: color, boxShadow: `0 4px 16px ${color}40` }}

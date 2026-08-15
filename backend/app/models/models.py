@@ -728,3 +728,18 @@ class Appointment(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     service: Mapped["Service"] = relationship()
+
+
+class PhoneVerification(Base):
+    """Código de 6 dígitos enviado por WhatsApp (Evolution API) para
+    confirmar que un teléfono es real antes de reservar una cita o
+    confirmar un pedido — anti-spam, no es autenticación de cuenta."""
+    __tablename__ = "phone_verifications"
+
+    id: Mapped[uuid.UUID]        = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    phone: Mapped[str]           = mapped_column(String(20), nullable=False)
+    code_hash: Mapped[str]       = mapped_column(String(64), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    verified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    attempts: Mapped[int]        = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

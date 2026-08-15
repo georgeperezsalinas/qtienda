@@ -853,6 +853,16 @@ async def create_order(
     if store.status != "active":
         raise HTTPException(status_code=403, detail="Esta tienda no está disponible en este momento")
 
+    # Verificación de teléfono por WhatsApp — solo para el checkout web
+    # (trae cart_session_id, ver CartDrawer.tsx). La app móvil (standby, no
+    # se toca esta sesión) pega a este mismo endpoint sin ese campo y no
+    # tiene el flujo de verificación implementado — exigirlo ahí rompería
+    # todos sus pedidos de un día para otro, así que queda exenta.
+    if payload.cart_session_id:
+        from app.api.v1.endpoints.phone_verification import is_phone_verified
+        if not await is_phone_verified(payload.buyer_phone, db):
+            raise HTTPException(status_code=403, detail="PHONE_NOT_VERIFIED: Verifica tu teléfono antes de continuar")
+
     # Anti-spam: el límite por IP (arriba, 8/minuto) no alcanza solo — muchos
     # celulares comparten IP de operadora, y un bot puede rotar de IP fácil.
     # El teléfono es más caro de falsificar en volumen: máximo 5 pedidos con
@@ -1805,6 +1815,10 @@ async def create_appointment(
     )).scalar_one_or_none()
     if not store:
         raise HTTPException(status_code=404, detail="Tienda no encontrada")
+
+    from app.api.v1.endpoints.phone_verification import is_phone_verified
+    if not await is_phone_verified(payload.patient_phone, db):
+        raise HTTPException(status_code=403, detail="PHONE_NOT_VERIFIED: Verifica tu teléfono antes de continuar")
 
     # Anti-spam por teléfono: máximo 3 citas pendientes/confirmadas a la vez
     # con el mismo número en esta tienda — un paciente real no necesita más.

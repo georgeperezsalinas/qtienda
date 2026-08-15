@@ -123,6 +123,7 @@ export default function DashboardPage() {
   } | null>(null);
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
+  const [pendingAppointments, setPendingAppointments] = useState(0);
 
   const firstName = user?.full_name?.split(" ")[0] ?? "vendedor";
 
@@ -154,6 +155,13 @@ export default function DashboardPage() {
     apiClient
       .get("/stores/me/analytics", { params: { days: 30 } })
       .then(({ data }) => setAnalytics(data))
+      .catch(() => { });
+
+    // Solo hay algo que contar si el vendedor ofrece servicios con cita —
+    // en tiendas sin servicios esto siempre da 0, así que el aviso no aparece.
+    apiClient
+      .get("/services/appointments", { params: { status: "pending" } })
+      .then(({ data }) => setPendingAppointments(Array.isArray(data) ? data.length : 0))
       .catch(() => { });
   }, [store]);
 
@@ -400,6 +408,28 @@ export default function DashboardPage() {
                 </p>
                 <p className="text-xs" style={{ color: "var(--ink-3)", marginTop: 2 }}>
                   Confírmalos para avisar al cliente
+                </p>
+              </div>
+              <ChevronRight size={16} style={{ color: "var(--ink-3)" }} />
+            </Link>
+          )
+        }
+
+        {/* Citas por confirmar — solo aparece si el vendedor ofrece servicios */}
+        {
+          !loadingStats && pendingAppointments > 0 && (
+            <Link
+              href="/dashboard/citas"
+              className="card flex items-center gap-3 mb-5 animate-fade-up"
+              style={{ padding: "14px 16px" }}
+            >
+              <span className="dot dot-info" style={{ width: 8, height: 8 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>
+                  {pendingAppointments} cita{pendingAppointments !== 1 ? "s" : ""} por confirmar
+                </p>
+                <p className="text-xs" style={{ color: "var(--ink-3)", marginTop: 2 }}>
+                  Confírmalas para avisar al paciente
                 </p>
               </div>
               <ChevronRight size={16} style={{ color: "var(--ink-3)" }} />
