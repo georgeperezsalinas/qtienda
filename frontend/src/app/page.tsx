@@ -23,10 +23,6 @@ interface StoreCard {
   primary_color: string;
 }
 
-const COUNTRY_NAMES: Record<string, string> = {
-  PE: "Perú", CL: "Chile", CO: "Colombia", MX: "México", AR: "Argentina",
-};
-
 // Canonical explícito — refuerzo además del redirect www→apex de nginx,
 // para que Google nunca tenga ambigüedad sobre cuál es "la" home.
 export const metadata: Metadata = {
@@ -46,58 +42,58 @@ async function getStores(): Promise<StoreCard[]> {
 }
 
 /** Prueba social del hero — solo negocios reales, nunca un conteo inventado.
-    Sin números a propósito mientras la plataforma sigue creciendo: mejor
-    apoyarse en nombres y caras reales que en una cifra que todavía es chica.
-    Tampoco repite el link a Mall qtienda — ya está el botón morado arriba. */
+    Franja "confían en nosotros": una sola línea de logos en gris, en
+    marquee continuo (mismo patrón que usan las mejores landing pages para
+    esto). Toda la tarjeta lleva al Mall — es la puerta a ver esas tiendas. */
 async function HeroSocialProof() {
   const stores = await getStores();
   if (!stores.length) return null;
 
-  // Más logos que antes (8 en vez de 5) porque ahora tienen toda la franja
-  // para ellos solos, no medio ancho compitiendo con el texto al lado.
-  const preview = stores.slice(0, 8);
-  const countries = Array.from(
-    new Set(stores.map((s) => s.country).filter((c): c is string => !!c))
-  );
-  const countryLabel = countries.map((c) => COUNTRY_NAMES[c] ?? c).join(" · ");
+  const preview = stores.slice(0, 12);
 
   return (
-    <div
-      className="mt-8 animate-fade-up delay-200 rounded-2xl"
-      style={{ padding: "16px 18px", background: "var(--surface)", border: "1px solid var(--line)", boxShadow: "var(--shadow-sm)" }}
+    <Link
+      href="/tiendas"
+      className="mt-8 animate-fade-up delay-200 rounded-2xl block transition-transform active:scale-[.99]"
+      style={{ padding: "16px 0", background: "var(--surface)", border: "1px solid var(--line)", boxShadow: "var(--shadow-sm)" }}
     >
-      {/* Logos reales, sueltos y del tamaño real de la franja — antes era
-          un racimo apretado de 5 avatares chicos al costado del texto. */}
-      <div className="flex flex-wrap items-center gap-2.5">
-        {preview.map((s) => (
-          <div
-            key={s.slug}
-            className="flex items-center justify-center rounded-full overflow-hidden flex-shrink-0"
-            style={{
-              width: 38,
-              height: 38,
-              background: "var(--accent-soft)",
-              color: "var(--accent-ink)",
-              fontSize: 13,
-              fontWeight: 700,
-            }}
-            title={s.name}
-          >
-            {s.logo_url ? (
-              <img src={s.logo_url} alt={s.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-            ) : (
-              s.name.charAt(0).toUpperCase()
-            )}
-          </div>
-        ))}
+      <p className="text-sm font-semibold mb-3 px-[18px]" style={{ color: "var(--ink)" }}>
+        Ya venden con nosotros.
+      </p>
+      <div
+        className="relative overflow-hidden"
+        style={{
+          maskImage: "linear-gradient(90deg, transparent, black 8%, black 92%, transparent)",
+          WebkitMaskImage: "linear-gradient(90deg, transparent, black 8%, black 92%, transparent)",
+        }}
+      >
+        <div className="flex items-center gap-8 w-max animate-marquee">
+          {[...preview, ...preview].map((s, i) => (
+            <div
+              key={`${s.slug}-${i}`}
+              className="flex items-center justify-center flex-shrink-0"
+              style={{ height: 30, maxWidth: 110 }}
+              title={s.name}
+            >
+              {s.logo_url ? (
+                <img
+                  src={s.logo_url}
+                  alt={s.name}
+                  style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", filter: "grayscale(100%)", opacity: 0.55 }}
+                />
+              ) : (
+                <span
+                  className="font-display font-bold text-sm truncate"
+                  style={{ color: "var(--ink-4)" }}
+                >
+                  {s.name}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
-      <p className="text-sm font-semibold mt-3" style={{ color: "var(--ink)" }}>Compra directamente a emprendedores.</p>
-      {countryLabel && (
-        <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
-          {countryLabel}
-        </p>
-      )}
-    </div>
+    </Link>
   );
 }
 

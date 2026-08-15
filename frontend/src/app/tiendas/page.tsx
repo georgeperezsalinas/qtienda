@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Store, ChevronRight, ChevronLeft, MapPin, Package, Clock, Sparkles, ShoppingBag, ShieldCheck, Star, Loader2, CalendarClock, Plus, Bell, Home, Grid3x3, User, List } from "lucide-react";
+import { Search, Store, ChevronRight, ChevronLeft, MapPin, Package, Clock, Sparkles, ShoppingBag, ShieldCheck, Star, Loader2, CalendarClock, Bell, Home, Grid3x3, User, List } from "lucide-react";
 import Logo from "@/components/ui/Logo";
 import PublicBottomNav from "@/components/ui/PublicBottomNav";
 import CategoryFilterModal from "@/components/ui/CategoryFilterModal";
@@ -314,22 +314,28 @@ function MallBannerCarousel() {
         </div>
       )}
 
-      {/* Botón flotante circular "crear tienda" — antes era un slide entero
-          de degradado dedicado a esto (le comía un turno al carrusel real);
-          ahora es un CTA chico y siempre presente, sin ocupar espacio de
-          contenido. */}
-      <Link
-        href="/auth/register"
-        aria-label="Crear mi tienda gratis"
-        className="absolute z-20 flex items-center justify-center rounded-full transition-transform active:scale-95"
-        style={{
-          top: 12, right: 12, width: 40, height: 40,
-          background: "var(--accent)", boxShadow: "0 4px 14px rgba(0,0,0,.35)",
-        }}
-      >
-        <Plus size={18} color="#fff" strokeWidth={2.5} />
-      </Link>
     </div>
+  );
+}
+
+// FAB "crear tienda" — fijo en pantalla (no solo dentro del banner) para
+// que siga visible al hacer scroll por el catálogo. Esquina inferior
+// derecha: la izquierda ya la ocupa el tab "Inicio" de PublicBottomNav.
+// bottom-[76px] en mobile lo despega de esa barra fija; en desktop no hay
+// barra inferior, así que baja a bottom-6.
+function CreateStoreFab() {
+  return (
+    <Link
+      href="/auth/register"
+      aria-label="Crear mi tienda gratis"
+      className="fixed z-30 flex items-center justify-center rounded-full transition-transform active:scale-95 bottom-[76px] right-4 md:bottom-6"
+      style={{
+        width: 48, height: 48,
+        background: "var(--accent)", boxShadow: "0 6px 18px rgba(0,0,0,.35)",
+      }}
+    >
+      <Store size={20} color="#fff" strokeWidth={2.5} />
+    </Link>
   );
 }
 
@@ -347,9 +353,12 @@ export default function TiendasPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [mallCategories, setMallCategories] = useState<MallCategoryItem[]>([]);
   const [cities, setCities] = useState<CityItem[]>([]);
+  // Productos: un solo estado para el catálogo del mall (sin/con filtro de
+  // rubro) — antes eran dos rieles separados (uno para "Recién publicado" y
+  // otro para el rubro elegido), ahora es una sola grilla con "ver más".
   const [latestProducts, setLatestProducts] = useState<LatestProduct[]>([]);
-  const [categoryProducts, setCategoryProducts] = useState<LatestProduct[]>([]);
-  const [categoryProductsLoading, setCategoryProductsLoading] = useState(false);
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [productsLimit, setProductsLimit] = useState(24);
   const [latestServices, setLatestServices] = useState<LatestService[]>([]);
   const [categoryServices, setCategoryServices] = useState<LatestService[]>([]);
   const [categoryServicesLoading, setCategoryServicesLoading] = useState(false);
@@ -367,6 +376,9 @@ export default function TiendasPage() {
   // tarjeta detallada obliga a scrollear mucho; la fila angosta entra más
   // por pantalla, mismo patrón que el toggle lista/grilla del catálogo.
   const [compactView, setCompactView] = useState(false);
+  // El Mall se navega más por producto que por tienda — el directorio ya no
+  // se despliega entero por defecto, solo un adelanto de 5 con "ver más".
+  const [showAllStores, setShowAllStores] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -382,10 +394,6 @@ export default function TiendasPage() {
       .then((r) => r.json())
       .then((data) => setCities(Array.isArray(data) ? data : []))
       .catch(() => setCities([]));
-    fetch(`${API}/public/latest-products?limit=24`)
-      .then((r) => r.json())
-      .then((data) => setLatestProducts(Array.isArray(data) ? data : []))
-      .catch(() => setLatestProducts([]));
     fetch(`${API}/public/latest-services?limit=24`)
       .then((r) => r.json())
       .then((data) => setLatestServices(Array.isArray(data) ? data : []))
@@ -398,10 +406,32 @@ export default function TiendasPage() {
     return () => clearTimeout(t);
   }, [query]);
 
+  // Cambiar de rubro reinicia la paginación de productos — si no, "ver más"
+  // seguiría acumulado del rubro anterior.
+  useEffect(() => {
+    setProductsLimit(24);
+  }, [categoryFilter]);
+
+  // Grilla de productos del mall — una sola fuente para "Recién publicado"
+  // (sin filtro) y para el rubro elegido, con "ver más" real (sube el
+  // límite en vez de traer una página aparte, ya que el orden es
+  // determinístico por fecha de publicación).
+  useEffect(() => {
+    setProductsLoading(true);
+    const params = new URLSearchParams({ limit: String(productsLimit) });
+    categoryFilter.forEach((c) => params.append("mall_category", c));
+    fetch(`${API}/public/latest-products?${params}`)
+      .then((r) => r.json())
+      .then((data) => setLatestProducts(Array.isArray(data) ? data : []))
+      .catch(() => setLatestProducts([]))
+      .finally(() => setProductsLoading(false));
+  }, [categoryFilter, productsLimit]);
+
   // Directorio de tiendas paginado en el servidor — se recarga desde la
   // página 1 cuando cambia búsqueda/ciudad/departamento/orden.
   useEffect(() => {
     setLoading(true);
+    setShowAllStores(false);
     const params = new URLSearchParams({ page: "1", limit: String(STORES_PAGE_SIZE) });
     if (debouncedQuery) params.set("q", debouncedQuery);
     cityFilter.forEach((c) => params.append("city", c));
@@ -445,21 +475,15 @@ export default function TiendasPage() {
   }
 
   // Al elegir un departamento, además de filtrar la lista de tiendas se
-  // muestra un mosaico de sus productos reales (no solo el nombre de la tienda).
+  // muestra un mosaico de sus servicios reales (los productos del rubro ya
+  // los cubre la grilla unificada de arriba).
   useEffect(() => {
     if (categoryFilter.length === 0) {
-      setCategoryProducts([]);
       setCategoryServices([]);
       return;
     }
     const catParams = new URLSearchParams({ limit: "24" });
     categoryFilter.forEach((c) => catParams.append("mall_category", c));
-    setCategoryProductsLoading(true);
-    fetch(`${API}/public/latest-products?${catParams}`)
-      .then((r) => r.json())
-      .then((data) => setCategoryProducts(Array.isArray(data) ? data : []))
-      .catch(() => setCategoryProducts([]))
-      .finally(() => setCategoryProductsLoading(false));
     setCategoryServicesLoading(true);
     fetch(`${API}/public/latest-services?${catParams}`)
       .then((r) => r.json())
@@ -485,6 +509,24 @@ export default function TiendasPage() {
     categoryFilter.length === 1
       ? mallCategories.find((c) => c.slug === categoryFilter[0])?.label ?? "Categoría"
       : `${categoryFilter.length} rubros`;
+  // Sin rubro elegido pedimos un mínimo de 3 (evita una grilla ridícula si
+  // recién hay 1-2 productos); con rubro elegido se muestra lo que haya,
+  // es justo lo que el comprador pidió ver. La búsqueda por texto y el
+  // filtro de ciudad no aplican a este endpoint, así que se oculta ahí.
+  const showProductsGrid =
+    !debouncedQuery &&
+    cityFilter.length === 0 &&
+    (productsLoading || latestProducts.length > (categoryFilter.length > 0 ? 0 : 2));
+  // Navegando sin buscar/filtrar: el directorio se muestra recortado a 5
+  // con "ver más" (el catálogo de productos de arriba ya es el foco
+  // principal). Buscando o filtrando, el comprador quiere ver todos los
+  // resultados que calzan, no un adelanto.
+  const isBrowsingStores = !debouncedQuery && cityFilter.length === 0 && categoryFilter.length === 0;
+  const visibleStores = isBrowsingStores && !showAllStores ? stores.slice(0, 5) : stores;
+  // El toggle de vista compacta se ignora mientras el directorio está
+  // recortado a 5 — no aporta con tan pocas tarjetas, y evita que quede
+  // "pegado" en compacta si el comprador la había elegido en otra búsqueda.
+  const effectiveCompact = compactView && (!isBrowsingStores || showAllStores);
 
   return (
     <div className="min-h-dvh flex flex-col" style={{ background: "var(--surface-2)" }}>
@@ -660,19 +702,25 @@ export default function TiendasPage() {
             fusionado en el header (así lo pidió el dueño del producto). */}
         <MallBannerCarousel />
 
-        {/* Recién publicado — últimos productos reales de todas las tiendas.
-            Riel horizontal (no grilla completa) — con 20+ tiendas una
-            grilla de hasta 24 productos ocupaba varias pantallas de scroll
-            antes de llegar a nada más; en riel es una sola fila. */}
-        {!loading && latestProducts.length >= 3 && !debouncedQuery && cityFilter.length === 0 && categoryFilter.length === 0 && (
+        {/* Productos — grilla real (no riel de una fila) con "ver más": el
+            Mall se navega más por producto que por tienda, así que el
+            catálogo necesita espacio real, no una sola franja horizontal.
+            Misma sección sirve para "Recién publicado" (sin filtro) y para
+            el rubro elegido (con filtro) — antes eran dos rieles separados. */}
+        {showProductsGrid && (
           <div className="mb-5">
             <div className="flex items-center gap-1.5 mb-2.5 px-0.5">
               <Package size={13} style={{ color: "var(--accent)" }} />
               <p className="font-display font-bold text-sm" style={{ color: "var(--ink)" }}>
-                Recién publicado
+                {categoryFilter.length > 0 ? categoryFilterLabel : "Productos"}
               </p>
+              {!productsLoading && (
+                <span className="text-xs" style={{ color: "var(--ink-4)" }}>
+                  {latestProducts.length} producto{latestProducts.length !== 1 ? "s" : ""}
+                </span>
+              )}
             </div>
-            <ScrollRow>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2.5">
               {latestProducts.map((p) => {
                 const color = p.primary_color ?? "#C5613B";
                 const pCurrency = getStoreCurrency({ currency: p.store_currency, country: p.store_country });
@@ -680,12 +728,12 @@ export default function TiendasPage() {
                   <Link
                     key={p.id}
                     href={`https://${p.store_slug}.qtienda.shop/catalogo?p=${p.id}`}
-                    className="flex-shrink-0 w-[148px] rounded-2xl overflow-hidden transition-all active:scale-[.97]"
+                    className="rounded-2xl overflow-hidden transition-all active:scale-[.97]"
                     style={{ background: "var(--surface)", boxShadow: "0 1px 8px rgba(20,19,15,.06), 0 0 0 1px var(--line)" }}
                   >
-                    <div className="relative w-full h-[110px] flex items-center justify-center overflow-hidden" style={{ background: "var(--surface-2)" }}>
+                    <div className="relative w-full h-[130px] flex items-center justify-center overflow-hidden" style={{ background: "var(--surface-2)" }}>
                       {p.image_url ? (
-                        <Image src={p.image_url} alt={p.name} fill sizes="148px" className="object-cover" />
+                        <Image src={p.image_url} alt={p.name} fill sizes="(max-width: 640px) 50vw, 200px" className="object-cover" />
                       ) : (
                         <Package size={24} style={{ color: "var(--ink-4)" }} />
                       )}
@@ -704,7 +752,22 @@ export default function TiendasPage() {
                   </Link>
                 );
               })}
-            </ScrollRow>
+              {productsLoading &&
+                [...Array(latestProducts.length ? 6 : 8)].map((_, i) => (
+                  <div key={`sk-${i}`} className="skeleton rounded-2xl" style={{ height: 190 }} />
+                ))}
+            </div>
+            {!productsLoading && latestProducts.length > 0 && latestProducts.length >= productsLimit && (
+              <div className="flex justify-center mt-3">
+                <button
+                  onClick={() => setProductsLimit((n) => n + 24)}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold transition-all"
+                  style={{ background: "var(--surface)", color: "var(--ink-2)", border: "1px solid var(--line-2)" }}
+                >
+                  Ver más productos
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -751,64 +814,6 @@ export default function TiendasPage() {
                 );
               })}
             </ScrollRow>
-          </div>
-        )}
-
-        {/* Productos del departamento elegido — riel horizontal, no mosaico completo */}
-        {categoryFilter.length > 0 && (categoryProductsLoading || categoryProducts.length > 0) && (
-          <div className="mb-5">
-            <div className="flex items-center gap-1.5 mb-2.5 px-0.5">
-              <ShoppingBag size={13} style={{ color: "var(--accent)" }} />
-              <p className="font-display font-bold text-sm" style={{ color: "var(--ink)" }}>
-                {categoryFilterLabel}
-              </p>
-              {!categoryProductsLoading && (
-                <span className="text-xs" style={{ color: "var(--ink-4)" }}>
-                  {categoryProducts.length} producto{categoryProducts.length !== 1 ? "s" : ""}
-                </span>
-              )}
-            </div>
-            {categoryProductsLoading ? (
-              <div className="flex gap-2.5 overflow-hidden">
-                {[...Array(4)].map((_, i) => (
-                  <div key={i} className="skeleton rounded-2xl flex-shrink-0" style={{ width: 148, height: 170 }} />
-                ))}
-              </div>
-            ) : (
-              <ScrollRow>
-                {categoryProducts.map((p) => {
-                  const color = p.primary_color ?? "#C5613B";
-                  const pCurrency = getStoreCurrency({ currency: p.store_currency, country: p.store_country });
-                  return (
-                    <Link
-                      key={p.id}
-                      href={`https://${p.store_slug}.qtienda.shop/catalogo?p=${p.id}`}
-                      className="flex-shrink-0 w-[148px] rounded-2xl overflow-hidden transition-all active:scale-[.97]"
-                      style={{ background: "var(--surface)", boxShadow: "0 1px 8px rgba(20,19,15,.06), 0 0 0 1px var(--line)" }}
-                    >
-                      <div className="relative w-full h-[110px] flex items-center justify-center overflow-hidden" style={{ background: "var(--surface-2)" }}>
-                        {p.image_url ? (
-                          <Image src={p.image_url} alt={p.name} fill sizes="148px" className="object-cover" />
-                        ) : (
-                          <Package size={24} style={{ color: "var(--ink-4)" }} />
-                        )}
-                      </div>
-                      <div className="p-2.5">
-                        <p className="text-xs font-semibold truncate" style={{ color: "var(--ink)" }}>
-                          {p.name}
-                        </p>
-                        <p className="text-xs font-bold mt-0.5" style={{ color }}>
-                          {formatPrice(p.price_cents, pCurrency.code, pCurrency.locale)}
-                        </p>
-                        <p className="text-[10px] truncate mt-0.5" style={{ color: "var(--ink-4)" }}>
-                          {p.store_name}
-                        </p>
-                      </div>
-                    </Link>
-                  );
-                })}
-              </ScrollRow>
-            )}
           </div>
         )}
 
@@ -969,49 +974,55 @@ export default function TiendasPage() {
               {storesTotal} tienda{storesTotal !== 1 ? "s" : ""}
             </span>
             <div className="flex-1" />
-            <div className="flex items-center rounded-xl p-0.5" style={{ background: "var(--surface-2)" }}>
-              <button
-                onClick={() => setCompactView(false)}
-                aria-label="Vista detallada"
-                className="flex items-center justify-center w-7 h-6 rounded-lg transition-all"
-                style={{
-                  background: !compactView ? "var(--surface)" : "transparent",
-                  boxShadow: !compactView ? "var(--shadow-sm)" : "none",
-                  color: !compactView ? "var(--ink)" : "var(--ink-3)",
-                }}
-              >
-                <Grid3x3 size={13} />
-              </button>
-              <button
-                onClick={() => setCompactView(true)}
-                aria-label="Vista compacta"
-                className="flex items-center justify-center w-7 h-6 rounded-lg transition-all"
-                style={{
-                  background: compactView ? "var(--surface)" : "transparent",
-                  boxShadow: compactView ? "var(--shadow-sm)" : "none",
-                  color: compactView ? "var(--ink)" : "var(--ink-3)",
-                }}
-              >
-                <List size={13} />
-              </button>
-            </div>
+            {(!isBrowsingStores || showAllStores) && (
+              <div className="flex items-center rounded-xl p-0.5" style={{ background: "var(--surface-2)" }}>
+                <button
+                  onClick={() => setCompactView(false)}
+                  aria-label="Vista detallada"
+                  className="flex items-center justify-center w-7 h-6 rounded-lg transition-all"
+                  style={{
+                    background: !compactView ? "var(--surface)" : "transparent",
+                    boxShadow: !compactView ? "var(--shadow-sm)" : "none",
+                    color: !compactView ? "var(--ink)" : "var(--ink-3)",
+                  }}
+                >
+                  <Grid3x3 size={13} />
+                </button>
+                <button
+                  onClick={() => setCompactView(true)}
+                  aria-label="Vista compacta"
+                  className="flex items-center justify-center w-7 h-6 rounded-lg transition-all"
+                  style={{
+                    background: compactView ? "var(--surface)" : "transparent",
+                    boxShadow: compactView ? "var(--shadow-sm)" : "none",
+                    color: compactView ? "var(--ink)" : "var(--ink-3)",
+                  }}
+                >
+                  <List size={13} />
+                </button>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Store list — filtrado en el servidor (búsqueda/ciudad/departamento) */}
+        {/* Store list — filtrado en el servidor (búsqueda/ciudad/departamento);
+            recortado a 5 al navegar sin filtros (ver isBrowsingStores). El
+            toggle de vista compacta se ignora mientras está recortado a 5 —
+            no tiene sentido con tan pocas tarjetas, y evita que quede
+            "pegado" en compacta si el comprador la eligió en otra búsqueda. */}
         <div
           className={
-            compactView
+            effectiveCompact
               ? "space-y-1.5"
               : "space-y-2.5 lg:space-y-0 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-3"
           }
         >
-          {stores.map((s) => {
+          {visibleStores.map((s) => {
             // Hex real (no var CSS): se concatena alfa "15" abajo para el fondo de la flecha
             const color = s.primary_color ?? "#C5613B";
             const status = mounted ? getOpenStatus(s.store_hours) : null;
 
-            if (compactView) {
+            if (effectiveCompact) {
               return (
                 <Link
                   key={s.slug}
@@ -1150,9 +1161,24 @@ export default function TiendasPage() {
           })}
         </div>
 
+        {/* Ver más tiendas — navegando sin filtros, el directorio arranca
+            recortado a 5; este botón revela el resto ya cargado (y habilita
+            paginar/cambiar de vista) sin otro viaje al servidor. */}
+        {!loading && isBrowsingStores && !showAllStores && storesTotal > 5 && (
+          <div className="flex justify-center mt-4">
+            <button
+              onClick={() => setShowAllStores(true)}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold transition-all"
+              style={{ background: "var(--surface)", color: "var(--ink-2)", border: "1px solid var(--line-2)" }}
+            >
+              Ver todas las tiendas ({storesTotal})
+            </button>
+          </div>
+        )}
+
         {/* Cargar más — el directorio ya no trae todas las tiendas de una
             vez, se pagina para seguir siendo rápido con miles de tiendas */}
-        {!loading && storesPage < storesPages && (
+        {!loading && (!isBrowsingStores || showAllStores) && storesPage < storesPages && (
           <div className="flex justify-center mt-4">
             <button
               onClick={loadMoreStores}
@@ -1216,6 +1242,8 @@ export default function TiendasPage() {
           { key: "cuenta", icon: User, label: "Cuenta", href: "/mis-pedidos" },
         ]}
       />
+
+      <CreateStoreFab />
     </div>
   );
 }

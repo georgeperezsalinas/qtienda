@@ -359,8 +359,11 @@ async def latest_products(
     """Últimos productos publicados en tiendas activas — franja 'Recién publicado' del mall,
     o el catálogo del mall filtrado por rubro/departamento (`category` = nombre libre de
     categoría interna del vendedor; `mall_category` = departamento(s) fijo(s) del Mall,
-    acepta varios valores repetidos para filtrar por más de uno a la vez)."""
-    limit = max(1, min(limit, 60))
+    acepta varios valores repetidos para filtrar por más de uno a la vez).
+
+    `limit` sube hasta 120 (no solo 12-24) para que el Mall pueda mostrar una
+    grilla de productos real con "ver más" en vez de una sola fila de riel."""
+    limit = max(1, min(limit, 120))
 
     filters = [
         Product.status == "active",
@@ -373,7 +376,7 @@ async def latest_products(
         query = query.join(Category, Category.id == Product.category_id).where(func.lower(Category.name) == category.lower())
     if mall_category:
         filters.append(Store.mall_category.in_(mall_category))
-    result = await db.execute(query.where(and_(*filters)).order_by(Product.created_at.desc()).limit(200))
+    result = await db.execute(query.where(and_(*filters)).order_by(Product.created_at.desc()).limit(400))
     rows = result.all()
 
     # Diversifica por tienda para que ninguna acapare la vitrina del mall —

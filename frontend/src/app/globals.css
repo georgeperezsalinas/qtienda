@@ -469,12 +469,20 @@
   0%, 100% { box-shadow: 0 4px 14px rgba(124,58,237,.35); }
   50%      { box-shadow: 0 4px 22px rgba(124,58,237,.7), 0 0 0 5px rgba(124,58,237,.14); }
 }
+/* Franja de logos "confían en nosotros" — el contenido se duplica una vez
+   en el marcado, así que -50% es exactamente un ciclo completo y el loop
+   queda perfecto (sin salto al reiniciar). */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
 
 .animate-fade-up { animation: fade-up .35s cubic-bezier(.22,1,.36,1) both; }
 .animate-fade-in { animation: fade-in .25s ease both; }
 .animate-pulse-soft { animation: pulse-soft 2s ease-in-out infinite; }
 .animate-float-soft { animation: float-soft 3.5s ease-in-out infinite; }
 .animate-glow-pulse { animation: glow-pulse 2.4s ease-in-out infinite; }
+.animate-marquee { animation: marquee 22s linear infinite; }
 
 .delay-50  { animation-delay: .05s; }
 .delay-100 { animation-delay: .10s; }
