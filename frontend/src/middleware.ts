@@ -62,11 +62,16 @@ export function middleware(req: NextRequest) {
 
   // Subdominio de tienda: slug.qtienda.shop → /tienda/slug internamente —
   // salvo que sea una ruta global de la plataforma (ej. slug.qtienda.shop/registro
-  // debe servir /registro tal cual, no /tienda/slug/registro).
+  // debe servir /registro tal cual, no /tienda/slug/registro) o un archivo
+  // estático de public/ (ej. /brand/qtienda-wordmark.svg, /assets/..., /logo.png)
+  // — ningún contenido real de tienda vive en una ruta que termina en punto+
+  // extensión, así que se detecta por forma en vez de tener que listar cada
+  // carpeta de public/ una por una.
   const sub = hostname.slice(0, -(ROOT_DOMAIN.length + 1));
   if (!RESERVED_SUBDOMAINS.has(sub) && SLUG_RE.test(sub)) {
     const firstSegment = req.nextUrl.pathname.split("/")[1] || "";
-    if (GLOBAL_ROUTES.has(firstSegment)) {
+    const looksLikeStaticFile = /\.[a-zA-Z0-9]+$/.test(req.nextUrl.pathname);
+    if (GLOBAL_ROUTES.has(firstSegment) || looksLikeStaticFile) {
       return NextResponse.next();
     }
     const url = req.nextUrl.clone();

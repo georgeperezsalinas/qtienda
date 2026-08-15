@@ -354,6 +354,17 @@ export default function StoreDoor({ store }: { store: DoorStoreData }) {
             )}
           </div>
         )}
+
+        <a
+          href="https://qtienda.shop"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 mt-6"
+        >
+          <span className="text-[11px] font-medium" style={{ color: "var(--ink-4)" }}>Powered by</span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/qtienda-wordmark.svg" alt="qtienda" style={{ height: 14, width: "auto", opacity: 0.4 }} />
+        </a>
       </motion.div>
     </div>
   );

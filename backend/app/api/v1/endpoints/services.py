@@ -5,7 +5,7 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import and_, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -45,7 +45,7 @@ def _service_out(s: Service) -> dict:
     }
 
 
-def _appointment_out(a: Appointment) -> dict:
+def _appointment_out(a: Appointment, no_show_count: int = 0) -> dict:
     return {
         "id": a.id,
         "service_id": a.service_id,
@@ -59,6 +59,7 @@ def _appointment_out(a: Appointment) -> dict:
         "notes": a.notes,
         "cancel_reason": a.cancel_reason,
         "created_at": a.created_at,
+        "patient_no_show_count": no_show_count,
     }
 
 
@@ -229,7 +230,26 @@ async def list_appointments(
         .where(and_(*filters))
         .order_by(Appointment.scheduled_at)
     )
-    return [_appointment_out(a) for a in result.scalars().all()]
+    appointments = result.scalars().all()
+
+    # Aviso anti-spam: cuántas veces no se presentó o canceló este mismo
+    # teléfono antes — informativo para el vendedor, no bloquea nada.
+    phones = list({a.patient_phone for a in appointments if a.patient_phone})
+    no_show_counts: dict[str, int] = {}
+    if phones:
+        rows = (await db.execute(
+            select(Appointment.patient_phone, func.count()).where(
+                Appointment.store_id == store.id,
+                Appointment.patient_phone.in_(phones),
+                Appointment.status.in_(["cancelled", "no_show"]),
+            ).group_by(Appointment.patient_phone)
+        )).all()
+        no_show_counts = {phone: count for phone, count in rows}
+
+    return [
+        _appointment_out(a, no_show_counts.get(a.patient_phone, 0) - (1 if a.status in ("cancelled", "no_show") else 0))
+        for a in appointments
+    ]
 
 
 @router.patch("/appointments/{appointment_id}")

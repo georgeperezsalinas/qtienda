@@ -309,6 +309,21 @@ async def list_orders(
     )
     orders = result.scalars().all()
 
+    # Aviso anti-spam: cuántos pedidos cancelados tiene este mismo teléfono
+    # en esta tienda — una sola query agregada para toda la página, no una
+    # por pedido. Es información para que el vendedor decida, no bloquea nada.
+    phones = list({o.buyer_phone for o in orders if o.buyer_phone})
+    cancelled_counts: dict[str, int] = {}
+    if phones:
+        rows = (await db.execute(
+            select(Order.buyer_phone, func.count()).where(
+                Order.store_id == store.id,
+                Order.buyer_phone.in_(phones),
+                Order.status == "cancelled",
+            ).group_by(Order.buyer_phone)
+        )).all()
+        cancelled_counts = {phone: count for phone, count in rows}
+
     return {
         "total": total,
         "page": page,
@@ -327,6 +342,7 @@ async def list_orders(
                 "assigned_to_id": o.assigned_to_id,
                 "assigned_to_name": o.assigned_to.full_name if o.assigned_to else None,
                 "service_type": o.service_type,
+                "buyer_cancelled_count": cancelled_counts.get(o.buyer_phone, 0) - (1 if o.status == "cancelled" else 0),
             }
             for o in orders
         ],
@@ -355,12 +371,24 @@ async def get_order(
     if not order:
         raise HTTPException(status_code=404, detail="Pedido no encontrado")
 
+    buyer_cancelled_count = 0
+    if order.buyer_phone:
+        buyer_cancelled_count = (await db.execute(
+            select(func.count()).select_from(Order).where(
+                Order.store_id == store.id,
+                Order.buyer_phone == order.buyer_phone,
+                Order.status == "cancelled",
+                Order.id != order.id,
+            )
+        )).scalar()
+
     return {
         "id": order.id,
         "order_number": order.order_number,
         "status": order.status,
         "buyer_name": order.buyer_name,
         "buyer_phone": order.buyer_phone,
+        "buyer_cancelled_count": buyer_cancelled_count,
         "buyer_dni": order.buyer_dni,
         "buyer_email": order.buyer_email,
         "buyer_department": order.buyer_department,

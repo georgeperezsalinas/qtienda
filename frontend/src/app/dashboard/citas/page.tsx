@@ -14,6 +14,7 @@ interface Appointment {
   duration_minutes: number;
   status: string;
   notes?: string;
+  patient_no_show_count?: number;
 }
 
 const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
@@ -121,7 +122,14 @@ export default function CitasPage() {
               <div key={a.id} className="card p-4">
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div>
-                    <p className="text-sm font-bold" style={{ color: "var(--ink)" }}>{a.patient_name}</p>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="text-sm font-bold" style={{ color: "var(--ink)" }}>{a.patient_name}</p>
+                      {!!a.patient_no_show_count && (
+                        <span className="badge badge-warn" title="Cancelaciones o inasistencias previas de este número">
+                          ⚠️ {a.patient_no_show_count}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
                       {a.service_name} · {formatDate(a.scheduled_at)} · {formatTime(a.scheduled_at)} ({a.duration_minutes} min)
                     </p>

@@ -71,6 +71,7 @@ interface Order {
   assigned_to_id?: string | null;
   assigned_to_name?: string | null;
   service_type?: string;
+  buyer_cancelled_count?: number;
 }
 
 interface Staff {
@@ -682,6 +683,11 @@ export default function PedidosPage() {
           <a href={`tel:${selected.buyer_phone}`} className="hover:underline">
             {selected.buyer_name} — {selected.buyer_phone}
           </a>
+          {!!selected.buyer_cancelled_count && (
+            <span className="badge badge-warn">
+              ⚠️ {selected.buyer_cancelled_count} pedido{selected.buyer_cancelled_count !== 1 ? "s" : ""} cancelado{selected.buyer_cancelled_count !== 1 ? "s" : ""} antes
+            </span>
+          )}
         </div>
         {selected.buyer_dni && (
           <div className="flex items-center gap-2 text-sm" style={{ color: "var(--ink-2)" }}>
@@ -851,6 +857,11 @@ export default function PedidosPage() {
                       <span className={`badge ${s.cls}`}>{s.label}</span>
                       {order.service_type === "pickup" && (
                         <span className="badge badge-info">🏪 Recojo</span>
+                      )}
+                      {!!order.buyer_cancelled_count && (
+                        <span className="badge badge-warn" title={`Este número ya canceló ${order.buyer_cancelled_count} pedido${order.buyer_cancelled_count !== 1 ? "s" : ""} antes en tu tienda`}>
+                          ⚠️ {order.buyer_cancelled_count} cancelado{order.buyer_cancelled_count !== 1 ? "s" : ""}
+                        </span>
                       )}
                     </div>
                     <p className="text-sm font-medium truncate" style={{ color: "var(--ink-2)" }}>{order.buyer_name}</p>

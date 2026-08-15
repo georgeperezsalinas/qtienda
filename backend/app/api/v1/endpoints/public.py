@@ -853,6 +853,23 @@ async def create_order(
     if store.status != "active":
         raise HTTPException(status_code=403, detail="Esta tienda no está disponible en este momento")
 
+    # Anti-spam: el límite por IP (arriba, 8/minuto) no alcanza solo — muchos
+    # celulares comparten IP de operadora, y un bot puede rotar de IP fácil.
+    # El teléfono es más caro de falsificar en volumen: máximo 5 pedidos con
+    # el mismo número en esta tienda en 30 minutos.
+    recent_orders_count = (await db.execute(
+        select(func.count()).select_from(Order).where(
+            Order.store_id == store.id,
+            Order.buyer_phone == payload.buyer_phone,
+            Order.created_at >= datetime.now(timezone.utc) - timedelta(minutes=30),
+        )
+    )).scalar()
+    if recent_orders_count >= 5:
+        raise HTTPException(
+            status_code=429,
+            detail="Detectamos varios pedidos seguidos con este número. Espera unos minutos e intenta de nuevo.",
+        )
+
     # El schema valida el documento de forma genérica (multi-país);
     # para tiendas peruanas el DNI debe ser exactamente 8 dígitos.
     if store.country == "PE" and payload.buyer_dni and not re.fullmatch(r"\d{8}", payload.buyer_dni):
@@ -1788,6 +1805,21 @@ async def create_appointment(
     )).scalar_one_or_none()
     if not store:
         raise HTTPException(status_code=404, detail="Tienda no encontrada")
+
+    # Anti-spam por teléfono: máximo 3 citas pendientes/confirmadas a la vez
+    # con el mismo número en esta tienda — un paciente real no necesita más.
+    active_count = (await db.execute(
+        select(func.count()).select_from(Appointment).where(
+            Appointment.store_id == store.id,
+            Appointment.patient_phone == payload.patient_phone,
+            Appointment.status.in_(["pending", "confirmed"]),
+        )
+    )).scalar()
+    if active_count >= 3:
+        raise HTTPException(
+            status_code=429,
+            detail="Ya tienes varias citas reservadas con este número. Espera a que se confirmen, o cancela alguna antes de reservar otra.",
+        )
 
     service = (await db.execute(
         select(Service).where(Service.id == payload.service_id, Service.store_id == store.id, Service.is_active.is_(True))
