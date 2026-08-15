@@ -66,10 +66,7 @@ app.add_middleware(SlowAPIMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
-    # Cada tienda vive en su propio subdominio (slug.qtienda.shop) — la lista
-    # fija de arriba no puede cubrir subdominios dinámicos, así que se suma
-    # este patrón para aceptar cualquier *.qtienda.shop además de la lista.
-    allow_origin_regex=r"^https://([a-z0-9-]{1,60}\.)?qtienda\.shop$",
+    allow_origin_regex=settings.CORS_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],

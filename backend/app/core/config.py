@@ -18,6 +18,13 @@ class Settings(BaseSettings):
         "https://qtienda.shop",
         "http://localhost:3000",
     ]
+    # Cada tienda vive en su propio subdominio (slug.qtienda.shop) — la lista
+    # fija de arriba no puede cubrir subdominios dinámicos, así que se suma
+    # este patrón para aceptar cualquier *.qtienda.shop además de la lista.
+    # Override solo en .env local para poder probar subdominios en local (ej.
+    # moncho.lvh.me:3000, donde lvh.me resuelve *.lvh.me a 127.0.0.1) sin
+    # tocar este default, que es el que corre en producción.
+    CORS_ORIGIN_REGEX: str = r"^https://([a-z0-9-]{1,60}\.)?qtienda\.shop$"
 
     S3_ENDPOINT: str = ""
     S3_ACCESS_KEY: str = ""

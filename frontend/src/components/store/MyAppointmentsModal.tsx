@@ -1,9 +1,11 @@
 "use client";
 
 // "Ver mis citas" — sin exponer la agenda completa de la tienda, el
-// comprador debe identificarse (nombre + DNI + teléfono) y verificar su
-// teléfono por WhatsApp, igual que al reservar, antes de ver su propia
-// lista de citas en esta tienda.
+// comprador debe identificarse (DNI + teléfono) y verificar su teléfono por
+// WhatsApp, igual que al reservar, antes de ver su propia lista de citas en
+// esta tienda. Sin nombre a propósito: es mal criterio de búsqueda (una
+// letra distinta, un apellido incompleto) — DNI + teléfono verificado
+// alcanzan para identificar sin ese problema.
 
 import { useState } from "react";
 import { X, ChevronLeft, CalendarClock } from "lucide-react";
@@ -11,6 +13,7 @@ import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
 import PhoneVerifyStep from "./PhoneVerifyStep";
+import PhoneInput from "@/components/ui/PhoneInput";
 
 interface MyAppointment {
   id: string;
@@ -39,15 +42,14 @@ export default function MyAppointmentsModal({
   onClose: () => void;
 }) {
   const [step, setStep] = useState<"form" | "verify" | "list">("form");
-  const [name, setName] = useState("");
   const [dni, setDni] = useState("");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [appointments, setAppointments] = useState<MyAppointment[] | null>(null);
 
   function goToVerify() {
-    if (!name.trim() || !phone.trim()) {
-      toast.error("Completa tu nombre y teléfono");
+    if (!dni.trim() || !phone.trim()) {
+      toast.error("Completa tu documento y teléfono");
       return;
     }
     setStep("verify");
@@ -57,8 +59,7 @@ export default function MyAppointmentsModal({
     setLoading(true);
     try {
       const { data } = await apiClient.post(`/public/store/${storeSlug}/appointments/lookup`, {
-        patient_name: name.trim(),
-        patient_dni: dni.trim() || undefined,
+        patient_dni: dni.trim(),
         patient_phone: phone.trim(),
       });
       setAppointments(data);
@@ -142,13 +143,12 @@ export default function MyAppointmentsModal({
                 <CalendarClock size={15} style={{ color: accentColor }} />
               </div>
               <p className="text-xs" style={{ color: "var(--ink-3)" }}>
-                Ingresa tus datos para ver tus citas en esta tienda, sin ver la agenda de nadie más.
+                Ingresa el documento y teléfono con los que reservaste, para ver tus citas en esta tienda sin ver la agenda de nadie más.
               </p>
             </div>
             <div className="space-y-2">
-              <input className="input text-sm" placeholder="Tu nombre" value={name} onChange={(e) => setName(e.target.value)} />
-              <input className="input text-sm" placeholder="Tu DNI" inputMode="numeric" value={dni} onChange={(e) => setDni(e.target.value)} />
-              <input className="input text-sm" placeholder="Tu teléfono" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <input className="input text-sm" placeholder="Documento de identidad (DNI, RUT, cédula...)" value={dni} onChange={(e) => setDni(e.target.value)} />
+              <PhoneInput value={phone} onChange={setPhone} />
               <button onClick={goToVerify} className="btn-primary w-full" style={{ padding: "12px", background: accentColor }}>
                 Continuar
               </button>

@@ -2,11 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, Store, ChevronRight, ChevronLeft, MapPin, ArrowLeft, Package, Clock, Sparkles, ShoppingBag, ShieldCheck, Star, Loader2, CalendarClock } from "lucide-react";
 import Logo from "@/components/ui/Logo";
-import { useAuthStore } from "@/store/authStore";
 import { getOpenStatus } from "@/lib/storeHours";
 import { trackPageView } from "@/lib/siteAnalytics";
 import { formatPrice, getStoreCurrency } from "@/lib/utils";
@@ -354,7 +354,18 @@ function MallBannerCarousel() {
 const STORES_PAGE_SIZE = 24;
 
 export default function TiendasPage() {
-  const { accessToken } = useAuthStore();
+  const router = useRouter();
+  // Historial real, no un destino adivinado por rol — la página se abre
+  // desde el dashboard de un vendedor, la puerta de una tienda, la landing,
+  // o un link externo, y antes esta flecha mandaba a todos a /mis-pedidos o
+  // "/" según si había sesión, sin importar de dónde venían (confundía
+  // sobre todo a vendedores logueados, que terminaban en una pantalla de
+  // comprador). Sin historial de esta pestaña (link directo, bookmark), cae
+  // a la home.
+  const [canGoBack, setCanGoBack] = useState(false);
+  useEffect(() => {
+    setCanGoBack(window.history.length > 1);
+  }, []);
   const [stores, setStores] = useState<StoreCard[]>([]);
   const [storesTotal, setStoresTotal] = useState(0);
   const [storesPage, setStoresPage] = useState(1);
@@ -512,13 +523,25 @@ export default function TiendasPage() {
           style={{ paddingTop: "max(16px, env(safe-area-inset-top))", maxWidth: "min(94vw, 1400px)" }}
         >
           <div className="flex items-center gap-3 mb-3">
-            <Link
-              href={accessToken ? "/mis-pedidos" : "/"}
-              className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors"
-              style={{ background: "var(--surface)", border: "1px solid var(--line-2)" }}
-            >
-              <ArrowLeft size={16} style={{ color: "var(--ink-3)" }} />
-            </Link>
+            {canGoBack ? (
+              <button
+                onClick={() => router.back()}
+                aria-label="Volver"
+                className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors"
+                style={{ background: "var(--surface)", border: "1px solid var(--line-2)" }}
+              >
+                <ArrowLeft size={16} style={{ color: "var(--ink-3)" }} />
+              </button>
+            ) : (
+              <Link
+                href="/"
+                aria-label="Ir al inicio"
+                className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors"
+                style={{ background: "var(--surface)", border: "1px solid var(--line-2)" }}
+              >
+                <ArrowLeft size={16} style={{ color: "var(--ink-3)" }} />
+              </Link>
+            )}
             <Logo size="sm" variant="brand" href={null} />
             <div className="flex-1" />
             <div className="text-right">

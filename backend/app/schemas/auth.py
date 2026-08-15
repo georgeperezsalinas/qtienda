@@ -304,11 +304,22 @@ class AvailabilityExceptionCreate(BaseModel):
     reason: Optional[str] = None
 
 
+def _normalize_dni(v: str) -> str:
+    # Tolerante al formato (espacios, puntos, guiones — ej. RUT chileno
+    # "12.345.678-9") para que una cita reservada con un formato no quede
+    # "perdida" si luego se busca escrito distinto. Mayúsculas por el
+    # dígito verificador de algunos documentos (ej. RUT con "K").
+    return re.sub(r"[^A-Za-z0-9]", "", v).upper()
+
+
 class AppointmentCreate(BaseModel):
     service_id: UUID
     patient_name: str
     patient_phone: str
-    patient_dni: Optional[str] = None
+    # Único dato (junto al teléfono verificado) que permite luego encontrar
+    # la cita en "Ver mis citas" — el nombre no sirve para eso (typos,
+    # apellidos incompletos, tildes), así que esto es obligatorio.
+    patient_dni: str
     patient_email: Optional[EmailStr] = None
     scheduled_at: datetime
     notes: Optional[str] = None
@@ -331,23 +342,19 @@ class AppointmentCreate(BaseModel):
     @field_validator("patient_dni")
     @classmethod
     def clean_dni(cls, v):
-        if v is None:
-            return v
-        cleaned = v.strip()
-        return cleaned or None
+        cleaned = _normalize_dni(v)
+        if not cleaned:
+            raise ValueError("El documento de identidad no puede estar vacío")
+        return cleaned
 
 
 class AppointmentLookup(BaseModel):
-    patient_name: str
+    # Sin patient_name a propósito — el nombre es un mal criterio de
+    # búsqueda (una letra distinta, un apellido que no recuerdas, tildes) y
+    # el teléfono ya viene verificado por WhatsApp, así que DNI + teléfono
+    # alcanzan para identificar al comprador sin depender de eso.
     patient_phone: str
-    patient_dni: Optional[str] = None
-
-    @field_validator("patient_name")
-    @classmethod
-    def name_not_empty(cls, v):
-        if not v.strip():
-            raise ValueError("El nombre no puede estar vacío")
-        return v.strip()
+    patient_dni: str
 
     @field_validator("patient_phone")
     @classmethod
@@ -360,10 +367,10 @@ class AppointmentLookup(BaseModel):
     @field_validator("patient_dni")
     @classmethod
     def clean_dni(cls, v):
-        if v is None:
-            return v
-        cleaned = v.strip()
-        return cleaned or None
+        cleaned = _normalize_dni(v)
+        if not cleaned:
+            raise ValueError("El documento de identidad no puede estar vacío")
+        return cleaned
 
 
 class AppointmentStatusUpdate(BaseModel):

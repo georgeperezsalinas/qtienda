@@ -11,6 +11,7 @@ import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
 import PhoneVerifyStep from "./PhoneVerifyStep";
+import PhoneInput from "@/components/ui/PhoneInput";
 
 interface Service {
   id: string;
@@ -82,8 +83,8 @@ export default function BookingModal({
   }, [selectedDate, service.id, storeSlug]);
 
   function goToVerify() {
-    if (!name.trim() || !phone.trim() || !selectedSlot) {
-      toast.error("Completa tu nombre y teléfono");
+    if (!name.trim() || !phone.trim() || !dni.trim() || !selectedSlot) {
+      toast.error("Completa tu nombre, documento y teléfono");
       return;
     }
     setStep("verify");
@@ -99,7 +100,7 @@ export default function BookingModal({
         service_id: service.id,
         patient_name: name.trim(),
         patient_phone: phone.trim(),
-        patient_dni: dni.trim() || undefined,
+        patient_dni: dni.trim(),
         scheduled_at: scheduledAt.toISOString(),
       });
       // Para mostrar "Ya reservaste" en la tarjeta del servicio sin tener que
@@ -176,8 +177,8 @@ export default function BookingModal({
             </p>
             <div className="space-y-2">
               <input className="input text-sm" placeholder="Tu nombre" value={name} onChange={(e) => setName(e.target.value)} />
-              <input className="input text-sm" placeholder="Tu teléfono" value={phone} onChange={(e) => setPhone(e.target.value)} />
-              <input className="input text-sm" placeholder="Tu DNI" inputMode="numeric" value={dni} onChange={(e) => setDni(e.target.value)} />
+              <PhoneInput value={phone} onChange={setPhone} />
+              <input className="input text-sm" placeholder="Documento de identidad (DNI, RUT, cédula...)" value={dni} onChange={(e) => setDni(e.target.value)} />
               <button onClick={goToVerify} disabled={submitting} className="btn-primary w-full" style={{ padding: "12px", background: accentColor }}>
                 Continuar
               </button>

@@ -2032,6 +2032,23 @@ async def create_appointment(
         scheduled_at=scheduled_at.strftime("%d/%m %H:%M"),
     ))
 
+    # Comprobante de la cita al paciente — antes solo se notificaba a la
+    # tienda (dashboard/citas); el comprador reservaba "a ciegas" sin nada
+    # que le confirme fecha/hora por su cuenta. Mismo espíritu que el
+    # comprobante de pedido: fire-and-forget, no bloquea la respuesta.
+    detail_lines = [
+        "✅ *¡Cita reservada!*" if appt.status == "confirmed" else "🗓️ *Solicitud de cita recibida*",
+        "━━━━━━━━━━━━━━━━━━━━━━",
+        f"🏪 {store.name}",
+        f"💈 {service.name}",
+        f"📅 {scheduled_at.strftime('%d/%m/%Y')} a las {scheduled_at.strftime('%H:%M')}",
+    ]
+    if appt.status != "confirmed":
+        detail_lines.append("")
+        detail_lines.append("La tienda todavía tiene que confirmarla — te avisamos apenas lo haga.")
+    from app.services.whatsapp import send_whatsapp_message
+    asyncio.ensure_future(send_whatsapp_message(payload.patient_phone, "\n".join(detail_lines)))
+
     return {
         "id": appt.id, "status": appt.status, "scheduled_at": appt.scheduled_at,
         "service_name": service.name, "duration_minutes": appt.duration_minutes,
@@ -2049,9 +2066,9 @@ async def lookup_appointments(
     """Lista las citas de un comprador en esta tienda — sin exponer la
     agenda completa, solo lo que le pertenece a quien pregunta. Exige
     teléfono ya verificado por WhatsApp (mismo guard que crear una cita) y
-    filtra por nombre; el DNI se guarda desde esta migración en adelante,
-    así que no se exige match exacto contra citas viejas que no lo tienen
-    (perderían visibilidad si el filtro fuera estricto)."""
+    filtra por DNI, no por nombre: el nombre es mal criterio de búsqueda
+    (una letra distinta, un apellido incompleto, tildes) mientras que
+    teléfono verificado + DNI alcanzan para identificar sin ese problema."""
     store = (await db.execute(
         select(Store.id).where(Store.slug == slug, Store.status == "active", Store.deleted_at.is_(None))
     )).scalar_one_or_none()
@@ -2068,7 +2085,7 @@ async def lookup_appointments(
         .where(
             Appointment.store_id == store,
             Appointment.patient_phone == payload.patient_phone,
-            func.lower(Appointment.patient_name) == payload.patient_name.lower(),
+            func.upper(Appointment.patient_dni) == payload.patient_dni,
         )
         .order_by(Appointment.scheduled_at.desc())
     )
