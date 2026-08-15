@@ -1122,13 +1122,14 @@ async def create_order(
             emit_event(str(store.id), "low_stock", product_name=product_name, stock=stock_left)
         )
 
+    items_text = "\n".join(
+        f"  • {oi.quantity}x {oi.product_name} — S/ {oi.subtotal/100:.2f}"
+        for oi in order_items
+    )
+
     # WhatsApp deep-link for vendor notification
     wa_link = None
     if store.whatsapp:
-        items_text = "\n".join(
-            f"  • {oi.quantity}x {oi.product_name} — S/ {oi.subtotal/100:.2f}"
-            for oi in order_items
-        )
         lines = [
             f"🛍️ *NUEVO PEDIDO #{order_number}*",
             "━━━━━━━━━━━━━━━━━━━━━━",
@@ -1174,6 +1175,39 @@ async def create_order(
             "📋 Ver pedido: qtienda.shop/dashboard/pedidos",
         ]
         wa_link = f"https://wa.me/{store.whatsapp}?text={quote(chr(10).join(lines))}"
+
+    # Comprobante automático al comprador — antes esto dependía de que él
+    # mismo reenviara el pedido a la tienda por WhatsApp; ahora le llega solo,
+    # como comprobante, sin que tenga que hacer nada. No depende de que la
+    # tienda tenga su propio WhatsApp configurado (usa el número de qtienda).
+    # Fire-and-forget: no bloquea el checkout esperando la API externa.
+    if payload.buyer_phone:
+        buyer_lines = [
+            "✅ *¡Recibimos tu pedido!*",
+            "━━━━━━━━━━━━━━━━━━━━━━",
+            f"📋 Pedido: *#{order_number}*",
+            f"🏪 Tienda: {store.name}",
+            "",
+            "🛒 *Productos:*",
+            items_text,
+            "",
+            f"💰 Subtotal: S/ {subtotal/100:.2f}",
+        ]
+        if delivery_cents > 0:
+            buyer_lines.append(f"🚚 Delivery: S/ {delivery_cents/100:.2f}")
+        if discount_cents > 0:
+            _discount_label = f"🏷️ Descuento (cupón {coupon_code})" if coupon_code else "🎁 Descuento de bienvenida"
+            buyer_lines.append(f"{_discount_label}: -S/ {discount_cents/100:.2f}")
+        buyer_lines += [
+            f"💵 *TOTAL: S/ {total/100:.2f}*",
+            "━━━━━━━━━━━━━━━━━━━━━━",
+            "📍 Sigue tu pedido aquí:",
+            f"https://{store.slug}.qtienda.shop/pedido/{order_number}",
+            "",
+            "Gracias por tu compra 🙏",
+        ]
+        from app.services.whatsapp import send_whatsapp_message
+        asyncio.ensure_future(send_whatsapp_message(payload.buyer_phone, "\n".join(buyer_lines)))
 
     return {
         "order_id": order.id,
@@ -1774,6 +1808,11 @@ async def service_availability(
 
     now = datetime.now(timezone.utc)
     slots: list[str] = []
+    # Horarios dentro del rango de atención pero ya ocupados por otra cita —
+    # se devuelven aparte (no como "no existen") para que el comprador vea
+    # en rojo que ese horario puntual ya lo tomó alguien más, en vez de que
+    # simplemente desaparezca de la lista sin explicación.
+    taken_slots: list[str] = []
     for rng in day_ranges:
         try:
             range_start = parse_hm(rng["start"])
@@ -1793,11 +1832,13 @@ async def service_availability(
                 cursor < (appt_start + timedelta(minutes=appt_dur)) and appt_start < slot_end
                 for appt_start, appt_dur in existing
             )
-            if not overlaps:
+            if overlaps:
+                taken_slots.append(cursor.strftime("%H:%M"))
+            else:
                 slots.append(cursor.strftime("%H:%M"))
             cursor += duration
 
-    return {"slots": slots}
+    return {"slots": slots, "taken_slots": taken_slots}
 
 
 @router.post("/store/{slug}/appointments", status_code=201)

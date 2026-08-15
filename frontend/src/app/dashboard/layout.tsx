@@ -300,7 +300,7 @@ export default function DashboardLayout({
       >
         <div className="flex items-center justify-between" style={{ padding: "4px 8px 22px" }}>
           <Logo size="md" variant="brand" />
-          <NotificationBell />
+          <NotificationBell align="left" />
         </div>
 
         <nav className="flex-1 flex flex-col gap-0.5">

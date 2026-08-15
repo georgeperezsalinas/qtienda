@@ -28,7 +28,7 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString("es-PE", { day: "2-digit", month: "short" });
 }
 
-export default function NotificationBell() {
+export default function NotificationBell({ align = "right" }: { align?: "left" | "right" }) {
   const router = useRouter();
   const [items, setItems] = useState<NotifItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -113,7 +113,7 @@ export default function NotificationBell() {
           style={{
             position: "absolute",
             top: 44,
-            right: 0,
+            ...(align === "left" ? { left: 0 } : { right: 0 }),
             width: 320,
             maxWidth: "calc(100vw - 32px)",
             maxHeight: 420,
