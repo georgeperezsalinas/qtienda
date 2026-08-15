@@ -284,7 +284,7 @@ PRODUCT_STORES = [
 
 
 async def get_or_create_owner(db, slug: str, name: str, vendor_role_id: int) -> User:
-    email = f"{slug}@demo.qtienda.local"
+    email = f"{slug}@demo.qtienda.shop"
     existing = (await db.execute(select(User).where(User.email == email))).scalar_one_or_none()
     if existing:
         return existing
@@ -420,7 +420,7 @@ async def run():
         print(f"  · {line}")
     if skipped:
         print(f"\nYa existían: {', '.join(skipped)}")
-    print(f"\nLogin de cada tienda: {{slug}}@demo.qtienda.local / {DEMO_PASSWORD}")
+    print(f"\nLogin de cada tienda: {{slug}}@demo.qtienda.shop / {DEMO_PASSWORD}")
 
 
 if __name__ == "__main__":

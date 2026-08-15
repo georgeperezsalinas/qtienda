@@ -426,7 +426,7 @@ export default function DashboardLayout({
               >
                 <HelpCircle size={16} strokeWidth={1.7} style={{ color: "var(--ink-2)" }} />
               </button>
-              <NotificationBell />
+              <NotificationBell directLink />
               <Link
                 href="/dashboard/configuracion"
                 className="flex items-center justify-center rounded-full"

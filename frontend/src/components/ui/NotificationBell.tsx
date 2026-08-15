@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Bell } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { syncAppBadge } from "@/lib/pwa";
@@ -28,7 +29,17 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString("es-PE", { day: "2-digit", month: "short" });
 }
 
-export default function NotificationBell({ align = "right" }: { align?: "left" | "right" }) {
+export default function NotificationBell({
+  align = "right",
+  directLink = false,
+}: {
+  align?: "left" | "right";
+  /** En vez de abrir el desplegable, el ícono es un link directo a
+   * /dashboard/notificaciones — pensado para toolbars angostas (mobile)
+   * donde la campanita no queda pegada al borde de la pantalla, así el
+   * panel de 320px se ancla mal y queda con el lado izquierdo cortado. */
+  directLink?: boolean;
+}) {
   const router = useRouter();
   const [items, setItems] = useState<NotifItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -88,6 +99,25 @@ export default function NotificationBell({ align = "right" }: { align?: "left" |
       apiClient.post(`/notifications/${n.id}/read`).catch(() => {});
     }
     if (n.action_url) router.push(n.action_url);
+  }
+
+  if (directLink) {
+    return (
+      <Link
+        href="/dashboard/notificaciones"
+        className="relative flex items-center justify-center rounded-full"
+        style={{ width: 36, height: 36, background: "var(--surface)", border: "1px solid var(--line)" }}
+        aria-label="Notificaciones"
+      >
+        <Bell size={16} strokeWidth={1.7} style={{ color: "var(--ink-2)" }} />
+        {unreadCount > 0 && (
+          <span
+            className="absolute rounded-full"
+            style={{ top: 8, right: 8, width: 7, height: 7, background: "var(--accent)", border: "2px solid var(--bg)" }}
+          />
+        )}
+      </Link>
+    );
   }
 
   return (

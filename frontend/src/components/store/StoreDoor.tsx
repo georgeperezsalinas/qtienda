@@ -10,16 +10,21 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { ChevronRight, MapPin, Truck, ShieldCheck, Copy, Check, Download, UserPlus, X, Store as StoreIcon, CalendarClock, Star, PackageCheck } from "lucide-react";
+import {
+  ChevronRight, MapPin, Truck, ShieldCheck, Copy, Check, Download, UserPlus, X,
+  Store as StoreIcon, CalendarClock, Star, PackageCheck, Home, LayoutGrid, ShoppingCart, User,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import { getOpenStatus } from "@/lib/storeHours";
 import { useAuthStore } from "@/store/authStore";
+import { useCartStore } from "@/store/cartStore";
 import { useInstallPrompt } from "@/hooks/useInstallPrompt";
 import { apiClient } from "@/lib/api";
 import WheelWidget from "./WheelWidget";
 import { SocialLinks } from "./SocialLinks";
 import Logo from "@/components/ui/Logo";
+import PublicBottomNav from "@/components/ui/PublicBottomNav";
 
 interface DoorStoreData {
   slug: string;
@@ -81,6 +86,7 @@ export default function StoreDoor({ store }: { store: DoorStoreData }) {
   const openStatus = getOpenStatus(store.store_hours);
   const storeUrl = `${store.slug}.qtienda.shop`;
   const isLoggedIn = useAuthStore((s) => s.isAuthenticated());
+  const cartCount = useCartStore((s) => s.totalItems());
   const { installPrompt, dismissed: installDismissed, install, dismiss: dismissInstall } =
     useInstallPrompt("pwa-banner-dismissed");
 
@@ -166,7 +172,7 @@ export default function StoreDoor({ store }: { store: DoorStoreData }) {
 
   return (
     <div
-      className="min-h-dvh flex flex-col px-4 py-10 relative overflow-hidden"
+      className="min-h-dvh flex flex-col px-4 py-10 pb-24 md:pb-10 relative overflow-hidden"
       style={{ background: store.banner_url ? "var(--bg)" : `radial-gradient(ellipse 70% 40% at 50% 0%, ${color}22 0%, transparent 60%), var(--bg)` }}
     >
       {/* Toldo de tienda física — franja a rayas en la parte superior, como el
@@ -501,6 +507,34 @@ export default function StoreDoor({ store }: { store: DoorStoreData }) {
           </div>
         </div>
       </div>
+
+      {/* Barra inferior — misma que en el catálogo, para no perder el
+          acceso rápido apenas se entra a la tienda. Sin cuenta/carrito
+          propios acá (es la puerta, todavía no hay catálogo abierto):
+          "Categorías" y "Carrito" navegan directo a /catalogo. */}
+      {mounted && (
+        <PublicBottomNav
+          accentColor={color}
+          items={[
+            {
+              key: "inicio",
+              icon: Home,
+              label: "Inicio",
+              active: true,
+              onClick: () => window.scrollTo({ top: 0, behavior: "smooth" }),
+            },
+            { key: "categorias", icon: LayoutGrid, label: "Categorías", href: "/catalogo#tour-categories" },
+            {
+              key: "carrito",
+              icon: ShoppingCart,
+              label: "Carrito",
+              badge: cartCount > 0 ? cartCount : undefined,
+              href: "/catalogo",
+            },
+            { key: "cuenta", icon: User, label: "Cuenta", href: "/mis-pedidos" },
+          ]}
+        />
+      )}
     </div>
   );
 }

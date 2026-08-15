@@ -8,6 +8,7 @@ import {
   MapPin, X, MessageCircle, Share2,
   LayoutGrid, List, Clock, Truck, ShieldCheck, PackageSearch,
   HelpCircle, CheckCircle2, Star, SlidersHorizontal, DoorOpen, Package, LogOut,
+  Home, User,
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
@@ -33,6 +34,8 @@ import ServicesSection from "./ServicesSection";
 import IdleRedirectOverlay from "./IdleRedirectOverlay";
 import { useIdleRedirect } from "@/hooks/useIdleRedirect";
 import Logo from "@/components/ui/Logo";
+import PublicBottomNav from "@/components/ui/PublicBottomNav";
+import CategoryFilterModal from "@/components/ui/CategoryFilterModal";
 
 interface StoreData {
   slug:          string;
@@ -279,23 +282,27 @@ function BannerPlaceholder({ storeName, logoUrl, color }: {
   );
 }
 
-/* Lista de categorías: chips horizontales (móvil/tablet) o rail vertical (desktop) */
+/* Lista de categorías: chips horizontales (móvil/tablet) o rail vertical
+   (desktop) — multi-select: se puede filtrar por más de una a la vez. */
 function CategoryList({ store, activeCategory, setActiveCategory, color, vertical }: {
   store: StoreData;
-  activeCategory: string | null;
-  setActiveCategory: (v: string | null) => void;
+  activeCategory: string[];
+  setActiveCategory: (v: string[]) => void;
   color: string;
   vertical?: boolean;
 }) {
   if (!store.categories?.length) return null;
+  function toggle(id: string) {
+    setActiveCategory(activeCategory.includes(id) ? activeCategory.filter((c) => c !== id) : [...activeCategory, id]);
+  }
   if (vertical) {
     return (
       <div className="flex flex-col gap-0.5">
         <button
-          onClick={() => setActiveCategory(null)}
+          onClick={() => setActiveCategory([])}
           className="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-semibold transition-all text-left"
           style={
-            !activeCategory
+            activeCategory.length === 0
               ? { background: color, color: "#fff" }
               : { background: "transparent", color: "var(--ink-2)" }
           }
@@ -305,10 +312,10 @@ function CategoryList({ store, activeCategory, setActiveCategory, color, vertica
         {store.categories.map((cat) => (
           <button
             key={cat.id}
-            onClick={() => setActiveCategory(cat.id === activeCategory ? null : cat.id)}
+            onClick={() => toggle(cat.id)}
             className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all text-left"
             style={
-              activeCategory === cat.id
+              activeCategory.includes(cat.id)
                 ? { background: color, color: "#fff" }
                 : { background: "transparent", color: "var(--ink-2)" }
             }
@@ -324,10 +331,10 @@ function CategoryList({ store, activeCategory, setActiveCategory, color, vertica
     <div className="relative">
       <div className="flex gap-2 overflow-x-auto px-4 pb-3 scrollbar-hide lg:px-6">
         <button
-          onClick={() => setActiveCategory(null)}
+          onClick={() => setActiveCategory([])}
           className="flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
           style={
-            !activeCategory
+            activeCategory.length === 0
               ? { background: color, color: "#fff" }
               : { background: "var(--surface-2)", color: "var(--ink-2)" }
           }
@@ -337,10 +344,10 @@ function CategoryList({ store, activeCategory, setActiveCategory, color, vertica
         {store.categories.map((cat) => (
           <button
             key={cat.id}
-            onClick={() => setActiveCategory(cat.id === activeCategory ? null : cat.id)}
+            onClick={() => toggle(cat.id)}
             className="flex-shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
             style={
-              activeCategory === cat.id
+              activeCategory.includes(cat.id)
                 ? { background: color, color: "#fff" }
                 : { background: "var(--surface-2)", color: "var(--ink-2)" }
             }
@@ -364,7 +371,8 @@ function CategoryList({ store, activeCategory, setActiveCategory, color, vertica
 ════════════════════════════════════════ */
 export default function StorePage({ store, initialProducts }: Props) {
   const { code: storeCurrency, locale: storeLocale } = getStoreCurrency(store);
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState<string[]>([]);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [search,         setSearch]         = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [cartOpen,       setCartOpen]       = useState(false);
@@ -539,7 +547,7 @@ export default function StorePage({ store, initialProducts }: Props) {
     if (showFavorites) {
       items = items.filter((p) => favoriteIds.includes(`${store.slug}:${p.id}`));
     }
-    if (activeCategory) items = items.filter((p) => p.category_id === activeCategory);
+    if (activeCategory.length > 0) items = items.filter((p) => p.category_id && activeCategory.includes(p.category_id));
     if (debouncedSearch) {
       const q = debouncedSearch.toLowerCase();
       items = items.filter(
@@ -556,11 +564,11 @@ export default function StorePage({ store, initialProducts }: Props) {
   const featured        = initialProducts.filter((p) => p.is_featured).slice(0, 8);
   const hasCategories    = (store.categories?.length ?? 0) > 0;
   const hasPriceFilter   = priceMin != null || priceMax != null;
-  const isFiltering      = !!debouncedSearch || !!activeCategory || showFavorites || hasPriceFilter;
+  const isFiltering      = !!debouncedSearch || activeCategory.length > 0 || showFavorites || hasPriceFilter;
 
   function clearAllFilters() {
     setSearch("");
-    setActiveCategory(null);
+    setActiveCategory([]);
     setPriceMin(null);
     setPriceMax(null);
     setPriceMinInput("");
@@ -581,7 +589,7 @@ export default function StorePage({ store, initialProducts }: Props) {
   const hasMoreProducts = filtered.length > visibleCount;
 
   return (
-    <div className="min-h-dvh" data-theme={store.theme || "clasico"} style={{ background: "var(--bg)" }}>
+    <div className="min-h-dvh pb-16 md:pb-0" data-theme={store.theme || "clasico"} style={{ background: "var(--bg)" }}>
 
       {/* Franja de marca (color del vendedor) */}
       <div
@@ -1465,7 +1473,7 @@ export default function StorePage({ store, initialProducts }: Props) {
             animate={{ y: 0,   opacity: 1 }}
             exit={{   y: 120, opacity: 0 }}
             transition={{ type: "spring", damping: 20, stiffness: 260 }}
-            className="fixed bottom-0 left-0 right-0 px-4 z-20 max-w-xl mx-auto lg:max-w-sm lg:left-auto lg:right-8 lg:bottom-6"
+            className="fixed bottom-[76px] md:bottom-6 left-0 right-0 px-4 z-20 max-w-xl mx-auto lg:max-w-sm lg:left-auto lg:right-8"
             style={{ paddingBottom: "max(20px, env(safe-area-inset-bottom))" }}
           >
             <button
@@ -1501,7 +1509,7 @@ export default function StorePage({ store, initialProducts }: Props) {
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0, opacity: 0 }}
             transition={{ delay: 1.2, type: "spring", stiffness: 300 }}
-            className="fixed bottom-6 right-5 z-20 w-14 h-14 rounded-full flex items-center justify-center"
+            className="fixed bottom-[92px] md:bottom-6 right-5 z-20 w-14 h-14 rounded-full flex items-center justify-center"
             style={{ background: "#25D366", boxShadow: "0 4px 20px rgba(37,211,102,.5)" }}
             aria-label="Contactar por WhatsApp"
           >
@@ -1509,6 +1517,51 @@ export default function StorePage({ store, initialProducts }: Props) {
           </motion.a>
         )}
       </AnimatePresence>
+
+      {/* Barra inferior — accesos directos de una tienda pública, antes
+          inexistente (solo estaba el CTA de carrito y el de WhatsApp). */}
+      {mounted && (
+        <PublicBottomNav
+          accentColor={color}
+          items={[
+            { key: "inicio", icon: Home, label: "Inicio", href: "/" },
+            {
+              key: "categorias",
+              icon: LayoutGrid,
+              label: "Categorías",
+              active: activeCategory.length > 0,
+              badge: activeCategory.length > 0 ? activeCategory.length : undefined,
+              onClick: () => hasCategories && setShowCategoryModal(true),
+            },
+            {
+              key: "carrito",
+              icon: ShoppingCart,
+              label: "Carrito",
+              active: cartOpen,
+              badge: cartCount > 0 ? cartCount : undefined,
+              onClick: () => setCartOpen(true),
+            },
+            {
+              key: "cuenta",
+              icon: User,
+              label: "Cuenta",
+              active: accountOpen,
+              onClick: () => (isLoggedIn && user ? setAccountOpen(true) : router.push("/mis-pedidos")),
+            },
+          ]}
+        />
+      )}
+
+      {showCategoryModal && (
+        <CategoryFilterModal
+          title="Categorías"
+          accentColor={color}
+          options={(store.categories ?? []).map((c) => ({ key: c.id, label: c.name, icon: c.icon }))}
+          selected={activeCategory}
+          onApply={(next) => { setActiveCategory(next); setShowCategoryModal(false); }}
+          onClose={() => setShowCategoryModal(false)}
+        />
+      )}
 
       {/* Modal: seguimiento de pedido por número */}
       <AnimatePresence>

@@ -78,7 +78,8 @@ async def send_code(request: Request, payload: SendCodeRequest, db: AsyncSession
         "🔐 *Verificación qtienda*\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n"
         f"Tu código es: *{code}*\n\n"
-        f"Válido por {settings.PHONE_CODE_EXPIRE_MINUTES} minutos. Si no lo pediste tú, ignora este mensaje.",
+        f"Válido por {settings.PHONE_CODE_EXPIRE_MINUTES} minutos. Si no lo pediste tú, ignora este mensaje.\n\n"
+        "_Este es el número de notificaciones de qtienda — no es el WhatsApp de ninguna tienda en particular._",
     )
     if not sent:
         raise HTTPException(status_code=502, detail="No se pudo enviar el código, intenta de nuevo")

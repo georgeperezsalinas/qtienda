@@ -6,8 +6,8 @@ import random
 import re
 import secrets
 from datetime import date, datetime, timedelta, timezone
-from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from typing import Optional, List
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, Query
 from urllib.parse import quote
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import case, func, select, and_, or_
@@ -134,23 +134,25 @@ async def list_stores(
     page: int = 1,
     limit: int = 24,
     category: Optional[str] = None,
-    mall_category: Optional[str] = None,
-    city: Optional[str] = None,
+    mall_category: Optional[List[str]] = Query(None),
+    city: Optional[List[str]] = Query(None),
     q: Optional[str] = None,
     sort: str = "recent",
     db: AsyncSession = Depends(get_db),
 ):
     """Public store directory — paginado en el servidor, no limitado a un
     puñado de tiendas: con miles de tiendas el listado debe seguir siendo
-    completo y filtrable (no solo lo que trajo la página 1)."""
+    completo y filtrable (no solo lo que trajo la página 1). `city` y
+    `mall_category` aceptan varios valores repetidos
+    (?city=Lima&city=Chiclayo) para filtrar por más de uno a la vez."""
     page = max(1, page)
     limit = max(1, min(limit, 60))
 
     filters = [Store.status == "active", Store.deleted_at.is_(None)]
     if city:
-        filters.append(Store.city == city)
+        filters.append(Store.city.in_(city))
     if mall_category:
-        filters.append(Store.mall_category == mall_category)
+        filters.append(Store.mall_category.in_(mall_category))
     if q:
         like = f"%{q}%"
         filters.append(or_(Store.name.ilike(like), Store.description.ilike(like), Store.city.ilike(like)))
@@ -349,13 +351,14 @@ async def public_store_cities(request: Request, db: AsyncSession = Depends(get_d
 async def latest_products(
     request: Request,
     category: str = None,
-    mall_category: str = None,
+    mall_category: Optional[List[str]] = Query(None),
     limit: int = 12,
     db: AsyncSession = Depends(get_db),
 ):
     """Últimos productos publicados en tiendas activas — franja 'Recién publicado' del mall,
     o el catálogo del mall filtrado por rubro/departamento (`category` = nombre libre de
-    categoría interna del vendedor; `mall_category` = departamento fijo del Mall)."""
+    categoría interna del vendedor; `mall_category` = departamento(s) fijo(s) del Mall,
+    acepta varios valores repetidos para filtrar por más de uno a la vez)."""
     limit = max(1, min(limit, 60))
 
     filters = [
@@ -368,7 +371,7 @@ async def latest_products(
     if category:
         query = query.join(Category, Category.id == Product.category_id).where(func.lower(Category.name) == category.lower())
     if mall_category:
-        filters.append(Store.mall_category == mall_category)
+        filters.append(Store.mall_category.in_(mall_category))
     result = await db.execute(query.where(and_(*filters)).order_by(Product.created_at.desc()).limit(200))
     rows = result.all()
 
@@ -411,13 +414,14 @@ async def latest_products(
 @limiter.limit("60/minute")
 async def latest_services(
     request: Request,
-    mall_category: str = None,
+    mall_category: Optional[List[str]] = Query(None),
     limit: int = 12,
     db: AsyncSession = Depends(get_db),
 ):
     """Últimos servicios agendables publicados — equivalente a
     /latest-products pero para tiendas que venden servicios con cita, para
-    que el Mall no se sienta solo-productos."""
+    que el Mall no se sienta solo-productos. `mall_category` acepta varios
+    valores repetidos."""
     limit = max(1, min(limit, 60))
 
     filters = [
@@ -427,7 +431,7 @@ async def latest_services(
     ]
     query = select(Service, Store).join(Store, Store.id == Service.store_id)
     if mall_category:
-        filters.append(Store.mall_category == mall_category)
+        filters.append(Store.mall_category.in_(mall_category))
     result = await db.execute(query.where(and_(*filters)).order_by(Service.created_at.desc()).limit(200))
     rows = result.all()
 
@@ -1276,6 +1280,8 @@ async def create_order(
             f"https://{store.slug}.qtienda.shop/pedido/{order_number}",
             "",
             "Gracias por tu compra 🙏",
+            "",
+            f"_Este es el número de notificaciones de qtienda — no es el WhatsApp de {store.name}._",
         ]
         from app.services.whatsapp import send_whatsapp_message
         asyncio.ensure_future(send_whatsapp_message(payload.buyer_phone, "\n".join(buyer_lines)))
@@ -2046,6 +2052,8 @@ async def create_appointment(
     if appt.status != "confirmed":
         detail_lines.append("")
         detail_lines.append("La tienda todavía tiene que confirmarla — te avisamos apenas lo haga.")
+    detail_lines.append("")
+    detail_lines.append(f"_Este es el número de notificaciones de qtienda — no es el WhatsApp de {store.name}._")
     from app.services.whatsapp import send_whatsapp_message
     asyncio.ensure_future(send_whatsapp_message(payload.patient_phone, "\n".join(detail_lines)))
 
