@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Store, ChevronRight, ChevronLeft, MapPin, Package, Clock, Sparkles, ShoppingBag, ShieldCheck, Star, Loader2, CalendarClock, Plus, Bell, Home, Grid3x3, User } from "lucide-react";
+import { Search, Store, ChevronRight, ChevronLeft, MapPin, Package, Clock, Sparkles, ShoppingBag, ShieldCheck, Star, Loader2, CalendarClock, Plus, Bell, Home, Grid3x3, User, List } from "lucide-react";
 import Logo from "@/components/ui/Logo";
 import PublicBottomNav from "@/components/ui/PublicBottomNav";
 import CategoryFilterModal from "@/components/ui/CategoryFilterModal";
@@ -245,7 +245,7 @@ function MallBannerCarousel() {
 
   return (
     <div
-      className="relative overflow-hidden rounded-2xl mb-4"
+      className="relative overflow-hidden rounded-2xl mb-4 -mx-4 lg:mx-0"
       style={{ border: "1px solid var(--line)" }}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
@@ -363,6 +363,10 @@ export default function TiendasPage() {
   const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [sort, setSort] = useState<SortMode>("recent");
+  // Vista compacta del directorio — con muchas tiendas (ej. 100+), la
+  // tarjeta detallada obliga a scrollear mucho; la fila angosta entra más
+  // por pantalla, mismo patrón que el toggle lista/grilla del catálogo.
+  const [compactView, setCompactView] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -515,10 +519,19 @@ export default function TiendasPage() {
               propias, el ícono lleva a "Mis pedidos" — lo más parecido a
               "actividad" que existe hoy. */}
           <div
-            className="flex items-center justify-between px-4"
+            className="relative flex items-center justify-between px-4"
             style={{ paddingTop: "max(10px, env(safe-area-inset-top))", paddingBottom: 8 }}
           >
             <Logo size="md" variant="brand" href="/" />
+            {/* Centrado real (independiente del ancho del logo y de la
+                campanita) — para que quede claro que estás en el Mall y no
+                en la home normal de qtienda. */}
+            <span
+              className="absolute left-1/2 -translate-x-1/2 text-[11px] font-extrabold uppercase tracking-widest px-2.5 py-1 rounded-full"
+              style={{ background: "var(--accent-soft)", color: "var(--accent-ink)" }}
+            >
+              Mall
+            </span>
             <Link
               href="/mis-pedidos"
               aria-label="Mis pedidos"
@@ -955,15 +968,91 @@ export default function TiendasPage() {
             <span className="text-xs" style={{ color: "var(--ink-4)" }}>
               {storesTotal} tienda{storesTotal !== 1 ? "s" : ""}
             </span>
+            <div className="flex-1" />
+            <div className="flex items-center rounded-xl p-0.5" style={{ background: "var(--surface-2)" }}>
+              <button
+                onClick={() => setCompactView(false)}
+                aria-label="Vista detallada"
+                className="flex items-center justify-center w-7 h-6 rounded-lg transition-all"
+                style={{
+                  background: !compactView ? "var(--surface)" : "transparent",
+                  boxShadow: !compactView ? "var(--shadow-sm)" : "none",
+                  color: !compactView ? "var(--ink)" : "var(--ink-3)",
+                }}
+              >
+                <Grid3x3 size={13} />
+              </button>
+              <button
+                onClick={() => setCompactView(true)}
+                aria-label="Vista compacta"
+                className="flex items-center justify-center w-7 h-6 rounded-lg transition-all"
+                style={{
+                  background: compactView ? "var(--surface)" : "transparent",
+                  boxShadow: compactView ? "var(--shadow-sm)" : "none",
+                  color: compactView ? "var(--ink)" : "var(--ink-3)",
+                }}
+              >
+                <List size={13} />
+              </button>
+            </div>
           </div>
         )}
 
         {/* Store list — filtrado en el servidor (búsqueda/ciudad/departamento) */}
-        <div className="space-y-2.5 lg:space-y-0 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-3">
+        <div
+          className={
+            compactView
+              ? "space-y-1.5"
+              : "space-y-2.5 lg:space-y-0 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-3"
+          }
+        >
           {stores.map((s) => {
             // Hex real (no var CSS): se concatena alfa "15" abajo para el fondo de la flecha
             const color = s.primary_color ?? "#C5613B";
             const status = mounted ? getOpenStatus(s.store_hours) : null;
+
+            if (compactView) {
+              return (
+                <Link
+                  key={s.slug}
+                  href={`https://${s.slug}.qtienda.shop/`}
+                  className="flex items-center gap-2.5 py-2 px-2.5 rounded-xl transition-all active:scale-[.98]"
+                  style={{ background: "var(--surface)", boxShadow: "0 0 0 1px var(--line)" }}
+                >
+                  <div
+                    className="relative w-9 h-9 rounded-[10px] flex-shrink-0 flex items-center justify-center overflow-hidden"
+                    style={{ background: color }}
+                  >
+                    {s.logo_url ? (
+                      <Image src={s.logo_url} alt={s.name} fill sizes="36px" className="object-cover" />
+                    ) : (
+                      <span className="font-display font-extrabold text-xs text-white">
+                        {s.name.charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0 flex items-center gap-2">
+                    <p className="font-display font-bold text-xs truncate" style={{ color: "var(--ink)" }}>
+                      {s.name}
+                    </p>
+                    {s.city && (
+                      <span className="text-[10px] flex-shrink-0" style={{ color: "var(--ink-4)" }}>
+                        {s.city}
+                      </span>
+                    )}
+                  </div>
+                  {status && (
+                    <span
+                      className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                      style={{ background: status.open ? "var(--success)" : "var(--ink-4)" }}
+                      title={status.open ? "Abierto" : "Cerrado"}
+                    />
+                  )}
+                  <ChevronRight size={13} style={{ color: "var(--ink-4)" }} className="flex-shrink-0" />
+                </Link>
+              );
+            }
+
             return (
               <Link
                 key={s.slug}

@@ -45,138 +45,59 @@ async function getStores(): Promise<StoreCard[]> {
   }
 }
 
-interface PlatformStats {
-  stores_count: number;
-  delivered_count: number;
-  rating_avg: number | null;
-  rating_count: number;
-}
-
-async function getPlatformStats(): Promise<PlatformStats | null> {
-  try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://api:8000/api/v1";
-    const res = await fetch(`${apiUrl}/public/platform-stats`, { next: { revalidate: 300 } });
-    if (!res.ok) return null;
-    return await res.json();
-  } catch {
-    return null;
-  }
-}
-
-/** Prueba social del hero — solo datos reales de la plataforma, nunca un conteo inventado. */
+/** Prueba social del hero — solo negocios reales, nunca un conteo inventado.
+    Sin números a propósito mientras la plataforma sigue creciendo: mejor
+    apoyarse en nombres y caras reales que en una cifra que todavía es chica.
+    Tampoco repite el link a Mall qtienda — ya está el botón morado arriba. */
 async function HeroSocialProof() {
-  const [stores, stats] = await Promise.all([getStores(), getPlatformStats()]);
+  const stores = await getStores();
   if (!stores.length) return null;
 
-  const preview = stores.slice(0, 5);
+  // Más logos que antes (8 en vez de 5) porque ahora tienen toda la franja
+  // para ellos solos, no medio ancho compitiendo con el texto al lado.
+  const preview = stores.slice(0, 8);
   const countries = Array.from(
     new Set(stores.map((s) => s.country).filter((c): c is string => !!c))
   );
   const countryLabel = countries.map((c) => COUNTRY_NAMES[c] ?? c).join(" · ");
 
   return (
-    <div className="mt-8 animate-fade-up delay-200">
-      <div className="flex items-center gap-4">
-        <div className="flex">
-          {preview.map((s, i) => (
-            <div
-              key={s.slug}
-              className="flex items-center justify-center rounded-full overflow-hidden flex-shrink-0"
-              style={{
-                marginLeft: i === 0 ? 0 : -8,
-                width: 32,
-                height: 32,
-                background: i % 2 === 0 ? "var(--accent)" : "var(--accent-soft)",
-                color: i % 2 === 0 ? "#fff" : "var(--accent-ink)",
-                fontSize: 11,
-                fontWeight: 600,
-                border: "2px solid var(--bg)",
-              }}
-            >
-              {s.logo_url ? (
-                <img src={s.logo_url} alt={s.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              ) : (
-                s.name.charAt(0).toUpperCase()
-              )}
-            </div>
-          ))}
-        </div>
-        <div>
-          <p className="text-sm font-medium">Compra directamente a emprendedores.</p>
-          {countryLabel && (
-            <p className="text-xs" style={{ color: "var(--ink-3)" }}>
-              {countryLabel}
-            </p>
-          )}
-          <p>
-          <Link
-            href="/tiendas"
-            className="flex-shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-full transition-all hover:-translate-y-0.5"
-            style={{ background: "var(--accent)", color: "#fff" }}
-          >
-            Explorar Mall qtienda
-            <ArrowRight size={14} />
-          </Link>
-          </p>
-        </div>
-      </div>
-
-      {/* Números reales de la plataforma — se omite cada campo si no hay
-          muestra suficiente para ser representativo (nunca un dato inflado).
-          Umbrales altos a propósito: con pocas tiendas/pedidos el número
-          resta confianza en vez de sumarla — mejor no mostrar nada todavía. */}
-      {stats && (stats.stores_count >= 25 || stats.rating_count >= 15 || stats.delivered_count >= 50) && (
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 mt-5 pt-5" style={{ borderTop: "1px solid var(--line)" }}>
-          {stats.stores_count >= 25 && (
-            <span className="text-sm">
-              <strong className="mono num" style={{ color: "var(--ink)" }}>{stats.stores_count.toLocaleString()}</strong>{" "}
-              <span style={{ color: "var(--ink-3)" }}>tienda{stats.stores_count !== 1 ? "s" : ""} activa{stats.stores_count !== 1 ? "s" : ""}</span>
-            </span>
-          )}
-          {stats.rating_count >= 15 && stats.rating_avg != null && (
-            <span className="text-sm">
-              <strong className="mono num" style={{ color: "var(--ink)" }}>{stats.rating_avg.toFixed(1)}★</strong>{" "}
-              <span style={{ color: "var(--ink-3)" }}>({stats.rating_count} reseña{stats.rating_count !== 1 ? "s" : ""})</span>
-            </span>
-          )}
-          {stats.delivered_count >= 50 && (
-            <span className="text-sm">
-              <strong className="mono num" style={{ color: "var(--ink)" }}>{stats.delivered_count.toLocaleString()}</strong>{" "}
-              <span style={{ color: "var(--ink-3)" }}>pedidos entregados</span>
-            </span>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** Franja de tiendas activas reales — mismos datos que HeroSocialProof, nunca un logo inventado. */
-async function ActiveStoresStrip() {
-  const stores = await getStores();
-  if (stores.length < 6) return null;
-  const preview = stores.slice(0, 12);
-  return (
-    <section className="px-5 md:px-10 max-w-6xl mx-auto w-full pb-4 pt-10">
-      <p className="text-center text-xs mb-5" style={{ color: "var(--ink-3)" }}>
-        +{stores.length} negocios ya venden con qtienda
-      </p>
-      <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4">
+    <div
+      className="mt-8 animate-fade-up delay-200 rounded-2xl"
+      style={{ padding: "16px 18px", background: "var(--surface)", border: "1px solid var(--line)", boxShadow: "var(--shadow-sm)" }}
+    >
+      {/* Logos reales, sueltos y del tamaño real de la franja — antes era
+          un racimo apretado de 5 avatares chicos al costado del texto. */}
+      <div className="flex flex-wrap items-center gap-2.5">
         {preview.map((s) => (
-          <div key={s.slug} className="flex items-center gap-2" style={{ opacity: 0.75 }}>
+          <div
+            key={s.slug}
+            className="flex items-center justify-center rounded-full overflow-hidden flex-shrink-0"
+            style={{
+              width: 38,
+              height: 38,
+              background: "var(--accent-soft)",
+              color: "var(--accent-ink)",
+              fontSize: 13,
+              fontWeight: 700,
+            }}
+            title={s.name}
+          >
             {s.logo_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={s.logo_url} alt={s.name} style={{ width: 24, height: 24, borderRadius: 6, objectFit: "cover", filter: "grayscale(1)" }} />
+              <img src={s.logo_url} alt={s.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             ) : (
-              <span className="flex items-center justify-center rounded" style={{ width: 24, height: 24, background: "var(--surface-2)", fontSize: 11, fontWeight: 700, color: "var(--ink-3)" }}>
-                {s.name.charAt(0).toUpperCase()}
-              </span>
+              s.name.charAt(0).toUpperCase()
             )}
-            <span className="text-sm font-medium" style={{ color: "var(--ink-2)" }}>{s.name}</span>
           </div>
         ))}
       </div>
-    </section>
+      <p className="text-sm font-semibold mt-3" style={{ color: "var(--ink)" }}>Compra directamente a emprendedores.</p>
+      {countryLabel && (
+        <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
+          {countryLabel}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -234,7 +155,7 @@ const FAQS = [
 export default function LandingPage() {
   return (
     <div
-      className="min-h-dvh flex flex-col pb-[72px] sm:pb-0"
+      className="min-h-dvh flex flex-col"
       style={{
         // Resplandor cálido más vivo: dos focos de luz en vez de uno solo tenue
         background:
@@ -317,17 +238,25 @@ export default function LandingPage() {
             Crea tu tienda desde el celular en 2 minutos y comparte tu link en TikTok, Instagram o WhatsApp. <strong style={{ color: "var(--ink)" }}>Cada pedido cae directo a tu chat — cobras el 100%, para siempre.</strong>
           </p>
 
+          {/* Mismo morado del botón del footer — el Mall tiene su propia
+              identidad de color en toda la página, distinta del naranja de
+              "crear tienda", para que se lea como una segunda opción real
+              y no como un link secundario perdido en el texto. */}
           <Link
             href="/tiendas"
-            className="inline-flex items-center gap-1.5 mb-7 animate-fade-up delay-100 transition-opacity hover:opacity-80"
+            className="inline-flex items-center gap-2 mb-7 animate-fade-up delay-100 transition-transform active:scale-95 hover:-translate-y-0.5"
             style={{
-              color: "var(--accent)",
-              fontSize: 15,
+              background: "linear-gradient(120deg, #7C3AED, #A78BFA)",
+              color: "#fff",
+              fontSize: 14,
               fontWeight: 700,
+              padding: "10px 18px",
+              borderRadius: 999,
+              boxShadow: "0 4px 16px rgba(124,58,237,.35)",
             }}
           >
             <ShoppingBag size={15} />
-            E ingresa gratis a Mall Qtienda
+            Ingresa gratis a Mall Qtienda
             <ArrowRight size={14} />
           </Link>
 
@@ -483,10 +412,6 @@ export default function LandingPage() {
           ))}
         </div>
       </section>
-
-      <Suspense fallback={null}>
-        <ActiveStoresStrip />
-      </Suspense>
 
       {/* ── Cómo funciona ── */}
       <section className="px-5 md:px-10 max-w-6xl mx-auto w-full pb-14">
@@ -685,20 +610,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── CTA fijo mobile — conversión siempre a un tap, sin tapar contenido en desktop ── */}
-      <div
-        className="sm:hidden fixed bottom-0 left-0 right-0 z-40 pb-safe"
-        style={{ background: "var(--surface)", borderTop: "1px solid var(--line)", boxShadow: "0 -6px 20px rgba(20,19,15,.08)", padding: "10px 16px" }}
-      >
-        <Link
-          href="/auth/register"
-          className="btn-accent w-full"
-          style={{ padding: "13px 18px", fontSize: 15, fontWeight: 700 }}
-        >
-          Crea tu tienda gratis
-          <ArrowRight size={16} />
-        </Link>
-      </div>
 
       {/* ── Footer ── */}
       <footer
@@ -713,8 +624,8 @@ export default function LandingPage() {
                 queremos que se note. */}
             <Link
               href="/tiendas"
-              className="flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-full text-white transition-transform active:scale-95"
-              style={{ background: "linear-gradient(120deg, #7C3AED, #A78BFA)", boxShadow: "0 4px 14px rgba(124,58,237,.35)" }}
+              className="flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-full text-white transition-transform active:scale-95 animate-glow-pulse"
+              style={{ background: "linear-gradient(120deg, #7C3AED, #A78BFA)" }}
             >
               <ShoppingBag size={13} />
               Mall Qtienda

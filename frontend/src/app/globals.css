@@ -463,11 +463,18 @@
 @keyframes qt-spin {
   to { transform: rotate(360deg); }
 }
+/* Sombra que "respira" — para llamar la atención de un botón sin que
+   parpadee ni cambie de opacidad (eso dificulta leer el texto). */
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 4px 14px rgba(124,58,237,.35); }
+  50%      { box-shadow: 0 4px 22px rgba(124,58,237,.7), 0 0 0 5px rgba(124,58,237,.14); }
+}
 
 .animate-fade-up { animation: fade-up .35s cubic-bezier(.22,1,.36,1) both; }
 .animate-fade-in { animation: fade-in .25s ease both; }
 .animate-pulse-soft { animation: pulse-soft 2s ease-in-out infinite; }
 .animate-float-soft { animation: float-soft 3.5s ease-in-out infinite; }
+.animate-glow-pulse { animation: glow-pulse 2.4s ease-in-out infinite; }
 
 .delay-50  { animation-delay: .05s; }
 .delay-100 { animation-delay: .10s; }
