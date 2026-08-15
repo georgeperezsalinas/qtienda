@@ -282,6 +282,13 @@ class Order(Base):
     buyer_phone: Mapped[str]        = mapped_column(String(20))
     buyer_dni: Mapped[Optional[str]] = mapped_column(String(15))
     buyer_email: Mapped[Optional[str]] = mapped_column(String(255))
+    # Cuenta de comprador que hizo el pedido — nullable porque el checkout
+    # sigue siendo de invitado por defecto (no hace falta cuenta para
+    # comprar). Cuando existe, es el vínculo real para "Mis pedidos"; antes
+    # solo se emparejaba por buyer_email (texto), frágil ante typos.
+    buyer_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     buyer_department: Mapped[Optional[str]] = mapped_column(String(80))
     buyer_province: Mapped[Optional[str]] = mapped_column(String(80))
     buyer_district: Mapped[Optional[str]] = mapped_column(String(80))
@@ -316,6 +323,7 @@ class Order(Base):
     payment: Mapped[Optional["Payment"]]    = relationship(back_populates="order", uselist=False)
     delivery: Mapped[Optional["Delivery"]]  = relationship(back_populates="order", uselist=False)
     assigned_to: Mapped[Optional["User"]]   = relationship(foreign_keys="Order.assigned_to_id")
+    buyer: Mapped[Optional["User"]]         = relationship(foreign_keys="Order.buyer_id")
 
 
 class OrderItem(Base):

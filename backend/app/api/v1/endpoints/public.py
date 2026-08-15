@@ -21,6 +21,7 @@ from app.schemas.orders import PublicOrderCreate, OrderResponse
 from app.schemas.claims import ClaimCreate
 from app.core.limiter import limiter
 from app.core.config import settings as app_settings
+from app.core.security import get_current_user_optional
 
 
 async def _trust_data_for_stores(db: AsyncSession, stores: list) -> dict:
@@ -906,10 +907,14 @@ async def create_order(
     payload: PublicOrderCreate,
     request: Request,
     db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user_optional),
 ):
     """
     Create order — no login required.
     This is the core buyer checkout flow. Must be fast.
+    Si el comprador tiene sesión (apiClient ya manda el header en cada
+    request), el pedido queda vinculado a su cuenta vía buyer_id — sin
+    eso, "Mis pedidos" solo podía emparejar por buyer_email (texto).
     """
     # Load store
     store_q = await db.execute(
@@ -1093,6 +1098,7 @@ async def create_order(
     order = Order(
         store_id=store.id,
         order_number=order_number,
+        buyer_id=current_user.id if current_user else None,
         buyer_name=payload.buyer_name,
         buyer_phone=payload.buyer_phone,
         buyer_dni=payload.buyer_dni,

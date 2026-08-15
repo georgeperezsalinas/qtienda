@@ -13,6 +13,7 @@ from app.db.session import get_db
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 bearer_scheme = HTTPBearer()
+bearer_scheme_optional = HTTPBearer(auto_error=False)
 
 
 # ── Password ─────────────────────────────────────────────────
@@ -73,6 +74,33 @@ async def get_current_user(
     user = await get_user_by_id(db, UUID(payload["sub"]))
     if not user or not user.is_active or user.deleted_at:
         raise HTTPException(status_code=401, detail="Usuario inactivo")
+    return user
+
+
+async def get_current_user_optional(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme_optional),
+    db: AsyncSession = Depends(get_db),
+):
+    """Igual que get_current_user pero nunca falla — devuelve None si no
+    hay token, es inválido, o el usuario ya no existe/está inactivo. Para
+    endpoints públicos (ej. checkout de invitado) que quieren vincular la
+    acción a una cuenta CUANDO la hay, sin exigir sesión."""
+    if not credentials:
+        return None
+    from app.services.user_service import get_user_by_id
+
+    try:
+        payload = decode_token(credentials.credentials)
+    except HTTPException:
+        return None
+    if payload.get("type") != "access":
+        return None
+    try:
+        user = await get_user_by_id(db, UUID(payload["sub"]))
+    except (ValueError, KeyError):
+        return None
+    if not user or not user.is_active or user.deleted_at:
+        return None
     return user
 
 

@@ -1726,6 +1726,19 @@ export default function StorePage({ store, initialProducts }: Props) {
                     <p className="text-xs truncate mt-0.5" style={{ color: "var(--ink-3)" }}>{user.email}</p>
                   </div>
                 </div>
+                {/* La cuenta de comprador es una sola para toda la plataforma
+                    (mismo login del panel de vendedor si aplica, a propósito
+                    — "un vendedor puede comprar con su misma cuenta"). Sin
+                    esta aclaración, ver acá su identidad de vendedor se lee
+                    como un error en vez de la misma cuenta de siempre. */}
+                {user.role !== "buyer" && (
+                  <p
+                    className="text-[11px] mb-4 px-3.5 py-2.5 rounded-xl"
+                    style={{ background: "var(--surface-2)", color: "var(--ink-3)" }}
+                  >
+                    Estás viendo esto con tu cuenta de qtienda — la misma que usas en tu panel.
+                  </p>
+                )}
                 <div className="space-y-2.5">
                   <a
                     href="/mis-pedidos"

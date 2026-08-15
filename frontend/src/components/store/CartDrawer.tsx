@@ -1096,13 +1096,25 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                           📍 Seguir mi pedido
                           <ChevronRight size={15} />
                         </a>
-                        {user && (
+                        {user ? (
                           <a
                             href="/mis-pedidos"
                             className="flex items-center justify-center gap-2 w-full rounded-2xl py-3.5 font-bold text-sm transition-all active:scale-[.98]"
                             style={{ background: "var(--surface-2)", color: "var(--ink-2)" }}
                           >
                             Ver mis pedidos
+                            <ChevronRight size={15} />
+                          </a>
+                        ) : (
+                          // Invitado — invitación de baja fricción, no obligatoria,
+                          // para que sus próximos pedidos (acá o en otra tienda)
+                          // queden en un solo lugar en vez de perderse.
+                          <a
+                            href={`/registro${form.buyer_email ? `?email=${encodeURIComponent(form.buyer_email)}` : ""}`}
+                            className="flex items-center justify-center gap-2 w-full rounded-2xl py-3.5 font-bold text-sm transition-all active:scale-[.98]"
+                            style={{ background: "var(--surface-2)", color: "var(--ink-2)" }}
+                          >
+                            Crear cuenta para seguir tus pedidos
                             <ChevronRight size={15} />
                           </a>
                         )}

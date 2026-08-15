@@ -244,11 +244,18 @@ export default function DashboardLayout({
 
   useSellerPushSubscription(user?.email);
 
+  // Antes este guard solo verificaba que hubiera un token — con eso
+  // alcanzaba para cargar el shell del panel de vendedor con una sesión de
+  // comprador (mismo authStore global para toda la app). El rol también
+  // tiene que calificar.
+  const isAllowedRole = user?.role === "vendor" || user?.role === "admin";
+
   useEffect(() => setHydrated(true), []);
   useEffect(() => {
     // El guard no debe pisar la redirección a "/" cuando el logout es voluntario
     if (hydrated && !accessToken && !loggingOut.current) router.replace("/auth/login");
-  }, [hydrated, accessToken, router]);
+    else if (hydrated && accessToken && user && !isAllowedRole) router.replace("/");
+  }, [hydrated, accessToken, user, isAllowedRole, router]);
   useEffect(() => {
     if (hydrated && accessToken)
       apiClient
@@ -263,6 +270,7 @@ export default function DashboardLayout({
   useEffect(() => setDrawerOpen(false), [pathname]);
 
   if (!hydrated || !accessToken) return null;
+  if (user && !isAllowedRole) return null;
 
   function handleLogout() {
     loggingOut.current = true;

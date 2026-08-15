@@ -273,8 +273,8 @@ export default function LandingPage() {
             style={{
               padding: "8px 14px",
               fontSize: 13,
-              background: "var(--accent)",
-              boxShadow: "0 4px 12px rgba(197,97,59,.3)",
+              background: "linear-gradient(120deg, var(--accent), var(--accent-soft))",
+              boxShadow: "0 4px 14px rgba(197,97,59,.4)",
             }}
           >
             Crea tu tienda gratis
@@ -338,8 +338,8 @@ export default function LandingPage() {
               style={{
                 padding: "14px 22px",
                 fontSize: 15,
-                background: "var(--accent)",
-                boxShadow: "0 6px 18px rgba(197,97,59,.35)",
+                background: "linear-gradient(160deg, var(--ink) 0%, var(--accent-ink) 100%)",
+                boxShadow: "0 8px 22px rgba(20,19,15,.35)",
               }}
             >
               Crea tu tienda gratis
@@ -706,7 +706,20 @@ export default function LandingPage() {
         style={{ borderTop: "1px solid var(--line)" }}
       >
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <Logo size="sm" variant="brand" />
+          <div className="flex items-center gap-4">
+            <Logo size="sm" variant="brand" />
+            {/* Único acceso vistoso al Mall en todo el footer — el resto
+                son links de texto planos a propósito, este es el que
+                queremos que se note. */}
+            <Link
+              href="/tiendas"
+              className="flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-full text-white transition-transform active:scale-95"
+              style={{ background: "linear-gradient(120deg, #7C3AED, #A78BFA)", boxShadow: "0 4px 14px rgba(124,58,237,.35)" }}
+            >
+              <ShoppingBag size={13} />
+              Mall Qtienda
+            </Link>
+          </div>
           <div className="flex items-center gap-5 text-xs" style={{ color: "var(--ink-3)" }}>
             <Link href="/auth/login" className="hover:underline">Ingresar</Link>
             <Link href="/auth/register" className="hover:underline">Crear tienda</Link>

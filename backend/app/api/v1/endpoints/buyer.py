@@ -10,7 +10,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import delete as sql_delete, select
+from sqlalchemy import delete as sql_delete, or_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import selectinload
 
@@ -27,14 +27,17 @@ async def get_buyer_orders(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Return all orders placed by the authenticated buyer (matched by email)."""
+    """Return all orders placed by the authenticated buyer — por buyer_id
+    (cuenta al momento de comprar) con fallback a buyer_email para pedidos
+    de antes de que existiera ese vínculo, o hechos como invitado con el
+    mismo correo de la cuenta."""
     if not current_user.email:
         return []
 
     result = await db.execute(
         select(Order)
         .options(selectinload(Order.items), selectinload(Order.store))
-        .where(Order.buyer_email == current_user.email)
+        .where(or_(Order.buyer_id == current_user.id, Order.buyer_email == current_user.email))
         .order_by(Order.created_at.desc())
     )
     orders = result.scalars().all()
@@ -82,7 +85,7 @@ async def get_buyer_order_detail(
     if not order:
         raise HTTPException(status_code=404, detail="Pedido no encontrado")
 
-    if order.buyer_email != current_user.email:
+    if order.buyer_id != current_user.id and order.buyer_email != current_user.email:
         raise HTTPException(status_code=403, detail="No autorizado")
 
     review = (
@@ -151,7 +154,7 @@ async def submit_order_review(
     order = result.scalar_one_or_none()
     if not order:
         raise HTTPException(status_code=404, detail="Pedido no encontrado")
-    if order.buyer_email != current_user.email:
+    if order.buyer_id != current_user.id and order.buyer_email != current_user.email:
         raise HTTPException(status_code=403, detail="No autorizado")
     if order.status != "delivered":
         raise HTTPException(status_code=422, detail="Solo puedes calificar pedidos ya entregados")

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -53,6 +53,14 @@ export default function RegistroPage() {
   const [errors, setErrors]     = useState<FieldErrors>({});
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading]   = useState(false);
+
+  // Pre-llena el email si viene del checkout de invitado (CartDrawer,
+  // "Crear cuenta para seguir tus pedidos") — sin useSearchParams para no
+  // forzar un boundary de Suspense en esta página.
+  useEffect(() => {
+    const email = new URLSearchParams(window.location.search).get("email");
+    if (email) setForm((f) => ({ ...f, email }));
+  }, []);
 
   function update(key: keyof FormData) {
     return (e: React.ChangeEvent<HTMLInputElement>) => {
