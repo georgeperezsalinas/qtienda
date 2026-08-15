@@ -10,6 +10,7 @@ import { CalendarClock, Clock } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import { apiClient } from "@/lib/api";
 import BookingModal from "./BookingModal";
+import MyAppointmentsModal from "./MyAppointmentsModal";
 
 interface Service {
   id: string;
@@ -31,6 +32,7 @@ export default function ServicesSection({
   const [services, setServices] = useState<Service[] | null>(null);
   const [booking, setBooking] = useState<Service | null>(null);
   const [bookedIds, setBookedIds] = useState<Set<string>>(new Set());
+  const [showMyAppointments, setShowMyAppointments] = useState(false);
 
   useEffect(() => {
     apiClient
@@ -68,6 +70,13 @@ export default function ServicesSection({
         <span className="text-xs font-extrabold uppercase tracking-widest" style={{ color: accentColor }}>
           Servicios — reserva tu cita
         </span>
+        <button
+          onClick={() => setShowMyAppointments(true)}
+          className="ml-auto text-xs font-semibold underline-offset-2 hover:underline"
+          style={{ color: "var(--ink-3)" }}
+        >
+          Ver mis citas
+        </button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -121,6 +130,14 @@ export default function ServicesSection({
           storeLocale={storeLocale}
           accentColor={accentColor}
           onClose={() => { setBooking(null); refreshBooked(); }}
+        />
+      )}
+
+      {showMyAppointments && (
+        <MyAppointmentsModal
+          storeSlug={storeSlug}
+          accentColor={accentColor}
+          onClose={() => setShowMyAppointments(false)}
         />
       )}
     </section>

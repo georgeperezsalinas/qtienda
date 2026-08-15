@@ -75,7 +75,6 @@ const item = {
 export default function StoreDoor({ store }: { store: DoorStoreData }) {
   const [copied, setCopied] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [accountDismissed, setAccountDismissed] = useState(false);
   const [hasServices, setHasServices] = useState(false);
   const [previewPhotos, setPreviewPhotos] = useState<PreviewPhoto[]>([]);
   const color = store.primary_color || "#2563EB";
@@ -87,7 +86,6 @@ export default function StoreDoor({ store }: { store: DoorStoreData }) {
 
   useEffect(() => {
     setMounted(true);
-    if (localStorage.getItem("qtienda_buyer_banner_dismissed") === "1") setAccountDismissed(true);
 
     // Vitrina real: primeras fotos de productos y/o servicios — nunca un
     // placeholder. Sin esto la puerta es solo texto e íconos, se siente
@@ -131,11 +129,6 @@ export default function StoreDoor({ store }: { store: DoorStoreData }) {
     setCopied(true);
     toast.success("Link copiado");
     setTimeout(() => setCopied(false), 2000);
-  }
-
-  function dismissAccount() {
-    setAccountDismissed(true);
-    localStorage.setItem("qtienda_buyer_banner_dismissed", "1");
   }
 
   const hasTrustSignal = (store.rating_count ?? 0) > 0 || (store.orders_delivered_count ?? 0) > 0;
@@ -183,14 +176,15 @@ export default function StoreDoor({ store }: { store: DoorStoreData }) {
         className="absolute top-0 left-0 right-0 h-2"
         style={{ background: `repeating-linear-gradient(45deg, ${color} 0 14px, var(--surface) 14px 28px)` }}
       />
-      {/* Grilla sutil — mismo lenguaje visual del panel de marca en login */}
+      {/* Resplandor cálido de marca — mismo lenguaje que el hero de la
+          landing, en vez del cuadriculado plano que había antes cuando la
+          tienda no subió un banner propio. */}
       {!store.banner_url && (
         <div
           aria-hidden
-          className="absolute inset-0 pointer-events-none opacity-[0.05]"
+          className="absolute inset-0 pointer-events-none"
           style={{
-            backgroundImage: `linear-gradient(${color}FF 1px, transparent 1px), linear-gradient(90deg, ${color}FF 1px, transparent 1px)`,
-            backgroundSize: "36px 36px",
+            background: `radial-gradient(ellipse 70% 45% at 15% 0%, ${color}22 0%, transparent 60%), radial-gradient(ellipse 55% 40% at 90% 10%, ${color}18 0%, transparent 65%)`,
           }}
         />
       )}
@@ -380,26 +374,19 @@ export default function StoreDoor({ store }: { store: DoorStoreData }) {
                 )}
               </AnimatePresence>
 
-              <AnimatePresence>
-                {mounted && !isLoggedIn && !accountDismissed && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }}
-                    className="flex items-center gap-2.5 px-3.5 py-3 rounded-2xl text-left"
-                    style={{ background: "var(--success-soft)", border: "1.5px dashed var(--line-2)" }}
-                  >
-                    <UserPlus size={18} className="flex-shrink-0" style={{ color: "var(--success)" }} />
-                    <p className="flex-1 text-xs font-medium leading-snug" style={{ color: "var(--success)" }}>
-                      ¿Compras aquí seguido? Crea una cuenta para ver tus pedidos
-                    </p>
-                    <a href="/registro"
-                      className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-full text-white whitespace-nowrap"
-                      style={{ background: "var(--success)" }}>
-                      Crear cuenta
-                    </a>
-                    <button onClick={dismissAccount} className="flex-shrink-0"><X size={14} style={{ color: "var(--ink-3)" }} /></button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              {/* Cuenta comprador — link de texto simple, no un banner de
+                  color: es una opción disponible, no algo que compita por
+                  atención con entrar a la tienda. */}
+              {mounted && !isLoggedIn && (
+                <a
+                  href="/registro"
+                  className="flex items-center justify-center gap-1.5 text-xs font-semibold py-1"
+                  style={{ color: "var(--ink-3)" }}
+                >
+                  <UserPlus size={12} />
+                  Crear cuenta para ver tu historial de pedidos
+                </a>
+              )}
             </motion.div>
 
             {/* Info rápida real — solo lo que la tienda realmente ofrece */}

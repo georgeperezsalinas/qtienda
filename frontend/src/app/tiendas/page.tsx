@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Store, ChevronRight, ChevronLeft, MapPin, ArrowLeft, Package, Clock, Sparkles, ShoppingBag, ShieldCheck, Star, Loader2 } from "lucide-react";
+import { Search, Store, ChevronRight, ChevronLeft, MapPin, ArrowLeft, Package, Clock, Sparkles, ShoppingBag, ShieldCheck, Star, Loader2, CalendarClock } from "lucide-react";
 import Logo from "@/components/ui/Logo";
 import { useAuthStore } from "@/store/authStore";
 import { getOpenStatus } from "@/lib/storeHours";
@@ -27,6 +27,7 @@ interface StoreCard {
   is_verified?: boolean;
   rating_avg?: number | null;
   rating_count?: number;
+  service_count?: number;
 }
 
 interface MallCategoryItem {
@@ -74,6 +75,21 @@ interface LatestProduct {
   name: string;
   price_cents: number;
   image_url?: string;
+  store_slug: string;
+  store_name: string;
+  store_city?: string;
+  store_logo_url?: string;
+  primary_color?: string;
+  store_country?: string;
+  store_currency?: string;
+}
+
+interface LatestService {
+  id: string;
+  name: string;
+  duration_minutes: number;
+  price_cents?: number | null;
+  image_url?: string | null;
   store_slug: string;
   store_name: string;
   store_city?: string;
@@ -349,6 +365,9 @@ export default function TiendasPage() {
   const [latestProducts, setLatestProducts] = useState<LatestProduct[]>([]);
   const [categoryProducts, setCategoryProducts] = useState<LatestProduct[]>([]);
   const [categoryProductsLoading, setCategoryProductsLoading] = useState(false);
+  const [latestServices, setLatestServices] = useState<LatestService[]>([]);
+  const [categoryServices, setCategoryServices] = useState<LatestService[]>([]);
+  const [categoryServicesLoading, setCategoryServicesLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [query, setQuery] = useState("");
@@ -375,6 +394,10 @@ export default function TiendasPage() {
       .then((r) => r.json())
       .then((data) => setLatestProducts(Array.isArray(data) ? data : []))
       .catch(() => setLatestProducts([]));
+    fetch(`${API}/public/latest-services?limit=24`)
+      .then((r) => r.json())
+      .then((data) => setLatestServices(Array.isArray(data) ? data : []))
+      .catch(() => setLatestServices([]));
   }, []);
 
   // Búsqueda con debounce — evita una consulta al servidor por cada tecla
@@ -434,6 +457,7 @@ export default function TiendasPage() {
   useEffect(() => {
     if (!categoryFilter) {
       setCategoryProducts([]);
+      setCategoryServices([]);
       return;
     }
     setCategoryProductsLoading(true);
@@ -442,6 +466,12 @@ export default function TiendasPage() {
       .then((data) => setCategoryProducts(Array.isArray(data) ? data : []))
       .catch(() => setCategoryProducts([]))
       .finally(() => setCategoryProductsLoading(false));
+    setCategoryServicesLoading(true);
+    fetch(`${API}/public/latest-services?mall_category=${encodeURIComponent(categoryFilter)}&limit=24`)
+      .then((r) => r.json())
+      .then((data) => setCategoryServices(Array.isArray(data) ? data : []))
+      .catch(() => setCategoryServices([]))
+      .finally(() => setCategoryServicesLoading(false));
   }, [categoryFilter]);
 
   // Destacadas: las tiendas con más catálogo activo dentro de la página actual — vitrina real, no manual.
@@ -513,7 +543,7 @@ export default function TiendasPage() {
 
           {/* Tagline: framing hacia el "centro comercial virtual" */}
           <p className="text-xs mb-3" style={{ color: "var(--ink-3)" }}>
-            Todas las tiendas de Qtienda en un solo lugar — explora por rubro o ciudad.
+            Todas las tiendas y servicios de Qtienda en un solo lugar — explora por rubro o ciudad.
           </p>
 
           {/* Search */}
@@ -660,6 +690,60 @@ export default function TiendasPage() {
           </div>
         )}
 
+        {/* Servicios disponibles — igual criterio que "Recién publicado" pero
+            para tiendas que venden servicios con cita, así el mall no se
+            siente solo-productos. */}
+        {!loading && latestServices.length >= 3 && !debouncedQuery && !cityFilter && !categoryFilter && (
+          <div className="mb-4">
+            <div className="flex items-center gap-1.5 mb-2.5 px-0.5">
+              <CalendarClock size={13} style={{ color: "var(--accent)" }} />
+              <p className="font-display font-bold text-sm" style={{ color: "var(--ink)" }}>
+                Servicios disponibles
+              </p>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2.5">
+              {latestServices.map((s) => {
+                const color = s.primary_color ?? "#C5613B";
+                const sCurrency = getStoreCurrency({ currency: s.store_currency, country: s.store_country });
+                return (
+                  <Link
+                    key={s.id}
+                    href={`https://${s.store_slug}.qtienda.shop/#tienda-servicios`}
+                    className="rounded-2xl overflow-hidden transition-all active:scale-[.97]"
+                    style={{ background: "var(--surface)", boxShadow: "0 1px 8px rgba(20,19,15,.06), 0 0 0 1px var(--line)" }}
+                  >
+                    <div className="relative w-full h-[110px] flex items-center justify-center overflow-hidden" style={{ background: "var(--surface-2)" }}>
+                      {s.image_url ? (
+                        <Image
+                          src={s.image_url}
+                          alt={s.name}
+                          fill
+                          sizes="(min-width: 1280px) 16vw, (min-width: 640px) 33vw, 50vw"
+                          className="object-cover"
+                        />
+                      ) : (
+                        <CalendarClock size={24} style={{ color: "var(--ink-4)" }} />
+                      )}
+                    </div>
+                    <div className="p-2.5">
+                      <p className="text-xs font-semibold truncate" style={{ color: "var(--ink)" }}>
+                        {s.name}
+                      </p>
+                      <p className="text-xs font-bold mt-0.5" style={{ color }}>
+                        {s.duration_minutes} min
+                        {s.price_cents != null && <> · {formatPrice(s.price_cents, sCurrency.code, sCurrency.locale)}</>}
+                      </p>
+                      <p className="text-[10px] truncate mt-0.5" style={{ color: "var(--ink-4)" }}>
+                        {s.store_name}
+                      </p>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Productos del departamento elegido — mosaico real, no solo la lista de tiendas */}
         {categoryFilter && (categoryProductsLoading || categoryProducts.length > 0) && (
           <div className="mb-4">
@@ -714,6 +798,71 @@ export default function TiendasPage() {
                         </p>
                         <p className="text-[10px] truncate mt-0.5" style={{ color: "var(--ink-4)" }}>
                           {p.store_name}
+                        </p>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Servicios del departamento elegido */}
+        {categoryFilter && (categoryServicesLoading || categoryServices.length > 0) && (
+          <div className="mb-4">
+            <div className="flex items-center gap-1.5 mb-2.5 px-0.5">
+              <CalendarClock size={13} style={{ color: "var(--accent)" }} />
+              <p className="font-display font-bold text-sm" style={{ color: "var(--ink)" }}>
+                Servicios en {mallCategories.find((c) => c.slug === categoryFilter)?.label ?? "este rubro"}
+              </p>
+              {!categoryServicesLoading && (
+                <span className="text-xs" style={{ color: "var(--ink-4)" }}>
+                  {categoryServices.length} servicio{categoryServices.length !== 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
+            {categoryServicesLoading ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2.5">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="skeleton rounded-2xl" style={{ height: 170 }} />
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2.5">
+                {categoryServices.map((s) => {
+                  const color = s.primary_color ?? "#C5613B";
+                  const sCurrency = getStoreCurrency({ currency: s.store_currency, country: s.store_country });
+                  return (
+                    <Link
+                      key={s.id}
+                      href={`https://${s.store_slug}.qtienda.shop/#tienda-servicios`}
+                      className="rounded-2xl overflow-hidden transition-all active:scale-[.97]"
+                      style={{ background: "var(--surface)", boxShadow: "0 1px 8px rgba(20,19,15,.06), 0 0 0 1px var(--line)" }}
+                    >
+                      <div className="relative w-full h-[110px] flex items-center justify-center overflow-hidden" style={{ background: "var(--surface-2)" }}>
+                        {s.image_url ? (
+                          <Image
+                            src={s.image_url}
+                            alt={s.name}
+                            fill
+                            sizes="(min-width: 1280px) 16vw, (min-width: 640px) 33vw, 50vw"
+                            className="object-cover"
+                          />
+                        ) : (
+                          <CalendarClock size={24} style={{ color: "var(--ink-4)" }} />
+                        )}
+                      </div>
+                      <div className="p-2.5">
+                        <p className="text-xs font-semibold truncate" style={{ color: "var(--ink)" }}>
+                          {s.name}
+                        </p>
+                        <p className="text-xs font-bold mt-0.5" style={{ color }}>
+                          {s.duration_minutes} min
+                          {s.price_cents != null && <> · {formatPrice(s.price_cents, sCurrency.code, sCurrency.locale)}</>}
+                        </p>
+                        <p className="text-[10px] truncate mt-0.5" style={{ color: "var(--ink-4)" }}>
+                          {s.store_name}
                         </p>
                       </div>
                     </Link>
@@ -865,6 +1014,15 @@ export default function TiendasPage() {
                       >
                         <Package size={9} />
                         {s.product_count} producto{s.product_count !== 1 ? "s" : ""}
+                      </span>
+                    )}
+                    {typeof s.service_count === "number" && s.service_count > 0 && (
+                      <span
+                        className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                        style={{ background: "var(--surface-2)", color: "var(--ink-3)" }}
+                      >
+                        <CalendarClock size={9} />
+                        {s.service_count} servicio{s.service_count !== 1 ? "s" : ""}
                       </span>
                     )}
                     {status && (

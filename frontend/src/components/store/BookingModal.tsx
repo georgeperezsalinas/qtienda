@@ -59,6 +59,7 @@ export default function BookingModal({
   const [step, setStep] = useState<"slots" | "form" | "verify" | "done">("slots");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [dni, setDni] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -98,6 +99,7 @@ export default function BookingModal({
         service_id: service.id,
         patient_name: name.trim(),
         patient_phone: phone.trim(),
+        patient_dni: dni.trim() || undefined,
         scheduled_at: scheduledAt.toISOString(),
       });
       // Para mostrar "Ya reservaste" en la tarjeta del servicio sin tener que
@@ -175,6 +177,7 @@ export default function BookingModal({
             <div className="space-y-2">
               <input className="input text-sm" placeholder="Tu nombre" value={name} onChange={(e) => setName(e.target.value)} />
               <input className="input text-sm" placeholder="Tu teléfono" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <input className="input text-sm" placeholder="Tu DNI" inputMode="numeric" value={dni} onChange={(e) => setDni(e.target.value)} />
               <button onClick={goToVerify} disabled={submitting} className="btn-primary w-full" style={{ padding: "12px", background: accentColor }}>
                 Continuar
               </button>
@@ -223,9 +226,9 @@ export default function BookingModal({
                         className="flex items-center justify-center gap-1 rounded-xl py-2 text-xs font-bold disabled:cursor-not-allowed"
                         style={
                           state === "taken"
-                            ? { background: "var(--danger-soft)", color: "var(--danger)", opacity: 0.7, textDecoration: "line-through" }
+                            ? { background: "var(--danger-soft)", color: "var(--danger)", opacity: 0.85, textDecoration: "line-through" }
                             : state === "pending"
-                            ? { background: "var(--surface-2)", color: "var(--ink-4)", opacity: 0.7 }
+                            ? { background: "var(--danger-soft)", color: "var(--danger)", opacity: 0.55, textDecoration: "line-through" }
                             : { background: "var(--surface-2)", color: "var(--ink)" }
                         }
                       >
@@ -233,6 +236,10 @@ export default function BookingModal({
                       </button>
                     ))}
                 </div>
+                {/* Ambos estados se pintan en rojo — un horario pendiente de
+                    confirmación tampoco se puede volver a reservar, así que
+                    debe leerse igual de "ocupado" que uno ya confirmado; solo
+                    cambia el motivo, que se explica en el tooltip de arriba. */}
                 {(takenSlots.length > 0 || pendingSlots.length > 0) && (
                   <div className="flex items-center gap-3 mt-2.5 flex-wrap">
                     {takenSlots.length > 0 && (
@@ -242,7 +249,7 @@ export default function BookingModal({
                     )}
                     {pendingSlots.length > 0 && (
                       <span className="flex items-center gap-1 text-[10px]" style={{ color: "var(--ink-4)" }}>
-                        <span className="w-2 h-2 rounded-full" style={{ background: "var(--ink-4)" }} /> En revisión
+                        <span className="w-2 h-2 rounded-full" style={{ background: "var(--danger)", opacity: 0.55 }} /> En revisión
                       </span>
                     )}
                   </div>

@@ -715,6 +715,7 @@ class Appointment(Base):
     service_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("services.id", ondelete="RESTRICT"), nullable=False)
     patient_name: Mapped[str]    = mapped_column(String(120), nullable=False)
     patient_phone: Mapped[str]   = mapped_column(String(20), nullable=False)
+    patient_dni: Mapped[Optional[str]] = mapped_column(String(15))
     patient_email: Mapped[Optional[str]] = mapped_column(String(150))
     scheduled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     # Duración copiada del servicio al momento de reservar — si el vendedor

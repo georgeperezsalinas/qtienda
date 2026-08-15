@@ -308,6 +308,7 @@ class AppointmentCreate(BaseModel):
     service_id: UUID
     patient_name: str
     patient_phone: str
+    patient_dni: Optional[str] = None
     patient_email: Optional[EmailStr] = None
     scheduled_at: datetime
     notes: Optional[str] = None
@@ -326,6 +327,43 @@ class AppointmentCreate(BaseModel):
         if len(cleaned) < 7:
             raise ValueError("Teléfono inválido")
         return cleaned
+
+    @field_validator("patient_dni")
+    @classmethod
+    def clean_dni(cls, v):
+        if v is None:
+            return v
+        cleaned = v.strip()
+        return cleaned or None
+
+
+class AppointmentLookup(BaseModel):
+    patient_name: str
+    patient_phone: str
+    patient_dni: Optional[str] = None
+
+    @field_validator("patient_name")
+    @classmethod
+    def name_not_empty(cls, v):
+        if not v.strip():
+            raise ValueError("El nombre no puede estar vacío")
+        return v.strip()
+
+    @field_validator("patient_phone")
+    @classmethod
+    def clean_phone(cls, v):
+        cleaned = re.sub(r"\D", "", v)
+        if len(cleaned) < 7:
+            raise ValueError("Teléfono inválido")
+        return cleaned
+
+    @field_validator("patient_dni")
+    @classmethod
+    def clean_dni(cls, v):
+        if v is None:
+            return v
+        cleaned = v.strip()
+        return cleaned or None
 
 
 class AppointmentStatusUpdate(BaseModel):

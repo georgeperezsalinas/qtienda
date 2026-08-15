@@ -16,7 +16,7 @@ from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
 from app.models.models import Plan, Store, Product, Category, Order, OrderItem, Payment, Review, StoreSettings, StoreEvent, SiteEvent, Subscription, MallBanner, AbandonedCart, Coupon, StoreClaim, StoreWheelConfig, WheelSpin, Service, AvailabilityException, Appointment
-from app.schemas.auth import AppointmentCreate
+from app.schemas.auth import AppointmentCreate, AppointmentLookup
 from app.schemas.orders import PublicOrderCreate, OrderResponse
 from app.schemas.claims import ClaimCreate
 from app.core.limiter import limiter
@@ -198,6 +198,17 @@ async def list_stores(
         )
         count_map = dict(counts.all())
 
+    # Servicios activos por tienda — igual que product_count, para tiendas
+    # que venden servicios con cita en vez de (o además de) productos.
+    service_count_map: dict = {}
+    if store_ids:
+        svc_counts = await db.execute(
+            select(Service.store_id, func.count())
+            .where(Service.store_id.in_(store_ids), Service.is_active.is_(True))
+            .group_by(Service.store_id)
+        )
+        service_count_map = dict(svc_counts.all())
+
     # Categorías reales con más productos activos por tienda — usadas como
     # "qué vende" cuando la tienda no escribió una descripción, y para
     # agrupar/filtrar tiendas como secciones de un centro comercial.
@@ -248,6 +259,7 @@ async def list_stores(
                 "currency": s.currency,
                 "primary_color": s.primary_color,
                 "product_count": count_map.get(s.id, 0),
+                "service_count": service_count_map.get(s.id, 0),
                 "categories": categories_map.get(s.id, []),
                 "mall_category": s.mall_category,
                 "store_hours": s.settings.store_hours if s.settings else None,
@@ -392,6 +404,65 @@ async def latest_products(
             "store_currency": s.currency,
         }
         for p, s in picked
+    ]
+
+
+@router.get("/latest-services")
+@limiter.limit("60/minute")
+async def latest_services(
+    request: Request,
+    mall_category: str = None,
+    limit: int = 12,
+    db: AsyncSession = Depends(get_db),
+):
+    """Últimos servicios agendables publicados — equivalente a
+    /latest-products pero para tiendas que venden servicios con cita, para
+    que el Mall no se sienta solo-productos."""
+    limit = max(1, min(limit, 60))
+
+    filters = [
+        Service.is_active.is_(True),
+        Store.status == "active",
+        Store.deleted_at.is_(None),
+    ]
+    query = select(Service, Store).join(Store, Store.id == Service.store_id)
+    if mall_category:
+        filters.append(Store.mall_category == mall_category)
+    result = await db.execute(query.where(and_(*filters)).order_by(Service.created_at.desc()).limit(200))
+    rows = result.all()
+
+    # Misma diversificación por tienda que /latest-products.
+    PER_STORE_CAP = 2
+    picked: list = []
+    leftover: list = []
+    counts: dict = {}
+    for svc, s in rows:
+        if counts.get(s.id, 0) < PER_STORE_CAP:
+            picked.append((svc, s))
+            counts[s.id] = counts.get(s.id, 0) + 1
+        else:
+            leftover.append((svc, s))
+        if len(picked) >= limit:
+            break
+    if len(picked) < limit:
+        picked.extend(leftover[: limit - len(picked)])
+
+    return [
+        {
+            "id": svc.id,
+            "name": svc.name,
+            "duration_minutes": svc.duration_minutes,
+            "price_cents": svc.price_cents,
+            "image_url": svc.image_url,
+            "store_slug": s.slug,
+            "store_name": s.name,
+            "store_city": s.city,
+            "store_logo_url": s.logo_url,
+            "primary_color": s.primary_color,
+            "store_country": s.country,
+            "store_currency": s.currency,
+        }
+        for svc, s in picked
     ]
 
 
@@ -1941,6 +2012,7 @@ async def create_appointment(
         service_id=service.id,
         patient_name=payload.patient_name,
         patient_phone=payload.patient_phone,
+        patient_dni=payload.patient_dni,
         patient_email=payload.patient_email,
         scheduled_at=scheduled_at,
         duration_minutes=service.duration_minutes,
@@ -1964,3 +2036,49 @@ async def create_appointment(
         "id": appt.id, "status": appt.status, "scheduled_at": appt.scheduled_at,
         "service_name": service.name, "duration_minutes": appt.duration_minutes,
     }
+
+
+@router.post("/store/{slug}/appointments/lookup")
+@limiter.limit("20/minute")
+async def lookup_appointments(
+    request: Request,
+    slug: str,
+    payload: AppointmentLookup,
+    db: AsyncSession = Depends(get_db),
+):
+    """Lista las citas de un comprador en esta tienda — sin exponer la
+    agenda completa, solo lo que le pertenece a quien pregunta. Exige
+    teléfono ya verificado por WhatsApp (mismo guard que crear una cita) y
+    filtra por nombre; el DNI se guarda desde esta migración en adelante,
+    así que no se exige match exacto contra citas viejas que no lo tienen
+    (perderían visibilidad si el filtro fuera estricto)."""
+    store = (await db.execute(
+        select(Store.id).where(Store.slug == slug, Store.status == "active", Store.deleted_at.is_(None))
+    )).scalar_one_or_none()
+    if not store:
+        raise HTTPException(status_code=404, detail="Tienda no encontrada")
+
+    from app.api.v1.endpoints.phone_verification import is_phone_verified
+    if not await is_phone_verified(payload.patient_phone, db):
+        raise HTTPException(status_code=403, detail="PHONE_NOT_VERIFIED: Verifica tu teléfono antes de continuar")
+
+    result = await db.execute(
+        select(Appointment, Service.name)
+        .join(Service, Service.id == Appointment.service_id)
+        .where(
+            Appointment.store_id == store,
+            Appointment.patient_phone == payload.patient_phone,
+            func.lower(Appointment.patient_name) == payload.patient_name.lower(),
+        )
+        .order_by(Appointment.scheduled_at.desc())
+    )
+    return [
+        {
+            "id": appt.id,
+            "service_name": service_name,
+            "scheduled_at": appt.scheduled_at,
+            "duration_minutes": appt.duration_minutes,
+            "status": appt.status,
+        }
+        for appt, service_name in result.all()
+    ]
