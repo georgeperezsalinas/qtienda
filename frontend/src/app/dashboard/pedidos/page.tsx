@@ -481,12 +481,16 @@ export default function PedidosPage() {
       const res = await apiClient.patch(`/orders/${orderId}/status`, { status: newStatus });
       toast.success(`Pedido → ${STATUS_LABELS[newStatus]?.label ?? newStatus}`);
       patchOrder(orderId, { status: newStatus });
-      if (res.data?.buyer_wa_link) {
+      if (res.data?.whatsapp_sent) {
+        // Ya se mandó solo — mismo aviso quieto que el resto de notificaciones automáticas.
+        toast.success("Cliente notificado por WhatsApp", { icon: "💬", duration: 3000 });
+      } else if (res.data?.buyer_wa_link) {
+        // El envío automático falló (o no hay WhatsApp configurado) — respaldo manual de siempre.
         const waUrl = res.data.buyer_wa_link;
         toast(
           (t) => (
             <span className="flex items-center gap-3">
-              <span className="text-sm font-medium">¿Notificar al cliente?</span>
+              <span className="text-sm font-medium">No se pudo notificar solo — ¿avisar manual?</span>
               <a
                 href={waUrl}
                 target="_blank"

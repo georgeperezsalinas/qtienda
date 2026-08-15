@@ -16,6 +16,7 @@ from sqlalchemy.orm import selectinload
 from app.db.session import get_db
 from app.core.security import require_vendor
 from app.models.models import Order, OrderItem, Product, Store, AuditLog
+from app.services.whatsapp import send_whatsapp_message
 
 
 class OrderStatusUpdate(BaseModel):
@@ -52,12 +53,18 @@ _BUYER_MESSAGES = {
 }
 
 
-def _buyer_wa_link(order, store) -> Optional[str]:
-    """WhatsApp deep-link to notify buyer of a status change."""
+def _buyer_wa_text(order, store) -> Optional[str]:
     template = _BUYER_MESSAGES.get(order.status)
     if not template or not order.buyer_phone:
         return None
-    msg = template.format(num=order.order_number, store=store.name, slug=store.slug)
+    return template.format(num=order.order_number, store=store.name, slug=store.slug)
+
+
+def _buyer_wa_link(order, store) -> Optional[str]:
+    """WhatsApp deep-link — queda como respaldo manual si el envío automático falla."""
+    msg = _buyer_wa_text(order, store)
+    if not msg:
+        return None
     phone = order.buyer_phone.lstrip("+").replace(" ", "").replace("-", "")
     if len(phone) == 9:
         phone = f"51{phone}"
@@ -530,8 +537,22 @@ async def update_order_status(
             )
         )
 
+    # Aviso al comprador (confirmado/entregado) — automático de verdad ahora
+    # que hay envío real por WhatsApp. Se espera la respuesta (no fire-and-
+    # forget) para poder avisarle al vendedor en el toast si de verdad se
+    # mandó o si tiene que usar el link manual de respaldo.
+    whatsapp_text = _buyer_wa_text(order, store)
+    whatsapp_sent = False
+    if whatsapp_text:
+        whatsapp_sent = await send_whatsapp_message(order.buyer_phone, whatsapp_text)
+
     buyer_wa_link = _buyer_wa_link(order, store)
-    return {"order_id": order.id, "status": order.status, "buyer_wa_link": buyer_wa_link}
+    return {
+        "order_id": order.id,
+        "status": order.status,
+        "buyer_wa_link": buyer_wa_link,
+        "whatsapp_sent": whatsapp_sent,
+    }
 
 
 class OrderAssign(BaseModel):
