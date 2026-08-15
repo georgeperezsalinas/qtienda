@@ -53,6 +53,7 @@ export default function BookingModal({
   const [selectedDate, setSelectedDate] = useState(days[0]);
   const [slots, setSlots] = useState<string[] | null>(null);
   const [takenSlots, setTakenSlots] = useState<string[]>([]);
+  const [pendingSlots, setPendingSlots] = useState<string[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [step, setStep] = useState<"slots" | "form" | "verify" | "done">("slots");
@@ -64,6 +65,7 @@ export default function BookingModal({
     setLoadingSlots(true);
     setSlots(null);
     setTakenSlots([]);
+    setPendingSlots([]);
     setSelectedSlot(null);
     apiClient
       .get(`/public/store/${storeSlug}/services/${service.id}/availability`, {
@@ -72,6 +74,7 @@ export default function BookingModal({
       .then(({ data }) => {
         setSlots(data.slots || []);
         setTakenSlots(data.taken_slots || []);
+        setPendingSlots(data.pending_slots || []);
       })
       .catch(() => setSlots([]))
       .finally(() => setLoadingSlots(false));
@@ -198,27 +201,53 @@ export default function BookingModal({
 
             {loadingSlots ? (
               <p className="text-xs text-center py-6" style={{ color: "var(--ink-3)" }}>Buscando horarios…</p>
-            ) : (slots && slots.length > 0) || takenSlots.length > 0 ? (
-              <div className="grid grid-cols-3 gap-2">
-                {[...slots!.map((s) => ({ time: s, taken: false })), ...takenSlots.map((s) => ({ time: s, taken: true }))]
-                  .sort((a, b) => a.time.localeCompare(b.time))
-                  .map(({ time, taken }) => (
-                    <button
-                      key={time}
-                      disabled={taken}
-                      onClick={() => { setSelectedSlot(time); setStep("form"); }}
-                      title={taken ? "Ya reservado — elige otro horario" : undefined}
-                      className="flex items-center justify-center gap-1 rounded-xl py-2 text-xs font-bold disabled:cursor-not-allowed"
-                      style={
-                        taken
-                          ? { background: "var(--danger-soft)", color: "var(--danger)", opacity: 0.7, textDecoration: "line-through" }
-                          : { background: "var(--surface-2)", color: "var(--ink)" }
-                      }
-                    >
-                      <Clock size={11} /> {time}
-                    </button>
-                  ))}
-              </div>
+            ) : (slots && slots.length > 0) || takenSlots.length > 0 || pendingSlots.length > 0 ? (
+              <>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    ...slots!.map((s) => ({ time: s, state: "free" as const })),
+                    ...takenSlots.map((s) => ({ time: s, state: "taken" as const })),
+                    ...pendingSlots.map((s) => ({ time: s, state: "pending" as const })),
+                  ]
+                    .sort((a, b) => a.time.localeCompare(b.time))
+                    .map(({ time, state }) => (
+                      <button
+                        key={time}
+                        disabled={state !== "free"}
+                        onClick={() => { setSelectedSlot(time); setStep("form"); }}
+                        title={
+                          state === "taken" ? "Ya reservado — elige otro horario"
+                          : state === "pending" ? "En revisión del vendedor — puede liberarse"
+                          : undefined
+                        }
+                        className="flex items-center justify-center gap-1 rounded-xl py-2 text-xs font-bold disabled:cursor-not-allowed"
+                        style={
+                          state === "taken"
+                            ? { background: "var(--danger-soft)", color: "var(--danger)", opacity: 0.7, textDecoration: "line-through" }
+                            : state === "pending"
+                            ? { background: "var(--surface-2)", color: "var(--ink-4)", opacity: 0.7 }
+                            : { background: "var(--surface-2)", color: "var(--ink)" }
+                        }
+                      >
+                        <Clock size={11} /> {time}
+                      </button>
+                    ))}
+                </div>
+                {(takenSlots.length > 0 || pendingSlots.length > 0) && (
+                  <div className="flex items-center gap-3 mt-2.5 flex-wrap">
+                    {takenSlots.length > 0 && (
+                      <span className="flex items-center gap-1 text-[10px]" style={{ color: "var(--ink-4)" }}>
+                        <span className="w-2 h-2 rounded-full" style={{ background: "var(--danger)" }} /> Reservado
+                      </span>
+                    )}
+                    {pendingSlots.length > 0 && (
+                      <span className="flex items-center gap-1 text-[10px]" style={{ color: "var(--ink-4)" }}>
+                        <span className="w-2 h-2 rounded-full" style={{ background: "var(--ink-4)" }} /> En revisión
+                      </span>
+                    )}
+                  </div>
+                )}
+              </>
             ) : (
               <p className="text-xs text-center py-6" style={{ color: "var(--ink-3)" }}>
                 No hay horarios disponibles este día — prueba con otra fecha.

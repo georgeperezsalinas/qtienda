@@ -1795,10 +1795,12 @@ async def service_availability(
     blocked_start = parse_hm(exception.start_time) if exception and exception.start_time else None
     blocked_end = parse_hm(exception.end_time) if exception and exception.end_time else None
 
-    # Citas ya reservadas ese día (no canceladas/no-show) — para no solapar
+    # Citas ya reservadas ese día (no canceladas/no-show) — para no solapar.
+    # Se guarda el status para distinguir confirmadas (rojo, seguro ocupado)
+    # de pendientes (gris, todavía en revisión del vendedor).
     day_end = day_start + timedelta(days=1)
     existing = (await db.execute(
-        select(Appointment.scheduled_at, Appointment.duration_minutes).where(
+        select(Appointment.scheduled_at, Appointment.duration_minutes, Appointment.status).where(
             Appointment.store_id == store_id,
             Appointment.scheduled_at >= day_start,
             Appointment.scheduled_at < day_end,
@@ -1810,9 +1812,10 @@ async def service_availability(
     slots: list[str] = []
     # Horarios dentro del rango de atención pero ya ocupados por otra cita —
     # se devuelven aparte (no como "no existen") para que el comprador vea
-    # en rojo que ese horario puntual ya lo tomó alguien más, en vez de que
+    # que ese horario puntual ya lo tomó alguien más, en vez de que
     # simplemente desaparezca de la lista sin explicación.
-    taken_slots: list[str] = []
+    taken_slots: list[str] = []      # confirmada — seguro ocupado
+    pending_slots: list[str] = []    # pendiente — todavía en revisión
     for rng in day_ranges:
         try:
             range_start = parse_hm(rng["start"])
@@ -1828,17 +1831,19 @@ async def service_availability(
             if blocked_start and blocked_end and cursor < blocked_end and blocked_start < slot_end:
                 cursor += duration
                 continue
-            overlaps = any(
-                cursor < (appt_start + timedelta(minutes=appt_dur)) and appt_start < slot_end
-                for appt_start, appt_dur in existing
-            )
-            if overlaps:
+            overlapping_statuses = [
+                appt_status for appt_start, appt_dur, appt_status in existing
+                if cursor < (appt_start + timedelta(minutes=appt_dur)) and appt_start < slot_end
+            ]
+            if "confirmed" in overlapping_statuses:
                 taken_slots.append(cursor.strftime("%H:%M"))
+            elif overlapping_statuses:
+                pending_slots.append(cursor.strftime("%H:%M"))
             else:
                 slots.append(cursor.strftime("%H:%M"))
             cursor += duration
 
-    return {"slots": slots, "taken_slots": taken_slots}
+    return {"slots": slots, "taken_slots": taken_slots, "pending_slots": pending_slots}
 
 
 @router.post("/store/{slug}/appointments", status_code=201)
