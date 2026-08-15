@@ -424,8 +424,28 @@ async def get_store(request: Request, slug: str, db: AsyncSession = Depends(get_
 
     trust = (await _trust_data_for_stores(db, [store])).get(store.id, {})
 
+    # Para decidir el copy de la puerta ("Entrar a la tienda" vs "Ver
+    # servicios y reservar") — una tienda de solo servicios (ej. un
+    # odontólogo) no tiene sentido que invite a "entrar a la tienda".
+    has_products = (
+        await db.execute(
+            select(func.count()).select_from(Product).where(
+                Product.store_id == store.id, Product.status == "active"
+            )
+        )
+    ).scalar() > 0
+    has_services = (
+        await db.execute(
+            select(func.count()).select_from(Service).where(
+                Service.store_id == store.id, Service.is_active.is_(True)
+            )
+        )
+    ).scalar() > 0
+
     return {
         "id": store.id,
+        "has_products": has_products,
+        "has_services": has_services,
         "slug": store.slug,
         "name": store.name,
         "description": store.description,

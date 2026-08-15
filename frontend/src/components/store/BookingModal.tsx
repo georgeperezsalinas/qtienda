@@ -101,13 +101,15 @@ export default function BookingModal({
     <>
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[92]" style={{ background: "rgba(20,19,15,.55)" }}
+        className="fixed inset-0 z-[92] flex items-center justify-center p-4"
+        style={{ background: "rgba(20,19,15,.55)" }}
         onClick={onClose}
-      />
+      >
       <motion.div
         initial={{ y: 24, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 24, opacity: 0 }}
-        className="fixed z-[93] left-1/2 top-1/2 w-[92vw] max-w-sm max-h-[85vh] overflow-y-auto rounded-3xl p-5"
-        style={{ background: "var(--surface)", boxShadow: "var(--shadow-float)", transform: "translate(-50%,-50%)" }}
+        onClick={(e) => e.stopPropagation()}
+        className="relative z-[93] w-full max-w-sm max-h-[85vh] overflow-y-auto rounded-3xl p-5"
+        style={{ background: "var(--surface)", boxShadow: "var(--shadow-float)" }}
       >
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-display font-extrabold text-base" style={{ color: "var(--ink)" }}>
@@ -188,6 +190,7 @@ export default function BookingModal({
             )}
           </>
         )}
+      </motion.div>
       </motion.div>
     </>
   );

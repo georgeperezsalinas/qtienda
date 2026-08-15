@@ -29,6 +29,8 @@ interface DoorStoreData {
   instagram?: string | null;
   tiktok?: string | null;
   facebook?: string | null;
+  has_products?: boolean;
+  has_services?: boolean;
   settings?: {
     accept_cash?: boolean;
     accept_yape?: boolean;
@@ -216,7 +218,12 @@ export default function StoreDoor({ store }: { store: DoorStoreData }) {
           className="mt-6 flex items-center gap-2 rounded-full px-7 py-3.5 font-bold text-sm text-white transition-all active:scale-[.97]"
           style={{ background: color, boxShadow: `0 8px 24px ${color}40` }}
         >
-          Entrar a la tienda
+          {/* Una tienda de solo servicios (ej. un odontólogo) no tiene
+              productos que "entrar a ver" — el copy se adapta a lo que
+              realmente ofrece. */}
+          {store.has_products === false && store.has_services
+            ? "Ver servicios y reservar"
+            : "Entrar a la tienda"}
           <ChevronRight size={16} />
         </a>
 
