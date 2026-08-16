@@ -22,9 +22,10 @@ interface Service {
 }
 
 export default function ServicesSection({
-  storeSlug, accentColor, storeCurrency, storeLocale,
+  storeSlug, storeAddress, accentColor, storeCurrency, storeLocale,
 }: {
   storeSlug: string;
+  storeAddress?: string | null;
   accentColor: string;
   storeCurrency?: string;
   storeLocale?: string;
@@ -126,6 +127,7 @@ export default function ServicesSection({
         <BookingModal
           service={booking}
           storeSlug={storeSlug}
+          storeAddress={storeAddress}
           storeCurrency={storeCurrency}
           storeLocale={storeLocale}
           accentColor={accentColor}

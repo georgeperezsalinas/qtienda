@@ -151,6 +151,7 @@ async def my_store(
         "primary_color": store.primary_color,
         "theme": store.theme,
         "city": store.city,
+        "address": store.address,
         "country": store.country,
         "currency": store.currency,
         "meta_title": store.meta_title,

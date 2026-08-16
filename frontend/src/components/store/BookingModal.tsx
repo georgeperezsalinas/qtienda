@@ -5,7 +5,7 @@
 // librería de calendario externa.
 
 import { useEffect, useState } from "react";
-import { X, Clock, Check, ChevronLeft } from "lucide-react";
+import { X, Clock, Check, ChevronLeft, MapPin } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
@@ -41,10 +41,11 @@ function toISODate(d: Date) {
 }
 
 export default function BookingModal({
-  service, storeSlug, storeCurrency = "PEN", storeLocale = "es-PE", accentColor, onClose,
+  service, storeSlug, storeAddress, storeCurrency = "PEN", storeLocale = "es-PE", accentColor, onClose,
 }: {
   service: Service;
   storeSlug: string;
+  storeAddress?: string | null;
   storeCurrency?: string;
   storeLocale?: string;
   accentColor: string;
@@ -162,10 +163,15 @@ export default function BookingModal({
               <Check size={22} style={{ color: "var(--success)" }} />
             </div>
             <p className="font-bold text-sm mb-1" style={{ color: "var(--ink)" }}>¡Cita reservada!</p>
-            <p className="text-xs mb-4" style={{ color: "var(--ink-3)" }}>
+            <p className="text-xs mb-1.5" style={{ color: "var(--ink-3)" }}>
               {selectedDate.toLocaleDateString("es-PE", { weekday: "long", day: "numeric", month: "long" })} a las {selectedSlot}
             </p>
-            <button onClick={onClose} className="btn-primary w-full" style={{ padding: "12px" }}>Listo</button>
+            {storeAddress && (
+              <p className="flex items-center justify-center gap-1 text-xs mb-4" style={{ color: "var(--ink-2)" }}>
+                <MapPin size={12} style={{ flexShrink: 0 }} /> {storeAddress}
+              </p>
+            )}
+            <button onClick={onClose} className="btn-primary w-full" style={{ padding: "12px", marginTop: storeAddress ? 0 : 16 }}>Listo</button>
           </div>
         ) : step === "form" ? (
           <div>

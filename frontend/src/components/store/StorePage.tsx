@@ -48,6 +48,7 @@ interface StoreData {
   store_hours?:  Record<string, { open: string; close: string }> | null;
   primary_color: string;
   city?:         string;
+  address?:      string | null;
   country?:      string;
   categories?:   { id: string; name: string; icon?: string }[];
   whatsapp?:     string;
@@ -1006,6 +1007,7 @@ export default function StorePage({ store, initialProducts }: Props) {
           {/* Servicios con cita — solo aparece si la tienda tiene alguno activo */}
           <ServicesSection
             storeSlug={store.slug}
+            storeAddress={store.address}
             accentColor={color}
             storeCurrency={storeCurrency}
             storeLocale={storeLocale}

@@ -125,7 +125,7 @@ export default function ConfiguracionPage() {
   const [info, setInfo] = useState({
     name: "", description: "", whatsapp: "",
     instagram: "", tiktok: "", facebook: "", mall_category: "",
-    primary_color: "#6366f1", logo_url: "", banner_url: "", banner_link: "", city: "",
+    primary_color: "#6366f1", logo_url: "", banner_url: "", banner_link: "", city: "", address: "",
     country: "PE", theme: "clasico" as StoreTheme,
   });
 
@@ -188,6 +188,7 @@ export default function ConfiguracionPage() {
       banner_url: storeData.banner_url || "",
       banner_link: storeData.banner_link || "",
       city: storeData.city || "",
+      address: storeData.address || "",
       country: storeData.country || "PE",
       theme: storeData.theme || "clasico",
     });
@@ -262,6 +263,7 @@ export default function ConfiguracionPage() {
         primary_color: info.primary_color,
         logo_url: info.logo_url || undefined,
         city: info.city || undefined,
+        address: info.address || undefined,
         country: info.country || undefined,
         theme: info.theme,
       });
@@ -534,6 +536,19 @@ export default function ConfiguracionPage() {
                 <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">Ciudad</label>
                 <input className="input" placeholder="Lima" value={info.city} onChange={(e) => setInfo({ ...info, city: e.target.value })} />
               </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">Dirección</label>
+              <input
+                className="input"
+                placeholder="Av. Grau 456, cerca al mercado central"
+                value={info.address}
+                onChange={(e) => setInfo({ ...info, address: e.target.value })}
+              />
+              <p className="text-[11px] mt-1 text-[var(--ink-4)]">
+                Para negocios con local físico — se muestra a quien reserva una cita o recoge su pedido.
+              </p>
             </div>
 
             <div>

@@ -549,6 +549,7 @@ async def get_store(request: Request, slug: str, db: AsyncSession = Depends(get_
         "primary_color": store.primary_color,
         "theme": store.theme,
         "city": store.city,
+        "address": store.address,
         "country": store.country,
         "currency": store.currency,
         "categories": [
@@ -2058,6 +2059,8 @@ async def create_appointment(
         f"💈 {service.name}",
         f"📅 {scheduled_at.strftime('%d/%m/%Y')} a las {scheduled_at.strftime('%H:%M')}",
     ]
+    if store.address:
+        detail_lines.append(f"📍 {store.address}")
     if appt.status != "confirmed":
         detail_lines.append("")
         detail_lines.append("La tienda todavía tiene que confirmarla — te avisamos apenas lo haga.")

@@ -143,6 +143,7 @@ class StoreUpdate(BaseModel):
     primary_color: Optional[str] = None
     theme: Optional[str] = None
     city: Optional[str] = None
+    address: Optional[str] = None
     country: Optional[str] = None
     meta_title: Optional[str] = None
     meta_desc: Optional[str] = None

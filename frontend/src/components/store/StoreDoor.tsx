@@ -33,6 +33,7 @@ interface DoorStoreData {
   logo_url?: string;
   banner_url?: string | null;
   city?: string;
+  address?: string | null;
   primary_color: string;
   store_hours?: Record<string, { open: string; close: string }> | null;
   instagram?: string | null;
@@ -291,14 +292,19 @@ export default function StoreDoor({ store }: { store: DoorStoreData }) {
 
             {/* Fila de confianza real — rating y pedidos entregados, solo si
                 existen de verdad (nunca "0.0" ni "0 pedidos" inventado) */}
-            {(store.city || hasTrustSignal) && (
+            {(store.city || store.address || hasTrustSignal) && (
               <motion.div
                 variants={item}
                 className="flex flex-wrap items-center justify-center lg:justify-start gap-x-3 gap-y-1 mt-1.5 text-xs"
                 style={{ color: store.banner_url ? "rgba(255,255,255,.9)" : "var(--ink-3)", textShadow: store.banner_url ? "0 1px 6px rgba(0,0,0,.35)" : undefined }}
               >
-                {store.city && (
-                  <span className="flex items-center gap-1"><MapPin size={11} /> {store.city}</span>
+                {(store.city || store.address) && (
+                  <span className="flex items-center gap-1">
+                    <MapPin size={11} />
+                    {store.city}
+                    {store.city && store.address && " · "}
+                    {store.address}
+                  </span>
                 )}
                 {(store.rating_count ?? 0) > 0 && store.rating_avg != null && (
                   <span className="flex items-center gap-1 font-bold">

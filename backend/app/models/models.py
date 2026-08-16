@@ -125,6 +125,10 @@ class Store(Base):
     primary_color: Mapped[str]      = mapped_column(String(7), default="#6366f1")
     theme: Mapped[str]              = mapped_column(String(20), default="clasico")
     city: Mapped[Optional[str]]     = mapped_column(String(80))
+    # Dirección física — para negocios que reciben gente en persona (citas,
+    # recojo). Texto libre (dirección + referencia), distinto de
+    # `StoreSettings.pickup_instructions` que es específico del checkout.
+    address: Mapped[Optional[str]]  = mapped_column(Text)
     country: Mapped[str]            = mapped_column(String(2), default="PE")
     # Override explícito de moneda — si es NULL, el frontend la deriva de
     # `country` (ver CURRENCY_BY_COUNTRY en frontend/src/lib/utils.ts).
