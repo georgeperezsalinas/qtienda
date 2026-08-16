@@ -41,16 +41,6 @@ interface CategoryForm { name: string; icon: string }
 
 // Departamentos fijos del Mall Qtienda — distinto de las categorías internas
 // de productos (esas siguen siendo libres, se editan en la pestaña Categorías).
-const MALL_CATEGORIES = [
-  { slug: "moda", label: "Moda", icon: "🛍️" },
-  { slug: "belleza", label: "Belleza", icon: "💄" },
-  { slug: "hogar", label: "Hogar", icon: "🏠" },
-  { slug: "tecnologia", label: "Tecnología", icon: "📱" },
-  { slug: "mascotas", label: "Mascotas", icon: "🐶" },
-  { slug: "videojuegos", label: "Videojuegos", icon: "🎮" },
-  { slug: "deportes", label: "Deportes", icon: "⚽" },
-];
-
 const COLORS = [
   "#6366f1", "#ec4899", "#f97316", "#10b981", "#3b82f6", "#8b5cf6", "#ef4444", "#14b8a6",
   "#F59E0B", "#FB7185", "#64748B", "#84CC16",
@@ -156,6 +146,16 @@ export default function ConfiguracionPage() {
   const [planSlug, setPlanSlug] = useState("free");
 
   const [creating, setCreating] = useState(false);
+
+  // Categorías del Mall — antes una lista hardcodeada acá (desincronizada
+  // del backend, le faltaban "servicios", "comida" y "otros"). Ahora viene
+  // del mismo endpoint público que ya usa el wizard de creación.
+  const [mallCategories, setMallCategories] = useState<{ slug: string; label: string; icon?: string }[]>([]);
+  useEffect(() => {
+    apiClient.get("/public/mall-categories")
+      .then(({ data }) => setMallCategories(Array.isArray(data) ? data : []))
+      .catch(() => setMallCategories([]));
+  }, []);
 
   const [categories, setCategories] = useState<{ id: string; name: string; icon?: string }[]>([]);
   const [catForm, setCatForm] = useState<CategoryForm>({ name: "", icon: "" });
@@ -544,7 +544,7 @@ export default function ConfiguracionPage() {
                 Para que los compradores te encuentren navegando por rubro en el Mall.
               </p>
               <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
-                {MALL_CATEGORIES.map((c) => {
+                {mallCategories.map((c) => {
                   const active = info.mall_category === c.slug;
                   return (
                     <button
