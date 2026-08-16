@@ -37,6 +37,20 @@ function isExpired(c: Coupon) {
   return !!c.expires_at && new Date(c.expires_at).getTime() < Date.now();
 }
 
+/* Descripción del descuento — compartida entre la fila de un cupón ya
+   guardado y el preview en vivo del formulario, para que digan lo mismo. */
+function discountDescription(
+  input: { discount_type: "percent" | "fixed"; discount_value: number; min_order_cents?: number | null },
+  currency: string,
+  locale: string
+): string {
+  const base = input.discount_type === "percent"
+    ? `${input.discount_value}% de descuento`
+    : `${formatPrice(input.discount_value, currency, locale)} de descuento`;
+  const min = input.min_order_cents ? ` · mín. ${formatPrice(input.min_order_cents, currency, locale)}` : "";
+  return base + min;
+}
+
 function CouponRow({ coupon, onToggle, onDelete, currency, locale }: {
   coupon: Coupon;
   onToggle: () => void;
@@ -86,8 +100,7 @@ function CouponRow({ coupon, onToggle, onDelete, currency, locale }: {
           )}
         </div>
         <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
-          {coupon.discount_type === "percent" ? `${coupon.discount_value}% de descuento` : `${formatPrice(coupon.discount_value, currency, locale)} de descuento`}
-          {coupon.min_order_cents ? ` · mín. ${formatPrice(coupon.min_order_cents, currency, locale)}` : ""}
+          {discountDescription(coupon, currency, locale)}
         </p>
         <p className="text-[11px] mt-0.5" style={{ color: "var(--ink-4)" }}>
           Usado {coupon.uses_count}{coupon.max_uses ? ` / ${coupon.max_uses}` : ""} vez{coupon.uses_count !== 1 ? "es" : ""}
@@ -160,7 +173,10 @@ export default function CuponesPage() {
       await apiClient.post("/coupons/", {
         code,
         discount_type: form.discount_type,
-        discount_value: Math.round(value),
+        // "fixed" se guarda en centavos (igual que min_order_cents/price_cents
+        // en el resto de la app) — el backend lo resta directo del subtotal
+        // en centavos al aplicar el cupón.
+        discount_value: form.discount_type === "fixed" ? Math.round(value * 100) : Math.round(value),
         min_order_cents: form.min_order_cents ? Math.round(Number(form.min_order_cents) * 100) : undefined,
         max_uses: form.max_uses ? Math.round(Number(form.max_uses)) : undefined,
         expires_at: form.expires_at ? new Date(form.expires_at).toISOString() : undefined,
@@ -270,6 +286,48 @@ export default function CuponesPage() {
               >
                 <X size={15} style={{ color: "var(--ink-2)" }} />
               </button>
+            </div>
+
+            {/* Preview en vivo — así se ve el cupón mientras lo completas */}
+            <div
+              className="flex items-center gap-3 p-4 rounded-2xl mb-4"
+              style={{ background: "var(--accent-soft)", border: "1px dashed var(--line-2)" }}
+            >
+              <div
+                className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
+                style={{ background: "var(--surface)" }}
+              >
+                {form.discount_type === "percent"
+                  ? <Percent size={18} style={{ color: "var(--accent)" }} />
+                  : <DollarSign size={18} style={{ color: "var(--accent)" }} />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-display font-extrabold text-sm tracking-wide truncate" style={{ color: "var(--ink)" }}>
+                  {form.code.trim() || "TU-CODIGO"}
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: "var(--ink-2)" }}>
+                  {discountDescription(
+                    {
+                      discount_type: form.discount_type,
+                      // "fixed" en el form es soles (ej. "10.00"), discountDescription
+                      // espera centavos — mismo criterio que al guardar.
+                      discount_value: form.discount_type === "fixed"
+                        ? Math.round((Number(form.discount_value) || 0) * 100)
+                        : Number(form.discount_value) || 0,
+                      min_order_cents: form.min_order_cents ? Math.round(Number(form.min_order_cents) * 100) : null,
+                    },
+                    currency,
+                    locale
+                  )}
+                </p>
+                {(form.max_uses || form.expires_at) && (
+                  <p className="text-[11px] mt-0.5" style={{ color: "var(--ink-3)" }}>
+                    {form.max_uses ? `Hasta ${form.max_uses} uso${Number(form.max_uses) !== 1 ? "s" : ""}` : ""}
+                    {form.max_uses && form.expires_at ? " · " : ""}
+                    {form.expires_at ? `Vence ${new Date(form.expires_at).toLocaleDateString("es-PE")}` : ""}
+                  </p>
+                )}
+              </div>
             </div>
 
             <div className="space-y-3.5">

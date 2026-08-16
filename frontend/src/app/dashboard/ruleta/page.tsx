@@ -4,14 +4,7 @@ import { useEffect, useState } from "react";
 import { Sparkles, Plus, Trash2, Save } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
-
-interface Segment {
-  label: string;
-  discount_type: "percent" | "fixed" | "none";
-  discount_value: number;
-  weight: number;
-  color: string;
-}
+import WheelPreview, { type WheelSegment as Segment } from "@/components/store/WheelPreview";
 
 const COLORS = ["#C5613B", "#3E6B8A", "#6B4F8A", "#4A8B5F", "#B8944A", "#8A5050"];
 
@@ -111,6 +104,15 @@ export default function RuletaPage() {
       </div>
 
       <div className="px-5 pt-4 pb-8 space-y-2.5 max-w-2xl">
+        {/* Preview en vivo — exactamente lo que ve el comprador, se actualiza
+            al tocar colores/premios/probabilidades de abajo */}
+        <div className="rounded-2xl p-5 mb-2.5 flex flex-col items-center" style={{ background: "var(--surface)", border: "1px solid var(--line)" }}>
+          <WheelPreview segments={segments} size={190} />
+          <p className="text-xs mt-4 text-center" style={{ color: "var(--ink-3)" }}>
+            Así la ve tu cliente al girar
+          </p>
+        </div>
+
         {segments.map((s, i) => (
           <div key={i} className="rounded-2xl p-4" style={{ background: "var(--surface)", border: "1px solid var(--line)" }}>
             <div className="flex items-center gap-2 mb-3">

@@ -254,7 +254,7 @@ export default function DashboardPage() {
   /* ── Main dashboard ── */
   return (
     <div style={{ background: "var(--bg)", minHeight: "100%" }}>
-      <div className="px-5 md:px-10 pt-5 md:pt-8 pb-8 mx-auto max-w-[760px] lg:max-w-6xl">
+      <div className="px-5 md:px-10 pt-5 md:pt-8 pb-8 mx-auto max-w-[760px]">
         {/* Greeting */}
         <div className="animate-fade-up mb-5">
           <p className="eyebrow">{getGreeting()}</p>
@@ -269,9 +269,6 @@ export default function DashboardPage() {
             Hola, {firstName}
           </h1>
         </div>
-
-        <div className="lg:grid lg:grid-cols-[1fr_340px] lg:gap-8 lg:items-start">
-        <div className="min-w-0">
 
         {/* Store strip */}
         <Link
@@ -387,58 +384,56 @@ export default function DashboardPage() {
           <ChevronRight size={16} style={{ color: "var(--ink-3)" }} />
         </Link>
 
+        {/* Necesita tu atención — fusiona pedidos y citas pendientes en una
+            sola tarjeta en vez de dos idénticas a los accesos de arriba */}
+        {
+          !loadingStats && (pending > 0 || pendingAppointments > 0) && (
+            <div className="card mb-5 animate-fade-up overflow-hidden">
+              <p className="eyebrow" style={{ padding: "14px 16px 0" }}>
+                Necesita tu atención
+              </p>
+              {pending > 0 && (
+                <Link
+                  href="/dashboard/pedidos?status=pending"
+                  className="flex items-center gap-3"
+                  style={{ padding: "12px 16px" }}
+                >
+                  <span className="dot dot-warn" style={{ width: 8, height: 8 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>
+                      {pending} pedido{pending !== 1 ? "s" : ""} esperan respuesta
+                    </p>
+                    <p className="text-xs" style={{ color: "var(--ink-3)", marginTop: 2 }}>
+                      Confírmalos para avisar al cliente
+                    </p>
+                  </div>
+                  <ChevronRight size={16} style={{ color: "var(--ink-3)" }} />
+                </Link>
+              )}
+              {pendingAppointments > 0 && (
+                <Link
+                  href="/dashboard/citas"
+                  className="flex items-center gap-3"
+                  style={{ padding: "12px 16px", borderTop: pending > 0 ? "1px solid var(--line)" : "none" }}
+                >
+                  <span className="dot dot-info" style={{ width: 8, height: 8 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>
+                      {pendingAppointments} cita{pendingAppointments !== 1 ? "s" : ""} por confirmar
+                    </p>
+                    <p className="text-xs" style={{ color: "var(--ink-3)", marginTop: 2 }}>
+                      Confírmalas para avisar al paciente
+                    </p>
+                  </div>
+                  <ChevronRight size={16} style={{ color: "var(--ink-3)" }} />
+                </Link>
+              )}
+            </div>
+          )
+        }
+
         {/* Plan actual y aviso de renovación */}
         <PlanStatusBanner />
-
-        {/* Referidos: sube tus límites del plan free */}
-        <ReferralBanner />
-
-        {/* Pending alert */}
-        {
-          !loadingStats && pending > 0 && (
-            <Link
-              href="/dashboard/pedidos?status=pending"
-              className="card flex items-center gap-3 mb-5 animate-fade-up"
-              style={{ padding: "14px 16px" }}
-            >
-              <span className="dot dot-warn" style={{ width: 8, height: 8 }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>
-                  {pending} pedido{pending !== 1 ? "s" : ""} esperan respuesta
-                </p>
-                <p className="text-xs" style={{ color: "var(--ink-3)", marginTop: 2 }}>
-                  Confírmalos para avisar al cliente
-                </p>
-              </div>
-              <ChevronRight size={16} style={{ color: "var(--ink-3)" }} />
-            </Link>
-          )
-        }
-
-        {/* Citas por confirmar — solo aparece si el vendedor ofrece servicios */}
-        {
-          !loadingStats && pendingAppointments > 0 && (
-            <Link
-              href="/dashboard/citas"
-              className="card flex items-center gap-3 mb-5 animate-fade-up"
-              style={{ padding: "14px 16px" }}
-            >
-              <span className="dot dot-info" style={{ width: 8, height: 8 }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>
-                  {pendingAppointments} cita{pendingAppointments !== 1 ? "s" : ""} por confirmar
-                </p>
-                <p className="text-xs" style={{ color: "var(--ink-3)", marginTop: 2 }}>
-                  Confírmalas para avisar al paciente
-                </p>
-              </div>
-              <ChevronRight size={16} style={{ color: "var(--ink-3)" }} />
-            </Link>
-          )
-        }
-
-        {/* Onboarding: progreso gamificado */}
-        {!loadingStats && <OnboardingProgress store={store} />}
 
         <div className="md:grid md:grid-cols-2 md:gap-6 md:items-start">
         {/* Today — typographic, no boxes */}
@@ -526,11 +521,6 @@ export default function DashboardPage() {
 
         </div>
 
-        </div>{/* /col izquierda */}
-
-        {/* ── Columna derecha (sticky, solo desktop): pedidos recientes + plan ── */}
-        <div className="lg:sticky lg:top-6">
-
         {/* Recent orders */}
         {
           recent.length > 0 && (
@@ -582,29 +572,12 @@ export default function DashboardPage() {
           )
         }
 
-        {/* Plan strip */}
-        {
-          (!store.plan_slug || store.plan_slug === "free") && (
-            <Link
-              href="/dashboard/planes"
-              className="card flex items-center gap-3 animate-fade-up"
-              style={{ padding: "14px 16px" }}
-            >
-              <div style={{ flex: 1 }}>
-                <p className="text-sm font-medium">Plan Free</p>
-                <p className="text-xs" style={{ color: "var(--ink-3)", marginTop: 2 }}>
-                  Dominio propio y reportes en Pro
-                </p>
-              </div>
-              <span className="btn-secondary" style={{ padding: "6px 12px", fontSize: 12 }}>
-                Ver planes
-              </span>
-            </Link>
-          )
-        }
-        </div>{/* /col derecha */}
+        {/* Onboarding: progreso gamificado */}
+        {!loadingStats && <OnboardingProgress store={store} />}
 
-      </div >{/* /grid principal */}
+        {/* Referidos: sube tus límites del plan free */}
+        <ReferralBanner />
+
       </div >
 
       {showQrModal && store && (

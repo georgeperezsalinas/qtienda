@@ -5,6 +5,7 @@
 // los límites de productos y pedidos del plan free.
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Check, Copy, Gift, Share2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
@@ -62,22 +63,22 @@ export default function ReferralBanner() {
     <div
       className="mb-5 animate-fade-up rounded-2xl p-4"
       style={{
-        background: "linear-gradient(135deg, #F5F3FF, #FDF4FF)",
-        border: "1.5px solid #DDD6FE",
+        background: "var(--accent-soft)",
+        border: "1.5px solid var(--line-2)",
       }}
     >
       <div className="flex items-start gap-3">
         <div
           className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ background: "linear-gradient(135deg, #8B5CF6, #C026D3)" }}
+          style={{ background: "var(--accent)" }}
         >
           <Gift size={17} color="#fff" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold" style={{ color: "#4C1D95" }}>
+          <p className="text-sm font-bold" style={{ color: "var(--ink)" }}>
             Invita amigos y sube tus límites gratis
           </p>
-          <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "#6D28D9" }}>
+          <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>
             Por cada amigo que cree su tienda ganas <strong>+{perProducts} productos</strong> y{" "}
             <strong>+{perOrders} pedidos/mes</strong> en tu plan free.
           </p>
@@ -85,7 +86,7 @@ export default function ReferralBanner() {
           {info.counted > 0 && (
             <p
               className="inline-flex items-center gap-1 text-[11px] font-bold mt-2 px-2 py-0.5 rounded-full"
-              style={{ background: "#EDE9FE", color: "#5B21B6" }}
+              style={{ background: "var(--surface)", color: "var(--accent-ink)" }}
             >
               🎉 {info.referred_with_store} referido{info.referred_with_store !== 1 ? "s" : ""} · +
               {info.extra_products} productos · +{info.extra_orders} pedidos/mes
@@ -95,14 +96,14 @@ export default function ReferralBanner() {
           <div className="flex flex-wrap items-center gap-2 mt-3">
             <span
               className="mono text-xs font-bold px-3 py-1.5 rounded-lg tracking-wider"
-              style={{ background: "#fff", color: "#5B21B6", border: "1px dashed #C4B5FD" }}
+              style={{ background: "var(--surface)", color: "var(--accent-ink)", border: "1px dashed var(--line-2)" }}
             >
               {info.code}
             </span>
             <button
               onClick={copyLink}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-95"
-              style={{ background: "#fff", color: "#6D28D9", border: "1px solid #DDD6FE" }}
+              style={{ background: "var(--surface)", color: "var(--ink-2)", border: "1px solid var(--line-2)" }}
             >
               {copied ? <Check size={12} /> : <Copy size={12} />}
               {copied ? "Copiado" : "Copiar enlace"}
@@ -110,12 +111,20 @@ export default function ReferralBanner() {
             <button
               onClick={share}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-all active:scale-95"
-              style={{ background: "linear-gradient(135deg, #8B5CF6, #C026D3)" }}
+              style={{ background: "var(--accent)" }}
             >
               <Share2 size={12} />
               Invitar
             </button>
           </div>
+
+          <Link
+            href="/dashboard/planes"
+            className="inline-block text-[11px] font-semibold mt-3"
+            style={{ color: "var(--ink-3)" }}
+          >
+            Ver planes de pago →
+          </Link>
         </div>
       </div>
     </div>
