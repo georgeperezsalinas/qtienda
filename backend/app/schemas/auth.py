@@ -74,11 +74,63 @@ class StoreCreate(BaseModel):
     description: Optional[str] = None
     whatsapp: Optional[str] = None
     city: Optional[str] = None
+    country: Optional[str] = None
+    mall_category: Optional[str] = None
+    instagram: Optional[str] = None
+    tiktok: Optional[str] = None
+    facebook: Optional[str] = None
+    primary_color: Optional[str] = None
+    theme: Optional[str] = None
 
     @field_validator("slug")
     @classmethod
     def slugify(cls, v):
         return re.sub(r"[^a-z0-9\-]", "", v.lower().replace(" ", "-"))
+
+    @field_validator("mall_category")
+    @classmethod
+    def valid_mall_category(cls, v):
+        if v is None or v == "":
+            return None
+        from app.core.mall_categories import MALL_CATEGORY_SLUGS
+        if v not in MALL_CATEGORY_SLUGS:
+            raise ValueError("Departamento inválido")
+        return v
+
+    @field_validator("instagram", "tiktok", "facebook")
+    @classmethod
+    def clean_handle(cls, v):
+        if v is None:
+            return v
+        # Admite que el vendedor pegue el @, o la URL completa — se guarda
+        # solo el handle limpio, la URL se arma al mostrarlo.
+        v = v.strip()
+        v = re.sub(r"^https?://(www\.)?(instagram|tiktok|facebook)\.com/", "", v, flags=re.IGNORECASE)
+        v = v.lstrip("@").rstrip("/")
+        if v == "":
+            return None
+        if not re.match(r"^[A-Za-z0-9_.\-]{1,50}$", v):
+            raise ValueError("Usuario inválido — solo letras, números, puntos y guiones")
+        return v
+
+    @field_validator("country")
+    @classmethod
+    def valid_country(cls, v):
+        if v is None:
+            return v
+        v = v.strip().upper()
+        if not re.match(r"^[A-Z]{2}$", v):
+            raise ValueError("País inválido (código ISO de 2 letras)")
+        return v
+
+    @field_validator("theme")
+    @classmethod
+    def valid_theme(cls, v):
+        if v is None:
+            return v
+        if v not in ("clasico", "elegante", "vibrante", "pastel", "monocromo", "fresco"):
+            raise ValueError("Tema inválido")
+        return v
 
 
 class StoreUpdate(BaseModel):

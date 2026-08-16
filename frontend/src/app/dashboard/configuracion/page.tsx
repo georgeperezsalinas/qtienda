@@ -6,6 +6,11 @@ import { QRCodeCanvas } from "qrcode.react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
 import { ImageUpload } from "@/components/ui/ImageUpload";
+import { COUNTRIES } from "@/lib/countries";
+import { ThemePreviewGrid, type StoreTheme } from "@/components/dashboard/ThemePreviewGrid";
+import { StoreCreationWizard } from "@/components/dashboard/StoreCreationWizard";
+import { useStore, QK } from "@/hooks/useDashboardQueries";
+import { useQueryClient } from "@tanstack/react-query";
 import { track } from "@vercel/analytics";
 
 interface StoreData {
@@ -49,43 +54,6 @@ const MALL_CATEGORIES = [
 const COLORS = [
   "#6366f1", "#ec4899", "#f97316", "#10b981", "#3b82f6", "#8b5cf6", "#ef4444", "#14b8a6",
   "#F59E0B", "#FB7185", "#64748B", "#84CC16",
-];
-
-// Temas de vitrina: cambian layout/neutros de la tienda pública. El color de
-// marca (primary_color) es independiente y se aplica dentro de cualquier tema.
-export type StoreTheme = "clasico" | "elegante" | "vibrante" | "pastel" | "monocromo" | "fresco";
-const THEMES: { value: StoreTheme; label: string; bg: string; text: string }[] = [
-  { value: "clasico", label: "Clásico", bg: "#FCFBF7", text: "#14130F" },
-  { value: "elegante", label: "Elegante", bg: "#1A1712", text: "#F3ECDD" },
-  { value: "vibrante", label: "Vibrante", bg: "#FFFFFF", text: "#3A1F16" },
-  { value: "pastel", label: "Pastel", bg: "#FDF6F9", text: "#3A2A33" },
-  { value: "monocromo", label: "Monocromo", bg: "#FFFFFF", text: "#0A0A0A" },
-  { value: "fresco", label: "Fresco", bg: "#F2FAF8", text: "#12302A" },
-];
-
-// País de la tienda: define los campos de dirección y documento en el checkout
-// (Perú usa DNI + departamento/provincia/distrito; el resto, campos genéricos)
-const COUNTRIES = [
-  { code: "PE", name: "🇵🇪 Perú" },
-  { code: "CL", name: "🇨🇱 Chile" },
-  { code: "CO", name: "🇨🇴 Colombia" },
-  { code: "MX", name: "🇲🇽 México" },
-  { code: "AR", name: "🇦🇷 Argentina" },
-  { code: "EC", name: "🇪🇨 Ecuador" },
-  { code: "BO", name: "🇧🇴 Bolivia" },
-  { code: "PY", name: "🇵🇾 Paraguay" },
-  { code: "UY", name: "🇺🇾 Uruguay" },
-  { code: "VE", name: "🇻🇪 Venezuela" },
-  { code: "PA", name: "🇵🇦 Panamá" },
-  { code: "GT", name: "🇬🇹 Guatemala" },
-  { code: "SV", name: "🇸🇻 El Salvador" },
-  { code: "HN", name: "🇭🇳 Honduras" },
-  { code: "NI", name: "🇳🇮 Nicaragua" },
-  { code: "CR", name: "🇨🇷 Costa Rica" },
-  { code: "DO", name: "🇩🇴 Rep. Dominicana" },
-  { code: "CU", name: "🇨🇺 Cuba" },
-  { code: "ES", name: "🇪🇸 España" },
-  { code: "US", name: "🇺🇸 EE.UU." },
 ];
 
 const WEEK_DAYS = [
@@ -147,9 +115,12 @@ function Toggle({ value, onChange, label }: { value: boolean; onChange: (v: bool
 export default function ConfiguracionPage() {
   const [activeTab, setActiveTab] = useState<Tab>("tienda");
   const [store, setStore] = useState<StoreData | null>(null);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [noStore, setNoStore] = useState(false);
+  // /stores/me ahora pasa por el caché compartido de React Query (useStore)
+  // en vez de un fetch propio — antes esta página, /dashboard/pedidos y el
+  // hook lo pedían cada uno por su cuenta, triplicando el request al montar.
+  const { data: storeData, isLoading: loading, isError: noStore } = useStore();
+  const qc = useQueryClient();
   const qrCanvasRef = useRef<HTMLCanvasElement>(null);
 
   function downloadQr() {
@@ -184,7 +155,6 @@ export default function ConfiguracionPage() {
   const [banners, setBanners] = useState<{ image_url: string; link_url: string }[]>([]);
   const [planSlug, setPlanSlug] = useState("free");
 
-  const [newStore, setNewStore] = useState({ slug: "", name: "", whatsapp: "", city: "" });
   const [creating, setCreating] = useState(false);
 
   const [categories, setCategories] = useState<{ id: string; name: string; icon?: string }[]>([]);
@@ -199,103 +169,83 @@ export default function ConfiguracionPage() {
   const [showPass, setShowPass] = useState(false);
   const [addingStaff, setAddingStaff] = useState(false);
 
+  // Sincroniza el form editable local desde el store cacheado por
+  // useStore() — separado del fetch en sí, porque acá los campos se editan
+  // en su propio estado (info/settings/hours), no se leen directo del query.
   useEffect(() => {
-    async function load() {
-      try {
-        const { data: storeData } = await apiClient.get("/stores/me");
-        setStore(storeData);
-        setInfo({
-          name: storeData.name || "",
-          description: storeData.description || "",
-          whatsapp: storeData.whatsapp || "",
-          instagram: storeData.instagram || "",
-          tiktok: storeData.tiktok || "",
-          facebook: storeData.facebook || "",
-          mall_category: storeData.mall_category || "",
-          primary_color: storeData.primary_color || "#6366f1",
-          logo_url: storeData.logo_url || "",
-          banner_url: storeData.banner_url || "",
-          banner_link: storeData.banner_link || "",
-          city: storeData.city || "",
-          country: storeData.country || "PE",
-          theme: storeData.theme || "clasico",
-        });
-        setPlanSlug(storeData.plan_slug || "free");
-        setBanners(
-          storeData.banners?.length
-            ? storeData.banners.map((b: any) => ({ image_url: b.image_url, link_url: b.link_url || "" }))
-            : storeData.banner_url
-            ? [{ image_url: storeData.banner_url, link_url: storeData.banner_link || "" }]
-            : []
-        );
-        if (storeData.settings) {
-          setSettings({
-            accept_cash: storeData.settings.accept_cash,
-            accept_yape: storeData.settings.accept_yape,
-            accept_plin: storeData.settings.accept_plin,
-            accept_transfer: storeData.settings.accept_transfer ?? false,
-            accept_card: storeData.settings.accept_card ?? false,
-            require_prepayment: storeData.settings.require_prepayment ?? false,
-            yape_phone: storeData.settings.yape_phone || "",
-            plin_phone: storeData.settings.plin_phone || "",
-            yape_qr_url: storeData.settings.yape_qr_url || "",
-            plin_qr_url: storeData.settings.plin_qr_url || "",
-            bank_account: storeData.settings.bank_account || "",
-            delivery_fee_cents: String(storeData.settings.delivery_fee_cents / 100),
-            min_order_cents: String(storeData.settings.min_order_cents / 100),
-            free_delivery_above: storeData.settings.free_delivery_above
-              ? String(storeData.settings.free_delivery_above / 100)
-              : "",
-            welcome_discount_enabled: storeData.settings.welcome_discount_enabled ?? false,
-            welcome_discount_cents: storeData.settings.welcome_discount_cents
-              ? String(storeData.settings.welcome_discount_cents / 100)
-              : "5",
-            accept_pickup: storeData.settings.accept_pickup ?? false,
-            pickup_instructions: storeData.settings.pickup_instructions || "",
-            delivery_zones: Array.isArray(storeData.settings.delivery_zones)
-              ? storeData.settings.delivery_zones
-              : [],
-            tiktok_pixel_id: storeData.settings.tiktok_pixel_id || "",
-            meta_pixel_id: storeData.settings.meta_pixel_id || "",
-            google_analytics_id: storeData.settings.google_analytics_id || "",
-          });
-          if (storeData.settings.store_hours) setHours(storeData.settings.store_hours);
-        }
-        const [{ data: cats }, { data: staffData }] = await Promise.all([
-          apiClient.get("/categories/"),
-          apiClient.get("/delivery/staff"),
-        ]);
-        setCategories(cats);
-        setStaff(staffData);
-      } catch {
-        setNoStore(true);
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, []);
-
-  async function createStore(e: React.FormEvent) {
-    e.preventDefault();
-    if (!newStore.slug || !newStore.name) { toast.error("Nombre y URL requeridos"); return; }
-    setCreating(true);
-    try {
-
-      await apiClient.post("/stores/", newStore);
-      toast.success("¡Tienda creada!");
-      track("store_created", {
-        city: newStore.city || "sin_ciudad",
-        has_whatsapp: !!newStore.whatsapp,
+    if (!storeData) return;
+    setStore(storeData);
+    setInfo({
+      name: storeData.name || "",
+      description: storeData.description || "",
+      whatsapp: storeData.whatsapp || "",
+      instagram: storeData.instagram || "",
+      tiktok: storeData.tiktok || "",
+      facebook: storeData.facebook || "",
+      mall_category: storeData.mall_category || "",
+      primary_color: storeData.primary_color || "#6366f1",
+      logo_url: storeData.logo_url || "",
+      banner_url: storeData.banner_url || "",
+      banner_link: storeData.banner_link || "",
+      city: storeData.city || "",
+      country: storeData.country || "PE",
+      theme: storeData.theme || "clasico",
+    });
+    setPlanSlug(storeData.plan_slug || "free");
+    setBanners(
+      storeData.banners?.length
+        ? storeData.banners.map((b: any) => ({ image_url: b.image_url, link_url: b.link_url || "" }))
+        : storeData.banner_url
+        ? [{ image_url: storeData.banner_url, link_url: storeData.banner_link || "" }]
+        : []
+    );
+    if (storeData.settings) {
+      setSettings({
+        accept_cash: storeData.settings.accept_cash,
+        accept_yape: storeData.settings.accept_yape,
+        accept_plin: storeData.settings.accept_plin,
+        accept_transfer: storeData.settings.accept_transfer ?? false,
+        accept_card: storeData.settings.accept_card ?? false,
+        require_prepayment: storeData.settings.require_prepayment ?? false,
+        yape_phone: storeData.settings.yape_phone || "",
+        plin_phone: storeData.settings.plin_phone || "",
+        yape_qr_url: storeData.settings.yape_qr_url || "",
+        plin_qr_url: storeData.settings.plin_qr_url || "",
+        bank_account: storeData.settings.bank_account || "",
+        delivery_fee_cents: String(storeData.settings.delivery_fee_cents / 100),
+        min_order_cents: String(storeData.settings.min_order_cents / 100),
+        free_delivery_above: storeData.settings.free_delivery_above
+          ? String(storeData.settings.free_delivery_above / 100)
+          : "",
+        welcome_discount_enabled: storeData.settings.welcome_discount_enabled ?? false,
+        welcome_discount_cents: storeData.settings.welcome_discount_cents
+          ? String(storeData.settings.welcome_discount_cents / 100)
+          : "5",
+        accept_pickup: storeData.settings.accept_pickup ?? false,
+        pickup_instructions: storeData.settings.pickup_instructions || "",
+        delivery_zones: Array.isArray(storeData.settings.delivery_zones)
+          ? storeData.settings.delivery_zones
+          : [],
+        tiktok_pixel_id: storeData.settings.tiktok_pixel_id || "",
+        meta_pixel_id: storeData.settings.meta_pixel_id || "",
+        google_analytics_id: storeData.settings.google_analytics_id || "",
       });
-      window.location.reload();
-
-    } catch (err: any) {
-      toast.error(err.response?.data?.detail || "Error al crear tienda");
-    } finally {
-      setCreating(false);
+      if (storeData.settings.store_hours) setHours(storeData.settings.store_hours);
     }
-  }
+  }, [storeData]);
+
+  // Categorías/repartidores — independientes del store en sí, solo tiene
+  // sentido pedirlos una vez confirmado que la tienda existe.
+  useEffect(() => {
+    if (!storeData) return;
+    Promise.all([
+      apiClient.get("/categories/"),
+      apiClient.get("/delivery/staff"),
+    ]).then(([{ data: cats }, { data: staffData }]) => {
+      setCategories(cats);
+      setStaff(staffData);
+    }).catch(() => {});
+  }, [storeData]);
 
   async function saveInfo(e: React.FormEvent) {
     e.preventDefault();
@@ -321,6 +271,7 @@ export default function ConfiguracionPage() {
           .map((b) => ({ image_url: b.image_url, link_url: b.link_url.trim() || null })),
       });
       await apiClient.patch("/stores/me/settings", { store_hours: hours });
+      qc.invalidateQueries({ queryKey: QK.store });
       toast.success("Tienda actualizada");
     } catch (err: any) {
       toast.error(err.response?.data?.detail || "Error al guardar");
@@ -356,6 +307,7 @@ export default function ConfiguracionPage() {
         accept_pickup: settings.accept_pickup,
         pickup_instructions: settings.pickup_instructions.trim() || undefined,
       });
+      qc.invalidateQueries({ queryKey: QK.store });
       toast.success("Configuración guardada");
     } catch {
       toast.error("Error al guardar");
@@ -373,6 +325,7 @@ export default function ConfiguracionPage() {
         meta_pixel_id: settings.meta_pixel_id.trim() || null,
         google_analytics_id: settings.google_analytics_id.trim() || null,
       });
+      qc.invalidateQueries({ queryKey: QK.store });
       toast.success("Configuración guardada");
     } catch {
       toast.error("Error al guardar");
@@ -454,57 +407,14 @@ export default function ConfiguracionPage() {
 
   if (noStore) {
     return (
-      <div className="p-5 max-w-sm mx-auto">
-        <h1 className="font-display font-bold text-xl text-[var(--ink)] mb-1">Crear tienda</h1>
-        <p className="text-sm text-[var(--ink-3)] mb-5">Configura tu tienda para empezar a recibir pedidos</p>
-        <form onSubmit={createStore} className="space-y-4">
-          <div>
-            <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">Nombre *</label>
-            <input className="input" placeholder="Ej: Postres de Ana" value={newStore.name} onChange={(e) => setNewStore({ ...newStore, name: e.target.value })} />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">URL *</label>
-            <div className="flex items-center gap-1">
-              <input
-                className="input"
-                placeholder="anapostres"
-                value={newStore.slug}
-                onChange={(e) => setNewStore({ ...newStore, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") })}
-              />
-              <span className="text-xs text-[var(--ink-4)] whitespace-nowrap">.qtienda.shop</span>
-            </div>
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">WhatsApp</label>
-            <input className="input" type="tel" placeholder="51987654321" value={newStore.whatsapp} onChange={(e) => setNewStore({ ...newStore, whatsapp: e.target.value })} />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">Ciudad</label>
-            <input className="input" placeholder="Lima" value={newStore.city} onChange={(e) => setNewStore({ ...newStore, city: e.target.value })} />
-          </div>
-          <button
-            type="submit"
-            disabled={saving}
-            style={{
-              width: "100%",
-              background: "var(--accent)",
-              color: "#fff",
-              border: "none",
-              borderRadius: 12,
-              padding: "12px 16px",
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: creating ? "not-allowed" : "pointer",
-              opacity: creating ? 0.6 : 1,
-              boxShadow: creating ? "none" : "0 4px 14px rgba(197,97,59,.3)",
-              transition: "opacity 0.15s",
-              fontFamily: "var(--font-sans)",
-            }}
-          >
-            {creating ? "Creando..." : "Crear tienda"}
-          </button>
-        </form>
-      </div>
+      <StoreCreationWizard
+        onCreated={(redirectTo) => {
+          // Reload completo (no solo router.push): el layout del dashboard
+          // necesita releer /stores/me para dejar de mostrar "sin tienda"
+          // en el nav y en el resto de pantallas.
+          window.location.href = redirectTo;
+        }}
+      />
     );
   }
 
@@ -715,38 +625,11 @@ export default function ConfiguracionPage() {
               <p className="text-[11px] text-[var(--ink-4)] mb-2">
                 Cambia la disposición y los neutros de tu tienda pública. Tu color de marca se mantiene en cualquier tema.
               </p>
-              <div className="grid grid-cols-3 gap-2.5">
-                {THEMES.map((th) => {
-                  const active = info.theme === th.value;
-                  return (
-                    <button
-                      key={th.value}
-                      type="button"
-                      onClick={() => setInfo({ ...info, theme: th.value })}
-                      className="rounded-2xl overflow-hidden text-left transition-all"
-                      style={{
-                        border: `2px solid ${active ? "var(--accent)" : "var(--line-2)"}`,
-                        boxShadow: active ? "0 0 0 3px var(--accent-soft)" : "none",
-                      }}
-                    >
-                      <div style={{ height: 44, background: th.bg, padding: 8, display: "flex", flexDirection: "column", gap: 4 }}>
-                        <div style={{ width: "40%", height: 5, borderRadius: 3, background: info.primary_color }} />
-                        <div style={{ display: "flex", gap: 3, flex: 1 }}>
-                          <div style={{ flex: 1, borderRadius: 3, background: `${th.text}14` }} />
-                          <div style={{ flex: 1, borderRadius: 3, background: info.primary_color }} />
-                        </div>
-                      </div>
-                      <div
-                        className="text-[11px] font-bold px-2 py-1.5 flex items-center justify-between"
-                        style={{ background: "var(--surface)", color: "var(--ink)" }}
-                      >
-                        {th.label}
-                        {active && <span style={{ color: "var(--accent)" }}>✓</span>}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
+              <ThemePreviewGrid
+                value={info.theme}
+                onChange={(theme) => setInfo({ ...info, theme })}
+                primaryColor={info.primary_color}
+              />
             </div>
             <div className="grid grid-cols-2 gap-3 items-start">
               <ImageUpload

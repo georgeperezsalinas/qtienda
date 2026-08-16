@@ -2,12 +2,14 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Search, Phone, MapPin, Package, ExternalLink, Volume2, VolumeX, Download, Printer } from "lucide-react";
+import { Search, Phone, MapPin, Package, ExternalLink, Volume2, VolumeX, Download, Printer, Store } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
-import { formatPrice, getStoreCurrency, type StoreCurrency } from "@/lib/utils";
+import { formatPrice, getStoreCurrency } from "@/lib/utils";
 import { playNewOrderBeep } from "@/lib/beep";
+import { useStore } from "@/hooks/useDashboardQueries";
 
 const SOUND_KEY = "qtienda_order_sound_enabled";
 
@@ -350,11 +352,18 @@ export default function PedidosPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  // Vendedor recién registrado, sin tienda todavía — /orders/ responde 404
+  // ("No tienes una tienda activa") en vez de una lista vacía.
+  const [noStore, setNoStore] = useState(false);
   const [selected, setSelected] = useState<OrderDetail | null>(null);
   const [updating, setUpdating] = useState(false);
   const [staff, setStaff] = useState<Staff[]>([]);
-  const [storeSlug, setStoreSlug] = useState<string | null>(null);
-  const [storeCurrency, setStoreCurrency] = useState<StoreCurrency>(() => getStoreCurrency(null));
+  // Slug/moneda de la tienda — antes un fetch propio a /stores/me acá
+  // (triplicado con configuración y el hook compartido); ahora comparte el
+  // mismo caché de React Query, así no dispara otro request al montar.
+  const { data: storeData } = useStore();
+  const storeSlug = storeData?.slug ?? null;
+  const storeCurrency = getStoreCurrency(storeData ?? null);
   // IDs de la última carga — para detectar pedidos nuevos en el polling
   // silencioso sin necesitar otro endpoint.
   const knownOrderIds = useRef<Set<string> | null>(null);
@@ -371,14 +380,6 @@ export default function PedidosPage() {
       return next;
     });
   }
-
-  // Slug de la tienda: para el link "Ver como comprador" en el detalle del pedido
-  useEffect(() => {
-    apiClient.get("/stores/me").then(({ data }) => {
-      setStoreSlug(data.slug);
-      setStoreCurrency(getStoreCurrency(data));
-    }).catch(() => {});
-  }, []);
 
   // Repartidores activos: integran la entrega al flujo del pedido
   useEffect(() => {
@@ -415,6 +416,9 @@ export default function PedidosPage() {
 
       setOrders(data.items);
       setTotal(data.total);
+      setNoStore(false);
+    } catch (err: any) {
+      if (err.response?.status === 404) setNoStore(true);
     } finally {
       if (!opts?.silent) setLoading(false);
     }
@@ -833,6 +837,14 @@ export default function PedidosPage() {
       {loading ? (
         <div className="space-y-3">
           {[...Array(5)].map((_, i) => <div key={i} className="skeleton h-20 rounded-2xl" />)}
+        </div>
+      ) : noStore ? (
+        <div className="text-center py-16" style={{ color: "var(--ink-4)" }}>
+          <Store size={48} className="mx-auto mb-3 opacity-40" />
+          <p className="mb-4">Todavía no tienes una tienda creada</p>
+          <Link href="/dashboard/configuracion" className="btn-primary inline-flex w-auto px-5">
+            Crear tienda
+          </Link>
         </div>
       ) : orders.length === 0 ? (
         <div className="text-center py-16" style={{ color: "var(--ink-4)" }}>

@@ -2,11 +2,12 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import {
   Plus, Pencil, Trash2, Package, PackagePlus, X,
   Search, Copy, CheckSquare, Square, Percent,
   Star, Eye, EyeOff, Tag, Images, Clock, ChevronDown,
-  Download, Check,
+  Download, Check, Store,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
@@ -420,6 +421,9 @@ export default function ProductosPage() {
   const [stockDelta, setStockDelta] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("recent");
   const [exporting, setExporting] = useState(false);
+  // Vendedor recién registrado, sin tienda todavía — /products/ responde 404
+  // ("No tienes una tienda activa") en vez de una lista vacía.
+  const [noStore, setNoStore] = useState(false);
 
   /* IDs de imágenes originales al abrir edición (para saber cuáles borrar) */
   const origImagesRef = useRef<ProductImage[]>([]);
@@ -435,6 +439,9 @@ export default function ProductosPage() {
       ]);
       setProducts(pRes.data.items);
       setCategories(cRes.data);
+      setNoStore(false);
+    } catch (err: any) {
+      if (err.response?.status === 404) setNoStore(true);
     } finally {
       setLoading(false);
     }
@@ -838,6 +845,24 @@ export default function ProductosPage() {
       <div className="px-5 pt-4 space-y-3 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-3 xl:grid-cols-3">
         {loading ? (
           [...Array(5)].map((_, i) => <Skel key={i} h={88} />)
+        ) : noStore ? (
+          <div className="py-20 flex flex-col items-center text-center animate-fade-in lg:col-span-2 xl:col-span-3">
+            <div
+              className="w-20 h-20 rounded-2xl flex items-center justify-center mb-4"
+              style={{ background: "var(--surface-2)" }}
+            >
+              <Store size={36} style={{ color: "var(--ink-4)" }} />
+            </div>
+            <h3 className="font-display font-bold text-base mb-1" style={{ color: "var(--ink)" }}>
+              Todavía no tienes una tienda creada
+            </h3>
+            <p className="text-sm mb-6" style={{ color: "var(--ink-3)" }}>
+              Crea tu tienda primero para poder agregar productos
+            </p>
+            <Link href="/dashboard/configuracion" className="btn-primary" style={{ width: "auto", padding: "12px 24px" }}>
+              Crear tienda
+            </Link>
+          </div>
         ) : visible.length === 0 ? (
           <div className="py-20 flex flex-col items-center text-center animate-fade-in lg:col-span-2 xl:col-span-3">
             <div

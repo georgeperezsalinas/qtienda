@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   ShoppingCart, Search, ChevronRight, Zap, Heart,
-  MapPin, X, MessageCircle, Share2,
+  MapPin, X, MessageCircle, Share2, Phone,
   LayoutGrid, List, Clock, Truck, ShieldCheck, PackageSearch,
   HelpCircle, CheckCircle2, Star, SlidersHorizontal, DoorOpen, Package, LogOut,
   Home, User,
@@ -1513,7 +1513,7 @@ export default function StorePage({ store, initialProducts }: Props) {
             style={{ background: "#25D366", boxShadow: "0 4px 20px rgba(37,211,102,.5)" }}
             aria-label="Contactar por WhatsApp"
           >
-            <MessageCircle size={26} fill="white" color="white" />
+            <Phone size={24} fill="white" color="white" />
           </motion.a>
         )}
       </AnimatePresence>

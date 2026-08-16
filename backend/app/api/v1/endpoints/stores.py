@@ -61,6 +61,13 @@ async def create_store(
         description=payload.description,
         whatsapp=payload.whatsapp,
         city=payload.city,
+        country=payload.country or "PE",
+        mall_category=payload.mall_category,
+        instagram=payload.instagram,
+        tiktok=payload.tiktok,
+        facebook=payload.facebook,
+        primary_color=payload.primary_color or "#6366f1",
+        theme=payload.theme or "clasico",
         status="active",  # Auto-approve on free plan; can add review flow
     )
     db.add(store)
