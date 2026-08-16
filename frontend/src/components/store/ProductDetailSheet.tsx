@@ -27,6 +27,7 @@ interface ProductForSheet {
   sold_count?: number;
   created_at?: string;
   images: { url: string; is_primary: boolean }[];
+  variants?: { id: string; label: string; sku?: string; price_cents?: number; stock?: number }[];
 }
 
 interface Props {
@@ -70,20 +71,26 @@ export default function ProductDetailSheet({
   const [zoomOpen, setZoomOpen] = useState(false);
   const [viewers, setViewers] = useState(0);
   const [qty, setQty] = useState(1);
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
   const touchStartX = useRef(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const addItem = useCartStore((s) => s.addItem);
 
+  const hasVariants = (product.variants?.length ?? 0) > 0;
+  const selectedVariant = product.variants?.find((v) => v.id === selectedVariantId) ?? null;
+  const effectiveStock = selectedVariant ? selectedVariant.stock : product.stock;
+  const effectivePrice = selectedVariant?.price_cents ?? product.price_cents;
+
   const primaryImage =
     product.images.find((i) => i.is_primary)?.url ?? product.images[0]?.url ?? "";
   const outOfStock =
-    product.stock !== null && product.stock !== undefined && product.stock <= 0;
+    effectiveStock !== null && effectiveStock !== undefined && effectiveStock <= 0;
   const lowStock =
-    product.stock !== null && product.stock !== undefined && product.stock > 0 && product.stock <= 3;
+    effectiveStock !== null && effectiveStock !== undefined && effectiveStock > 0 && effectiveStock <= 3;
   const discount = product.compare_price
-    ? Math.round((1 - product.price_cents / product.compare_price) * 100)
+    ? Math.round((1 - effectivePrice / product.compare_price) * 100)
     : null;
-  const maxQty = product.stock && product.stock > 0 ? product.stock : 99;
+  const maxQty = effectiveStock && effectiveStock > 0 ? effectiveStock : 99;
   const countdown = useSaleCountdown(product.sale_ends_at);
   const hasImages = product.images.length > 0;
   const hasDescription = !!product.description?.trim();
@@ -115,6 +122,10 @@ export default function ProductDetailSheet({
     setZoomOpen(false);
     setAdded(false);
     setQty(1);
+    // Auto-selecciona la primera variante con stock — evita forzar al
+    // comprador a elegir cuando hay una sola opción real disponible.
+    const firstAvailable = product.variants?.find((v) => v.stock == null || v.stock > 0);
+    setSelectedVariantId(firstAvailable?.id ?? product.variants?.[0]?.id ?? null);
     scrollRef.current?.scrollTo({ top: 0 });
   }, [product.id]);
 
@@ -131,10 +142,10 @@ export default function ProductDetailSheet({
   }
 
   function handleAdd() {
-    if (outOfStock) return;
+    if (outOfStock || (hasVariants && !selectedVariantId)) return;
     addItem(
-      { id: product.id, name: displayName, price_cents: product.price_cents,
-        image_url: primaryImage, quantity: qty },
+      { id: product.id, variant_id: selectedVariant?.id, variant_label: selectedVariant?.label,
+        name: displayName, price_cents: effectivePrice, image_url: primaryImage, quantity: qty },
       storeSlug,
       qty,
     );
@@ -324,7 +335,7 @@ export default function ProductDetailSheet({
                 className="font-display font-extrabold text-2xl"
                 style={{ color: storeColor }}
               >
-                {formatPrice(product.price_cents, storeCurrency, storeLocale)}
+                {formatPrice(effectivePrice, storeCurrency, storeLocale)}
               </span>
               {product.compare_price && (
                 <span className="text-sm line-through" style={{ color: "var(--ink-4)" }}>
@@ -340,6 +351,34 @@ export default function ProductDetailSheet({
                 </span>
               )}
             </div>
+
+            {/* Selector de variante — el comprador tiene que elegir una antes
+                de poder agregar al carrito */}
+            {hasVariants && (
+              <div className="flex flex-wrap gap-2 mt-3">
+                {product.variants!.map((v) => {
+                  const disabled = v.stock != null && v.stock <= 0;
+                  const active = v.id === selectedVariantId;
+                  return (
+                    <button
+                      key={v.id}
+                      onClick={() => !disabled && setSelectedVariantId(v.id)}
+                      disabled={disabled}
+                      className="text-xs font-semibold px-3 py-1.5 rounded-full transition-colors disabled:opacity-40"
+                      style={{
+                        border: `1.5px solid ${active ? storeColor : "var(--line-2)"}`,
+                        background: active ? "var(--accent-soft)" : "transparent",
+                        color: active ? storeColor : "var(--ink-2)",
+                      }}
+                    >
+                      {v.label}
+                      {v.price_cents != null && ` · ${formatPrice(v.price_cents, storeCurrency, storeLocale)}`}
+                      {disabled && " (agotado)"}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Personas viendo esto ahora — solo si supera el umbral, nunca "1 viendo" */}
             {viewers >= VIEWERS_THRESHOLD && (
@@ -361,7 +400,7 @@ export default function ProductDetailSheet({
             {/* Stock bajo */}
             {lowStock && (
               <p className="text-xs font-bold mt-2" style={{ color: "var(--warn)" }}>
-                ⚡ Quedan solo {product.stock} unidades
+                ⚡ Quedan solo {effectiveStock} unidades
               </p>
             )}
 
@@ -488,7 +527,7 @@ export default function ProductDetailSheet({
             <motion.button
               whileTap={{ scale: 0.97 }}
               onClick={handleAdd}
-              disabled={outOfStock}
+              disabled={outOfStock || (hasVariants && !selectedVariantId)}
               className="flex-1 flex items-center justify-center gap-2.5 rounded-2xl py-4
                          font-display font-bold text-sm transition-colors"
               style={{
@@ -501,8 +540,10 @@ export default function ProductDetailSheet({
                 <><Check size={18} /> En el carrito</>
               ) : outOfStock ? (
                 "Producto agotado"
+              ) : hasVariants && !selectedVariantId ? (
+                "Elige una opción"
               ) : (
-                <><ShoppingCart size={18} /> Agregar · {formatPrice(product.price_cents * qty, storeCurrency, storeLocale)}</>
+                <><ShoppingCart size={18} /> Agregar · {formatPrice(effectivePrice * qty, storeCurrency, storeLocale)}</>
               )}
             </motion.button>
           </div>

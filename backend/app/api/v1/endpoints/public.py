@@ -15,7 +15,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
-from app.models.models import Plan, Store, Product, Category, Order, OrderItem, Payment, Review, StoreSettings, StoreEvent, SiteEvent, Subscription, MallBanner, AbandonedCart, Coupon, StoreClaim, StoreWheelConfig, WheelSpin, Service, AvailabilityException, Appointment
+from app.models.models import Plan, Store, Product, ProductVariant, Category, Order, OrderItem, Payment, Review, StoreSettings, StoreEvent, SiteEvent, Subscription, MallBanner, AbandonedCart, Coupon, StoreClaim, StoreWheelConfig, WheelSpin, Service, AvailabilityException, Appointment
 from app.schemas.auth import AppointmentCreate, AppointmentLookup
 from app.schemas.orders import PublicOrderCreate, OrderResponse
 from app.schemas.claims import ClaimCreate
@@ -686,7 +686,7 @@ async def get_store_products(
 
     result = await db.execute(
         select(Product)
-        .options(selectinload(Product.images))
+        .options(selectinload(Product.images), selectinload(Product.variants))
         .where(and_(*filters))
         .order_by(*order)
     )
@@ -722,6 +722,10 @@ async def get_store_products(
             "images": [
                 {"url": img.url, "is_primary": img.is_primary}
                 for img in p.images
+            ],
+            "variants": [
+                {"id": v.id, "label": v.label, "sku": v.sku, "price_cents": v.price_cents, "stock": v.stock}
+                for v in sorted(p.variants, key=lambda v: v.sort_order)
             ],
         }
         for p in products
@@ -990,24 +994,61 @@ async def create_order(
     if len(products_map) != len(set(product_ids)):
         raise HTTPException(status_code=422, detail="Producto no disponible")
 
+    # Load & validate variants (opcional por línea) — mismo lock que los
+    # productos, para que el chequeo de stock sea consistente bajo carga.
+    variant_ids = [item.variant_id for item in payload.items if item.variant_id]
+    variants_map = {}
+    if variant_ids:
+        var_q = await db.execute(
+            select(ProductVariant)
+            .where(
+                ProductVariant.id.in_(variant_ids),
+                ProductVariant.product_id.in_(product_ids),
+            )
+            .with_for_update()
+        )
+        variants_map = {v.id: v for v in var_q.scalars().all()}
+        if len(variants_map) != len(set(variant_ids)):
+            raise HTTPException(status_code=422, detail="Variante no disponible")
+
+    # Dos líneas del mismo producto pero variante distinta son válidas — el
+    # dedupe tiene que ser sobre (product_id, variant_id), no solo product_id.
+    seen_keys = set()
+    for item in payload.items:
+        key = (item.product_id, item.variant_id)
+        if key in seen_keys:
+            raise HTTPException(status_code=422, detail="Producto duplicado en el pedido")
+        seen_keys.add(key)
+
     # Build order items + subtotal
     order_items = []
     subtotal = 0
     for item in payload.items:
         product = products_map[item.product_id]
-        if product.stock is not None and product.stock < item.quantity:
-            raise HTTPException(
-                status_code=422,
-                detail=f"Stock insuficiente para '{product.name}'",
-            )
-        line = item.quantity * product.price_cents
+        variant = variants_map.get(item.variant_id) if item.variant_id else None
+        if variant and variant.product_id != product.id:
+            raise HTTPException(status_code=422, detail="La variante no pertenece a este producto")
+
+        effective_stock = variant.stock if variant else product.stock
+        effective_price = variant.price_cents if (variant and variant.price_cents is not None) else product.price_cents
+
+        if effective_stock is not None and effective_stock < item.quantity:
+            detail = f"Stock insuficiente para '{product.name}'"
+            if variant:
+                detail += f" ({variant.label})"
+            raise HTTPException(status_code=422, detail=detail)
+
+        line = item.quantity * effective_price
         subtotal += line
         order_items.append(
             OrderItem(
                 product_id=product.id,
+                variant_id=variant.id if variant else None,
                 product_name=product.name,
                 product_sku=product.sku,
-                unit_price=product.price_cents,
+                variant_label=variant.label if variant else None,
+                variant_sku=variant.sku if variant else None,
+                unit_price=effective_price,
                 quantity=item.quantity,
                 subtotal=line,
                 image_url=next(
@@ -1150,13 +1191,21 @@ async def create_order(
         oi.order_id = order.id
         db.add(oi)
 
-        # Decrement stock
-        product = products_map[oi.product_id]
-        if product.stock is not None:
-            product.stock -= oi.quantity
-            if 0 <= product.stock <= app_settings.LOW_STOCK_THRESHOLD and product.low_stock_notified_at is None:
-                product.low_stock_notified_at = datetime.now(timezone.utc)
-                low_stock_alerts.append((product.name, product.stock))
+        # Decrement stock — de la variante si la línea eligió una, si no del
+        # producto (rama sin cambios). La alerta de stock bajo sigue siendo
+        # solo a nivel producto (Product.low_stock_notified_at está diseñado
+        # así) — no hay alerta de stock bajo por variante en esta iteración.
+        if oi.variant_id:
+            variant = variants_map[oi.variant_id]
+            if variant.stock is not None:
+                variant.stock -= oi.quantity
+        else:
+            product = products_map[oi.product_id]
+            if product.stock is not None:
+                product.stock -= oi.quantity
+                if 0 <= product.stock <= app_settings.LOW_STOCK_THRESHOLD and product.low_stock_notified_at is None:
+                    product.low_stock_notified_at = datetime.now(timezone.utc)
+                    low_stock_alerts.append((product.name, product.stock))
 
     db.add(Payment(
         order_id=order.id,

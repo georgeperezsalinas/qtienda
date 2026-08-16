@@ -1,0 +1,1 @@
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS sells VARCHAR(20) NOT NULL DEFAULT 'sin_especificar';

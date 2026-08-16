@@ -149,6 +149,28 @@
   --line-2:    #C2E1D8;
 }
 
+/* ─── Panel de vendedor (/dashboard) — "terracota suave" ───
+   Los neutros de :root (#F7F5F0/#FCFBF7) casi no se distinguen entre sí —
+   fondo y ventanas se leían como "todo blanco". Acá el acento se filtra en
+   los propios neutros en vez de quedar aislado, y el fondo gana contraste
+   real contra las superficies elevadas (modales, tarjetas, sheets).
+   Escopeado solo al panel (ver dashboard/layout.tsx) — la tienda pública
+   (tema "clasico" = :root sin override) y el resto del sitio quedan igual. */
+[data-theme="panel-calido"] {
+  --bg:        #F0E2D3;
+  --surface:   #FAF0E6;
+  --surface-2: #E9D5BC;
+  --tint:      #E4CFB2;
+  --ink:       #24160D;
+  --ink-2:     #5C4530;
+  --ink-3:     #8A7259;
+  --ink-4:     #B3987A;
+  --ink-5:     #D9C3A8;
+  --line:      #E6CDB0;
+  --line-2:    #D9BC93;
+  --accent-soft: #F8DCC8;
+}
+
 /* ─── Base ─── */
 @layer base {
   *, *::before, *::after {

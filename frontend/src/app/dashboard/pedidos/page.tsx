@@ -96,6 +96,7 @@ interface OrderDetail extends Order {
   discount_cents?: number;
   items: {
     product_name: string;
+    variant_label?: string;
     quantity: number;
     unit_price: number;
     image_url?: string;
@@ -591,7 +592,7 @@ export default function PedidosPage() {
 
     const itemsRows = o.items.map((it) => `
       <tr>
-        <td style="padding:6px 0;">${it.product_name}</td>
+        <td style="padding:6px 0;">${it.product_name}${it.variant_label ? `<br><span style="color:#666;font-size:11px">${it.variant_label}</span>` : ""}</td>
         <td style="padding:6px 0;text-align:center;">x${it.quantity}</td>
         <td style="padding:6px 0;text-align:right;">${formatPrice(it.unit_price * it.quantity, storeCurrency.code, storeCurrency.locale)}</td>
       </tr>
@@ -746,6 +747,9 @@ export default function PedidosPage() {
             )}
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate" style={{ color: "var(--ink)" }}>{item.product_name}</p>
+              {item.variant_label && (
+                <p className="text-xs truncate" style={{ color: "var(--ink-3)" }}>{item.variant_label}</p>
+              )}
               <p className="text-xs" style={{ color: "var(--ink-3)" }}>x{item.quantity} · {formatPrice(item.unit_price, storeCurrency.code, storeCurrency.locale)}</p>
             </div>
             <p className="text-sm font-bold" style={{ color: "var(--ink)" }}>{formatPrice(item.unit_price * item.quantity, storeCurrency.code, storeCurrency.locale)}</p>

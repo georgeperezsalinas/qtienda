@@ -16,19 +16,12 @@ import {
   Settings,
   LogOut,
   ExternalLink,
-  ChevronRight,
-  UserCircle,
-  Bike,
+  LayoutGrid,
   BarChart2,
-  Search,
   ShoppingCart,
   HelpCircle,
-  Tag,
-  ClipboardList,
-  Sparkles,
-  CalendarClock,
-  CalendarCheck,
 } from "lucide-react";
+import { getVisibleGroups, isActive, getInitials } from "@/lib/dashboardNav";
 import { useAuthStore } from "@/store/authStore";
 import DashboardTour, { restartQtiendaTour } from "@/components/onboarding/DashboardTour";
 import NotificationBell from "@/components/ui/NotificationBell";
@@ -198,34 +191,6 @@ const BOTTOM_NAV = [
   { href: "/dashboard/finanzas", label: "Finanzas", icon: BarChart2, exact: false },
 ] as const;
 
-/* ─── Sidebar desktop: nav completo (5 items) ─── */
-const SIDE_NAV = [
-  { href: "/dashboard", label: "Inicio", icon: LayoutDashboard, exact: true },
-  { href: "/dashboard/pedidos", label: "Pedidos", icon: ShoppingBag, exact: false },
-  { href: "/dashboard/productos", label: "Productos", icon: Package, exact: false },
-  { href: "/dashboard/cupones", label: "Cupones", icon: Tag, exact: false },
-  { href: "/dashboard/ruleta", label: "Ruleta", icon: Sparkles, exact: false },
-  { href: "/dashboard/servicios", label: "Servicios", icon: CalendarClock, exact: false },
-  { href: "/dashboard/citas", label: "Citas", icon: CalendarCheck, exact: false },
-  { href: "/dashboard/delivery", label: "Delivery", icon: Bike, exact: false },
-  { href: "/dashboard/finanzas", label: "Finanzas", icon: BarChart2, exact: false },
-  { href: "/dashboard/reclamos", label: "Reclamos", icon: ClipboardList, exact: false },
-  { href: "/dashboard/configuracion", label: "Ajustes", icon: Settings, exact: false },
-] as const;
-
-function isActive(pathname: string, href: string, exact?: boolean) {
-  return exact ? pathname === href : pathname.startsWith(href);
-}
-
-function getInitials(name?: string | null) {
-  return (name ?? "U")
-    .split(" ")
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase();
-}
-
 export default function DashboardLayout({
   children,
 }: {
@@ -235,10 +200,10 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const { user, accessToken, logout } = useAuthStore();
 
-  const [drawerOpen, setDrawerOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [storeSlug, setStoreSlug] = useState<string | null>(null);
   const [storeStatus, setStoreStatus] = useState<string | null>(null);
+  const [sells, setSells] = useState<string | null>(null);
   const [reactivationRequestedAt, setReactivationRequestedAt] = useState<string | null>(null);
   const loggingOut = useRef(false);
 
@@ -263,11 +228,11 @@ export default function DashboardLayout({
         .then(({ data }) => {
           setStoreSlug(data.slug);
           setStoreStatus(data.status);
+          setSells(data.sells ?? null);
           setReactivationRequestedAt(data.reactivation_requested_at ?? null);
         })
         .catch(() => {});
   }, [hydrated, accessToken]);
-  useEffect(() => setDrawerOpen(false), [pathname]);
 
   if (!hydrated || !accessToken) return null;
   if (user && !isAllowedRole) return null;
@@ -294,7 +259,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-dvh md:flex" style={{ background: "var(--bg)" }}>
+    <div className="min-h-dvh md:flex" data-theme="panel-calido" style={{ background: "var(--bg)" }}>
       {/* ═════════ Sidebar (desktop) ═════════ */}
       <aside
         className="hidden md:flex flex-col sticky top-0 h-screen"
@@ -311,28 +276,42 @@ export default function DashboardLayout({
           <NotificationBell align="left" />
         </div>
 
-        <nav className="flex-1 flex flex-col gap-0.5">
-          {SIDE_NAV.map(({ href, label, icon: Icon, exact }) => {
-            const active = isActive(pathname, href, exact);
-            return (
-              <Link
-                key={href}
-                href={href}
-                className="flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl text-sm font-medium transition-colors"
-                style={{
-                  background: active ? "var(--accent-soft)" : "transparent",
-                  color: active ? "var(--accent-ink)" : "var(--ink-2)",
-                }}
-              >
-                <Icon
-                  size={16}
-                  strokeWidth={1.7}
-                  style={{ color: active ? "var(--accent)" : "var(--ink-3)" }}
-                />
-                <span style={{ flex: 1 }}>{label}</span>
-              </Link>
-            );
-          })}
+        <nav className="flex-1 flex flex-col">
+          {getVisibleGroups(sells).map((group, gi) => (
+            <div key={group.label ?? gi} className={gi > 0 ? "mt-3" : ""}>
+              {group.label && (
+                <p
+                  className="text-[10px] font-bold uppercase tracking-wide px-2.5 mb-1"
+                  style={{ color: "var(--ink-4)" }}
+                >
+                  {group.label}
+                </p>
+              )}
+              <div className="flex flex-col gap-0.5">
+                {group.items.map(({ href, label, icon: Icon, exact }) => {
+                  const active = isActive(pathname, href, exact);
+                  return (
+                    <Link
+                      key={href}
+                      href={href}
+                      className="flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl text-sm font-medium transition-colors"
+                      style={{
+                        background: active ? "var(--accent-soft)" : "transparent",
+                        color: active ? "var(--accent-ink)" : "var(--ink-2)",
+                      }}
+                    >
+                      <Icon
+                        size={16}
+                        strokeWidth={1.7}
+                        style={{ color: active ? "var(--accent)" : "var(--ink-3)" }}
+                      />
+                      <span style={{ flex: 1 }}>{label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
 
         {/* User block */}
@@ -448,8 +427,8 @@ export default function DashboardLayout({
               >
                 <Settings size={16} strokeWidth={1.7} style={{ color: "var(--ink-2)" }} />
               </Link>
-              <button
-                onClick={() => setDrawerOpen(true)}
+              <Link
+                href="/dashboard/mas"
                 className="flex items-center justify-center rounded-full"
                 style={{
                   width: 36,
@@ -459,10 +438,10 @@ export default function DashboardLayout({
                   fontSize: 12,
                   fontWeight: 500,
                 }}
-                aria-label="Cuenta y más"
+                aria-label="Más opciones"
               >
                 {initials}
-              </button>
+              </Link>
             </div>
           </div>
         </div>
@@ -541,13 +520,13 @@ export default function DashboardLayout({
               </Link>
             );
           })}
-          <button
-            onClick={() => setDrawerOpen(true)}
+          <Link
+            href="/dashboard/mas"
             className="flex-1 flex flex-col items-center"
             style={{ gap: 4 }}
-            aria-label="Cuenta y más"
+            aria-label="Más opciones"
           >
-            {drawerOpen ? (
+            {isActive(pathname, "/dashboard/mas") ? (
               <span
                 className="flex items-center justify-center rounded-2xl transition-transform active:scale-95"
                 style={{
@@ -559,130 +538,25 @@ export default function DashboardLayout({
                   boxShadow: "0 6px 16px rgba(197,97,59,.4)",
                 }}
               >
-                <UserCircle size={22} strokeWidth={2} style={{ color: "#fff" }} />
+                <LayoutGrid size={22} strokeWidth={2} style={{ color: "#fff" }} />
               </span>
             ) : (
-              <UserCircle size={20} strokeWidth={1.6} style={{ color: "var(--ink-3)" }} />
+              <LayoutGrid size={20} strokeWidth={1.6} style={{ color: "var(--ink-3)" }} />
             )}
             <span
               className="text-[10px] leading-none"
               style={{
-                color: drawerOpen ? "var(--accent)" : "var(--ink-3)",
-                fontWeight: drawerOpen ? 700 : 500,
-                marginTop: drawerOpen ? -1 : 0,
+                color: isActive(pathname, "/dashboard/mas") ? "var(--accent)" : "var(--ink-3)",
+                fontWeight: isActive(pathname, "/dashboard/mas") ? 700 : 500,
+                marginTop: isActive(pathname, "/dashboard/mas") ? -1 : 0,
               }}
             >
-              Cuenta
+              Más
             </span>
             <span style={{ width: 4, height: 4, marginTop: 2 }} />
-          </button>
+          </Link>
         </div>
       </nav>
-
-      {/* ═════════ Mobile drawer ═════════ */}
-      {drawerOpen && (
-        <>
-          <div
-            className="md:hidden fixed inset-0 z-50 animate-fade-in"
-            onClick={() => setDrawerOpen(false)}
-            aria-hidden
-            style={{ background: "rgba(20,19,15,0.4)", backdropFilter: "blur(4px)" }}
-          />
-          <div
-            className="md:hidden fixed bottom-0 left-0 right-0 z-50 animate-fade-up"
-            style={{
-              background: "var(--surface)",
-              borderTopLeftRadius: 24,
-              borderTopRightRadius: 24,
-              padding: "8px 20px 40px",
-              boxShadow: "var(--shadow-float)",
-            }}
-          >
-            <div
-              className="mx-auto mt-3 mb-6 rounded-full"
-              style={{ width: 36, height: 4, background: "var(--ink-5)" }}
-            />
-
-            {/* User block */}
-            <div
-              className="flex items-center gap-3 mb-5 p-3 rounded-2xl"
-              style={{ background: "var(--bg)", border: "1px solid var(--line)" }}
-            >
-              <div
-                className="flex items-center justify-center rounded-full flex-shrink-0"
-                style={{
-                  width: 44,
-                  height: 44,
-                  background: "var(--ink)",
-                  color: "var(--bg)",
-                  fontSize: 14,
-                  fontWeight: 500,
-                }}
-              >
-                {initials}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p className="text-sm font-medium truncate" style={{ color: "var(--ink)" }}>
-                  {user?.full_name}
-                </p>
-                <p className="text-xs truncate" style={{ color: "var(--ink-3)" }}>
-                  {user?.email}
-                </p>
-              </div>
-            </div>
-
-            {/* Secondary nav */}
-            <div className="flex flex-col gap-1">
-              {[
-                { href: "/dashboard/cupones", label: "Cupones", icon: Tag },
-                { href: "/dashboard/ruleta", label: "Ruleta", icon: Sparkles },
-                { href: "/dashboard/servicios", label: "Servicios", icon: CalendarClock },
-                { href: "/dashboard/citas", label: "Citas", icon: CalendarCheck },
-                { href: "/dashboard/reclamos", label: "Reclamos", icon: ClipboardList },
-                { href: "/dashboard/configuracion", label: "Ajustes", icon: Settings },
-                { href: "/dashboard/delivery", label: "Delivery", icon: Bike },
-                { href: "/mis-pedidos", label: "Mis compras", icon: ShoppingCart },
-                {
-                  href: storeSlug ? `https://${storeSlug}.qtienda.shop/` : "#",
-                  label: "Ver mi tienda",
-                  icon: ExternalLink,
-                  external: true,
-                },
-              ].map((item) => {
-                const C = item.external ? "a" : Link;
-                const props = item.external
-                  ? { href: item.href, target: "_blank", rel: "noopener noreferrer" }
-                  : { href: item.href, onClick: () => setDrawerOpen(false) };
-                return (
-                  // @ts-ignore — runtime cast
-                  <C
-                    key={item.href}
-                    {...props}
-                    className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium"
-                    style={{ color: "var(--ink-2)" }}
-                  >
-                    <item.icon size={17} strokeWidth={1.7} style={{ color: "var(--ink-3)" }} />
-                    <span style={{ flex: 1 }}>{item.label}</span>
-                    <ChevronRight size={15} style={{ color: "var(--ink-4)" }} />
-                  </C>
-                );
-              })}
-            </div>
-
-            <button
-              onClick={handleLogout}
-              className="flex w-full items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium mt-4"
-              style={{
-                background: "var(--danger-soft)",
-                color: "var(--danger)",
-              }}
-            >
-              <LogOut size={17} strokeWidth={1.7} />
-              Cerrar sesión
-            </button>
-          </div>
-        </>
-      )}
     </div>
   );
 }

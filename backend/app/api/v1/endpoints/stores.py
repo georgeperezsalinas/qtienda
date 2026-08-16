@@ -68,6 +68,7 @@ async def create_store(
         facebook=payload.facebook,
         primary_color=payload.primary_color or "#6366f1",
         theme=payload.theme or "clasico",
+        sells=payload.sells or "sin_especificar",
         status="active",  # Auto-approve on free plan; can add review flow
     )
     db.add(store)
@@ -145,6 +146,7 @@ async def my_store(
         "tiktok": store.tiktok,
         "facebook": store.facebook,
         "mall_category": store.mall_category,
+        "sells": store.sells,
         "status": store.status,
         "reactivation_requested_at": store.reactivation_requested_at,
         "reactivation_message": store.reactivation_message,

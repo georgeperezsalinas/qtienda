@@ -4,10 +4,10 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
-  Plus, Pencil, Trash2, Package, PackagePlus, X,
+  Plus, Trash2, Package, PackagePlus, X,
   Search, Copy, CheckSquare, Square, Percent,
   Star, Eye, EyeOff, Tag, Images, Clock, ChevronDown,
-  Download, Check, Store,
+  Download, Check, Store, MoreVertical,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
@@ -16,10 +16,12 @@ import { useSaleCountdown } from "@/hooks/useSaleCountdown";
 import { useStoreCurrency } from "@/hooks/useStoreCurrency";
 import { MultiImageUpload, type FormImage } from "@/components/ui/MultiImageUpload";
 import { RichTextEditor } from "@/components/ui/RichTextEditor";
+import { ProductCreationWizard } from "@/components/dashboard/ProductCreationWizard";
 
 /* ── Types ── */
 interface Category { id: string; name: string; icon?: string }
 interface ProductImage { id: string; url: string; is_primary: boolean }
+interface ProductVariant { id: string; label: string; sku?: string; price_cents?: number; stock?: number; sort_order?: number }
 interface Product {
   id: string;
   name: string;
@@ -28,11 +30,33 @@ interface Product {
   compare_price?: number;
   sale_ends_at?: string;
   stock?: number;
+  sku?: string;
   status: string;
   is_featured: boolean;
   category_id?: string;
   images: ProductImage[];
+  variants: ProductVariant[];
   sold_count?: number;
+}
+
+// Debe coincidir con LOW_STOCK_THRESHOLD en backend/app/core/config.py —
+// no hay endpoint que lo exponga, y no vale la pena uno para un solo entero.
+const LOW_STOCK_THRESHOLD = 3;
+
+/* Fila de variante en el formulario de edición — `id` presente = ya existe
+   en el backend (PATCH al guardar), ausente = fila nueva (POST al guardar).
+   `key` es solo para el key de React, nunca se envía. */
+interface VariantRow {
+  key: string;
+  id?: string;
+  label: string;
+  sku: string;
+  price_cents: string;
+  stock: string;
+}
+
+function emptyVariantRow(): VariantRow {
+  return { key: crypto.randomUUID(), label: "", sku: "", price_cents: "", stock: "" };
 }
 
 type SortKey = "recent" | "best_selling" | "low_stock" | "price_asc" | "price_desc";
@@ -57,6 +81,7 @@ const EMPTY_FORM = {
   compare_price: "",
   sale_ends_at: "",
   stock: "",
+  sku: "",
   category_id: "",
   is_featured: false,
   is_published: false,
@@ -111,6 +136,8 @@ function ProductCard({
   const [editingField, setEditingField] = useState<"price" | "stock" | null>(null);
   const [quickValue, setQuickValue] = useState("");
   const [savedFlash, setSavedFlash] = useState<"price" | "stock" | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const quickInputRef = useRef<HTMLInputElement>(null);
 
   function startQuickEdit(field: "price" | "stock", e: React.MouseEvent) {
@@ -145,14 +172,14 @@ function ProductCard({
 
   return (
     <div
-      onClick={selectMode ? onToggleSelect : undefined}
-      className="rounded-2xl flex items-center gap-3.5 p-3 transition-all"
+      onClick={selectMode ? onToggleSelect : onEdit}
+      className="rounded-2xl flex items-center gap-3.5 p-3 transition-all active:scale-[.99]"
       style={{
         background: "var(--surface)",
         border: `1.5px solid ${selected ? "var(--brand-600)" : "var(--line-2)"}`,
         boxShadow: "var(--shadow-sm)",
         opacity: active ? 1 : 0.65,
-        cursor: selectMode ? "pointer" : undefined,
+        cursor: "pointer",
       }}
     >
       {/* Checkbox (modo selección) */}
@@ -275,6 +302,14 @@ function ProductCard({
               </button>
             )
           )}
+          {product.stock != null && product.stock > 0 && product.stock <= LOW_STOCK_THRESHOLD && (
+            <span
+              className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+              style={{ background: "var(--warn-soft)", color: "var(--warn)" }}
+            >
+              ⚠ Stock bajo
+            </span>
+          )}
           {countdown && (
             <span
               className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
@@ -286,58 +321,106 @@ function ProductCard({
         </div>
       </div>
 
-      {/* Actions */}
+      {/* Actions — 2 botones grandes (44px, cómodos para el dedo) en vez de
+         4 chicos: tocar la tarjeta ya abre edición, así que el lápiz sobra. */}
       {!selectMode && (
-        <div className="flex flex-col gap-1.5 flex-shrink-0">
+        <div
+          className="flex flex-col gap-1.5 flex-shrink-0"
+          onClick={(e) => e.stopPropagation()}
+        >
           <button
             onClick={onToggleStatus}
             title={active ? "Desactivar" : "Activar"}
-            className="w-8 h-8 rounded-xl flex items-center justify-center transition-all"
+            className="w-11 h-11 rounded-xl flex items-center justify-center transition-all active:scale-90"
             style={{
               background: active ? "var(--success-soft)" : "var(--surface-2)",
               color: active ? "var(--success)" : "var(--ink-3)",
-              border: `1.5px solid ${active ? "var(--line-2)" : "var(--line-2)"}`,
-            }}
-          >
-            {active ? <Eye size={14} /> : <EyeOff size={14} />}
-          </button>
-          <button
-            onClick={onEdit}
-            className="w-8 h-8 rounded-xl flex items-center justify-center transition-all"
-            style={{
-              background: "var(--surface-2)",
-              color: "var(--ink-2)",
               border: "1.5px solid var(--line-2)",
             }}
           >
-            <Pencil size={13} />
+            {active ? <Eye size={17} /> : <EyeOff size={17} />}
           </button>
-          <button
-            onClick={onDuplicate}
-            disabled={duplicating}
-            title="Duplicar"
-            className="w-8 h-8 rounded-xl flex items-center justify-center transition-all"
-            style={{
-              background: "var(--surface-2)",
-              color: "var(--ink-2)",
-              border: "1.5px solid var(--line-2)",
-              opacity: duplicating ? 0.5 : 1,
-            }}
-          >
-            <Copy size={13} />
-          </button>
-          <button
-            onClick={onDelete}
-            className="w-8 h-8 rounded-xl flex items-center justify-center transition-all"
-            style={{
-              background: "var(--danger-soft)",
-              color: "var(--danger)",
-              border: "1.5px solid var(--line-2)",
-            }}
-          >
-            <Trash2 size={13} />
-          </button>
+
+          <div className="relative">
+            <button
+              onClick={() => setMenuOpen((v) => !v)}
+              title="Más acciones"
+              className="w-11 h-11 rounded-xl flex items-center justify-center transition-all active:scale-90"
+              style={{
+                background: menuOpen ? "var(--ink)" : "var(--surface-2)",
+                color: menuOpen ? "var(--bg)" : "var(--ink-2)",
+                border: "1.5px solid var(--line-2)",
+              }}
+            >
+              <MoreVertical size={17} />
+            </button>
+
+            {menuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+                <div
+                  className="absolute right-0 top-full mt-1.5 z-50 rounded-2xl overflow-hidden"
+                  style={{ background: "var(--surface)", boxShadow: "var(--shadow-float)", border: "1px solid var(--line)", minWidth: 168 }}
+                >
+                  <button
+                    onClick={() => { setMenuOpen(false); onDuplicate(); }}
+                    disabled={duplicating}
+                    className="flex items-center gap-2.5 w-full px-4 py-3.5 text-sm font-medium whitespace-nowrap disabled:opacity-50"
+                    style={{ color: "var(--ink-2)" }}
+                  >
+                    <Copy size={16} /> {duplicating ? "Duplicando..." : "Duplicar"}
+                  </button>
+                  <button
+                    onClick={() => { setMenuOpen(false); setConfirmDelete(true); }}
+                    className="flex items-center gap-2.5 w-full px-4 py-3.5 text-sm font-medium whitespace-nowrap"
+                    style={{ color: "var(--danger)", borderTop: "1px solid var(--line)" }}
+                  >
+                    <Trash2 size={16} /> Eliminar
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
+      )}
+
+      {/* Confirmar eliminación — reemplaza el confirm() nativo del navegador */}
+      {confirmDelete && (
+        <>
+          <div
+            className="fixed inset-0 z-[70]"
+            style={{ background: "rgba(20,19,15,.5)", backdropFilter: "blur(2px)" }}
+            onClick={(e) => { e.stopPropagation(); setConfirmDelete(false); }}
+          />
+          <div
+            className="fixed z-[71] left-1/2 top-1/2 w-[88vw] max-w-xs rounded-[24px] p-5"
+            style={{ background: "var(--surface)", boxShadow: "var(--shadow-float)", transform: "translate(-50%,-50%)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-display font-extrabold text-base mb-1" style={{ color: "var(--ink)" }}>
+              ¿Eliminar producto?
+            </h3>
+            <p className="text-xs mb-4" style={{ color: "var(--ink-3)" }}>
+              "{product.name}" se eliminará. Esta acción no se puede deshacer.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="flex-1 rounded-xl py-3 text-sm font-bold"
+                style={{ background: "var(--surface-2)", color: "var(--ink-2)", border: "1.5px solid var(--line-2)" }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => { setConfirmDelete(false); onDelete(); }}
+                className="flex-1 rounded-xl py-3 text-sm font-bold text-white"
+                style={{ background: "var(--danger)" }}
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
@@ -406,11 +489,15 @@ export default function ProductosPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [showWizard, setShowWizard] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterStatus>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [formImages, setFormImages] = useState<FormImage[]>([]);
+  const [formVariants, setFormVariants] = useState<VariantRow[]>([]);
+  const origVariantsRef = useRef<ProductVariant[]>([]);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [duplicating, setDuplicating] = useState<string | null>(null);
@@ -419,6 +506,7 @@ export default function ProductosPage() {
   const [discountPercent, setDiscountPercent] = useState("");
   const [showStockModal, setShowStockModal] = useState(false);
   const [stockDelta, setStockDelta] = useState("");
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("recent");
   const [exporting, setExporting] = useState(false);
   // Vendedor recién registrado, sin tienda todavía — /products/ responde 404
@@ -458,7 +546,8 @@ export default function ProductosPage() {
         filter === "all" ? true :
           filter === "active" ? p.status === "active" :
             p.status !== "active";
-      return matchSearch && matchFilter;
+      const matchCategory = categoryFilter === "all" || p.category_id === categoryFilter;
+      return matchSearch && matchFilter && matchCategory;
     })
     .sort((a, b) => {
       switch (sortKey) {
@@ -525,11 +614,7 @@ export default function ProductosPage() {
 
   /* ── Open / close form ── */
   function openCreate() {
-    setEditId(null);
-    origImagesRef.current = [];
-    setFormImages([]);
-    setForm({ ...EMPTY_FORM });
-    setShowForm(true);
+    setShowWizard(true);
   }
 
   function openEdit(p: Product) {
@@ -540,6 +625,17 @@ export default function ProductosPage() {
       a.is_primary === b.is_primary ? 0 : a.is_primary ? -1 : 1
     );
     setFormImages(sorted.map((img) => ({ id: img.id, url: img.url })));
+    origVariantsRef.current = p.variants;
+    setFormVariants(
+      [...p.variants].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).map((v) => ({
+        key: v.id,
+        id: v.id,
+        label: v.label,
+        sku: v.sku ?? "",
+        price_cents: v.price_cents != null ? String(v.price_cents / 100) : "",
+        stock: v.stock != null ? String(v.stock) : "",
+      }))
+    );
     setForm({
       name: p.name,
       description: p.description ?? "",
@@ -547,6 +643,7 @@ export default function ProductosPage() {
       compare_price: p.compare_price ? String(p.compare_price / 100) : "",
       sale_ends_at: toDatetimeLocal(p.sale_ends_at),
       stock: p.stock != null ? String(p.stock) : "",
+      sku: p.sku ?? "",
       category_id: p.category_id ?? "",
       is_featured: p.is_featured,
       is_published: p.status === "active",
@@ -557,6 +654,7 @@ export default function ProductosPage() {
   /* ── Save ── */
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
+    if (!editId) return; // este formulario ahora solo edita — crear pasa por el wizard
     if (!form.name.trim()) { toast.error("El nombre es requerido"); return; }
     const price = parseFloat(form.price_cents);
     if (!price || price <= 0) { toast.error("Precio inválido"); return; }
@@ -578,43 +676,54 @@ export default function ProductosPage() {
         // null explicito (no undefined) para que se pueda borrar la fecha ya puesta
         sale_ends_at: form.sale_ends_at ? new Date(form.sale_ends_at).toISOString() : null,
         stock: form.stock !== "" ? parseInt(form.stock) : undefined,
+        sku: form.sku.trim() || undefined,
         category_id: form.category_id || undefined,
         is_featured: form.is_featured,
         status: form.is_published ? "active" : "inactive",
       };
 
-      if (editId) {
-        /* ── Editar ── */
-        await apiClient.patch(`/products/${editId}`, payload);
+      await apiClient.patch(`/products/${editId}`, payload);
 
-        /* Borrar todas las imágenes originales del servidor */
-        await Promise.allSettled(
-          origImagesRef.current.map((img) =>
-            apiClient.delete(`/products/${editId}/images/${img.id}`)
-          )
-        );
+      /* Borrar todas las imágenes originales del servidor */
+      await Promise.allSettled(
+        origImagesRef.current.map((img) =>
+          apiClient.delete(`/products/${editId}/images/${img.id}`)
+        )
+      );
 
-        /* Re-publicar todas las imágenes en el orden actual */
-        for (let i = 0; i < formImages.length; i++) {
-          await apiClient.post(`/products/${editId}/images`, {
-            url: formImages[i].url,
-            is_primary: i === 0,
-          });
-        }
-
-        toast.success("Producto actualizado ✓");
-      } else {
-        /* ── Crear ── */
-        const { data } = await apiClient.post("/products/", payload);
-        for (let i = 0; i < formImages.length; i++) {
-          await apiClient.post(`/products/${data.id}/images`, {
-            url: formImages[i].url,
-            is_primary: i === 0,
-          });
-        }
-        toast.success(form.is_published ? "Producto creado y publicado ✓" : "Producto guardado como borrador ✓");
+      /* Re-publicar todas las imágenes en el orden actual */
+      for (let i = 0; i < formImages.length; i++) {
+        await apiClient.post(`/products/${editId}/images`, {
+          url: formImages[i].url,
+          is_primary: i === 0,
+        });
       }
 
+      /* Variantes: diff real (no wholesale-replace como las imágenes) — sus
+         ids quedan referenciados por OrderItem.variant_id en pedidos
+         históricos, recrearlas huerfanaría esa referencia sin necesidad. */
+      const keepVariants = formVariants.filter((v) => v.label.trim());
+      const toDeleteVariants = origVariantsRef.current.filter(
+        (o) => !keepVariants.some((k) => k.id === o.id)
+      );
+      await Promise.allSettled(
+        toDeleteVariants.map((v) => apiClient.delete(`/products/${editId}/variants/${v.id}`))
+      );
+      for (const v of keepVariants) {
+        const body = {
+          label: v.label.trim(),
+          sku: v.sku.trim() || null,
+          price_cents: v.price_cents ? Math.round(parseFloat(v.price_cents) * 100) : null,
+          stock: v.stock !== "" ? parseInt(v.stock) : null,
+        };
+        if (v.id) {
+          await apiClient.patch(`/products/${editId}/variants/${v.id}`, body);
+        } else {
+          await apiClient.post(`/products/${editId}/variants`, body);
+        }
+      }
+
+      toast.success("Producto actualizado ✓");
       setShowForm(false);
       fetchAll();
     } catch (err: any) {
@@ -634,9 +743,9 @@ export default function ProductosPage() {
     } catch { toast.error("Error al actualizar"); }
   }
 
-  /* ── Delete ── */
+  /* ── Delete (la confirmación ya se resolvió antes de llegar acá — en el
+     menú del producto o en el modal de eliminación masiva) ── */
   async function deleteProduct(id: string) {
-    if (!confirm("¿Eliminar este producto? Esta acción no se puede deshacer.")) return;
     try {
       await apiClient.delete(`/products/${id}`);
       setProducts((prev) => prev.filter((p) => p.id !== id));
@@ -678,9 +787,6 @@ export default function ProductosPage() {
     extra?: { percent?: number; stockDelta?: number }
   ) {
     if (selectedIds.size === 0) return;
-    if (action === "delete" && !confirm(`¿Eliminar ${selectedIds.size} producto(s)? Esta acción no se puede deshacer.`)) {
-      return;
-    }
     setBulkBusy(true);
     try {
       const body: Record<string, any> = {
@@ -819,6 +925,37 @@ export default function ProductosPage() {
           </div>
         </div>
 
+        {/* Filtro por categoría */}
+        {categories.length > 0 && (
+          <div className="flex gap-1.5 overflow-x-auto mt-2 pb-0.5" style={{ scrollbarWidth: "none" }}>
+            <button
+              onClick={() => setCategoryFilter("all")}
+              className="px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap flex-shrink-0 transition-all"
+              style={{
+                background: categoryFilter === "all" ? "var(--accent-soft)" : "var(--surface)",
+                color: categoryFilter === "all" ? "var(--accent-ink)" : "var(--ink-3)",
+                border: `1.5px solid ${categoryFilter === "all" ? "var(--accent)" : "var(--line-2)"}`,
+              }}
+            >
+              Todas las categorías
+            </button>
+            {categories.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => setCategoryFilter(c.id)}
+                className="px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap flex-shrink-0 transition-all"
+                style={{
+                  background: categoryFilter === c.id ? "var(--accent-soft)" : "var(--surface)",
+                  color: categoryFilter === c.id ? "var(--accent-ink)" : "var(--ink-3)",
+                  border: `1.5px solid ${categoryFilter === c.id ? "var(--accent)" : "var(--line-2)"}`,
+                }}
+              >
+                {c.icon ? `${c.icon} ` : ""}{c.name}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Orden */}
         <div className="mt-2">
           <div className="relative inline-block">
@@ -907,7 +1044,39 @@ export default function ProductosPage() {
       </div>
 
       {/* ══════════════════════════════════════
-          BOTTOM SHEET FORM
+          WIZARD DE CREACIÓN (producto nuevo)
+      ══════════════════════════════════════ */}
+      {showWizard && (
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            style={{ background: "rgba(20,19,15,.5)", backdropFilter: "blur(2px)" }}
+            onClick={() => setShowWizard(false)}
+          />
+          <div
+            className="fixed bottom-0 left-0 right-0 z-50 animate-fade-up rounded-t-[28px] lg:inset-0 lg:bottom-auto lg:m-auto lg:h-fit lg:max-h-[85vh] lg:w-[560px] lg:rounded-[24px]"
+            style={{
+              background: "var(--surface)",
+              boxShadow: "var(--shadow-float)",
+              maxHeight: "94dvh",
+              overflowY: "auto",
+            }}
+          >
+            <div className="flex justify-center pt-3 pb-2 lg:hidden">
+              <div className="w-10 h-1 rounded-full" style={{ background: "var(--ink-4)" }} />
+            </div>
+            <ProductCreationWizard
+              categories={categories}
+              onCategoryCreated={(c) => setCategories((prev) => [...prev, c])}
+              onCreated={() => { setShowWizard(false); fetchAll(); }}
+              onCancel={() => setShowWizard(false)}
+            />
+          </div>
+        </>
+      )}
+
+      {/* ══════════════════════════════════════
+          BOTTOM SHEET FORM (edición)
       ══════════════════════════════════════ */}
       {showForm && (
         <>
@@ -941,10 +1110,10 @@ export default function ProductosPage() {
             >
               <div>
                 <h2 className="font-display font-extrabold text-lg" style={{ color: "var(--ink)" }}>
-                  {editId ? "Editar producto" : "Nuevo producto"}
+                  Editar producto
                 </h2>
                 <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
-                  {editId ? "Actualiza la información" : "Completa los datos del producto"}
+                  Actualiza la información
                 </p>
               </div>
               <button
@@ -1128,6 +1297,59 @@ export default function ProductosPage() {
                 </Field>
               </div>
 
+              <Field label="SKU (opcional)">
+                <input
+                  className="input"
+                  placeholder="Código interno"
+                  value={form.sku}
+                  onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))}
+                />
+              </Field>
+
+              {/* Variantes */}
+              <div>
+                <label className="field-label">
+                  Variantes
+                  <span className="ml-1 font-normal" style={{ color: "var(--ink-3)" }}>(opcional)</span>
+                </label>
+                <div className="space-y-2 mt-1.5">
+                  {formVariants.map((v) => (
+                    <div key={v.key} className="rounded-2xl p-3 space-y-2" style={{ border: "1px solid var(--line-2)" }}>
+                      <div className="flex items-center gap-2">
+                        <input
+                          className="input flex-1"
+                          placeholder="Ej: Talla M - Azul"
+                          value={v.label}
+                          onChange={(e) => setFormVariants((prev) => prev.map((x) => x.key === v.key ? { ...x, label: e.target.value } : x))}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setFormVariants((prev) => prev.filter((x) => x.key !== v.key))}
+                          className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                          style={{ background: "var(--danger-soft)" }}
+                          aria-label="Quitar variante"
+                        >
+                          <Trash2 size={14} style={{ color: "var(--danger)" }} />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <input className="input text-xs" placeholder="SKU" value={v.sku} onChange={(e) => setFormVariants((prev) => prev.map((x) => x.key === v.key ? { ...x, sku: e.target.value } : x))} />
+                        <input className="input text-xs" type="number" step="0.10" placeholder="Precio" value={v.price_cents} onChange={(e) => setFormVariants((prev) => prev.map((x) => x.key === v.key ? { ...x, price_cents: e.target.value } : x))} />
+                        <input className="input text-xs" type="number" min="0" placeholder="Stock" value={v.stock} onChange={(e) => setFormVariants((prev) => prev.map((x) => x.key === v.key ? { ...x, stock: e.target.value } : x))} />
+                      </div>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setFormVariants((prev) => [...prev, emptyVariantRow()])}
+                    className="flex items-center justify-center gap-1.5 w-full rounded-xl text-sm font-bold py-3"
+                    style={{ background: "var(--surface-2)", color: "var(--ink-2)", border: "1.5px dashed var(--line-2)" }}
+                  >
+                    <Plus size={15} /> Agregar variante
+                  </button>
+                </div>
+              </div>
+
               {/* Toggles */}
               <div style={{ borderTop: "1px solid var(--line)" }}>
                 <Toggle
@@ -1178,7 +1400,7 @@ export default function ProductosPage() {
                     </svg>
                     Guardando...
                   </span>
-                ) : editId ? "Guardar cambios" : form.is_published ? "Crear y publicar" : "Guardar como borrador"}
+                ) : "Guardar cambios"}
               </button>
 
             </form>
@@ -1232,7 +1454,7 @@ export default function ProductosPage() {
                 <PackagePlus size={13} /> Stock
               </button>
               <button
-                onClick={() => runBulkAction("delete")}
+                onClick={() => setShowBulkDeleteConfirm(true)}
                 disabled={bulkBusy}
                 className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap flex-shrink-0"
                 style={{ background: "var(--danger-soft)", color: "var(--danger)", border: "1.5px solid var(--line-2)" }}
@@ -1355,6 +1577,47 @@ export default function ProductosPage() {
                 style={{ padding: "12px" }}
               >
                 {bulkBusy ? "Aplicando..." : "Aplicar"}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ══════════════════════════════════════
+          MODAL: CONFIRMAR ELIMINACIÓN MASIVA
+      ══════════════════════════════════════ */}
+      {showBulkDeleteConfirm && (
+        <>
+          <div
+            className="fixed inset-0 z-[60]"
+            style={{ background: "rgba(20,19,15,.5)", backdropFilter: "blur(2px)" }}
+            onClick={() => setShowBulkDeleteConfirm(false)}
+          />
+          <div
+            className="fixed z-[70] left-1/2 top-1/2 w-[90vw] max-w-sm rounded-[24px] p-5"
+            style={{ background: "var(--surface)", boxShadow: "var(--shadow-float)", transform: "translate(-50%,-50%)" }}
+          >
+            <h3 className="font-display font-extrabold text-base mb-1" style={{ color: "var(--ink)" }}>
+              ¿Eliminar {selectedIds.size} producto{selectedIds.size !== 1 ? "s" : ""}?
+            </h3>
+            <p className="text-xs mb-4" style={{ color: "var(--ink-3)" }}>
+              Esta acción no se puede deshacer.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowBulkDeleteConfirm(false)}
+                className="flex-1 rounded-xl py-3 text-sm font-bold"
+                style={{ background: "var(--surface-2)", color: "var(--ink-2)", border: "1.5px solid var(--line-2)" }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => { setShowBulkDeleteConfirm(false); runBulkAction("delete"); }}
+                disabled={bulkBusy}
+                className="flex-1 rounded-xl py-3 text-sm font-bold text-white disabled:opacity-60"
+                style={{ background: "var(--danger)" }}
+              >
+                {bulkBusy ? "Eliminando..." : "Eliminar"}
               </button>
             </div>
           </div>

@@ -134,6 +134,7 @@ export function StoreCreationWizard({ onCreated }: { onCreated: (redirectTo: str
         facebook: form.facebook.trim() || undefined,
         primary_color: form.primary_color,
         theme: form.theme,
+        sells: form.sells || "sin_especificar",
       });
       // accept_pickup/pickup_instructions viven en StoreSettings, no en
       // Store — POST /stores/ ya crea el settings por defecto (apagado),

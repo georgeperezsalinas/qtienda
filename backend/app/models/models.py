@@ -118,6 +118,10 @@ class Store(Base):
     # Departamento fijo del Mall (moda/belleza/hogar/...) — distinto de las
     # categorías internas de productos, que siguen siendo libres por tienda.
     mall_category: Mapped[Optional[str]] = mapped_column(String(20))
+    # Qué vende el negocio (productos/servicios/ambos) — captado en el
+    # wizard de creación de tienda, usado para personalizar la navegación
+    # del panel (ej: ocultar Servicios/Citas si solo vende productos).
+    sells: Mapped[str]              = mapped_column(String(20), default="sin_especificar")
     status: Mapped[str]             = mapped_column(
         Enum("pending", "active", "suspended", "banned", name="store_status", create_type=False),
         default="pending",
@@ -253,6 +257,7 @@ class Product(Base):
     store: Mapped["Store"]           = relationship(back_populates="products")
     category: Mapped[Optional["Category"]] = relationship(back_populates="products")
     images: Mapped[List["ProductImage"]] = relationship(back_populates="product", cascade="all, delete-orphan", order_by="ProductImage.sort_order")
+    variants: Mapped[List["ProductVariant"]] = relationship(back_populates="product", cascade="all, delete-orphan", order_by="ProductVariant.sort_order")
 
 
 class ProductImage(Base):
@@ -267,6 +272,24 @@ class ProductImage(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     product: Mapped["Product"] = relationship(back_populates="images")
+
+
+class ProductVariant(Base):
+    __tablename__ = "product_variants"
+
+    id: Mapped[uuid.UUID]         = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    product_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("products.id", ondelete="CASCADE"))
+    label: Mapped[str]            = mapped_column(String(120))
+    sku: Mapped[Optional[str]]    = mapped_column(String(80))
+    # NULL = hereda products.price_cents / stock ilimitado — mismo
+    # significado que sus contrapartes a nivel producto.
+    price_cents: Mapped[Optional[int]] = mapped_column(Integer)
+    stock: Mapped[Optional[int]]  = mapped_column(Integer)
+    sort_order: Mapped[int]       = mapped_column(SmallInteger, default=0)
+    created_at: Mapped[datetime]  = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime]  = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    product: Mapped["Product"] = relationship(back_populates="variants")
 
 
 # ── Orders ────────────────────────────────────────────────────
@@ -338,6 +361,12 @@ class OrderItem(Base):
     product_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("products.id", ondelete="SET NULL"))
     product_name: Mapped[str]       = mapped_column(String(200))
     product_sku: Mapped[Optional[str]] = mapped_column(String(80))
+    # Variante elegida al comprar — snapshot igual que product_name/product_sku:
+    # el id apunta a la variante viva (puede borrarse), la etiqueta/sku quedan
+    # copiadas para que el pedido histórico no dependa de que siga existiendo.
+    variant_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("product_variants.id", ondelete="SET NULL"))
+    variant_label: Mapped[Optional[str]] = mapped_column(String(120))
+    variant_sku: Mapped[Optional[str]] = mapped_column(String(80))
     unit_price: Mapped[int]         = mapped_column(Integer)
     quantity: Mapped[int]           = mapped_column(Integer, default=1)
     subtotal: Mapped[int]           = mapped_column(Integer)
@@ -345,6 +374,7 @@ class OrderItem(Base):
 
     order: Mapped["Order"]   = relationship(back_populates="items")
     product: Mapped[Optional["Product"]] = relationship()
+    variant: Mapped[Optional["ProductVariant"]] = relationship()
 
 
 # ── Payments ──────────────────────────────────────────────────

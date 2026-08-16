@@ -335,7 +335,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
         source: "tiktok",
         coupon_code: couponApplied?.code || undefined,
         cart_session_id: getSessionId(),
-        items: items.map((i) => ({ product_id: i.id, quantity: i.quantity })),
+        items: items.map((i) => ({ product_id: i.id, variant_id: i.variant_id, quantity: i.quantity })),
       });
 
       setOrderResult(result.data);
@@ -506,7 +506,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                           )}
                           {items.map((item) => (
                             <div
-                              key={item.id}
+                              key={`${item.id}:${item.variant_id ?? ""}`}
                               className="flex items-center gap-3 p-3 rounded-2xl"
                               style={{ background: "var(--bg)", border: "1px solid var(--line)" }}
                             >
@@ -529,6 +529,11 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                                 <p className="text-sm font-bold leading-tight line-clamp-2" style={{ color: "var(--ink)" }}>
                                   {item.name}
                                 </p>
+                                {item.variant_label && (
+                                  <p className="text-[11px] mt-0.5" style={{ color: "var(--ink-3)" }}>
+                                    {item.variant_label}
+                                  </p>
+                                )}
                                 <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
                                   {formatPrice(item.price_cents, currency, locale)} c/u
                                 </p>
@@ -543,7 +548,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                                 style={{ background: "var(--surface)", border: "1.5px solid var(--line-2)" }}
                               >
                                 <button
-                                  onClick={() => item.quantity === 1 ? removeItem(item.id) : updateQty(item.id, item.quantity - 1)}
+                                  onClick={() => item.quantity === 1 ? removeItem(item.id, item.variant_id) : updateQty(item.id, item.quantity - 1, item.variant_id)}
                                   className="w-7 h-7 rounded-lg flex items-center justify-center transition-all active:scale-90"
                                   style={{ background: item.quantity === 1 ? "var(--danger-soft)" : "var(--surface-2)" }}
                                 >
@@ -553,7 +558,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                                   {item.quantity}
                                 </span>
                                 <button
-                                  onClick={() => updateQty(item.id, item.quantity + 1)}
+                                  onClick={() => updateQty(item.id, item.quantity + 1, item.variant_id)}
                                   className="w-7 h-7 rounded-lg flex items-center justify-center transition-all active:scale-90 text-white"
                                   style={{ background: color }}
                                 >
@@ -811,9 +816,10 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                         </p>
                         <div className="space-y-1.5">
                           {items.map((item) => (
-                            <div key={item.id} className="flex items-center justify-between gap-2 text-xs">
+                            <div key={`${item.id}:${item.variant_id ?? ""}`} className="flex items-center justify-between gap-2 text-xs">
                               <span className="truncate" style={{ color: "var(--ink-2)" }}>
                                 {item.quantity}× {item.name}
+                                {item.variant_label && <span style={{ color: "var(--ink-3)" }}> ({item.variant_label})</span>}
                               </span>
                               <span className="flex-shrink-0 font-semibold" style={{ color: "var(--ink)" }}>
                                 {formatPrice(item.price_cents * item.quantity, currency, locale)}

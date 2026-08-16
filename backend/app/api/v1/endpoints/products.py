@@ -13,8 +13,8 @@ from sqlalchemy.orm import selectinload
 from app.db.session import get_db
 from app.core.config import settings
 from app.core.security import require_vendor
-from app.models.models import Category, Order, OrderItem, Plan, Product, ProductImage, Store, Subscription
-from app.schemas.auth import ProductCreate, ProductUpdate
+from app.models.models import Category, Order, OrderItem, Plan, Product, ProductImage, ProductVariant, Store, Subscription
+from app.schemas.auth import ProductCreate, ProductUpdate, ProductVariantIn, ProductVariantUpdate
 from app.services.referrals import referral_bonus
 
 router = APIRouter()
@@ -50,6 +50,17 @@ def _serialize(p: Product) -> dict:
                 "sort_order": img.sort_order,
             }
             for img in p.images
+        ],
+        "variants": [
+            {
+                "id": v.id,
+                "label": v.label,
+                "sku": v.sku,
+                "price_cents": v.price_cents,
+                "stock": v.stock,
+                "sort_order": v.sort_order,
+            }
+            for v in p.variants
         ],
         "created_at": p.created_at,
         "updated_at": p.updated_at,
@@ -105,7 +116,7 @@ async def list_products(
 
     result = await db.execute(
         select(Product)
-        .options(selectinload(Product.images))
+        .options(selectinload(Product.images), selectinload(Product.variants))
         .where(and_(*filters))
         .order_by(Product.sort_order, Product.created_at.desc())
         .offset((page - 1) * limit)
@@ -231,7 +242,7 @@ async def create_product(
         asyncio.ensure_future(emit_event(str(store.id), event_type))
 
     result = await db.execute(
-        select(Product).options(selectinload(Product.images)).where(Product.id == product.id)
+        select(Product).options(selectinload(Product.images), selectinload(Product.variants)).where(Product.id == product.id)
     )
     return _serialize(result.scalar_one())
 
@@ -245,7 +256,7 @@ async def get_product(
     store = await _get_store(current_user, db)
     result = await db.execute(
         select(Product)
-        .options(selectinload(Product.images))
+        .options(selectinload(Product.images), selectinload(Product.variants))
         .where(
             Product.id == product_id,
             Product.store_id == store.id,
@@ -268,7 +279,7 @@ async def update_product(
     store = await _get_store(current_user, db)
     result = await db.execute(
         select(Product)
-        .options(selectinload(Product.images))
+        .options(selectinload(Product.images), selectinload(Product.variants))
         .where(
             Product.id == product_id,
             Product.store_id == store.id,
@@ -311,7 +322,7 @@ async def update_product(
     await db.commit()
 
     result2 = await db.execute(
-        select(Product).options(selectinload(Product.images)).where(Product.id == product.id)
+        select(Product).options(selectinload(Product.images), selectinload(Product.variants)).where(Product.id == product.id)
     )
     return _serialize(result2.scalar_one())
 
@@ -350,7 +361,7 @@ async def duplicate_product(
 
     result = await db.execute(
         select(Product)
-        .options(selectinload(Product.images))
+        .options(selectinload(Product.images), selectinload(Product.variants))
         .where(
             Product.id == product_id,
             Product.store_id == store.id,
@@ -391,14 +402,27 @@ async def duplicate_product(
             is_primary=img.is_primary,
         ))
 
+    for v in original.variants:
+        db.add(ProductVariant(
+            product_id=clone.id,
+            label=v.label,
+            sku=None,  # mismo criterio que el sku a nivel producto: se resetea en la copia
+            price_cents=v.price_cents,
+            stock=v.stock,
+            sort_order=v.sort_order,
+        ))
+
     await db.commit()
 
     result2 = await db.execute(
-        select(Product).options(selectinload(Product.images)).where(Product.id == clone.id)
+        select(Product).options(selectinload(Product.images), selectinload(Product.variants)).where(Product.id == clone.id)
     )
     return _serialize(result2.scalar_one())
 
 
+# Estas acciones operan solo a nivel producto — el stock/precio de las
+# variantes (si el producto tiene) no se toca acá. Ajustar variantes en
+# lote no está soportado en esta iteración; hacerlo fila por fila.
 class BulkActionRequest(BaseModel):
     product_ids: list[UUID]
     action: Literal["activate", "deactivate", "delete", "discount_percent", "adjust_stock"]
@@ -526,4 +550,121 @@ async def delete_product_image(
     if not image:
         raise HTTPException(status_code=404, detail="Imagen no encontrada")
     await db.delete(image)
+    await db.commit()
+
+
+async def _get_owned_product(product_id: UUID, store: Store, db: AsyncSession) -> Product:
+    result = await db.execute(
+        select(Product).where(
+            Product.id == product_id,
+            Product.store_id == store.id,
+            Product.deleted_at.is_(None),
+        )
+    )
+    product = result.scalar_one_or_none()
+    if not product:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+    return product
+
+
+def _serialize_variant(v: ProductVariant) -> dict:
+    return {
+        "id": v.id,
+        "label": v.label,
+        "sku": v.sku,
+        "price_cents": v.price_cents,
+        "stock": v.stock,
+        "sort_order": v.sort_order,
+    }
+
+
+@router.get("/{product_id}/variants")
+async def list_product_variants(
+    product_id: UUID,
+    current_user=Depends(require_vendor),
+    db: AsyncSession = Depends(get_db),
+):
+    store = await _get_store(current_user, db)
+    await _get_owned_product(product_id, store, db)
+    result = await db.execute(
+        select(ProductVariant)
+        .where(ProductVariant.product_id == product_id)
+        .order_by(ProductVariant.sort_order)
+    )
+    return [_serialize_variant(v) for v in result.scalars().all()]
+
+
+@router.post("/{product_id}/variants", status_code=201)
+async def add_product_variant(
+    product_id: UUID,
+    payload: ProductVariantIn,
+    current_user=Depends(require_vendor),
+    db: AsyncSession = Depends(get_db),
+):
+    store = await _get_store(current_user, db)
+    await _get_owned_product(product_id, store, db)
+
+    variant = ProductVariant(
+        product_id=product_id,
+        label=payload.label,
+        sku=payload.sku,
+        price_cents=payload.price_cents,
+        stock=payload.stock,
+        sort_order=payload.sort_order,
+    )
+    db.add(variant)
+    await db.commit()
+    await db.refresh(variant)
+    return _serialize_variant(variant)
+
+
+@router.patch("/{product_id}/variants/{variant_id}")
+async def update_product_variant(
+    product_id: UUID,
+    variant_id: UUID,
+    payload: ProductVariantUpdate,
+    current_user=Depends(require_vendor),
+    db: AsyncSession = Depends(get_db),
+):
+    store = await _get_store(current_user, db)
+    await _get_owned_product(product_id, store, db)
+
+    result = await db.execute(
+        select(ProductVariant).where(
+            ProductVariant.id == variant_id,
+            ProductVariant.product_id == product_id,
+        )
+    )
+    variant = result.scalar_one_or_none()
+    if not variant:
+        raise HTTPException(status_code=404, detail="Variante no encontrada")
+
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(variant, field, value)
+
+    await db.commit()
+    await db.refresh(variant)
+    return _serialize_variant(variant)
+
+
+@router.delete("/{product_id}/variants/{variant_id}", status_code=204)
+async def delete_product_variant(
+    product_id: UUID,
+    variant_id: UUID,
+    current_user=Depends(require_vendor),
+    db: AsyncSession = Depends(get_db),
+):
+    store = await _get_store(current_user, db)
+    await _get_owned_product(product_id, store, db)
+
+    result = await db.execute(
+        select(ProductVariant).where(
+            ProductVariant.id == variant_id,
+            ProductVariant.product_id == product_id,
+        )
+    )
+    variant = result.scalar_one_or_none()
+    if not variant:
+        raise HTTPException(status_code=404, detail="Variante no encontrada")
+    await db.delete(variant)
     await db.commit()

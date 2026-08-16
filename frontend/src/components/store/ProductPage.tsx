@@ -37,6 +37,7 @@ interface FullProduct {
   sold_count?: number;
   created_at?: string;
   images: { url: string; is_primary: boolean }[];
+  variants?: { id: string; label: string; sku?: string; price_cents?: number; stock?: number }[];
 }
 
 interface StoreLite {
@@ -77,18 +78,27 @@ export default function ProductPage({
   const [zoomOpen, setZoomOpen] = useState(false);
   const [viewers, setViewers] = useState(0);
   const [qty, setQty] = useState(1);
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(() => {
+    const firstAvailable = product.variants?.find((v) => v.stock == null || v.stock > 0);
+    return firstAvailable?.id ?? product.variants?.[0]?.id ?? null;
+  });
   const touchStartX = useRef(0);
+
+  const hasVariants = (product.variants?.length ?? 0) > 0;
+  const selectedVariant = product.variants?.find((v) => v.id === selectedVariantId) ?? null;
+  const effectiveStock = selectedVariant ? selectedVariant.stock : product.stock;
+  const effectivePrice = selectedVariant?.price_cents ?? product.price_cents;
 
   const primaryImage =
     product.images.find((i) => i.is_primary)?.url ?? product.images[0]?.url ?? "";
   const outOfStock =
-    product.stock !== null && product.stock !== undefined && product.stock <= 0;
+    effectiveStock !== null && effectiveStock !== undefined && effectiveStock <= 0;
   const lowStock =
-    product.stock !== null && product.stock !== undefined && product.stock > 0 && product.stock <= 3;
+    effectiveStock !== null && effectiveStock !== undefined && effectiveStock > 0 && effectiveStock <= 3;
   const discount = product.compare_price
-    ? Math.round((1 - product.price_cents / product.compare_price) * 100)
+    ? Math.round((1 - effectivePrice / product.compare_price) * 100)
     : null;
-  const maxQty = product.stock && product.stock > 0 ? product.stock : 99;
+  const maxQty = effectiveStock && effectiveStock > 0 ? effectiveStock : 99;
   const countdown = useSaleCountdown(product.sale_ends_at);
   const hasImages = product.images.length > 0;
   const hasDescription = !!product.description?.trim();
@@ -116,9 +126,10 @@ export default function ProductPage({
   }
 
   function handleAdd() {
-    if (outOfStock) return;
+    if (outOfStock || (hasVariants && !selectedVariantId)) return;
     addItem(
-      { id: product.id, name: displayName, price_cents: product.price_cents, image_url: primaryImage, quantity: qty },
+      { id: product.id, variant_id: selectedVariant?.id, variant_label: selectedVariant?.label,
+        name: displayName, price_cents: effectivePrice, image_url: primaryImage, quantity: qty },
       store.slug,
       qty,
     );
@@ -127,7 +138,7 @@ export default function ProductPage({
       product_id: i.id, name: i.name, qty: i.quantity, price_cents: i.price_cents,
     }));
     trackStoreEvent(store.slug, "add_to_cart", product.id, { cart_items: cartItems });
-    pixelAddToCart({ id: product.id, name: displayName, price_cents: product.price_cents }, qty, storeCurrency);
+    pixelAddToCart({ id: product.id, name: displayName, price_cents: effectivePrice }, qty, storeCurrency);
     toast.custom(
       (t) => (
         <div
@@ -274,7 +285,7 @@ export default function ProductPage({
 
           <div className="flex items-baseline gap-3 mt-2">
             <span className="font-display font-extrabold text-3xl" style={{ color }}>
-              {formatPrice(product.price_cents, storeCurrency, storeLocale)}
+              {formatPrice(effectivePrice, storeCurrency, storeLocale)}
             </span>
             {product.compare_price && (
               <span className="text-base line-through" style={{ color: "var(--ink-4)" }}>
@@ -288,6 +299,32 @@ export default function ProductPage({
             )}
           </div>
 
+          {hasVariants && (
+            <div className="flex flex-wrap gap-2 mt-3">
+              {product.variants!.map((v) => {
+                const disabled = v.stock != null && v.stock <= 0;
+                const active = v.id === selectedVariantId;
+                return (
+                  <button
+                    key={v.id}
+                    onClick={() => !disabled && setSelectedVariantId(v.id)}
+                    disabled={disabled}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-full transition-colors disabled:opacity-40"
+                    style={{
+                      border: `1.5px solid ${active ? color : "var(--line-2)"}`,
+                      background: active ? "var(--accent-soft)" : "transparent",
+                      color: active ? color : "var(--ink-2)",
+                    }}
+                  >
+                    {v.label}
+                    {v.price_cents != null && ` · ${formatPrice(v.price_cents, storeCurrency, storeLocale)}`}
+                    {disabled && " (agotado)"}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {viewers >= VIEWERS_THRESHOLD && (
             <p className="text-xs font-bold mt-2" style={{ color: "var(--accent-ink)" }}>🔥 {viewers} personas viendo esto ahora</p>
           )}
@@ -295,7 +332,7 @@ export default function ProductPage({
             <span className="inline-block mt-2 text-xs font-bold px-3 py-1 rounded-full" style={{ background: "var(--danger-soft)", color: "var(--danger)" }}>Agotado</span>
           )}
           {lowStock && (
-            <p className="text-xs font-bold mt-2" style={{ color: "var(--warn)" }}>⚡ Quedan solo {product.stock} unidades</p>
+            <p className="text-xs font-bold mt-2" style={{ color: "var(--warn)" }}>⚡ Quedan solo {effectiveStock} unidades</p>
           )}
 
           {hasDescription && (
@@ -352,11 +389,11 @@ export default function ProductPage({
           <motion.button
             whileTap={{ scale: 0.97 }}
             onClick={handleAdd}
-            disabled={outOfStock}
+            disabled={outOfStock || (hasVariants && !selectedVariantId)}
             className="flex-1 flex items-center justify-center gap-2.5 rounded-2xl py-4 font-display font-bold text-sm transition-colors"
             style={{ background: outOfStock ? "var(--line-2)" : color, color: outOfStock ? "var(--ink-3)" : "white", boxShadow: outOfStock ? "none" : `0 6px 20px ${color}44` }}
           >
-            {added ? (<><Check size={18} /> En el carrito</>) : outOfStock ? "Producto agotado" : (<><ShoppingCart size={18} /> Agregar · {formatPrice(product.price_cents * qty, storeCurrency, storeLocale)}</>)}
+            {added ? (<><Check size={18} /> En el carrito</>) : outOfStock ? "Producto agotado" : hasVariants && !selectedVariantId ? "Elige una opción" : (<><ShoppingCart size={18} /> Agregar · {formatPrice(effectivePrice * qty, storeCurrency, storeLocale)}</>)}
           </motion.button>
         </div>
       </div>

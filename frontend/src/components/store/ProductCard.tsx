@@ -24,6 +24,7 @@ interface Props {
     sold_count?: number;
     created_at?: string;
     images: { url: string; is_primary: boolean }[];
+    variants?: { id: string; label: string; sku?: string; price_cents?: number; stock?: number }[];
   };
   storeColor: string;
   storeSlug: string;
@@ -91,6 +92,7 @@ export default function ProductCard({
   const primaryImage =
     product.images?.find((i) => i.is_primary)?.url || product.images?.[0]?.url;
 
+  const hasVariants = (product.variants?.length ?? 0) > 0;
   const outOfStock =
     product.stock !== null && product.stock !== undefined && product.stock <= 0;
   const lowStock =
@@ -156,6 +158,18 @@ export default function ProductCard({
       { duration: 2000 }
     );
     setTimeout(() => setAdded(false), 2000);
+  }
+
+  // Con variantes, el botón de "agregar rápido" no alcanza — el comprador
+  // tiene que elegir cuál antes de sumarla al carrito, así que abre el
+  // detalle en vez de agregar directo (mismo destino que tocar la tarjeta).
+  function handleAddClick(e: React.MouseEvent) {
+    if (hasVariants) {
+      e.stopPropagation();
+      onTap?.();
+      return;
+    }
+    handleAdd(e);
   }
 
   /* ── Featured card (horizontal carousel) ── */
@@ -235,7 +249,7 @@ export default function ProductCard({
               </div>
               <motion.button
                 whileTap={{ scale: 0.85 }}
-                onClick={handleAdd}
+                onClick={handleAddClick}
                 disabled={outOfStock}
                 className="w-8 h-8 lg:w-9 lg:h-9 rounded-full flex items-center justify-center text-white"
                 style={{ background: outOfStock ? "var(--ink-4)" : storeColor }}
@@ -332,7 +346,7 @@ export default function ProductCard({
         {/* Add to cart */}
         <motion.button
           whileTap={{ scale: 0.85 }}
-          onClick={handleAdd}
+          onClick={handleAddClick}
           disabled={outOfStock}
           className="flex-shrink-0 w-9 h-9 lg:w-10 lg:h-10 rounded-full flex items-center justify-center text-white transition-colors"
           style={{ background: outOfStock ? "var(--ink-4)" : storeColor }}
@@ -421,7 +435,7 @@ export default function ProductCard({
           </div>
           <motion.button
             whileTap={{ scale: 0.85 }}
-            onClick={handleAdd}
+            onClick={handleAddClick}
             disabled={outOfStock}
             className="flex-shrink-0 w-9 h-9 lg:w-10 lg:h-10 rounded-full flex items-center justify-center text-white"
             style={{ background: outOfStock ? "var(--ink-4)" : storeColor }}

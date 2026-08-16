@@ -3,18 +3,26 @@ import { persist } from "zustand/middleware";
 
 interface CartItem {
   id: string;
+  variant_id?: string;
+  variant_label?: string;
   name: string;
   price_cents: number;
   image_url: string;
   quantity: number;
 }
 
+// Identidad de una línea de carrito: mismo producto pero variante distinta
+// son líneas separadas (no deben mezclarse al sumar cantidad).
+function lineKey(i: { id: string; variant_id?: string }) {
+  return `${i.id}:${i.variant_id ?? ""}`;
+}
+
 interface CartStore {
   storeSlug: string | null;
   items: CartItem[];
   addItem: (item: CartItem, storeSlug: string, qty?: number) => void;
-  removeItem: (id: string) => void;
-  updateQty: (id: string, qty: number) => void;
+  removeItem: (id: string, variant_id?: string) => void;
+  updateQty: (id: string, qty: number, variant_id?: string) => void;
   clearCart: () => void;
   totalItems: () => number;
   totalCents: () => number;
@@ -32,12 +40,12 @@ export const useCartStore = create<CartStore>()(
           if (state.storeSlug !== null && state.storeSlug !== storeSlug) {
             return { storeSlug, items: [{ ...item, quantity: qty }] };
           }
-          const existing = state.items.find((i) => i.id === item.id);
+          const existing = state.items.find((i) => lineKey(i) === lineKey(item));
           if (existing) {
             return {
               storeSlug,
               items: state.items.map((i) =>
-                i.id === item.id ? { ...i, quantity: i.quantity + qty } : i
+                lineKey(i) === lineKey(item) ? { ...i, quantity: i.quantity + qty } : i
               ),
             };
           }
@@ -45,14 +53,18 @@ export const useCartStore = create<CartStore>()(
         });
       },
 
-      removeItem(id) {
-        set((state) => ({ items: state.items.filter((i) => i.id !== id) }));
+      removeItem(id, variant_id) {
+        set((state) => ({
+          items: state.items.filter((i) => lineKey(i) !== lineKey({ id, variant_id })),
+        }));
       },
 
-      updateQty(id, qty) {
-        if (qty < 1) return get().removeItem(id);
+      updateQty(id, qty, variant_id) {
+        if (qty < 1) return get().removeItem(id, variant_id);
         set((state) => ({
-          items: state.items.map((i) => (i.id === id ? { ...i, quantity: qty } : i)),
+          items: state.items.map((i) =>
+            lineKey(i) === lineKey({ id, variant_id }) ? { ...i, quantity: qty } : i
+          ),
         }));
       },
 

@@ -81,6 +81,7 @@ class StoreCreate(BaseModel):
     facebook: Optional[str] = None
     primary_color: Optional[str] = None
     theme: Optional[str] = None
+    sells: Optional[str] = None
 
     @field_validator("slug")
     @classmethod
@@ -132,6 +133,15 @@ class StoreCreate(BaseModel):
             raise ValueError("Tema inválido")
         return v
 
+    @field_validator("sells")
+    @classmethod
+    def valid_sells(cls, v):
+        if v is None:
+            return v
+        if v not in ("productos", "servicios", "ambos", "sin_especificar"):
+            raise ValueError("Valor inválido para sells")
+        return v
+
 
 class StoreUpdate(BaseModel):
     name: Optional[str] = None
@@ -151,6 +161,7 @@ class StoreUpdate(BaseModel):
     tiktok: Optional[str] = None
     facebook: Optional[str] = None
     mall_category: Optional[str] = None
+    sells: Optional[str] = None
 
     @field_validator("mall_category")
     @classmethod
@@ -160,6 +171,15 @@ class StoreUpdate(BaseModel):
         from app.core.mall_categories import MALL_CATEGORY_SLUGS
         if v not in MALL_CATEGORY_SLUGS:
             raise ValueError("Departamento inválido")
+        return v
+
+    @field_validator("sells")
+    @classmethod
+    def valid_sells(cls, v):
+        if v is None:
+            return v
+        if v not in ("productos", "servicios", "ambos", "sin_especificar"):
+            raise ValueError("Valor inválido para sells")
         return v
 
     @field_validator("instagram", "tiktok", "facebook")
@@ -322,6 +342,36 @@ class ProductUpdate(BaseModel):
     sort_order: Optional[int] = None
 
 
+class ProductVariantIn(BaseModel):
+    label: str
+    sku: Optional[str] = None
+    price_cents: Optional[int] = None
+    stock: Optional[int] = None
+    sort_order: int = 0
+
+    @field_validator("label")
+    @classmethod
+    def label_not_blank(cls, v):
+        if not v.strip():
+            raise ValueError("La etiqueta de la variante no puede estar vacía")
+        return v.strip()
+
+
+class ProductVariantUpdate(BaseModel):
+    label: Optional[str] = None
+    sku: Optional[str] = None
+    price_cents: Optional[int] = None
+    stock: Optional[int] = None
+    sort_order: Optional[int] = None
+
+    @field_validator("label")
+    @classmethod
+    def label_not_blank(cls, v):
+        if v is not None and not v.strip():
+            raise ValueError("La etiqueta de la variante no puede estar vacía")
+        return v.strip() if v is not None else v
+
+
 # ── Servicios con cita ───────────────────────────────────────────
 
 class ServiceCreate(BaseModel):
@@ -443,6 +493,7 @@ class AppointmentStatusUpdate(BaseModel):
 
 class OrderItemIn(BaseModel):
     product_id: UUID
+    variant_id: Optional[UUID] = None
     quantity: int
 
     @field_validator("quantity")

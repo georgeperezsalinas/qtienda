@@ -15,7 +15,7 @@ from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
 from app.core.security import require_vendor
-from app.models.models import Order, OrderItem, Product, Store, AuditLog
+from app.models.models import Order, OrderItem, Product, ProductVariant, Store, AuditLog
 from app.services.whatsapp import send_whatsapp_message
 
 
@@ -420,6 +420,8 @@ async def get_order(
                 "product_id": i.product_id,
                 "product_name": i.product_name,
                 "product_sku": i.product_sku,
+                "variant_label": i.variant_label,
+                "variant_sku": i.variant_sku,
                 "unit_price": i.unit_price,
                 "quantity": i.quantity,
                 "subtotal": i.subtotal,
@@ -483,13 +485,29 @@ async def update_order_status(
     # vendedor lo ve reflejado para ajustarlo a mano si hace falta).
     if new_status == "cancelled" or (old_status == "cancelled" and new_status == "pending"):
         product_ids = [i.product_id for i in order.items if i.product_id]
+        variant_ids = [i.variant_id for i in order.items if i.variant_id]
+        sign = 1 if new_status == "cancelled" else -1
+
+        products_by_id = {}
         if product_ids:
             products = (
                 await db.execute(select(Product).where(Product.id.in_(product_ids)).with_for_update())
             ).scalars().all()
             products_by_id = {p.id: p for p in products}
-            sign = 1 if new_status == "cancelled" else -1
-            for item in order.items:
+
+        variants_by_id = {}
+        if variant_ids:
+            variants = (
+                await db.execute(select(ProductVariant).where(ProductVariant.id.in_(variant_ids)).with_for_update())
+            ).scalars().all()
+            variants_by_id = {v.id: v for v in variants}
+
+        for item in order.items:
+            if item.variant_id:
+                variant = variants_by_id.get(item.variant_id)
+                if variant and variant.stock is not None:
+                    variant.stock += sign * item.quantity
+            else:
                 product = products_by_id.get(item.product_id)
                 if product and product.stock is not None:
                     product.stock += sign * item.quantity
