@@ -92,12 +92,12 @@ export function ImageUpload({
           borderRadius: 18,
           border: value
             ? "none"
-            : `2px dashed ${dragging ? "var(--brand-500)" : "#CBD5E1"}`,
+            : `2px dashed ${dragging ? "var(--accent)" : "var(--line-2)"}`,
           background: value
             ? "transparent"
             : dragging
-            ? "var(--brand-50)"
-            : "var(--surface-1)",
+            ? "var(--accent-soft)"
+            : "var(--bg)",
           boxShadow: value ? "var(--shadow-md)" : "none",
         }}
         onClick={() => !uploading && inputRef.current?.click()}
@@ -162,17 +162,17 @@ export function ImageUpload({
                 {/* Progress ring */}
                 <div className="relative w-10 h-10">
                   <svg className="animate-spin w-10 h-10" viewBox="0 0 40 40" fill="none">
-                    <circle cx="20" cy="20" r="16" stroke="#E2E8F0" strokeWidth="4" />
+                    <circle cx="20" cy="20" r="16" stroke="var(--line-2)" strokeWidth="4" />
                     <circle
                       cx="20" cy="20" r="16"
-                      stroke="var(--brand-600)"
+                      stroke="var(--ink)"
                       strokeWidth="4"
                       strokeLinecap="round"
                       strokeDasharray="60 40"
                     />
                   </svg>
                 </div>
-                <p className="text-xs font-semibold" style={{ color: "var(--brand-600)" }}>
+                <p className="text-xs font-semibold" style={{ color: "var(--ink)" }}>
                   Subiendo…
                 </p>
               </>
@@ -181,11 +181,11 @@ export function ImageUpload({
                 <div
                   className="w-12 h-12 rounded-2xl flex items-center justify-center mb-1"
                   style={{
-                    background: dragging ? "var(--brand-100)" : "var(--surface-0)",
-                    border:     `1.5px solid ${dragging ? "var(--brand-200)" : "#E2E8F0"}`,
+                    background: dragging ? "var(--accent-soft)" : "var(--surface)",
+                    border:     `1.5px solid ${dragging ? "var(--accent-soft)" : "var(--line-2)"}`,
                   }}
                 >
-                  <Upload size={20} style={{ color: dragging ? "var(--brand-600)" : "var(--ink-3)" }} />
+                  <Upload size={20} style={{ color: dragging ? "var(--ink)" : "var(--ink-3)" }} />
                 </div>
                 <p className="text-xs font-semibold" style={{ color: "var(--ink-2)" }}>
                   {dragging ? "Suelta aquí" : "Arrastra o haz clic"}

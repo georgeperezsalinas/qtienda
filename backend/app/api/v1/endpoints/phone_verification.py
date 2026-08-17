@@ -9,7 +9,7 @@ import random
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 import re
@@ -28,36 +28,39 @@ def _hash_code(code: str) -> str:
     return hashlib.sha256(code.encode()).hexdigest()
 
 
+def _clean_phone(v: str) -> str:
+    """Deja solo dígitos. Si el largo no tiene forma de teléfono real (muy
+    corto, o más largo que el máximo E.164 de 15 dígitos — ej. un número
+    duplicado por un bug de formato en el cliente), lanza HTTPException 400
+    en vez de dejar que un valor así llegue a insertarse: la columna
+    phone_verifications.phone es VARCHAR(20) y antes reventaba con un 500
+    crudo de Postgres (StringDataRightTruncation) en vez de un error
+    entendible para el comprador."""
+    cleaned = re.sub(r"\D", "", v)
+    if len(cleaned) < 7 or len(cleaned) > 15:
+        raise HTTPException(status_code=400, detail="Teléfono inválido")
+    return cleaned
+
+
 class SendCodeRequest(BaseModel):
     phone: str
-
-    @field_validator("phone")
-    @classmethod
-    def clean_phone(cls, v):
-        cleaned = re.sub(r"\D", "", v)
-        if len(cleaned) < 7:
-            raise ValueError("Teléfono inválido")
-        return cleaned
 
 
 class VerifyCodeRequest(BaseModel):
     phone: str
     code: str
 
-    @field_validator("phone")
-    @classmethod
-    def clean_phone(cls, v):
-        return re.sub(r"\D", "", v)
-
 
 @router.post("/send-code")
 @limiter.limit("5/hour")
 async def send_code(request: Request, payload: SendCodeRequest, db: AsyncSession = Depends(get_db)):
+    phone = _clean_phone(payload.phone)
+
     # Anti-spam por teléfono además del límite por IP de arriba — evita que
     # alguien detrás de otra IP siga bombardeando el mismo número.
     recent_count = (await db.execute(
         select(func.count()).select_from(PhoneVerification).where(
-            PhoneVerification.phone == payload.phone,
+            PhoneVerification.phone == phone,
             PhoneVerification.created_at >= datetime.now(timezone.utc) - timedelta(hours=1),
         )
     )).scalar()
@@ -66,7 +69,7 @@ async def send_code(request: Request, payload: SendCodeRequest, db: AsyncSession
 
     code = f"{random.randint(0, 999999):06d}"
     verification = PhoneVerification(
-        phone=payload.phone,
+        phone=phone,
         code_hash=_hash_code(code),
         expires_at=datetime.now(timezone.utc) + timedelta(minutes=settings.PHONE_CODE_EXPIRE_MINUTES),
     )
@@ -74,7 +77,7 @@ async def send_code(request: Request, payload: SendCodeRequest, db: AsyncSession
     await db.commit()
 
     sent = await send_whatsapp_message(
-        payload.phone,
+        phone,
         "🔐 *Verificación qtienda*\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n"
         f"Tu código es: *{code}*\n\n"
@@ -90,10 +93,11 @@ async def send_code(request: Request, payload: SendCodeRequest, db: AsyncSession
 @router.post("/verify-code")
 @limiter.limit("10/hour")
 async def verify_code(request: Request, payload: VerifyCodeRequest, db: AsyncSession = Depends(get_db)):
+    phone = _clean_phone(payload.phone)
     verification = (await db.execute(
         select(PhoneVerification)
         .where(
-            PhoneVerification.phone == payload.phone,
+            PhoneVerification.phone == phone,
             PhoneVerification.expires_at >= datetime.now(timezone.utc),
         )
         .order_by(PhoneVerification.created_at.desc())

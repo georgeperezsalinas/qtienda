@@ -263,7 +263,7 @@ function DailyChart({ data, loading, currency, locale }: { data: DailyPoint[]; l
                   borderRadius: 4,
                   background: isToday
                     ? "var(--ink)"
-                    : `var(--brand-${pct > 0.6 ? "400" : "200"})`,
+                    : pct > 0.6 ? "var(--accent)" : "var(--accent-soft)",
                   transition: "height 0.3s ease",
                 }}
               />

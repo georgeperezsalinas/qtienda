@@ -99,7 +99,7 @@ export function MultiImageUpload({ images, onChange, maxImages = 6, endpoint = "
             className="relative flex-shrink-0 w-20 h-20 rounded-2xl overflow-hidden"
             style={{
               border: i === 0
-                ? "2.5px solid var(--brand-500)"
+                ? "2.5px solid var(--accent)"
                 : "2px solid #E2E8F0",
               cursor: i === 0 ? "default" : "pointer",
             }}
@@ -112,7 +112,7 @@ export function MultiImageUpload({ images, onChange, maxImages = 6, endpoint = "
             {i === 0 && (
               <span
                 className="absolute top-1 left-1 w-5 h-5 rounded-full flex items-center justify-center"
-                style={{ background: "var(--brand-600)" }}
+                style={{ background: "var(--ink)" }}
               >
                 <Star size={10} fill="white" color="white" />
               </span>
@@ -160,7 +160,7 @@ export function MultiImageUpload({ images, onChange, maxImages = 6, endpoint = "
             className="flex-shrink-0 w-20 h-20 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all"
             style={{
               border: "2px dashed #CBD5E1",
-              background: "var(--surface-1)",
+              background: "var(--bg)",
               color: "var(--ink-3)",
             }}
           >
@@ -173,10 +173,10 @@ export function MultiImageUpload({ images, onChange, maxImages = 6, endpoint = "
         {uploading && (
           <div
             className="flex-shrink-0 w-20 h-20 rounded-2xl flex items-center justify-center"
-            style={{ border: "2px solid var(--brand-200)", background: "var(--brand-50)" }}
+            style={{ border: "2px solid var(--accent-soft)", background: "var(--accent-soft)" }}
           >
             <svg className="animate-spin w-6 h-6" viewBox="0 0 24 24" fill="none"
-                 stroke="var(--brand-600)" strokeWidth="2.5">
+                 stroke="var(--ink)" strokeWidth="2.5">
               <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4" />
             </svg>
           </div>

@@ -64,8 +64,8 @@ export function RichTextEditor({ value, onChange, placeholder }: Props) {
         title={title}
         className="w-8 h-7 rounded-lg flex items-center justify-center transition-colors"
         style={{
-          background: active ? "var(--brand-100)" : "transparent",
-          color: active ? "var(--brand-700)" : "var(--ink-2)",
+          background: active ? "var(--accent-soft)" : "transparent",
+          color: active ? "var(--ink)" : "var(--ink-2)",
         }}
       >
         {children}
@@ -76,13 +76,13 @@ export function RichTextEditor({ value, onChange, placeholder }: Props) {
   return (
     <div
       className="rounded-xl overflow-hidden"
-      style={{ border: "1.5px solid #E2E8F0", background: "var(--surface-0)" }}
+      style={{ border: "1.5px solid var(--line-2)", background: "var(--surface)" }}
       onClick={() => editor.commands.focus()}
     >
       {/* Toolbar */}
       <div
         className="flex items-center gap-0.5 px-2 py-1.5"
-        style={{ borderBottom: "1px solid #F1F5F9", background: "var(--surface-1)" }}
+        style={{ borderBottom: "1px solid var(--line)", background: "var(--bg)" }}
       >
         <Btn
           onClick={() => editor.chain().focus().toggleBold().run()}

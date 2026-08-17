@@ -66,7 +66,7 @@ function OrderCard({
   return (
     <div
       className="rounded-2xl overflow-hidden animate-fade-up"
-      style={{ background: "var(--surface-0)", border: "1.5px solid var(--line-2)", boxShadow: "var(--shadow-sm)" }}
+      style={{ background: "var(--surface)", border: "1.5px solid var(--line-2)", boxShadow: "var(--shadow-sm)" }}
     >
       {/* Header strip */}
       <div className="flex items-center justify-between px-4 py-2.5"
@@ -77,7 +77,7 @@ function OrderCard({
           </span>
           <span
             className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-            style={{ background: "var(--surface-0)", color: accentColor }}
+            style={{ background: "var(--surface)", color: accentColor }}
           >
             {isPreparing ? "Preparando" : "En camino"}
           </span>

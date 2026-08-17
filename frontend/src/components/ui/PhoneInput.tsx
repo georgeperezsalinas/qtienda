@@ -42,23 +42,38 @@ export default function PhoneInput({
 }: Props) {
   const [countryDial, setCountryDial] = useState("+51");
 
-  const localNumber = value.startsWith(countryDial)
-    ? value.slice(countryDial.length)
-    : value;
+  // Comparar solo dígitos (no el string tal cual): si "value" llegó sin el
+  // "+" (por ejemplo recuperado de localStorage de una versión vieja, o ya
+  // limpiado en otro lado), "value.startsWith(countryDial)" nunca matcheaba
+  // y el código de país quedaba pegado como si fuera parte del número local.
+  // Cada re-render volvía a anteponer el código de país sobre ese número ya
+  // "sucio", y el teléfono crecía sin límite hasta reventar el VARCHAR(20)
+  // de la base de datos en el checkout.
+  const dialDigits = countryDial.replace(/\D/g, "");
+  const valueDigits = value.replace(/\D/g, "");
+  const localNumber = valueDigits.startsWith(dialDigits)
+    ? valueDigits.slice(dialDigits.length)
+    : valueDigits;
 
   function handleCountryChange(newDial: string) {
-    const local = value.startsWith(countryDial) ? value.slice(countryDial.length) : value;
     setCountryDial(newDial);
-    onChange(newDial + local);
+    onChange(newDial + localNumber);
   }
 
   function handleNumberChange(num: string) {
-    const cleaned = num.replace(/[^\d\s\-]/g, "");
+    // Tope defensivo — ningún número real supera ~12 dígitos locales; sin
+    // esto, cualquier bug de concatenación futuro vuelve a crecer sin freno.
+    const cleaned = num.replace(/\D/g, "").slice(0, 12);
     onChange(countryDial + cleaned);
   }
 
-  const borderColor = hasError ? "var(--danger)" : "#E2E8F0";
-  const bg = hasError ? "#FFF5F5" : "var(--surface-1)";
+  // Tokens directos (--bg/--line-2), no los alias legacy --surface-0/1/2:
+  // esos quedan congelados en el valor de :root (claro) sin importar el
+  // tema o el modo oscuro activos — ver globals.css. Con ellos, este campo
+  // se veía siempre claro con texto blanco encima, aunque el resto del
+  // formulario sí cambiara de tema correctamente.
+  const borderColor = hasError ? "var(--danger)" : "var(--line-2)";
+  const bg = hasError ? "#FFF5F5" : "var(--bg)";
 
   return (
     <div
@@ -74,12 +89,12 @@ export default function PhoneInput({
         onChange={(e) => handleCountryChange(e.target.value)}
         className="flex-shrink-0 border-r bg-transparent focus:outline-none cursor-pointer font-medium"
         style={{
-          borderColor: hasError ? "var(--danger)" : "#E2E8F0",
+          borderColor: hasError ? "var(--danger)" : "var(--line-2)",
           padding: "13px 8px 13px 12px",
           color: "var(--ink)",
           fontFamily: "var(--font-dm)",
           minWidth: "88px",
-          background: "var(--surface-1)",
+          background: "var(--bg)",
         }}
       >
         {COUNTRIES.map((c) => (
@@ -96,7 +111,7 @@ export default function PhoneInput({
         value={localNumber}
         onChange={(e) => handleNumberChange(e.target.value)}
         autoComplete="tel-national"
-        className="flex-1 bg-transparent focus:outline-none placeholder-gray-400 focus-within:bg-[var(--surface-0)]"
+        className="flex-1 bg-transparent focus:outline-none placeholder-gray-400 focus-within:bg-[var(--surface)]"
         style={{
           padding: "13px 16px",
           color: "var(--ink)",

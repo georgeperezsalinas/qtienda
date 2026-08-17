@@ -167,9 +167,13 @@ export default function CartDrawer({ open, onClose, store }: Props) {
 
   const [form, setForm] = useState(() => {
     const saved = loadSavedBuyerInfo();
+    // Descarta un teléfono guardado antes del fix de PhoneInput que haya
+    // quedado duplicado (ver phoneVerification.ts) — mejor pedirlo de
+    // nuevo que arrastrar un valor roto que el backend va a rechazar.
+    const savedPhoneDigits = (saved.buyer_phone || "").replace(/\D/g, "");
     return {
       buyer_name: user?.full_name || saved.buyer_name || "",
-      buyer_phone: saved.buyer_phone || "",
+      buyer_phone: savedPhoneDigits.length <= 15 ? saved.buyer_phone || "" : "",
       buyer_dni: saved.buyer_dni || "",
       buyer_email: user?.email || saved.buyer_email || "",
       buyer_department: saved.buyer_department || "",

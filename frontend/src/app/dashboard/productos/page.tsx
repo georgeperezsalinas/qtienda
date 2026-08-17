@@ -176,7 +176,7 @@ function ProductCard({
       className="rounded-2xl flex items-center gap-3.5 p-3 transition-all active:scale-[.99]"
       style={{
         background: "var(--surface)",
-        border: `1.5px solid ${selected ? "var(--brand-600)" : "var(--line-2)"}`,
+        border: `1.5px solid ${selected ? "var(--ink)" : "var(--line-2)"}`,
         boxShadow: "var(--shadow-sm)",
         opacity: active ? 1 : 0.65,
         cursor: "pointer",
@@ -184,7 +184,7 @@ function ProductCard({
     >
       {/* Checkbox (modo selección) */}
       {selectMode && (
-        <div className="flex-shrink-0" style={{ color: selected ? "var(--brand-600)" : "var(--ink-4)" }}>
+        <div className="flex-shrink-0" style={{ color: selected ? "var(--ink)" : "var(--ink-4)" }}>
           {selected ? <CheckSquare size={20} /> : <Square size={20} />}
         </div>
       )}
@@ -246,7 +246,7 @@ function ProductCard({
               step="0.10"
               min="0.10"
               className="input py-0.5 px-1.5 text-sm font-bold"
-              style={{ width: 80, color: "var(--brand-600)" }}
+              style={{ width: 80, color: "var(--ink)" }}
               value={quickValue}
               onClick={(e) => e.stopPropagation()}
               onChange={(e) => setQuickValue(e.target.value)}
@@ -258,7 +258,7 @@ function ProductCard({
               type="button"
               onClick={(e) => startQuickEdit("price", e)}
               className="font-display font-bold text-sm flex items-center gap-1 rounded transition-colors"
-              style={{ color: "var(--brand-600)" }}
+              style={{ color: "var(--ink)" }}
               title="Click para editar el precio"
             >
               {formatPrice(product.price_cents, currency, locale)}
