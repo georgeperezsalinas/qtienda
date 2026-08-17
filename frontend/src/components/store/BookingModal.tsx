@@ -12,6 +12,7 @@ import { apiClient } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
 import PhoneVerifyStep from "./PhoneVerifyStep";
 import PhoneInput from "@/components/ui/PhoneInput";
+import { isPhoneRecentlyVerified, markPhoneVerified, clearPhoneVerified } from "@/lib/phoneVerification";
 
 interface Service {
   id: string;
@@ -88,6 +89,12 @@ export default function BookingModal({
       toast.error("Completa tu nombre, documento y teléfono");
       return;
     }
+    // Ya se verificó este teléfono hace poco (mismo dispositivo) — no
+    // tiene sentido pedirle otro código de WhatsApp.
+    if (isPhoneRecentlyVerified(phone.trim())) {
+      confirmBooking();
+      return;
+    }
     setStep("verify");
   }
 
@@ -107,12 +114,16 @@ export default function BookingModal({
       // Para mostrar "Ya reservaste" en la tarjeta del servicio sin tener que
       // volver a preguntarle nada — mismo espíritu que la ruleta (localStorage).
       localStorage.setItem(`qtienda_booked_${storeSlug}_${service.id}`, "1");
+      markPhoneVerified(phone.trim());
       setStep("done");
     } catch (err: any) {
       const detail: string = err.response?.data?.detail || "";
       if (detail.startsWith("PHONE_NOT_VERIFIED")) {
         // La verificación expiró justo en el medio — que la repita en vez
-        // de solo mostrarle un error genérico sin salida.
+        // de solo mostrarle un error genérico sin salida. Se limpia el
+        // caché local: si no, la próxima reserva se saltaría este paso
+        // creyendo que todavía está vigente.
+        clearPhoneVerified(phone.trim());
         toast.error("Tu verificación expiró, verifica tu teléfono de nuevo");
         setStep("verify");
       } else {

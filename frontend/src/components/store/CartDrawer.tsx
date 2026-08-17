@@ -19,6 +19,7 @@ import PhoneVerifyStep from "./PhoneVerifyStep";
 import { track } from "@vercel/analytics";
 import { pixelPurchase } from "@/lib/marketingPixels";
 import { getSessionId } from "@/lib/analyticsSession";
+import { isPhoneRecentlyVerified, markPhoneVerified, clearPhoneVerified } from "@/lib/phoneVerification";
 
 interface Props {
   open: boolean;
@@ -354,7 +355,10 @@ export default function CartDrawer({ open, onClose, store }: Props) {
       const detail: string = err.response?.data?.detail || "";
       if (detail.startsWith("PHONE_NOT_VERIFIED")) {
         // La verificación expiró justo en el medio — que la repita en vez
-        // de solo mostrarle un error genérico sin salida.
+        // de solo mostrarle un error genérico sin salida. Se limpia el
+        // caché local: si no, "Continuar" seguiría saltándose este paso
+        // creyendo que todavía está vigente.
+        clearPhoneVerified(form.buyer_phone.trim());
         toast.error("Tu verificación expiró, verifica tu teléfono de nuevo");
         go("verify");
       } else {
@@ -800,7 +804,10 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                         phone={form.buyer_phone.trim()}
                         accentColor={color}
                         onBack={() => go("info", -1)}
-                        onVerified={() => go("payment")}
+                        onVerified={() => {
+                          markPhoneVerified(form.buyer_phone.trim());
+                          go("payment");
+                        }}
                       />
                     </div>
                   )}
@@ -1180,7 +1187,11 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                       if (paymentOptions.length === 1 && !form.payment_method) {
                         setForm((f) => ({ ...f, payment_method: paymentOptions[0].value }));
                       }
-                      go("verify");
+                      // Ya se verificó este teléfono hace poco (en este
+                      // mismo dispositivo) — no tiene sentido pedirle otro
+                      // código de WhatsApp, y evita quemar el límite de
+                      // 3 códigos/hora en compras normales.
+                      go(isPhoneRecentlyVerified(form.buyer_phone.trim()) ? "payment" : "verify");
                     }}
                     className="w-full flex items-center justify-between rounded-2xl px-5 py-4 font-bold text-white text-sm transition-all active:scale-[.98]"
                     style={{ background: color, boxShadow: `0 4px 16px ${color}40` }}

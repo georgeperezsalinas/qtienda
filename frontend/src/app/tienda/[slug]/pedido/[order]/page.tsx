@@ -33,6 +33,7 @@ interface StoreInfo {
   whatsapp?: string;
   country?: string;
   currency?: string;
+  theme?: string | null;
 }
 
 const TIMELINE = [
@@ -98,7 +99,11 @@ export default function TrackOrderPage({ params }: Props) {
     : null;
 
   return (
-    <div className="min-h-dvh" style={{ background: "var(--bg)" }}>
+    <div
+      className="min-h-dvh"
+      data-theme={store?.theme || "clasico"}
+      style={{ background: "var(--bg)", color: "var(--ink)" }}
+    >
       {/* Franja de marca */}
       <div aria-hidden className="h-1" style={{ background: `linear-gradient(90deg, ${color}, ${color}66)` }} />
 
