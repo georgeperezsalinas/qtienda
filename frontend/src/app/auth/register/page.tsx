@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import Logo from "@/components/ui/Logo";
 import PhoneInput from "@/components/ui/PhoneInput";
+import ThemeToggle from "@/components/ui/ThemeToggle";
 import { Eye, EyeOff, ChevronLeft, ArrowRight, CheckCircle2, RefreshCw } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
@@ -175,7 +176,8 @@ function RegisterForm() {
   if (verifyScreen) {
     return (
       <div className="min-h-dvh flex flex-col items-center justify-center px-6"
-        style={{ background: "var(--surface-2)" }}>
+        data-theme="panel-calido"
+        style={{ background: "var(--surface-2)", color: "var(--ink)" }}>
         <div className="w-full max-w-sm rounded-3xl p-8 text-center" style={{ background: "var(--surface)", boxShadow: "var(--shadow-lg)", border: "1px solid var(--line)" }}>
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5" style={{ background: "var(--accent-soft)" }}>
             <span className="text-3xl">📧</span>
@@ -205,10 +207,12 @@ function RegisterForm() {
   return (
     <div
       className="min-h-dvh flex flex-col"
+      data-theme="panel-calido"
       style={{
         // Mismo fondo cálido del login: resplandor terracota sobre neutro
         background:
           "radial-gradient(ellipse 90% 45% at 50% 0%, var(--accent-soft) 0%, var(--surface-2) 60%)",
+        color: "var(--ink)",
       }}
     >
       {/* Franja de marca */}
@@ -240,7 +244,9 @@ function RegisterForm() {
           Inicio
         </Link>
         <Logo size="sm" variant="brand" />
-        <div className="w-16" aria-hidden />
+        <div className="w-16 flex justify-end" aria-hidden={false}>
+          <ThemeToggle />
+        </div>
       </nav>
 
       {/* ── Header ── */}
@@ -248,7 +254,10 @@ function RegisterForm() {
         <div
           className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
           style={{
-            background: "linear-gradient(135deg, var(--accent), var(--accent-ink))",
+            // accent-ink fijo (no var()): en modo oscuro se aclara para
+            // texto sobre fondo oscuro, pero acá necesitamos el tono
+            // oscuro fijo para que el ícono blanco siga contrastando.
+            background: "linear-gradient(135deg, var(--accent), #8A3F1F)",
             boxShadow: "0 6px 18px rgba(197,97,59,.35)",
           }}
         >

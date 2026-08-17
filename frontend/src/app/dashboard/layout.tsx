@@ -25,6 +25,7 @@ import { getVisibleGroups, isActive, getInitials } from "@/lib/dashboardNav";
 import { useAuthStore } from "@/store/authStore";
 import DashboardTour, { restartQtiendaTour } from "@/components/onboarding/DashboardTour";
 import NotificationBell from "@/components/ui/NotificationBell";
+import ThemeToggle from "@/components/ui/ThemeToggle";
 import { useSellerPushSubscription } from "@/hooks/usePushSubscription";
 import { apiClient } from "@/lib/api";
 import toast from "react-hot-toast";
@@ -206,6 +207,21 @@ export default function DashboardLayout({
   const [sells, setSells] = useState<string | null>(null);
   const [reactivationRequestedAt, setReactivationRequestedAt] = useState<string | null>(null);
   const loggingOut = useRef(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
+
+  // El avatar de la top bar mobile es un acceso rápido a "mi cuenta"
+  // (perfil + salir) — antes abría la pantalla completa de "Más" (toda
+  // la navegación), que ya tiene su propio botón en la bottom nav.
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (accountMenuRef.current && !accountMenuRef.current.contains(e.target as Node)) {
+        setAccountMenuOpen(false);
+      }
+    }
+    if (accountMenuOpen) document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [accountMenuOpen]);
 
   useSellerPushSubscription(user?.email);
 
@@ -259,7 +275,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-dvh md:flex" data-theme="panel-calido" style={{ background: "var(--bg)" }}>
+    <div className="min-h-dvh md:flex" data-theme="panel-calido" style={{ background: "var(--bg)", color: "var(--ink)" }}>
       {/* ═════════ Sidebar (desktop) ═════════ */}
       <aside
         className="hidden md:flex flex-col sticky top-0 h-screen"
@@ -273,7 +289,10 @@ export default function DashboardLayout({
       >
         <div className="flex items-center justify-between" style={{ padding: "4px 8px 22px" }}>
           <Logo size="md" variant="brand" />
-          <NotificationBell align="left" />
+          <div className="flex items-center gap-1.5">
+            <ThemeToggle />
+            <NotificationBell align="left" />
+          </div>
         </div>
 
         <nav className="flex-1 flex flex-col">
@@ -413,6 +432,7 @@ export default function DashboardLayout({
               >
                 <HelpCircle size={16} strokeWidth={1.7} style={{ color: "var(--ink-2)" }} />
               </button>
+              <ThemeToggle />
               <NotificationBell directLink />
               <Link
                 href="/dashboard/configuracion"
@@ -427,21 +447,59 @@ export default function DashboardLayout({
               >
                 <Settings size={16} strokeWidth={1.7} style={{ color: "var(--ink-2)" }} />
               </Link>
-              <Link
-                href="/dashboard/mas"
-                className="flex items-center justify-center rounded-full"
-                style={{
-                  width: 36,
-                  height: 36,
-                  background: "var(--ink)",
-                  color: "var(--bg)",
-                  fontSize: 12,
-                  fontWeight: 500,
-                }}
-                aria-label="Más opciones"
-              >
-                {initials}
-              </Link>
+              <div ref={accountMenuRef} style={{ position: "relative" }}>
+                <button
+                  type="button"
+                  onClick={() => setAccountMenuOpen((v) => !v)}
+                  className="flex items-center justify-center rounded-full"
+                  style={{
+                    width: 36,
+                    height: 36,
+                    background: "var(--ink)",
+                    color: "var(--bg)",
+                    fontSize: 12,
+                    fontWeight: 500,
+                  }}
+                  aria-label="Mi cuenta"
+                  aria-expanded={accountMenuOpen}
+                >
+                  {initials}
+                </button>
+                {accountMenuOpen && (
+                  <div
+                    className="card overflow-hidden animate-fade-in"
+                    style={{
+                      position: "absolute",
+                      top: "calc(100% + 8px)",
+                      right: 0,
+                      width: 220,
+                      background: "var(--surface)",
+                      zIndex: 50,
+                    }}
+                  >
+                    <div className="flex items-center gap-2.5 p-3.5" style={{ borderBottom: "1px solid var(--line)" }}>
+                      <div
+                        className="flex items-center justify-center rounded-full flex-shrink-0"
+                        style={{ width: 32, height: 32, background: "var(--ink)", color: "var(--bg)", fontSize: 11, fontWeight: 500 }}
+                      >
+                        {initials}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p className="text-xs font-medium truncate" style={{ color: "var(--ink)" }}>{user?.full_name}</p>
+                        <p className="text-[10px] truncate" style={{ color: "var(--ink-3)" }}>{user?.email}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => { setAccountMenuOpen(false); handleLogout(); }}
+                      className="flex w-full items-center gap-2.5 px-3.5 py-3 text-sm font-medium"
+                      style={{ color: "var(--danger)" }}
+                    >
+                      <LogOut size={15} strokeWidth={1.7} />
+                      Cerrar sesión
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

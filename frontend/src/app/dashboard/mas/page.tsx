@@ -18,6 +18,7 @@ import {
 import { apiClient } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import { getVisibleGroups, isActive, getInitials } from "@/lib/dashboardNav";
+import { ThemeToggleRow } from "@/components/ui/ThemeToggle";
 
 export default function MasPage() {
   const router = useRouter();
@@ -165,6 +166,7 @@ export default function MasPage() {
             <span className="text-sm font-medium" style={{ flex: 1 }}>Ver mi tienda</span>
             <ChevronRight size={15} style={{ color: "var(--ink-4)" }} />
           </a>
+          <ThemeToggleRow className="border-t border-[color:var(--line)]" />
         </div>
 
         <button

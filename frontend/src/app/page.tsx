@@ -8,9 +8,12 @@ import {
   MessageCircle, Percent, Truck, ShoppingBag,
   Heart, Ticket, Sparkles, Star, RotateCcw, Zap, Link2, Bell,
   Award, FileCheck,
+  Smartphone, QrCode, Landmark, Banknote, CreditCard,
+  Shirt, Home, UtensilsCrossed, Gem, CalendarCheck, CalendarClock,
 } from "lucide-react";
 import Logo from "@/components/ui/Logo";
 import HomeInstallBanner from "@/components/ui/HomeInstallBanner";
+import ThemeToggle from "@/components/ui/ThemeToggle";
 import { PageViewTracker } from "@/components/analytics/PageViewTracker";
 
 interface StoreCard {
@@ -47,9 +50,13 @@ async function getStores(): Promise<StoreCard[]> {
     esto). Toda la tarjeta lleva al Mall — es la puerta a ver esas tiendas. */
 async function HeroSocialProof() {
   const stores = await getStores();
-  if (!stores.length) return null;
+  // Solo tiendas con logo — mezclar logos reales con nombres en texto plano
+  // se veía desprolijo (tamaños/pesos tipográficos distintos en la misma
+  // fila). Con muy pocos logos el marquee se ve vacío, mejor no mostrarlo.
+  const withLogo = stores.filter((s) => s.logo_url);
+  if (withLogo.length < 4) return null;
 
-  const preview = stores.slice(0, 12);
+  const preview = withLogo.slice(0, 12);
 
   return (
     <Link
@@ -75,20 +82,11 @@ async function HeroSocialProof() {
               style={{ height: 30, maxWidth: 110 }}
               title={s.name}
             >
-              {s.logo_url ? (
-                <img
-                  src={s.logo_url}
-                  alt={s.name}
-                  style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", filter: "grayscale(100%)", opacity: 0.55 }}
-                />
-              ) : (
-                <span
-                  className="font-display font-bold text-sm truncate"
-                  style={{ color: "var(--ink-4)" }}
-                >
-                  {s.name}
-                </span>
-              )}
+              <img
+                src={s.logo_url!}
+                alt={s.name}
+                style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", filter: "grayscale(100%)", opacity: 0.55 }}
+              />
             </div>
           ))}
         </div>
@@ -99,7 +97,7 @@ async function HeroSocialProof() {
 
 const STEPS = [
   [Store, "Crea tu tienda en 2 minutos", "Nombre, logo y color. Sin tarjeta, sin pasos técnicos — 2 minutos."],
-  [Share2, "Publica tus productos y comparte", "Foto, precio y descripción. Tu link tu-nombre.qtienda.shop queda listo para difundir — tu propia web."],
+  [Share2, "Publica tus productos o servicios y comparte", "Foto, precio y descripción — o tus servicios con horarios para reservar. Tu link tu-nombre.qtienda.shop queda listo para difundir."],
   [MessageCircle, "Empieza a vender por WhatsApp", "Cada venta cae a tu chat. Cobras por Yape, Plin, transferencia o efectivo."],
   [Heart, "Aparece en el Mall QTienda", "Gana visibilidad adicional para atraer nuevos clientes."],
 
@@ -110,6 +108,7 @@ const FEATURES = [
   [Share2, "Tu propia web", "tu-nombre.qtienda.shop — tu link, tu marca, no una página adentro de otra."],
   [MessageCircle, "WhatsApp directo", "Cada pedido cae a tu chat, sin intermediarios."],
   [Wallet, "Pagos como vendes", "Tarjeta, Yape/Plin, transferencia o efectivo."],
+  [CalendarClock, "Reservas con cita", "¿Vendes servicios? Tus clientes agendan hora directo desde tu tienda, sin llamadas ni ida y vuelta por WhatsApp."],
   [Award, "Fidelización con sellos", "Tus clientes acumulan sellos y vuelven por su premio — sin apps ni tarjetas."],
   [FileCheck, "Libro de reclamaciones", "Cumple con Indecopi desde tu propia tienda, sin herramientas sueltas."],
   [Ticket, "Cupones de descuento", "Crea códigos como \"TIKTOK20\" para tus lives y campañas."],
@@ -120,13 +119,20 @@ const FEATURES = [
   [Percent, "Sin comisión", "Cobras todo. El plan free dura para siempre."],
 ] as const;
 
-const PAYMENT_METHODS = ["Yape", "Plin", "Transferencia", "Efectivo", "Tarjeta"];
+const PAYMENT_METHODS = [
+  [Smartphone, "Yape"],
+  [QrCode, "Plin"],
+  [Landmark, "Transferencia"],
+  [Banknote, "Efectivo"],
+  [CreditCard, "Tarjeta"],
+] as const;
 const CATEGORIES = [
-  ["Moda", "var(--danger-soft)", "var(--danger)"],
-  ["Belleza", "var(--progress-soft)", "var(--progress)"],
-  ["Hogar", "var(--info-soft)", "var(--info)"],
-  ["Comida", "var(--warn-soft)", "var(--warn)"],
-  ["Accesorios", "var(--success-soft)", "var(--success)"],
+  ["Moda", "var(--danger-soft)", "var(--danger)", Shirt],
+  ["Belleza", "var(--progress-soft)", "var(--progress)", Sparkles],
+  ["Hogar", "var(--info-soft)", "var(--info)", Home],
+  ["Comida", "var(--warn-soft)", "var(--warn)", UtensilsCrossed],
+  ["Servicios", "var(--accent-soft)", "var(--accent-ink)", CalendarCheck],
+  ["Accesorios", "var(--success-soft)", "var(--success)", Gem],
 ] as const;
 const FACTS = [
   [Percent, "0%", "de comisión, en todos los planes"],
@@ -152,10 +158,12 @@ export default function LandingPage() {
   return (
     <div
       className="min-h-dvh flex flex-col"
+      data-theme="panel-calido"
       style={{
         // Resplandor cálido más vivo: dos focos de luz en vez de uno solo tenue
         background:
           "radial-gradient(ellipse 70% 45% at 15% 0%, var(--accent-soft) 0%, transparent 60%), radial-gradient(ellipse 60% 40% at 90% 10%, color-mix(in srgb, var(--accent) 18%, transparent) 0%, transparent 65%), var(--bg)",
+        color: "var(--ink)",
       }}
     >
       <PageViewTracker path="/" />
@@ -181,6 +189,7 @@ export default function LandingPage() {
       >
         <Logo size="md" variant="brand" />
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           <Link href="/auth/login" className="btn-ghost" style={{ padding: "8px 14px", fontSize: 13 }}>
             Ingresar
           </Link>
@@ -206,14 +215,15 @@ export default function LandingPage() {
         <div className="md:max-w-3xl lg:max-w-none">
           <div className="flex items-center gap-2 mb-6 animate-fade-up">
             <span className="dot dot-success animate-pulse-soft" />
-            <span className="eyebrow">Gratis para siempre · sin tarjeta</span>
+            <span className="eyebrow eyebrow-accent">
+              Gratis para siempre · sin tarjeta
+            </span>
           </div>
           <h1
-            className="animate-fade-up delay-50"
+            className="font-display-marketing animate-fade-up delay-50"
             style={{
               fontSize: "clamp(42px, 7.5vw, 72px)",
               lineHeight: 1.02,
-              fontWeight: 800,
               letterSpacing: "-0.03em",
               marginBottom: 20,
             }}
@@ -234,29 +244,7 @@ export default function LandingPage() {
             Crea tu tienda desde el celular en 2 minutos y comparte tu link en TikTok, Instagram o WhatsApp. <strong style={{ color: "var(--ink)" }}>Cada pedido cae directo a tu chat — cobras el 100%, para siempre.</strong>
           </p>
 
-          {/* Mismo morado del botón del footer — el Mall tiene su propia
-              identidad de color en toda la página, distinta del naranja de
-              "crear tienda", para que se lea como una segunda opción real
-              y no como un link secundario perdido en el texto. */}
-          <Link
-            href="/tiendas"
-            className="inline-flex items-center gap-2 mb-7 animate-fade-up delay-100 transition-transform active:scale-95 hover:-translate-y-0.5"
-            style={{
-              background: "linear-gradient(120deg, #7C3AED, #A78BFA)",
-              color: "#fff",
-              fontSize: 14,
-              fontWeight: 700,
-              padding: "10px 18px",
-              borderRadius: 999,
-              boxShadow: "0 4px 16px rgba(124,58,237,.35)",
-            }}
-          >
-            <ShoppingBag size={15} />
-            Ingresa gratis a Mall Qtienda
-            <ArrowRight size={14} />
-          </Link>
-
-          <div className="flex flex-col sm:flex-row gap-3 animate-fade-up delay-150">
+          <div className="flex flex-col sm:flex-row gap-3 animate-fade-up delay-100">
             <Link
               href="/auth/register"
               className="btn-primary"
@@ -280,19 +268,35 @@ export default function LandingPage() {
             </Link>
           </div>
 
-          {/* Métodos de pago */}
-          <div className="flex flex-wrap items-center gap-2 mt-8 animate-fade-up delay-150">
-            <span className="eyebrow mr-1">Cobra con</span>
-            {PAYMENT_METHODS.map((m) => (
-              <span key={m} className="chip chip-outline">{m}</span>
+          {/* Métodos de pago — solo ícono, mismo lenguaje visual que los
+              íconos de "Cómo funciona" (caja suave + color de acento) */}
+          <div className="flex flex-wrap items-center gap-2.5 mt-8 animate-fade-up delay-150">
+            <span className="eyebrow eyebrow-accent mr-1">Cobra con</span>
+            {PAYMENT_METHODS.map(([Icon, label]) => (
+              <span
+                key={label}
+                title={label}
+                aria-label={label}
+                className="flex items-center justify-center rounded-full flex-shrink-0"
+                style={{ width: 34, height: 34, background: "var(--accent-soft)", color: "var(--accent-ink)" }}
+              >
+                <Icon size={16} strokeWidth={1.8} />
+              </span>
             ))}
           </div>
 
           {/* Categorías — coloreadas para dar variedad de "marketplace", no un solo tono plano */}
           <div className="flex flex-wrap items-center gap-2 mt-3 animate-fade-up delay-150">
-            <span className="eyebrow mr-1">Para vender</span>
-            {CATEGORIES.map(([name, bg, fg]) => (
-              <span key={name} className="chip" style={{ background: bg, color: fg, fontWeight: 600 }}>{name}</span>
+            <span className="eyebrow eyebrow-accent mr-1">Para vender</span>
+            {CATEGORIES.map(([name, bg, fg, Icon]) => (
+              <span
+                key={name}
+                className="chip inline-flex items-center gap-1.5"
+                style={{ background: bg, color: fg, fontWeight: 600 }}
+              >
+                <Icon size={13} strokeWidth={2} />
+                {name}
+              </span>
             ))}
           </div>
 
@@ -386,33 +390,60 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Franja de hechos — degradado + íconos, más presencia que un bloque plano ── */}
-      <section
-        className="px-5 md:px-10 py-9"
-        style={{ background: "linear-gradient(105deg, var(--ink) 0%, var(--accent-ink) 100%)", color: "var(--bg)" }}
-      >
-        <div className="max-w-6xl mx-auto w-full grid grid-cols-3 gap-4 md:gap-10">
-          {FACTS.map(([Icon, n, d]) => (
-            <div key={d} className="flex items-center gap-3">
+      {/* ── Franja de hechos — tarjeta flotante, no franja full-bleed ──
+          Antes era un rectángulo a lo ancho de toda la pantalla: cortaba
+          la página en dos como un banner de anuncio. Ahora es una tarjeta
+          con márgenes + esquinas redondeadas (mismo lenguaje que la
+          tarjeta CTA final), con brillo decorativo detrás para que llame
+          más la atención en vez de solo "pasar de largo".
+          Colores fijos (no var(--ink)/var(--accent-ink)): es una tarjeta
+          de marca intencionalmente siempre oscura — con los tokens del
+          tema, en modo oscuro --ink se aclara y el fondo se invierte a
+          claro con el texto blanco encima (ilegible). */}
+      <section className="px-5 md:px-10 max-w-6xl mx-auto w-full pb-14">
+        <div
+          className="relative overflow-hidden animate-fade-up"
+          style={{
+            background: "linear-gradient(115deg, #24160D 0%, #8A3F1F 100%)",
+            color: "#F0E2D3",
+            borderRadius: 24,
+            padding: "34px 22px",
+            boxShadow: "0 16px 40px rgba(36,22,13,.35)",
+          }}
+        >
+          <div
+            aria-hidden
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background:
+                "radial-gradient(ellipse 55% 60% at 12% -10%, rgba(197,97,59,.5) 0%, transparent 60%), radial-gradient(ellipse 45% 55% at 100% 120%, rgba(197,97,59,.35) 0%, transparent 65%)",
+            }}
+          />
+          <div className="relative grid grid-cols-3 gap-3 md:gap-8">
+            {FACTS.map(([Icon, n, d], i) => (
               <div
-                className="hidden sm:flex items-center justify-center rounded-full flex-shrink-0"
-                style={{ width: 40, height: 40, background: "rgba(255,255,255,.12)", color: "var(--accent)" }}
+                key={d}
+                className="flex flex-col items-center text-center gap-2.5 px-1"
+                style={i > 0 ? { borderLeft: "1px solid rgba(255,255,255,.14)" } : undefined}
               >
-                <Icon size={18} strokeWidth={2} />
+                <div
+                  className="flex items-center justify-center rounded-full flex-shrink-0"
+                  style={{ width: 38, height: 38, background: "rgba(255,255,255,.12)", color: "var(--accent)" }}
+                >
+                  <Icon size={17} strokeWidth={2.2} />
+                </div>
+                <p className="mono num" style={{ fontSize: "clamp(24px,5vw,34px)", fontWeight: 800, color: "#fff", lineHeight: 1 }}>{n}</p>
+                <p className="text-[11px] md:text-sm" style={{ color: "rgba(255,255,255,.75)", lineHeight: 1.35 }}>{d}</p>
               </div>
-              <div>
-                <p className="mono num" style={{ fontSize: "clamp(22px,4vw,32px)", fontWeight: 800, color: "#fff" }}>{n}</p>
-                <p className="text-xs md:text-sm mt-0.5" style={{ color: "rgba(255,255,255,.75)" }}>{d}</p>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </section>
 
       {/* ── Cómo funciona ── */}
       <section className="px-5 md:px-10 max-w-6xl mx-auto w-full pb-14">
         <p className="section-label mb-2">Cómo funciona</p>
-        <p className="text-xl font-bold mb-5" style={{ letterSpacing: "-0.02em" }}>De cero a tu primera venta, en 4 pasos</p>
+        <p className="font-display-marketing text-xl mb-5" style={{ letterSpacing: "-0.01em" }}>De cero a tu primera venta, en 4 pasos</p>
         <div className="grid md:grid-cols-4 gap-4">
           {STEPS.map(([Icon, t, d], i) => (
             <div key={t} className="card p-6 transition-all duration-200 hover:-translate-y-1" style={{ borderRadius: 20 }}>
@@ -436,7 +467,7 @@ export default function LandingPage() {
       {/* ── Demo strip — navegador real con productos con forma de producto, no rayas grises ── */}
       <section className="px-5 md:px-10 max-w-6xl mx-auto w-full pb-14">
         <p className="section-label mb-2">Así se ve tu tienda</p>
-        <p className="text-xl font-bold mb-5" style={{ letterSpacing: "-0.02em" }}>Tu propio link, tu propia web</p>
+        <p className="font-display-marketing text-xl mb-5" style={{ letterSpacing: "-0.01em" }}>Tu propio link, tu propia web</p>
         <div className="card overflow-hidden animate-fade-up delay-200" style={{ borderRadius: 20 }}>
           <div className="flex items-center gap-2 px-4 py-3" style={{ background: "var(--surface-2)", borderBottom: "1px solid var(--line)" }}>
             <span style={{ width: 9, height: 9, borderRadius: 999, background: "var(--danger)" }} />
@@ -481,7 +512,7 @@ export default function LandingPage() {
       {/* ── Features ── */}
       <section className="px-5 md:px-10 max-w-6xl mx-auto w-full pb-14">
         <p className="section-label mb-2">Lo que incluye</p>
-        <p className="text-xl font-bold mb-5" style={{ letterSpacing: "-0.02em" }}>Todo lo que necesitas para vender, ya integrado</p>
+        <p className="font-display-marketing text-xl mb-5" style={{ letterSpacing: "-0.01em" }}>Todo lo que necesitas para vender, ya integrado</p>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {FEATURES.map(([Icon, t, d]) => (
             <div
@@ -524,7 +555,7 @@ export default function LandingPage() {
       {/* ── FAQ ── */}
       <section className="px-5 md:px-10 max-w-6xl mx-auto w-full pb-14">
         <p className="section-label mb-2">Preguntas frecuentes</p>
-        <p className="text-xl font-bold mb-5" style={{ letterSpacing: "-0.02em" }}>¿Algo no te queda claro?</p>
+        <p className="font-display-marketing text-xl mb-5" style={{ letterSpacing: "-0.01em" }}>¿Algo no te queda claro?</p>
         <div className="flex flex-col gap-3">
           {FAQS.map(([q, a]) => (
             <details key={q} className="card group" style={{ borderRadius: 14, padding: 0 }}>
@@ -569,9 +600,13 @@ export default function LandingPage() {
         <div
           className="flex flex-col items-center text-center gap-4 py-14 px-6 relative overflow-hidden"
           style={{
-            // Mismo degradado cálido del panel de login: coherencia de marca
-            background: "linear-gradient(160deg, var(--ink) 0%, var(--accent-ink) 100%)",
-            color: "var(--bg)",
+            // Mismo degradado cálido del panel de login: coherencia de marca.
+            // Colores fijos a propósito (no var(--ink)/var(--bg)) — es una
+            // franja de marca siempre oscura; con los tokens del tema se
+            // invertía a fondo claro en modo oscuro y el texto blanco de
+            // abajo quedaba ilegible.
+            background: "linear-gradient(160deg, #24160D 0%, #8A3F1F 100%)",
+            color: "#F0E2D3",
             borderRadius: 24,
           }}
         >
@@ -583,7 +618,7 @@ export default function LandingPage() {
                 "radial-gradient(ellipse 60% 50% at 80% 15%, rgba(197,97,59,.4) 0%, transparent 70%)",
             }}
           />
-          <p className="relative text-2xl md:text-3xl font-medium" style={{ letterSpacing: "-0.018em" }}>
+          <p className="font-display-marketing relative text-2xl md:text-3xl" style={{ letterSpacing: "-0.01em" }}>
             Tu vitrina profesional, lista hoy.
           </p>
           <p className="relative text-sm max-w-md" style={{ color: "rgba(255,255,255,.65)" }}>
@@ -615,19 +650,9 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <Logo size="sm" variant="brand" />
-            {/* Único acceso vistoso al Mall en todo el footer — el resto
-                son links de texto planos a propósito, este es el que
-                queremos que se note. */}
-            <Link
-              href="/tiendas"
-              className="flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-full text-white transition-transform active:scale-95 animate-glow-pulse"
-              style={{ background: "linear-gradient(120deg, #7C3AED, #A78BFA)" }}
-            >
-              <ShoppingBag size={13} />
-              Mall Qtienda
-            </Link>
           </div>
           <div className="flex items-center gap-5 text-xs" style={{ color: "var(--ink-3)" }}>
+            <Link href="/tiendas" className="hover:underline">Mall Qtienda</Link>
             <Link href="/auth/login" className="hover:underline">Ingresar</Link>
             <Link href="/auth/register" className="hover:underline">Crear tienda</Link>
             <Link href="/mis-pedidos" className="hover:underline">Mis pedidos</Link>
@@ -653,6 +678,27 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+
+      {/* CTA flotante al Mall — persiste en todo el scroll de la landing en
+          vez de vivir enterrado en el hero, para que sea la segunda opción
+          real (junto a "Crea tu tienda gratis") que el visitante siempre
+          tiene a la mano. */}
+      <Link
+        href="/tiendas"
+        className="fixed z-40 flex items-center gap-2 rounded-full font-bold text-white transition-transform active:scale-95 hover:-translate-y-0.5 animate-glow-pulse animate-fade-up delay-300"
+        style={{
+          bottom: "max(20px, env(safe-area-inset-bottom))",
+          right: 20,
+          background: "linear-gradient(120deg, var(--accent), #E2875A)",
+          fontSize: 14,
+          padding: "12px 20px",
+          borderRadius: 999,
+          boxShadow: "0 6px 20px rgba(197,97,59,.4)",
+        }}
+      >
+        <ShoppingBag size={16} />
+        Mall Qtienda
+      </Link>
     </div>
   );
 }

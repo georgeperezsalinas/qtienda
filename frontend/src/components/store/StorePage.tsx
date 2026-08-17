@@ -1548,7 +1548,14 @@ export default function StorePage({ store, initialProducts }: Props) {
               icon: User,
               label: "Cuenta",
               active: accountOpen,
-              onClick: () => (isLoggedIn && user ? setAccountOpen(true) : router.push("/mis-pedidos")),
+              // Sin sesión: hay que pasar por login (no hay cómo mostrar
+              // pedidos sin identidad), pero vuelve derecho a esta misma
+              // tienda después — antes mandaba a /mis-pedidos, una pantalla
+              // genérica sin nada de la tienda, y el comprador quedaba
+              // varado ahí sin volver.
+              onClick: () => (isLoggedIn && user
+                ? setAccountOpen(true)
+                : router.push(`/auth/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`)),
             },
           ]}
         />

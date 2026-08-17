@@ -209,8 +209,8 @@ function OrderCard({
           <button
             onClick={() => onAction(order.id, "on_the_way")}
             disabled={updating}
-            className="w-full py-3 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2 transition-all active:scale-[.98]"
-            style={{ background: "var(--ink)", boxShadow: "var(--shadow-md)" }}
+            className="w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[.98]"
+            style={{ background: "var(--ink)", color: "var(--bg)", boxShadow: "var(--shadow-md)" }}
           >
             <Bike size={16} />
             Despachar pedido

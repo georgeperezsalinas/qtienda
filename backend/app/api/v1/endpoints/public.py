@@ -151,7 +151,10 @@ async def list_stores(
 
     filters = [Store.status == "active", Store.deleted_at.is_(None)]
     if city:
-        filters.append(Store.city.in_(city))
+        # Mismo criterio de normalización que /store-cities — si no, elegir
+        # el chip "Lima" (ya deduplicado) no encontraría las tiendas cuyo
+        # city crudo en la BD sea "LIMA" o "lima " en vez de "Lima" exacto.
+        filters.append(func.initcap(func.trim(Store.city)).in_(city))
     if mall_category:
         filters.append(Store.mall_category.in_(mall_category))
     if q:
@@ -337,11 +340,17 @@ async def public_mall_categories(request: Request, db: AsyncSession = Depends(ge
 @limiter.limit("60/minute")
 async def public_store_cities(request: Request, db: AsyncSession = Depends(get_db)):
     """Ciudades reales de tiendas activas — no limitadas a una sola página
-    del listado, para que el filtro de ciudad sea correcto a cualquier escala."""
+    del listado, para que el filtro de ciudad sea correcto a cualquier escala.
+
+    `city` es texto libre por tienda (cada vendedor lo escribe a mano al crear
+    su tienda) — sin normalizar, "Lima", "lima" y "LIMA " agrupaban como tres
+    ciudades distintas y el filtro mostraba el mismo lugar repetido. Se agrupa
+    por `initcap(trim(city))`, que además sirve directo como etiqueta prolija."""
+    normalized = func.initcap(func.trim(Store.city))
     rows = await db.execute(
-        select(Store.city, func.count())
-        .where(Store.status == "active", Store.deleted_at.is_(None), Store.city.is_not(None))
-        .group_by(Store.city)
+        select(normalized, func.count())
+        .where(Store.status == "active", Store.deleted_at.is_(None), Store.city.is_not(None), func.trim(Store.city) != "")
+        .group_by(normalized)
         .order_by(func.count().desc())
     )
     return [{"city": c, "count": n} for c, n in rows.all() if c]

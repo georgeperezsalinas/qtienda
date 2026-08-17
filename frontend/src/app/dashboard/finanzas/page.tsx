@@ -237,7 +237,7 @@ function DailyChart({ data, loading, currency, locale }: { data: DailyPoint[]; l
               className="text-[10px] font-semibold px-2.5 py-1 rounded-full transition-all"
               style={
                 mode === m
-                  ? { background: "var(--ink)", color: "#fff" }
+                  ? { background: "var(--ink)", color: "var(--bg)" }
                   : { background: "var(--surface-2)", color: "var(--ink-3)" }
               }
             >
@@ -666,7 +666,7 @@ export default function FinanzasPage() {
             className="flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all"
             style={
               period === p.key
-                ? { background: "var(--ink)", color: "#fff" }
+                ? { background: "var(--ink)", color: "var(--bg)" }
                 : { background: "var(--surface)", color: "var(--ink-3)", border: "1.5px solid var(--line-2)" }
             }
           >
@@ -683,7 +683,13 @@ export default function FinanzasPage() {
         ) : (
           <div
             className="rounded-2xl p-5 animate-fade-up lg:flex lg:flex-col lg:justify-center"
-            style={{ background: "linear-gradient(135deg, var(--ink), var(--accent-ink))" }}
+            style={{
+              // Colores fijos (no var(--ink)/var(--accent-ink)): tarjeta de
+              // marca siempre oscura con texto blanco fijo — con los tokens
+              // del tema, en modo oscuro --ink se aclara y el fondo se
+              // invierte a claro con el texto blanco encima (ilegible).
+              background: "linear-gradient(135deg, #24160D, #8A3F1F)",
+            }}
           >
             <div className="flex items-center gap-2 mb-3">
               <div

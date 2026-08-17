@@ -6,6 +6,8 @@
 //     en vez de pantalla blanca
 
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
+import { Bricolage_Grotesque } from "next/font/google";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import "./globals.css";
@@ -19,6 +21,15 @@ import ErrorBoundary from "@/components/ui/ErrorBoundary";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
+// Display de marketing (landing) — títulos grandes solamente, vía
+// .font-display-marketing en globals.css. Geist sigue siendo la fuente
+// del panel/formularios/precios, esto no la reemplaza en ningún lado más.
+const bricolage = Bricolage_Grotesque({
+  subsets: ["latin"],
+  weight: ["600", "700"],
+  variable: "--font-bricolage",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL(
@@ -79,8 +90,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es" className={`${GeistSans.variable} ${GeistMono.variable}`}>
+    <html lang="es" className={`${GeistSans.variable} ${GeistMono.variable} ${bricolage.variable}`} suppressHydrationWarning>
       <body suppressHydrationWarning>
+        {/* Aplica la preferencia de tema oscuro guardada ANTES del primer
+            paint (strategy beforeInteractive → Next.js la inyecta en el
+            <head>). Sin esto se ve un parpadeo claro→oscuro al cargar. */}
+        <Script id="qtienda-theme-init" strategy="beforeInteractive">
+          {`try{if(localStorage.getItem('qtienda-color-scheme')==='dark')document.documentElement.setAttribute('data-color-scheme','dark');}catch(e){}`}
+        </Script>
         {/* ErrorBoundary global — si cualquier componente crashea,
             el usuario ve un mensaje útil en vez de pantalla blanca */}
         <ErrorBoundary>

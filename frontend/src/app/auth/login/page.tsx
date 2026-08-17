@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Logo from "@/components/ui/Logo";
+import ThemeToggle from "@/components/ui/ThemeToggle";
 import { Eye, EyeOff, ArrowRight, CheckCircle2, Store, ShoppingBag, ChevronLeft } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
@@ -22,8 +23,9 @@ function Spinner() {
   );
 }
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { setTokens, setUser } = useAuthStore();
 
   const [email,      setEmail]      = useState("");
@@ -50,7 +52,12 @@ export default function LoginPage() {
       const { data: me } = await apiClient.get("/auth/me");
       setUser(me);
       toast.success("¡Bienvenido!");
-      if (me.role === "admin")          router.push("/admin");
+      // Si venía de un link con "?next=" (ej. "Cuenta" desde una tienda),
+      // vuelve ahí en vez del destino genérico por rol — solo se acepta una
+      // ruta interna (empieza con "/", nunca "//" que sería otro host).
+      const next = searchParams.get("next");
+      if (next && next.startsWith("/") && !next.startsWith("//")) router.push(next);
+      else if (me.role === "admin")          router.push("/admin");
       else if (me.role === "buyer")    router.push("/mis-pedidos");
       else if (me.role === "delivery") router.push("/delivery-app");
       else                             router.push("/dashboard");
@@ -69,10 +76,12 @@ export default function LoginPage() {
   return (
     <div
       className="min-h-dvh flex flex-col lg:flex-row"
+      data-theme="panel-calido"
       style={{
         // Fondo cálido: brillo terracota que baja hacia el tono neutro
         background:
           "radial-gradient(ellipse 90% 45% at 50% 0%, var(--accent-soft) 0%, var(--surface-2) 60%)",
+        color: "var(--ink)",
       }}
     >
       {/* Franja de marca */}
@@ -85,7 +94,11 @@ export default function LoginPage() {
       {/* ── Panel izquierdo (solo desktop) ── */}
       <div
         className="hidden lg:flex lg:w-[420px] xl:w-[480px] flex-col justify-between p-10 flex-shrink-0 relative overflow-hidden"
-        style={{ background: "linear-gradient(160deg, var(--ink) 0%, var(--accent-ink) 100%)" }}
+        style={{
+          // Colores fijos a propósito — panel de marca siempre oscuro,
+          // el texto blanco de adentro no se invierte con el tema.
+          background: "linear-gradient(160deg, #24160D 0%, #8A3F1F 100%)",
+        }}
       >
         {/* Grid decorativo */}
         <div
@@ -139,10 +152,12 @@ export default function LoginPage() {
                     {p.emoji}
                   </div>
                   <div style={{ minWidth: 0 }}>
-                    <p className="text-[10px] font-semibold truncate" style={{ color: "var(--ink)" }}>{p.name}</p>
+                    {/* Colores fijos: la tarjetita es blanca fija (no
+                        reactiva al tema), el texto tampoco debe serlo */}
+                    <p className="text-[10px] font-semibold truncate" style={{ color: "#24160D" }}>{p.name}</p>
                     <div className="flex items-center gap-1">
-                      <span className="mono font-bold" style={{ fontSize: 11, color: "var(--ink)" }}>S/ {p.price}</span>
-                      <span className="mono" style={{ fontSize: 9, color: "var(--ink-4)", textDecoration: "line-through" }}>S/ {p.was}</span>
+                      <span className="mono font-bold" style={{ fontSize: 11, color: "#24160D" }}>S/ {p.price}</span>
+                      <span className="mono" style={{ fontSize: 9, color: "#B3987A", textDecoration: "line-through" }}>S/ {p.was}</span>
                     </div>
                   </div>
                 </div>
@@ -170,6 +185,9 @@ export default function LoginPage() {
           <ChevronLeft size={18} />
           Inicio
         </Link>
+        <div className="absolute top-5 right-5">
+          <ThemeToggle />
+        </div>
 
         {/* Logo mobile */}
         <div className="lg:hidden mb-6">
@@ -274,7 +292,7 @@ export default function LoginPage() {
                 className="w-10 h-10 rounded-xl flex items-center justify-center"
                 style={{ background: "var(--ink)" }}
               >
-                <Store size={17} color="white" />
+                <Store size={17} color="var(--bg)" />
               </div>
               <div>
                 <p className="font-display font-bold text-xs" style={{ color: "var(--ink)" }}>
@@ -332,5 +350,14 @@ export default function LoginPage() {
         </a>
       </div>
     </div>
+  );
+}
+
+// useSearchParams() exige un límite de Suspense para el prerender de Next
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   );
 }

@@ -11,7 +11,9 @@ import CategoryFilterModal from "@/components/ui/CategoryFilterModal";
 import { getOpenStatus } from "@/lib/storeHours";
 import { trackPageView } from "@/lib/siteAnalytics";
 import { formatPrice, getStoreCurrency } from "@/lib/utils";
+import { useAuthStore } from "@/store/authStore";
 import MallInstallLink from "@/components/ui/MallInstallLink";
+import ThemeToggle from "@/components/ui/ThemeToggle";
 import FiestasPatriasFloatingBadge from "@/components/ui/FiestasPatriasFloatingBadge";
 
 interface StoreCard {
@@ -200,7 +202,10 @@ function MallBannerCarousel() {
     const base: BannerSlide[] = [
       {
         kind: "text",
-        gradient: "linear-gradient(160deg, var(--ink) 0%, var(--accent-ink) 100%)",
+        // Colores fijos (no var()): banner de marca siempre oscuro con
+        // texto blanco fijo — con los tokens del tema, en modo oscuro
+        // --ink se aclara y el fondo se invierte a claro (ilegible).
+        gradient: "linear-gradient(160deg, #24160D 0%, #8A3F1F 100%)",
         showInstallLink: true,
       },
     ];
@@ -342,6 +347,12 @@ function CreateStoreFab() {
 const STORES_PAGE_SIZE = 24;
 
 export default function TiendasPage() {
+  const isLoggedIn = useAuthStore((s) => s.isAuthenticated());
+  // Sin sesión, "Mis pedidos" no tiene nada que mostrar — mandar directo a
+  // login (con vuelta acá) es más corto que el salto extra por /mis-pedidos
+  // vacío, y no deja al comprador varado fuera del Mall.
+  const accountHref = isLoggedIn ? "/mis-pedidos" : "/auth/login?next=%2Ftiendas";
+
   // Para los tabs "Buscar" y "Categorías" de la barra inferior — llevan el
   // scroll hasta el buscador/departamentos en vez de navegar a otra página.
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -529,7 +540,7 @@ export default function TiendasPage() {
   const effectiveCompact = compactView && (!isBrowsingStores || showAllStores);
 
   return (
-    <div className="min-h-dvh flex flex-col" style={{ background: "var(--surface-2)" }}>
+    <div className="min-h-dvh flex flex-col" data-theme="panel-calido" style={{ background: "var(--surface-2)", color: "var(--ink)" }}>
       {/* Franja de marca — misma firma visual del resto de la app */}
       <div
         aria-hidden
@@ -574,14 +585,17 @@ export default function TiendasPage() {
             >
               Mall
             </span>
-            <Link
-              href="/mis-pedidos"
-              aria-label="Mis pedidos"
-              className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ background: "var(--surface-2)" }}
-            >
-              <Bell size={16} style={{ color: "var(--ink-2)" }} />
-            </Link>
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <Link
+                href={accountHref}
+                aria-label="Mis pedidos"
+                className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: "var(--surface-2)" }}
+              >
+                <Bell size={16} style={{ color: "var(--ink-2)" }} />
+              </Link>
+            </div>
           </div>
 
           <div className="px-4 pb-2.5">
@@ -614,7 +628,7 @@ export default function TiendasPage() {
                 neutro salvo el elegido, tiles chicos. Es navegación
                 secundaria acá arriba, no debe competir con el buscador. */}
             {mallCategories.length > 0 && (
-              <div ref={categoriesRef} className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1">
+              <div ref={categoriesRef} className="flex items-center gap-2.5 overflow-x-auto scrollbar-hide pb-1">
                 {mallCategories.map((c) => {
                   const active = categoryFilter.includes(c.slug);
                   return (
@@ -625,17 +639,20 @@ export default function TiendasPage() {
                           active ? prev.filter((k) => k !== c.slug) : [...prev, c.slug]
                         )
                       }
-                      className="flex-shrink-0 flex flex-col items-center gap-1 transition-all"
-                      style={{ width: 48 }}
+                      className="flex-shrink-0 flex flex-col items-center gap-1.5 transition-all"
+                      style={{ width: 62 }}
                     >
                       <span
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-sm flex-shrink-0 transition-all"
-                        style={{ background: active ? "var(--accent)" : "var(--surface-2)" }}
+                        className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 transition-all"
+                        style={{
+                          background: active ? "var(--accent)" : "var(--surface-2)",
+                          boxShadow: active ? "0 4px 12px rgba(197,97,59,.35)" : "none",
+                        }}
                       >
                         {c.icon || "🛍️"}
                       </span>
                       <span
-                        className="text-[9px] font-bold text-center leading-tight truncate w-full"
+                        className="text-[10.5px] font-bold text-center leading-tight w-full"
                         style={{ color: active ? "var(--accent)" : "var(--ink-3)" }}
                       >
                         {c.label}
@@ -1239,7 +1256,7 @@ export default function TiendasPage() {
               searchInputRef.current?.focus();
             },
           },
-          { key: "cuenta", icon: User, label: "Cuenta", href: "/mis-pedidos" },
+          { key: "cuenta", icon: User, label: "Cuenta", href: accountHref },
         ]}
       />
 
