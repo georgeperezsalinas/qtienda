@@ -28,7 +28,7 @@ const SLUG_RE = /^[a-z0-9-]{2,60}$/;
 // resolver esa página real, no reescribirse a /tienda/slug/registro (404).
 // Son los directorios hermanos de "tienda" en frontend/src/app/.
 const GLOBAL_ROUTES = new Set([
-  "admin", "auth", "dashboard", "delivery-app", "mi-cuenta",
+  "admin", "auth", "dashboard", "delivery-app", "mall", "mi-cuenta",
   "mis-pedidos", "offline", "privacidad", "registro", "terminos", "tiendas",
 ]);
 

@@ -60,7 +60,7 @@ async function HeroSocialProof() {
 
   return (
     <Link
-      href="/tiendas"
+      href="/mall"
       className="mt-8 animate-fade-up delay-200 rounded-2xl block transition-transform active:scale-[.99]"
       style={{ padding: "16px 0", background: "var(--surface)", border: "1px solid var(--line)", boxShadow: "var(--shadow-sm)" }}
     >
@@ -656,7 +656,7 @@ export default function LandingPage() {
             <Logo size="sm" variant="brand" />
           </div>
           <div className="flex items-center gap-5 text-xs" style={{ color: "var(--ink-3)" }}>
-            <Link href="/tiendas" className="hover:underline">Mall Qtienda</Link>
+            <Link href="/mall" className="hover:underline">Mall Qtienda</Link>
             <Link href="/auth/login" className="hover:underline">Ingresar</Link>
             <Link href="/auth/register" className="hover:underline">Crear tienda</Link>
             <Link href="/mis-pedidos" className="hover:underline">Mis pedidos</Link>
@@ -688,7 +688,7 @@ export default function LandingPage() {
           real (junto a "Crea tu tienda gratis") que el visitante siempre
           tiene a la mano. */}
       <Link
-        href="/tiendas"
+        href="/mall"
         className="fixed z-40 flex items-center gap-2 rounded-full font-bold text-white transition-transform active:scale-95 hover:-translate-y-0.5 animate-glow-pulse animate-fade-up delay-300"
         style={{
           bottom: "max(20px, env(safe-area-inset-bottom))",

@@ -92,11 +92,12 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${GeistSans.variable} ${GeistMono.variable} ${bricolage.variable}`} suppressHydrationWarning>
       <body suppressHydrationWarning>
-        {/* Aplica la preferencia de tema oscuro guardada ANTES del primer
-            paint (strategy beforeInteractive → Next.js la inyecta en el
-            <head>). Sin esto se ve un parpadeo claro→oscuro al cargar. */}
+        {/* Aplica el tema ANTES del primer paint (strategy beforeInteractive
+            → Next.js la inyecta en el <head>). Sin esto se ve un parpadeo
+            al cargar. Oscuro es el default: se aplica salvo que el visitante
+            haya elegido "light" explícitamente con el toggle. */}
         <Script id="qtienda-theme-init" strategy="beforeInteractive">
-          {`try{if(localStorage.getItem('qtienda-color-scheme')==='dark')document.documentElement.setAttribute('data-color-scheme','dark');}catch(e){}`}
+          {`try{if(localStorage.getItem('qtienda-color-scheme')!=='light')document.documentElement.setAttribute('data-color-scheme','dark');}catch(e){}`}
         </Script>
         {/* ErrorBoundary global — si cualquier componente crashea,
             el usuario ve un mensaje útil en vez de pantalla blanca */}
