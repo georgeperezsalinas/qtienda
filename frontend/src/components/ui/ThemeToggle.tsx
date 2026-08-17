@@ -11,7 +11,7 @@ import { Moon, Sun } from "lucide-react";
 
 const STORAGE_KEY = "qtienda-color-scheme";
 
-function useColorScheme() {
+export function useColorScheme() {
   const [dark, setDark] = useState(false);
 
   useEffect(() => {
@@ -29,7 +29,15 @@ function useColorScheme() {
 }
 
 /** Botón circular con ícono — para headers/top bars con espacio angosto. */
-export default function ThemeToggle({ className = "" }: { className?: string }) {
+export default function ThemeToggle({
+  className = "",
+  style,
+}: {
+  className?: string;
+  /** Para adaptar el botón al lenguaje visual del header donde vive
+   * (p.ej. los íconos con fondo `${color}12` de la tienda pública). */
+  style?: React.CSSProperties;
+}) {
   const { dark, toggle } = useColorScheme();
 
   return (
@@ -45,6 +53,7 @@ export default function ThemeToggle({ className = "" }: { className?: string }) 
         background: "var(--surface-2)",
         color: "var(--ink-2)",
         border: "1px solid var(--line)",
+        ...style,
       }}
     >
       {dark ? <Sun size={16} /> : <Moon size={16} />}

@@ -615,20 +615,12 @@ export default function TiendasPage() {
               />
             </div>
 
-            {/* Stats reales — línea de texto simple, sin chips de color
-                (nunca inventado: se omite mientras carga). */}
-            {!loading && (
-              <p className="text-[11px] mb-2" style={{ color: "var(--ink-3)" }}>
-                {storesTotal} tienda{storesTotal !== 1 ? "s" : ""}
-                {cities.length > 1 && <> · {cities.length} ciudades</>}
-              </p>
-            )}
-
-            {/* Departamentos fijos del Mall — sutiles a propósito: fondo
-                neutro salvo el elegido, tiles chicos. Es navegación
+            {/* Departamentos fijos del Mall — solo ícono (sin label debajo):
+                con el texto, buscador + categorías + ciudades se comían más
+                de un tercio de la pantalla en mobile. Es navegación
                 secundaria acá arriba, no debe competir con el buscador. */}
             {mallCategories.length > 0 && (
-              <div ref={categoriesRef} className="flex items-center gap-2.5 overflow-x-auto scrollbar-hide pb-1">
+              <div ref={categoriesRef} className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1">
                 {mallCategories.map((c) => {
                   const active = categoryFilter.includes(c.slug);
                   return (
@@ -639,24 +631,17 @@ export default function TiendasPage() {
                           active ? prev.filter((k) => k !== c.slug) : [...prev, c.slug]
                         )
                       }
-                      className="flex-shrink-0 flex flex-col items-center gap-1.5 transition-all"
-                      style={{ width: 62 }}
+                      className="flex-shrink-0 rounded-2xl flex items-center justify-center text-xl transition-all"
+                      style={{
+                        width: 42,
+                        height: 42,
+                        background: active ? "var(--accent)" : "var(--surface-2)",
+                        boxShadow: active ? "0 4px 12px rgba(197,97,59,.35)" : "none",
+                      }}
+                      aria-label={c.label}
+                      title={c.label}
                     >
-                      <span
-                        className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 transition-all"
-                        style={{
-                          background: active ? "var(--accent)" : "var(--surface-2)",
-                          boxShadow: active ? "0 4px 12px rgba(197,97,59,.35)" : "none",
-                        }}
-                      >
-                        {c.icon || "🛍️"}
-                      </span>
-                      <span
-                        className="text-[10.5px] font-bold text-center leading-tight w-full"
-                        style={{ color: active ? "var(--accent)" : "var(--ink-3)" }}
-                      >
-                        {c.label}
-                      </span>
+                      {c.icon || "🛍️"}
                     </button>
                   );
                 })}

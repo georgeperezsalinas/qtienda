@@ -681,7 +681,7 @@ export default function ConfiguracionPage() {
                               onChange={(url) =>
                                 setBanners((prev) => prev.map((x, j) => (j === i ? { ...x, image_url: url } : x)))
                               }
-                              hint={"1600×400 px exacto (4:1)\nJPEG, PNG o WebP · máx 5 MB"}
+                              hint={"1500×500 px (proporción 3:1) — evita fotos cuadradas, se recortan mucho\nJPEG, PNG o WebP · máx 5 MB"}
                               className="h-24 w-full"
                             />
                           </div>

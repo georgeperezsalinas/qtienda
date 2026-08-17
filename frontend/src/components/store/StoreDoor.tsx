@@ -25,6 +25,7 @@ import WheelWidget from "./WheelWidget";
 import { SocialLinks } from "./SocialLinks";
 import Logo from "@/components/ui/Logo";
 import PublicBottomNav from "@/components/ui/PublicBottomNav";
+import ThemeToggle from "@/components/ui/ThemeToggle";
 
 interface DoorStoreData {
   slug: string;
@@ -35,6 +36,7 @@ interface DoorStoreData {
   city?: string;
   address?: string | null;
   primary_color: string;
+  theme?: string | null;
   store_hours?: Record<string, { open: string; close: string }> | null;
   instagram?: string | null;
   tiktok?: string | null;
@@ -68,15 +70,6 @@ function joinSpanish(items: string[]): string {
 // Rotaciones fijas para el efecto "fotos pegadas en la vitrina" — no aleatorio
 // (evita hydration mismatch server/cliente), solo alternado prolijo.
 const TILTS = [-6, 4, -3, 5, -5];
-
-const stagger = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.07, delayChildren: 0.05 } },
-};
-const item = {
-  hidden: { opacity: 0, y: 10 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.35 } },
-};
 
 export default function StoreDoor({ store }: { store: DoorStoreData }) {
   const [copied, setCopied] = useState(false);
@@ -174,7 +167,11 @@ export default function StoreDoor({ store }: { store: DoorStoreData }) {
   return (
     <div
       className="min-h-dvh flex flex-col px-4 py-10 pb-24 md:pb-10 relative overflow-hidden"
-      style={{ background: store.banner_url ? "var(--bg)" : `radial-gradient(ellipse 70% 40% at 50% 0%, ${color}22 0%, transparent 60%), var(--bg)` }}
+      data-theme={store.theme || "clasico"}
+      style={{
+        background: store.banner_url ? "var(--bg)" : `radial-gradient(ellipse 70% 40% at 50% 0%, ${color}22 0%, transparent 60%), var(--bg)`,
+        color: "var(--ink)",
+      }}
     >
       {/* Toldo de tienda física — franja a rayas en la parte superior, como el
           borde de un local en la calle, no un fondo web genérico */}
@@ -183,6 +180,12 @@ export default function StoreDoor({ store }: { store: DoorStoreData }) {
         className="absolute top-0 left-0 right-0 h-2"
         style={{ background: `repeating-linear-gradient(45deg, ${color} 0 14px, var(--surface) 14px 28px)` }}
       />
+
+      {/* Tema claro/oscuro — la puerta es la primera pantalla que ve el
+          comprador, antes de llegar al header del catálogo */}
+      <div className="absolute z-10" style={{ top: "max(14px, env(safe-area-inset-top) + 8px)", right: 14 }}>
+        <ThemeToggle style={{ background: `${color}12`, border: "none", color }} />
+      </div>
       {/* Resplandor cálido de marca — mismo lenguaje que el hero de la
           landing, en vez del cuadriculado plano que había antes cuando la
           tienda no subió un banner propio. */}
@@ -229,14 +232,11 @@ export default function StoreDoor({ store }: { store: DoorStoreData }) {
       <div className="flex-1 flex items-center justify-center relative">
         <div className="w-full max-w-sm lg:max-w-5xl lg:grid lg:grid-cols-[1fr_1fr] lg:gap-14 lg:items-center">
 
-          <motion.div
-            variants={stagger}
-            initial="hidden"
-            animate="show"
+          <div
             className="w-full flex flex-col items-center text-center lg:items-start lg:text-left relative"
           >
             {/* Logo circular + letrero colgante de abierto/cerrado */}
-            <motion.div variants={item} className="relative mb-4">
+            <div className="relative mb-4 animate-fade-up delay-50">
               {store.logo_url ? (
                 <Image
                   src={store.logo_url}
@@ -275,11 +275,10 @@ export default function StoreDoor({ store }: { store: DoorStoreData }) {
                   </div>
                 </div>
               )}
-            </motion.div>
+            </div>
 
-            <motion.h1
-              variants={item}
-              className="font-display font-extrabold mt-3"
+            <h1
+              className="font-display font-extrabold mt-3 animate-fade-up delay-100"
               style={{
                 fontSize: "clamp(26px, 4vw, 34px)",
                 lineHeight: 1.1,
@@ -288,14 +287,13 @@ export default function StoreDoor({ store }: { store: DoorStoreData }) {
               }}
             >
               {store.name}
-            </motion.h1>
+            </h1>
 
             {/* Fila de confianza real — rating y pedidos entregados, solo si
                 existen de verdad (nunca "0.0" ni "0 pedidos" inventado) */}
             {(store.city || store.address || hasTrustSignal) && (
-              <motion.div
-                variants={item}
-                className="flex flex-wrap items-center justify-center lg:justify-start gap-x-3 gap-y-1 mt-1.5 text-xs"
+              <div
+                className="flex flex-wrap items-center justify-center lg:justify-start gap-x-3 gap-y-1 mt-1.5 text-xs animate-fade-up delay-150"
                 style={{ color: store.banner_url ? "rgba(255,255,255,.9)" : "var(--ink-3)", textShadow: store.banner_url ? "0 1px 6px rgba(0,0,0,.35)" : undefined }}
               >
                 {(store.city || store.address) && (
@@ -318,24 +316,22 @@ export default function StoreDoor({ store }: { store: DoorStoreData }) {
                     <PackageCheck size={11} /> {store.orders_delivered_count} entregados
                   </span>
                 )}
-              </motion.div>
+              </div>
             )}
 
             {/* URL de la tienda — vistosa, pensada para compartir */}
-            <motion.button
-              variants={item}
+            <button
               onClick={copyUrl}
-              className="mono mt-4 flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold transition-all active:scale-[.97]"
+              className="mono mt-4 flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold transition-all active:scale-[.97] animate-fade-up delay-150"
               style={{ background: "var(--surface)", border: `1.5px solid ${color}40`, color: "var(--ink)", boxShadow: "var(--shadow-sm)" }}
             >
               {storeUrl}
               {copied ? <Check size={14} style={{ color: "var(--success)" }} /> : <Copy size={14} style={{ color: "var(--ink-3)" }} />}
-            </motion.button>
+            </button>
 
-            <motion.a
-              variants={item}
+            <a
               href="/catalogo"
-              className="mt-6 flex items-center gap-2 rounded-full px-7 py-3.5 font-bold text-sm text-white transition-all active:scale-[.97]"
+              className="mt-6 flex items-center gap-2 rounded-full px-7 py-3.5 font-bold text-sm text-white transition-all active:scale-[.97] animate-fade-up delay-200"
               style={{ background: color, boxShadow: `0 8px 24px ${color}40` }}
             >
               {/* Una tienda de solo servicios (ej. un odontólogo) no tiene
@@ -345,24 +341,24 @@ export default function StoreDoor({ store }: { store: DoorStoreData }) {
                 ? "Ver servicios y reservar"
                 : "Entrar a la tienda"}
               <ChevronRight size={16} />
-            </motion.a>
+            </a>
 
             {/* Vitrina chica — solo en mobile/tablet, en desktop se muestra
                 grande en el panel derecho en su lugar. */}
             {mounted && previewPhotos.length > 0 && (
-              <motion.div variants={item} className="lg:hidden mt-6">
+              <div className="lg:hidden mt-6 animate-fade-up delay-200">
                 <Vitrina size={72} />
-              </motion.div>
+              </div>
             )}
 
             {/* Ruleta — solo si el vendedor la activó y aún no se giró en esta sesión */}
-            <motion.div variants={item} className="w-full mt-5">
+            <div className="w-full mt-5 animate-fade-up delay-200">
               <WheelWidget slug={store.slug} accentColor={color} variant="banner" />
-            </motion.div>
+            </div>
 
             {/* Instalar / crear cuenta — antes de entrar, para no perderse la
                 ruleta, el cupón o los datos de la tienda si vuelve más tarde. */}
-            <motion.div variants={item} className="w-full flex flex-col gap-2 mt-2">
+            <div className="w-full flex flex-col gap-2 mt-2 animate-fade-up delay-200">
               <AnimatePresence>
                 {mounted && installPrompt && !installDismissed && (
                   <motion.div
@@ -399,10 +395,10 @@ export default function StoreDoor({ store }: { store: DoorStoreData }) {
                   Crear cuenta para ver tu historial de pedidos
                 </a>
               )}
-            </motion.div>
+            </div>
 
             {/* Info rápida real — solo lo que la tienda realmente ofrece */}
-            <motion.div variants={item} className="flex flex-wrap items-center justify-center lg:justify-start gap-2 mt-5">
+            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2 mt-5 animate-fade-up delay-300">
               {hasServices && (
                 <a
                   href="/catalogo#tienda-servicios"
@@ -434,15 +430,14 @@ export default function StoreDoor({ store }: { store: DoorStoreData }) {
                   <ShieldCheck size={12} /> {paymentMethodsLabel}
                 </span>
               )}
-            </motion.div>
+            </div>
 
             {/* Acerca de la tienda — descripción real + redes sociales, solo si hay algo que mostrar.
                 Fondo tibio del color de la tienda + comilla decorativa + texto en itálica: se lee
                 como una nota personal del dueño, no como una ficha de datos. */}
             {(store.description || store.instagram || store.tiktok || store.facebook) && (
-              <motion.div
-                variants={item}
-                className="relative w-full max-w-md rounded-[28px] p-6 mt-5 text-left overflow-hidden"
+              <div
+                className="relative w-full max-w-md rounded-[28px] p-6 mt-5 text-left overflow-hidden animate-fade-up delay-300"
                 style={{ background: `linear-gradient(155deg, ${color}14, ${color}06)`, boxShadow: "var(--shadow-sm)" }}
               >
                 <span
@@ -474,22 +469,21 @@ export default function StoreDoor({ store }: { store: DoorStoreData }) {
                     <SocialLinks store={store} size={32} />
                   </div>
                 )}
-              </motion.div>
+              </div>
             )}
 
-            <motion.a
-              variants={item}
+            <a
               href="https://qtienda.shop"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 mt-6"
+              className="flex items-center gap-2 mt-6 animate-fade-up delay-300"
             >
               <span className="text-[11px] font-medium" style={{ color: "var(--ink-4)" }}>Powered by</span>
               <span style={{ opacity: 0.55 }}>
                 <Logo size="sm" href={null} />
               </span>
-            </motion.a>
-          </motion.div>
+            </a>
+          </div>
 
           {/* Panel derecho — solo desktop. Vitrina grande si hay fotos reales;
               si no hay fotos, un panel decorativo con el color de marca en vez

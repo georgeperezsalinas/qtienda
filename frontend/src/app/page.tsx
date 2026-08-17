@@ -195,7 +195,8 @@ export default function LandingPage() {
           </Link>
           <Link
             href="/auth/register"
-            className="btn-primary"
+            className="btn-primary flex-shrink-0"
+            aria-label="Crea tu tienda gratis"
             style={{
               padding: "8px 14px",
               fontSize: 13,
@@ -203,7 +204,10 @@ export default function LandingPage() {
               boxShadow: "0 4px 14px rgba(197,97,59,.4)",
             }}
           >
-            Crea tu tienda gratis
+            {/* En mobile el texto completo desbordaba el header junto al
+                logo + Ingresar + toggle de tema — ahí queda solo el ícono */}
+            <Store size={15} className="sm:hidden" />
+            <span className="hidden sm:inline">Crea tu tienda gratis</span>
           </Link>
         </div>
       </header>

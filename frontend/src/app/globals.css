@@ -149,6 +149,107 @@
   --line-2:    #C2E1D8;
 }
 
+/* ─── Variantes oscuras de los temas de vitrina ───
+   Activadas con [data-color-scheme="dark"] en <html> — mismo interruptor
+   global que el panel de vendedor (ver ThemeToggle). Cada tema conserva
+   su identidad de color (vibrante sigue cálido, fresco sigue verde-agua,
+   etc.) solo invertido a fondo oscuro — nunca se toca el acento
+   (--accent no se define acá: sigue viniendo del primary_color de cada
+   tienda, aplicado por StorePage, igual en claro y oscuro).
+   "elegante" no tiene bloque acá: su versión base YA es oscura por
+   diseño, así que el toggle no le cambia nada — es esperado, no un bug.
+   "clasico" es el fallback cuando la tienda no eligió tema — acá se le
+   da un dark neutro y de baja saturación para que combine bien con
+   cualquier color de marca que haya elegido el vendedor. */
+:root[data-color-scheme="dark"] [data-theme="clasico"] {
+  --bg:        #15130F;
+  --surface:   #1E1B15;
+  --surface-2: #26221A;
+  --tint:      #211E17;
+  --ink:       #F2EFE7;
+  --ink-2:     #C7C2B4;
+  --ink-3:     #948E7C;
+  --ink-4:     #635E4F;
+  --ink-5:     #423E33;
+  --line:      #322E24;
+  --line-2:    #3E392C;
+}
+:root[data-color-scheme="dark"] [data-theme="vibrante"] {
+  --bg:        #1D120B;
+  --surface:   #281A10;
+  --surface-2: #332214;
+  --tint:      #2C1D11;
+  --ink:       #FBEDE2;
+  --ink-2:     #D9BBA6;
+  --ink-3:     #A88872;
+  --ink-4:     #745B49;
+  --ink-5:     #4C3B2F;
+  --line:      #3D2A1B;
+  --line-2:    #4A3421;
+}
+:root[data-color-scheme="dark"] [data-theme="pastel"] {
+  --bg:        #1A1116;
+  --surface:   #241820;
+  --surface-2: #2E1E29;
+  --tint:      #281B23;
+  --ink:       #F5E7EE;
+  --ink-2:     #D0B3C0;
+  --ink-3:     #9E7F8C;
+  --ink-4:     #6B5560;
+  --ink-5:     #46373E;
+  --line:      #33222C;
+  --line-2:    #3F2A35;
+}
+:root[data-color-scheme="dark"] [data-theme="monocromo"] {
+  --bg:        #0E0E0E;
+  --surface:   #181818;
+  --surface-2: #222222;
+  --tint:      #1C1C1C;
+  --ink:       #F5F5F5;
+  --ink-2:     #C2C2C2;
+  --ink-3:     #8F8F8F;
+  --ink-4:     #5C5C5C;
+  --ink-5:     #3A3A3A;
+  --line:      #2A2A2A;
+  --line-2:    #363636;
+}
+:root[data-color-scheme="dark"] [data-theme="fresco"] {
+  --bg:        #0E1917;
+  --surface:   #142320;
+  --surface-2: #1A2D29;
+  --tint:      #172723;
+  --ink:       #E6F5F1;
+  --ink-2:     #B8D6CE;
+  --ink-3:     #86A89F;
+  --ink-4:     #567A72;
+  --ink-5:     #3A544E;
+  --line:      #253E37;
+  --line-2:    #2E4A41;
+}
+
+/* Semánticos oscuros para vitrinas — sin esto, badges de estado (stock
+   bajo, descuento, pedido confirmado, etc.) quedan con su versión clara
+   fija: un parche pastel encendido sobre fondo oscuro. "elegante" entra
+   siempre (su base ya es oscura por diseño, no depende del toggle); los
+   otros 4 solo cuando el comprador activa modo oscuro. */
+[data-theme="elegante"],
+:root[data-color-scheme="dark"] [data-theme="clasico"],
+:root[data-color-scheme="dark"] [data-theme="vibrante"],
+:root[data-color-scheme="dark"] [data-theme="pastel"],
+:root[data-color-scheme="dark"] [data-theme="monocromo"],
+:root[data-color-scheme="dark"] [data-theme="fresco"] {
+  --success:      #8FBF74;
+  --success-soft: #24301C;
+  --warn:         #E0A855;
+  --warn-soft:    #33270F;
+  --danger:       #E08277;
+  --danger-soft:  #341C18;
+  --info:         #7DAFCB;
+  --info-soft:    #1C2830;
+  --progress:     #B79ED6;
+  --progress-soft: #2A2033;
+}
+
 /* ─── Panel de vendedor (/dashboard) — "terracota suave" ───
    Los neutros de :root (#F7F5F0/#FCFBF7) casi no se distinguen entre sí —
    fondo y ventanas se leían como "todo blanco". Acá el acento se filtra en

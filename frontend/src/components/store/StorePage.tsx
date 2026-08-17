@@ -7,7 +7,7 @@ import {
   ShoppingCart, Search, ChevronRight, Zap, Heart,
   MapPin, X, MessageCircle, Share2, Phone,
   LayoutGrid, List, Clock, Truck, ShieldCheck, PackageSearch,
-  HelpCircle, CheckCircle2, Star, SlidersHorizontal, DoorOpen, Package, LogOut,
+  HelpCircle, CheckCircle2, Star, SlidersHorizontal, Package, LogOut,
   Home, User,
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
@@ -28,6 +28,7 @@ import { apiClient } from "@/lib/api";
 import { formatPrice, getStoreCurrency } from "@/lib/utils";
 import { getOpenStatus } from "@/lib/storeHours";
 import FiestasPatriasFloatingBadge from "@/components/ui/FiestasPatriasFloatingBadge";
+import ThemeToggle from "@/components/ui/ThemeToggle";
 import WheelWidget from "./WheelWidget";
 import ClaimsModal from "./ClaimsModal";
 import ServicesSection from "./ServicesSection";
@@ -590,7 +591,7 @@ export default function StorePage({ store, initialProducts }: Props) {
   const hasMoreProducts = filtered.length > visibleCount;
 
   return (
-    <div className="min-h-dvh pb-16 md:pb-0" data-theme={store.theme || "clasico"} style={{ background: "var(--bg)" }}>
+    <div className="min-h-dvh pb-16 md:pb-0" data-theme={store.theme || "clasico"} style={{ background: "var(--bg)", color: "var(--ink)" }}>
 
       {/* Franja de marca (color del vendedor) */}
       <div
@@ -716,16 +717,11 @@ export default function StorePage({ store, initialProducts }: Props) {
               />
             </div>
 
-            {/* Salir de la tienda — vuelve a la puerta (ruleta, cupón, sobre nosotros) */}
-            <a
-              href="/"
-              className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ background: `${color}12` }}
-              aria-label="Salir de la tienda"
-              title="Salir de la tienda"
-            >
-              <DoorOpen size={16} style={{ color }} />
-            </a>
+            {/* Tema claro/oscuro — mismo lenguaje visual (fondo tintado
+                con el color de marca) que los demás íconos de esta barra */}
+            <ThemeToggle
+              style={{ width: 40, height: 40, background: `${color}12`, border: "none", color }}
+            />
 
             {/* Ayuda: relanza el tour guiado de la tienda */}
             <button
