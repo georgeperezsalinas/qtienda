@@ -62,10 +62,12 @@ function buildMessage(s: StoreItem): string {
 
   const firstName = (s.owner_name ?? "").split(" ")[0] || "";
   const greeting = firstName ? `Hola ${firstName} 👋` : "Hola 👋";
+  const storeUrl = `https://${s.slug}.qtienda.shop/`;
 
   return (
     `${greeting} Soy del equipo de qtienda.shop. Vimos que creaste tu tienda "${s.name}" pero te falta ${missingText} para que quede lista y puedas empezar a vender. ` +
-    `¿Te ayudamos? Entra a tu panel: https://qtienda.shop/dashboard`
+    `¿Te ayudamos? Entra a tu panel: https://qtienda.shop/dashboard\n` +
+    `Así se ve tu tienda: ${storeUrl}`
   );
 }
 
@@ -177,8 +179,9 @@ export default function AdminCampanaPage() {
         <p>
           Cada tarjeta arma un mensaje personalizado según lo que le falta a la tienda. Al tocar
           &quot;Enviar WhatsApp&quot; se abre la conversación con el texto listo — solo confirmas el envío.
-          Si la tienda no tiene teléfono registrado pero sí correo, se ofrece enviar el mismo
-          mensaje por correo (ese sí se envía directo, sin confirmación manual).
+          Si la tienda tiene correo registrado, también se ofrece enviarlo por correo (ese sí se
+          envía directo, sin confirmación manual) — útil cuando el teléfono registrado no tiene
+          WhatsApp. El mensaje incluye el link al panel y el link directo a la tienda.
         </p>
       </div>
 
@@ -224,11 +227,13 @@ export default function AdminCampanaPage() {
                     </p>
                     <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
                       {s.owner_name ?? "Sin nombre"}
-                      {s.owner_phone
-                        ? ` · ${s.owner_phone}`
-                        : s.owner_email
-                        ? ` · sin teléfono, sí correo`
-                        : " · sin teléfono ni correo"}
+                      {" · "}
+                      {[
+                        s.owner_phone ? `Tel: ${s.owner_phone}` : null,
+                        s.owner_email ? `Correo: ${s.owner_email}` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ") || "sin teléfono ni correo"}
                     </p>
                     <p className="text-xs mt-0.5" style={{ color: "var(--ink-4)" }}>
                       Creada hace {daysAgo(s.created_at)} día{daysAgo(s.created_at) !== 1 ? "s" : ""}
@@ -266,30 +271,35 @@ export default function AdminCampanaPage() {
                   {buildMessage(s)}
                 </div>
 
-                {s.owner_phone || s.whatsapp ? (
-                  <button
-                    disabled={sending === s.id}
-                    onClick={() => sendWhatsApp(s)}
-                    className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold mt-3 disabled:opacity-50"
-                    style={{ background: "#25D366", color: "#fff" }}
-                  >
-                    <MessageCircle size={14} />
-                    {contacted ? "Enviar de nuevo por WhatsApp" : "Enviar por WhatsApp"}
-                  </button>
-                ) : s.owner_email ? (
-                  <button
-                    disabled={sending === s.id}
-                    onClick={() => sendCampaignEmail(s)}
-                    className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold mt-3 disabled:opacity-50"
-                    style={{ background: "var(--ink)", color: "var(--bg)" }}
-                  >
-                    <Mail size={14} />
-                    {sending === s.id
-                      ? "Enviando..."
-                      : contacted
-                      ? "Enviar de nuevo por correo (sin teléfono)"
-                      : "Enviar por correo (sin teléfono)"}
-                  </button>
+                {s.owner_phone || s.whatsapp || s.owner_email ? (
+                  <div className="flex gap-2 mt-3">
+                    {(s.owner_phone || s.whatsapp) && (
+                      <button
+                        disabled={sending === s.id}
+                        onClick={() => sendWhatsApp(s)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold disabled:opacity-50"
+                        style={{ background: "#25D366", color: "#fff" }}
+                      >
+                        <MessageCircle size={14} />
+                        {contacted ? "De nuevo por WhatsApp" : "Enviar por WhatsApp"}
+                      </button>
+                    )}
+                    {s.owner_email && (
+                      <button
+                        disabled={sending === s.id}
+                        onClick={() => sendCampaignEmail(s)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold disabled:opacity-50"
+                        style={{ background: "var(--ink)", color: "var(--bg)" }}
+                      >
+                        <Mail size={14} />
+                        {sending === s.id
+                          ? "Enviando..."
+                          : contacted
+                          ? "De nuevo por correo"
+                          : "Enviar por correo"}
+                      </button>
+                    )}
+                  </div>
                 ) : (
                   <div
                     className="w-full text-center py-2.5 rounded-xl text-xs font-semibold mt-3"

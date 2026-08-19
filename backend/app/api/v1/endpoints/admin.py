@@ -416,9 +416,9 @@ async def send_campaign_email(
     current_admin=Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """Igual que la campaña de WhatsApp, pero por correo — para las tiendas
-    cuyo dueño no registró teléfono y por eso no se les puede armar un
-    link de wa.me."""
+    """Igual que la campaña de WhatsApp, pero por correo — para tiendas sin
+    teléfono registrado, o cuyo teléfono registrado no tiene WhatsApp pero
+    sí tienen un correo identificado."""
     result = await db.execute(
         select(Store).options(selectinload(Store.user)).where(
             Store.id == store_id, Store.deleted_at.is_(None)
@@ -467,6 +467,8 @@ async def send_campaign_email(
         ),
         cta_url="https://qtienda.shop/dashboard",
         cta_label="Completar mi tienda",
+        secondary_url=f"https://{store.slug}.qtienda.shop/",
+        secondary_label="Ver mi tienda",
     )
 
     now = datetime.now(timezone.utc)

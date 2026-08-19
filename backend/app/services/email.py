@@ -179,6 +179,8 @@ async def send_notification_email(
     body: str,
     cta_url: str,
     cta_label: str = "Ir a mi panel",
+    secondary_url: str | None = None,
+    secondary_label: str = "Ver mi tienda",
 ) -> None:
     """Email genérico para hitos/eventos de negocio (bienvenida, onboarding,
     avisos de inactividad, etc). Reutiliza el mismo título/cuerpo que ya se
@@ -207,6 +209,11 @@ async def send_notification_email(
                   padding:14px 32px;border-radius:10px;text-decoration:none;font-size:15px">
           {cta_label}
         </a>
+        {f'''<div style="margin-top:16px">
+          <a href="{secondary_url}" style="color:#2563EB;font-size:13px;font-weight:600;text-decoration:none">
+            {secondary_label} →
+          </a>
+        </div>''' if secondary_url else ""}
       </div>
       <div style="background:#F8FAFC;padding:20px 40px;text-align:center">
         <p style="color:#94A3B8;font-size:11px;margin:0">
