@@ -1233,6 +1233,10 @@ async def approve_plan_request(
 
     if req.store:
         req.store.plan_id = req.plan_id
+        # Reactiva (si alcanza el nuevo límite) los productos que se habían
+        # ocultado por un downgrade anterior — ver apply_plan_product_limit().
+        from app.services.plan_expiry import apply_plan_product_limit
+        await apply_plan_product_limit(req.store, req.plan, db)
 
     req.status = "approved"
     req.reviewed_by = current_admin.id

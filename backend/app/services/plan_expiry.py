@@ -10,15 +10,80 @@ import asyncio
 import logging
 import math
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.db.session import AsyncSessionLocal
-from app.models.models import AuditLog, Notification, Plan, Product, Store, Subscription
+from app.models.models import AuditLog, Notification, Order, OrderItem, Plan, Product, Store, Subscription
+from app.services.referrals import referral_bonus
 
 logger = logging.getLogger(__name__)
+
+
+async def apply_plan_product_limit(store: Store, plan: Optional[Plan], db: AsyncSession) -> int:
+    """Reconcilia qué productos quedan activos según el max_products del plan
+    dado, dejando activos los de más ventas. No borra nada: los que sobran
+    pasan a status='inactive' con hidden_by_plan_at=ahora; si el plan alcanza
+    para todos, reactiva SOLO los que estaban ocultos por este motivo (nunca
+    los que el vendedor desactivó a mano — esos quedan como están).
+    Devuelve cuántos productos cambiaron de estado."""
+    limit = plan.max_products if plan else None
+    if limit and plan.slug == settings.FREE_PLAN_SLUG:
+        bonus = await referral_bonus(store.user_id, db)
+        limit += bonus["extra_products"]
+
+    # Candidatos: los que hoy están activos (podrían sobrar) + los que están
+    # ocultos por un downgrade anterior (podrían volver a entrar). Un producto
+    # que el vendedor desactivó a mano (inactive, hidden_by_plan_at NULL) no
+    # entra acá — se respeta su elección, no se lo reactiva solo.
+    candidates = (await db.execute(
+        select(Product).where(
+            Product.store_id == store.id,
+            Product.deleted_at.is_(None),
+            or_(Product.status == "active", Product.hidden_by_plan_at.is_not(None)),
+        )
+    )).scalars().all()
+
+    if not limit:  # None o 0 = ilimitado, mismo criterio que products.py
+        changed = 0
+        for p in candidates:
+            if p.hidden_by_plan_at is not None:
+                p.status = "active"
+                p.hidden_by_plan_at = None
+                changed += 1
+        return changed
+
+    if not candidates:
+        return 0
+
+    sold_map = dict((await db.execute(
+        select(OrderItem.product_id, func.sum(OrderItem.quantity))
+        .join(Order, Order.id == OrderItem.order_id)
+        .where(OrderItem.product_id.in_([p.id for p in candidates]), Order.status != "cancelled")
+        .group_by(OrderItem.product_id)
+    )).all())
+
+    # Más vendidos primero; empate por antigüedad (el más viejo se queda).
+    candidates.sort(key=lambda p: (-int(sold_map.get(p.id, 0)), p.created_at))
+
+    now = datetime.now(timezone.utc)
+    changed = 0
+    for i, p in enumerate(candidates):
+        if i < limit:
+            if p.status != "active" or p.hidden_by_plan_at is not None:
+                p.status = "active"
+                p.hidden_by_plan_at = None
+                changed += 1
+        elif p.status == "active" or p.hidden_by_plan_at is None:
+            p.status = "inactive"
+            p.hidden_by_plan_at = now
+            changed += 1
+
+    return changed
 
 
 async def notify_expiring_subscriptions() -> int:
@@ -140,6 +205,21 @@ async def _send_all_channels(
     except Exception:
         logger.exception("Expo push de vencimiento falló para %s", user.email)
 
+    # WhatsApp — el canal que más se abre; a diferencia del email/push, no
+    # depende de que el vendedor haya vuelto a abrir la app o revise su correo.
+    try:
+        if getattr(user, "phone", None):
+            from app.services.whatsapp import send_whatsapp_message
+            renew_url = f"{settings.APP_URL}/dashboard/planes"
+            wa_text = (
+                f"*{title}*\n\n{body}\n\n"
+                f"Paga con Yape o tarjeta desde tu panel: {renew_url}\n"
+                "Si no renuevas, tu tienda pasa al plan gratuito automáticamente (no se borra nada)."
+            )
+            await send_whatsapp_message(user.phone, wa_text)
+    except Exception:
+        logger.exception("WhatsApp de vencimiento falló para %s", user.email)
+
 
 async def downgrade_expired_subscriptions() -> int:
     """Baja al plan gratuito las suscripciones de pago vencidas hace más de
@@ -198,24 +278,23 @@ async def downgrade_expired_subscriptions() -> int:
                 new_value={"plan": free_plan.name, "status": "expired"},
             ))
 
-            # No se toca ningún producto existente — solo se informa si quedó
-            # sobre el límite del plan nuevo (el bloqueo real ya lo hace
-            # products.py al intentar crear uno nuevo).
+            # Si quedó con más productos activos que el límite del plan free,
+            # se ocultan los de menos ventas (quedan los más vendidos activos).
+            # No se borra nada — ver apply_plan_product_limit().
+            hidden_count = await apply_plan_product_limit(sub.store, free_plan, db)
+
             products_count = (await db.execute(
                 select(func.count()).select_from(Product).where(
                     Product.store_id == sub.store_id, Product.deleted_at.is_(None)
                 )
             )).scalar()
-            products_over_limit = (
-                free_plan.max_products is not None and products_count > free_plan.max_products
-            )
 
             try:
                 await emit_event(
                     str(sub.store_id), "plan_downgraded",
                     products_count=products_count,
                     products_limit=free_plan.max_products,
-                    products_over_limit=products_over_limit,
+                    products_hidden=hidden_count,
                     old_plan_name=old_plan_name, free_plan_name=free_plan.name,
                 )
             except Exception:

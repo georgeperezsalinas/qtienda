@@ -251,6 +251,10 @@ class Product(Base):
     is_featured: Mapped[bool]       = mapped_column(Boolean, default=False)
     sort_order: Mapped[int]         = mapped_column(Integer, default=0)
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    # Se llena cuando el sistema (no el vendedor) desactivó el producto por
+    # exceder el límite del plan tras un downgrade — permite reactivarlo solo
+    # a él (nunca a los que el vendedor apagó a mano) si vuelve a subir de plan.
+    hidden_by_plan_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime]    = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime]    = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

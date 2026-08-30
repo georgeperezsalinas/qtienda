@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
-  CheckCircle2, Clock, RefreshCw, Smartphone, XCircle, AlertTriangle,
+  CheckCircle2, Clock, MessageCircle, RefreshCw, Smartphone, XCircle, AlertTriangle,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
@@ -66,6 +66,14 @@ const STATUS_STYLES: Record<string, { bg: string; color: string; label: string }
   approved: { bg: "var(--success-soft)", color: "var(--success)", label: "Aprobado" },
   rejected: { bg: "var(--danger-soft)", color: "var(--danger)", label: "Rechazado" },
 };
+
+// Mismo criterio que normalize_phone_pe en el backend (app/services/whatsapp.py):
+// celulares peruanos de 9 dígitos que empiezan con 9 necesitan el prefijo 51.
+function waLink(phone: string, text: string) {
+  const digits = phone.replace(/\D/g, "");
+  const number = digits.length === 9 && digits.startsWith("9") ? `51${digits}` : digits;
+  return `https://wa.me/${number}?text=${encodeURIComponent(text)}`;
+}
 
 function dateTimePE(iso: string) {
   return new Date(iso).toLocaleString("es-PE", {
@@ -379,6 +387,24 @@ export default function AdminPagosPage() {
                   )}
                 </div>
               </div>
+
+              {sub.owner_phone && (
+                <a
+                  href={waLink(
+                    sub.owner_phone,
+                    `Hola ${sub.owner_name ?? ""}, soy del equipo de qtienda.shop 👋 Vimos que tu Plan ${sub.plan_name ?? ""} ${
+                      sub.expired ? "venció" : "está por vencer"
+                    } y quisiéramos ayudarte a renovarlo antes de que tu tienda pase al plan gratuito. ¿Te ayudamos con el pago?`,
+                  )}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold"
+                  style={{ background: "#25D36622", color: "#128C7E" }}
+                >
+                  <MessageCircle size={14} />
+                  Escribir por WhatsApp
+                </a>
+              )}
             </div>
           ))
         )}

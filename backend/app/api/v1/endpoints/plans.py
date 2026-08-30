@@ -4,14 +4,14 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select, and_, or_
+from sqlalchemy import select, and_, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.core.security import require_vendor
 from app.db.session import get_db
-from app.models.models import Plan, PlanPaymentRequest, Store, Subscription
+from app.models.models import Plan, PlanPaymentRequest, Product, Store, Subscription
 from app.services import culqi as culqi_svc
 
 router = APIRouter()
@@ -176,9 +176,19 @@ async def my_subscription(
     db: AsyncSession = Depends(get_db),
 ):
     store = await _get_store(current_user, db)
+    hidden_products = (await db.execute(
+        select(func.count()).select_from(Product).where(
+            Product.store_id == store.id,
+            Product.deleted_at.is_(None),
+            Product.hidden_by_plan_at.is_not(None),
+        )
+    )).scalar()
+
     sub = await _active_sub(store.id, db)
     if sub:
-        return _sub_out(sub)
+        out = _sub_out(sub)
+        out["hidden_products_count"] = hidden_products
+        return out
 
     # _active_sub() excluye a propósito las suscripciones ya vencidas (para
     # límites/renovación ya no cuentan) — pero el vendedor SÍ debe verla
@@ -202,7 +212,11 @@ async def my_subscription(
         grace_deadline = overdue_sub.ends_at + timedelta(days=settings.PLAN_EXPIRY_GRACE_DAYS)
         out["overdue"] = True
         out["grace_days_left"] = max(0, (grace_deadline - now).days)
+        out["hidden_products_count"] = hidden_products
         return out
+
+    if hidden_products:
+        return {"plan_slug": "free", "plan_name": "Gratis", "hidden_products_count": hidden_products}
 
     raise HTTPException(status_code=404, detail="Sin suscripción activa")
 
@@ -260,8 +274,11 @@ async def subscribe(
     )
     db.add(new_sub)
 
-    # Actualizar plan en tienda
+    # Actualizar plan en tienda y reactivar (si alcanza) los productos que se
+    # habían ocultado por un downgrade anterior — ver apply_plan_product_limit().
     store.plan_id = plan.id
+    from app.services.plan_expiry import apply_plan_product_limit
+    await apply_plan_product_limit(store, plan, db)
 
     await db.commit()
     await db.refresh(new_sub)

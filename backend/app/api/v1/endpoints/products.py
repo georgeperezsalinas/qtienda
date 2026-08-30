@@ -146,7 +146,9 @@ async def list_products(
     }
 
 
-async def _check_product_limit(store: Store, db: AsyncSession) -> None:
+async def _resolve_plan_and_limit(store: Store, db: AsyncSession) -> tuple[Optional[Plan], Optional[int]]:
+    """Plan vigente de la tienda y su max_products (con el bono de
+    referidos ya sumado si aplica). limit None = ilimitado."""
     sub = (await db.execute(
         select(Subscription)
         .options(selectinload(Subscription.plan))
@@ -169,23 +171,32 @@ async def _check_product_limit(store: Store, db: AsyncSession) -> None:
         )).scalar_one_or_none()
 
     # max_products NULL o 0 = ilimitado
-    if plan and plan.max_products:
-        limit = plan.max_products
-        if plan.slug == settings.FREE_PLAN_SLUG:
-            bonus = await referral_bonus(store.user_id, db)
-            limit += bonus["extra_products"]
+    if not plan or not plan.max_products:
+        return plan, None
 
-        count = (await db.execute(
-            select(func.count()).select_from(Product).where(
-                Product.store_id == store.id,
-                Product.deleted_at.is_(None),
-            )
-        )).scalar()
-        if count >= limit:
-            raise HTTPException(
-                status_code=403,
-                detail=f"Tu plan {plan.name} permite máximo {limit} productos. Actualiza tu plan o invita amigos con tu código de referido para subir tu límite.",
-            )
+    limit = plan.max_products
+    if plan.slug == settings.FREE_PLAN_SLUG:
+        bonus = await referral_bonus(store.user_id, db)
+        limit += bonus["extra_products"]
+    return plan, limit
+
+
+async def _check_product_limit(store: Store, db: AsyncSession) -> None:
+    plan, limit = await _resolve_plan_and_limit(store, db)
+    if limit is None:
+        return
+
+    count = (await db.execute(
+        select(func.count()).select_from(Product).where(
+            Product.store_id == store.id,
+            Product.deleted_at.is_(None),
+        )
+    )).scalar()
+    if count >= limit:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Tu plan {plan.name} permite máximo {limit} productos. Actualiza tu plan o invita amigos con tu código de referido para subir tu límite.",
+        )
 
 
 @router.post("/", status_code=201)
@@ -307,6 +318,27 @@ async def update_product(
     # caer bajo el umbral más adelante, se puede volver a avisar.
     if "stock" in update_data and update_data["stock"] != product.stock:
         product.low_stock_notified_at = None
+
+    new_status = update_data.get("status")
+    if new_status is not None and new_status != product.status:
+        if new_status == "active":
+            _, limit = await _resolve_plan_and_limit(store, db)
+            if limit is not None:
+                active_elsewhere = (await db.execute(
+                    select(func.count()).select_from(Product).where(
+                        Product.store_id == store.id,
+                        Product.deleted_at.is_(None),
+                        Product.status == "active",
+                        Product.id != product.id,
+                    )
+                )).scalar()
+                if active_elsewhere + 1 > limit:
+                    raise HTTPException(
+                        status_code=403,
+                        detail=f"Tu plan permite máximo {limit} productos activos. Desactiva otro primero o sube de plan.",
+                    )
+        product.hidden_by_plan_at = None  # cambio manual, ya no es "oculto por plan"
+
     for field, value in update_data.items():
         setattr(product, field, value)
 
@@ -452,11 +484,29 @@ async def bulk_action(
         raise HTTPException(status_code=404, detail="Productos no encontrados")
 
     if payload.action == "activate":
+        _, limit = await _resolve_plan_and_limit(store, db)
+        if limit is not None:
+            selected_ids = {p.id for p in products}
+            active_elsewhere = (await db.execute(
+                select(func.count()).select_from(Product).where(
+                    Product.store_id == store.id,
+                    Product.deleted_at.is_(None),
+                    Product.status == "active",
+                    Product.id.notin_(selected_ids),
+                )
+            )).scalar()
+            if active_elsewhere + len(products) > limit:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Tu plan permite máximo {limit} productos activos. Desactiva otros primero o sube de plan.",
+                )
         for p in products:
             p.status = "active"
+            p.hidden_by_plan_at = None  # reactivación manual, ya no es "oculto por plan"
     elif payload.action == "deactivate":
         for p in products:
             p.status = "inactive"
+            p.hidden_by_plan_at = None  # decisión del vendedor, no del sistema
     elif payload.action == "delete":
         now = datetime.now(timezone.utc)
         for p in products:

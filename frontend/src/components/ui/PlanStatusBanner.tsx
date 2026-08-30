@@ -20,6 +20,7 @@ interface Subscription {
   ends_at: string | null;
   overdue?: boolean;
   grace_days_left?: number;
+  hidden_products_count?: number;
 }
 
 function daysUntil(iso: string): number {
@@ -40,7 +41,33 @@ export default function PlanStatusBanner() {
       .catch(() => setSub(null)); // 404 = plan free, no mostrar nada
   }, []);
 
-  if (!sub || !sub.plan_slug || sub.plan_slug === "free" || !sub.ends_at) return null;
+  if (!sub) return null;
+
+  // Plan gratuito con productos ocultados por un downgrade anterior: no hay
+  // fecha de vencimiento que mostrar, pero sí vale la pena avisar que hay
+  // productos esperando (nada se borró, solo se ocultaron del catálogo).
+  if (!sub.plan_slug || sub.plan_slug === "free" || !sub.ends_at) {
+    if (!sub.hidden_products_count) return null;
+    return (
+      <Link
+        id="tour-plan"
+        href="/dashboard/planes"
+        className="rounded-2xl p-4 mb-5 animate-fade-up flex items-start gap-3"
+        style={{ background: "#FFFBEB", border: "1.5px solid #FDE68A" }}
+      >
+        <AlertTriangle size={18} className="mt-0.5 flex-shrink-0" style={{ color: "#D97706" }} />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold" style={{ color: "#92400E" }}>
+            Tienes {sub.hidden_products_count} producto{sub.hidden_products_count !== 1 ? "s" : ""} oculto
+            {sub.hidden_products_count !== 1 ? "s" : ""} del catálogo
+          </p>
+          <p className="text-xs mt-0.5" style={{ color: "#B45309" }}>
+            Tu plan gratuito no alcanza para mostrarlos todos — no se borró nada, suscríbete a un plan de pago para reactivarlos.
+          </p>
+        </div>
+      </Link>
+    );
+  }
 
   const days = daysUntil(sub.ends_at);
   const Icon = sub.plan_slug === "elite" ? Crown : Zap;

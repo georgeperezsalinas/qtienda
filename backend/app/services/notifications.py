@@ -38,6 +38,8 @@ class NotifTemplate:
     push: bool = True   # False para hitos tempranos donde el vendedor ya está en el dashboard
     email: bool = False  # True solo para hitos donde el email es el canal que realmente alcanza
                           # a alguien que no volvió a abrir la app/PWA (opt-in explícito por evento)
+    whatsapp: bool = False  # True solo para hitos críticos de negocio (plata) — opt-in explícito,
+                             # no se activa por defecto para no saturar WhatsApp con cada notificación
 
     def render(self, ctx: dict) -> tuple[str, str]:
         title = self.title(ctx) if callable(self.title) else self.title
@@ -222,14 +224,16 @@ TEMPLATES: dict[str, NotifTemplate] = {
     ),
     "plan_downgraded": NotifTemplate(
         icon="📉",
+        whatsapp=True,
         title="Tu tienda pasó al plan gratuito",
         body=lambda ctx: (
             f"Tu Plan {ctx.get('old_plan_name', 'de pago')} venció y no se renovó, así que tu tienda pasó al {ctx.get('free_plan_name', 'plan gratuito')}. "
             + (
-                f"Tienes {ctx.get('products_count')} productos publicados, pero tu plan actual permite hasta {ctx.get('products_limit')} — "
-                "no se desactivó ninguno, pero no podrás agregar más hasta que estés dentro del límite o vuelvas a suscribirte."
-                if ctx.get("products_over_limit")
-                else "No se borró nada — puedes volver a suscribirte cuando quieras."
+                f"Como tienes {ctx.get('products_count')} productos y tu plan actual permite hasta {ctx.get('products_limit')}, "
+                f"ocultamos {ctx.get('products_hidden')} de los que menos se venden (nadie se borró). "
+                "Vuelve a suscribirte para reactivarlos todos."
+                if ctx.get("products_hidden")
+                else "No se borró ni ocultó nada — puedes volver a suscribirte cuando quieras."
             )
         ),
         action_url="/dashboard/planes",
@@ -286,6 +290,9 @@ async def emit_event(store_id: str, event_type: str, **ctx) -> None:
     if template.email:
         await _dispatch_email(store_id, template.icon, title, body, action_url)
 
+    if template.whatsapp:
+        await _dispatch_whatsapp(store_id, title, body, action_url)
+
 
 async def _dispatch_email(store_id: str, icon: str, title: str, body: str, action_url: str) -> None:
     """Email best-effort — canal separado del push, no afecta a los demás si falla.
@@ -318,6 +325,32 @@ async def _dispatch_email(store_id: str, icon: str, title: str, body: str, actio
         )
     except Exception:
         log.exception("[notifications] email falló para store %s (%s)", store_id, title)
+
+
+async def _dispatch_whatsapp(store_id: str, title: str, body: str, action_url: str) -> None:
+    """WhatsApp best-effort — mismo patrón de resolución de usuario que _dispatch_email.
+    Solo se llama para eventos con whatsapp=True en su template (opt-in por evento)."""
+    from app.models.models import Store, User
+    from app.services.whatsapp import send_whatsapp_message
+
+    try:
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(
+                select(User).join(Store, Store.user_id == User.id).where(Store.id == store_id)
+            )
+            user = result.scalar_one_or_none()
+    except Exception:
+        log.exception("[notifications] no se pudo resolver el usuario de store %s para WhatsApp", store_id)
+        return
+
+    if not user or not user.phone:
+        return
+
+    try:
+        text = f"*{title}*\n\n{body}\n\n{settings.APP_URL}{action_url}"
+        await send_whatsapp_message(user.phone, text)
+    except Exception:
+        log.exception("[notifications] WhatsApp falló para store %s (%s)", store_id, title)
 
 
 async def _dispatch_push(store_id: str, title: str, body: str, event_type: str) -> None:
