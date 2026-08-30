@@ -95,6 +95,10 @@ async def notify_expiring_subscriptions() -> int:
     window_end = now + timedelta(days=settings.PLAN_EXPIRY_NOTICE_DAYS)
 
     async with AsyncSessionLocal() as db:
+        # FOR UPDATE SKIP LOCKED: el backend corre con 2 workers (Dockerfile),
+        # cada uno con su propio expiry_watcher() — sin este lock, ambos
+        # agarran la misma suscripción en la misma pasada y el vendedor recibe
+        # el aviso (email/push/WhatsApp) duplicado.
         subs = (await db.execute(
             select(Subscription)
             .options(
@@ -107,6 +111,7 @@ async def notify_expiring_subscriptions() -> int:
                 Subscription.ends_at <= window_end,
                 Subscription.expiry_notified_at.is_(None),
             )
+            .with_for_update(of=Subscription, skip_locked=True)
         )).scalars().all()
 
         notified = 0
@@ -240,6 +245,9 @@ async def downgrade_expired_subscriptions() -> int:
             logger.error("Plan gratuito no configurado — no se puede degradar suscripciones vencidas")
             return 0
 
+        # FOR UPDATE SKIP LOCKED: mismo motivo que en notify_expiring_subscriptions()
+        # — con 2 workers, sin esto cada uno degrada la misma suscripción por su
+        # cuenta y queda una fila de plan gratuito duplicada por tienda.
         subs = (await db.execute(
             select(Subscription)
             .options(selectinload(Subscription.plan), selectinload(Subscription.store))
@@ -250,6 +258,7 @@ async def downgrade_expired_subscriptions() -> int:
                 Subscription.expiry_notified_at.is_not(None),
                 Subscription.plan_id != free_plan.id,
             )
+            .with_for_update(of=Subscription, skip_locked=True)
         )).scalars().all()
 
         downgraded = 0
