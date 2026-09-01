@@ -34,3 +34,6 @@ out/
 # Uploads — keep directory, ignore contents
 /data/uploads/*
 !/data/uploads/.gitkeep
+
+*.pem
+*.key
