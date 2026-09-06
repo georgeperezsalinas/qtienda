@@ -227,3 +227,64 @@ async def send_notification_email(
         await asyncio.to_thread(_send_sync, to_email, title, email_html)
     except Exception:
         logger.exception("Failed to send notification email to %s", to_email)
+
+
+async def send_digital_download_email(
+    to_email: str,
+    buyer_name: str,
+    order_number: str,
+    store_name: str,
+    download_links: list[dict],
+) -> None:
+    """download_links: [{"name": ..., "url": ...}, ...] — un link por cada
+    producto digital del pedido. Se manda solo cuando el vendedor confirma
+    el pedido (el link también queda disponible en la página de seguimiento
+    sin depender de que este email llegue)."""
+    if not settings.RESEND_API_KEY:
+        logger.warning("RESEND_API_KEY not set — download links for order %s: %s", order_number, download_links)
+        return
+
+    safe_name = html.escape(buyer_name or "")
+    safe_store = html.escape(store_name or "")
+    links_html = "".join(
+        f"""
+        <a href="{link['url']}"
+           style="display:block;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;
+                  padding:14px 18px;margin-bottom:10px;color:#2563EB;font-weight:700;
+                  text-decoration:none;font-size:14px">
+          ⬇️ Descargar {html.escape(link['name'])}
+        </a>
+        """
+        for link in download_links
+    )
+
+    email_html = f"""
+    <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:520px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #E2E8F0">
+      <div style="background:#2563EB;padding:32px 40px;text-align:center">
+        <img src="{settings.APP_URL}/logo_qtienda.png" alt="qtienda" height="32" style="height:32px"/>
+      </div>
+      <div style="padding:40px">
+        <h2 style="margin:0 0 8px;font-size:22px;color:#0F172A">Hola, {safe_name} 👋</h2>
+        <p style="color:#475569;margin:0 0 24px;line-height:1.6">
+          Tu pedido <strong>#{order_number}</strong> en <strong>{safe_store}</strong> fue confirmado.
+          Ya puedes descargar tu compra:
+        </p>
+        {links_html}
+        <p style="color:#94A3B8;font-size:12px;margin-top:24px;line-height:1.5">
+          Guarda este correo — puedes volver a descargar cuando quieras desde estos links.
+        </p>
+      </div>
+      <div style="background:#F8FAFC;padding:20px 40px;text-align:center">
+        <p style="color:#94A3B8;font-size:11px;margin:0">
+          © qtienda.shop · Tu tienda en Redes Sociales
+        </p>
+      </div>
+    </div>
+    """
+
+    try:
+        await asyncio.to_thread(
+            _send_sync, to_email, f"Tu descarga del pedido #{order_number} está lista", email_html
+        )
+    except Exception:
+        logger.exception("Failed to send digital download email to %s", to_email)

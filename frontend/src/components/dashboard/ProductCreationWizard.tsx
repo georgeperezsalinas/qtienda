@@ -14,6 +14,7 @@ import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
 import { MultiImageUpload, type FormImage } from "@/components/ui/MultiImageUpload";
 import { RichTextEditor } from "@/components/ui/RichTextEditor";
+import { DigitalFileUpload, type DigitalFile } from "@/components/ui/DigitalFileUpload";
 
 interface Category { id: string; name: string; icon?: string }
 
@@ -28,11 +29,12 @@ interface WizardForm {
   category_id: string;
   is_featured: boolean;
   is_published: boolean;
+  is_digital: boolean;
 }
 
 const EMPTY_FORM: WizardForm = {
   name: "", description: "", price_cents: "", compare_price: "", sale_ends_at: "",
-  stock: "", sku: "", category_id: "", is_featured: false, is_published: false,
+  stock: "", sku: "", category_id: "", is_featured: false, is_published: false, is_digital: false,
 };
 
 interface VariantDraft {
@@ -100,6 +102,7 @@ export function ProductCreationWizard({
   const [form, setForm] = useState<WizardForm>(EMPTY_FORM);
   const [images, setImages] = useState<FormImage[]>([]);
   const [variants, setVariants] = useState<VariantDraft[]>([]);
+  const [digitalFile, setDigitalFile] = useState<DigitalFile | null>(null);
   const [creating, setCreating] = useState(false);
 
   const [showNewCategory, setShowNewCategory] = useState(false);
@@ -132,7 +135,9 @@ export function ProductCreationWizard({
   }
 
   const canAdvance2 = form.name.trim().length > 0;
-  const canAdvance3 = !!parseFloat(form.price_cents) && parseFloat(form.price_cents) > 0;
+  const canAdvance3 =
+    !!parseFloat(form.price_cents) && parseFloat(form.price_cents) > 0 &&
+    (!form.is_digital || !!digitalFile);
 
   async function handleCreate() {
     setCreating(true);
@@ -144,11 +149,15 @@ export function ProductCreationWizard({
         price_cents: Math.round(parseFloat(form.price_cents) * 100),
         compare_price: form.compare_price ? Math.round(parseFloat(form.compare_price) * 100) : undefined,
         sale_ends_at: form.sale_ends_at ? new Date(form.sale_ends_at).toISOString() : undefined,
-        stock: form.stock !== "" ? parseInt(form.stock) : undefined,
+        stock: form.is_digital ? undefined : (form.stock !== "" ? parseInt(form.stock) : undefined),
         sku: form.sku.trim() || undefined,
         category_id: form.category_id || undefined,
         is_featured: form.is_featured,
         status: form.is_published ? "active" : "inactive",
+        is_digital: form.is_digital,
+        digital_file_key: form.is_digital ? digitalFile?.key : undefined,
+        digital_file_name: form.is_digital ? digitalFile?.name : undefined,
+        digital_file_size: form.is_digital ? digitalFile?.size : undefined,
       });
 
       for (let i = 0; i < images.length; i++) {
@@ -297,14 +306,29 @@ export function ProductCreationWizard({
             </Field>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Stock" hint="Vacío = sin límite">
-              <input className="input" type="number" min="0" placeholder="Sin límite" value={form.stock} onChange={(e) => update("stock", e.target.value)} />
-            </Field>
-            <Field label="SKU (opcional)">
-              <input className="input" placeholder="Código interno" value={form.sku} onChange={(e) => update("sku", e.target.value)} />
-            </Field>
+          <div style={{ borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)" }}>
+            <Toggle
+              checked={form.is_digital}
+              onChange={() => update("is_digital", !form.is_digital)}
+              label="Producto digital"
+              sub="Ebook, PDF u otro archivo — se entrega por descarga, sin envío"
+            />
           </div>
+
+          {form.is_digital ? (
+            <Field label="Archivo del producto" required hint={`Máximo 200MB — PDF, EPUB, MOBI, ZIP, DOCX, MP3 o MP4`}>
+              <DigitalFileUpload file={digitalFile} onChange={setDigitalFile} />
+            </Field>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Stock" hint="Vacío = sin límite">
+                <input className="input" type="number" min="0" placeholder="Sin límite" value={form.stock} onChange={(e) => update("stock", e.target.value)} />
+              </Field>
+              <Field label="SKU (opcional)">
+                <input className="input" placeholder="Código interno" value={form.sku} onChange={(e) => update("sku", e.target.value)} />
+              </Field>
+            </div>
+          )}
         </div>
       )}
 

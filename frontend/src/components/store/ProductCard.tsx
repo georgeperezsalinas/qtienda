@@ -23,6 +23,7 @@ interface Props {
     stock?: number;
     sold_count?: number;
     created_at?: string;
+    is_digital?: boolean;
     images: { url: string; is_primary: boolean }[];
     variants?: { id: string; label: string; sku?: string; price_cents?: number; stock?: number }[];
   };
@@ -127,9 +128,14 @@ export default function ProductCard({
   function handleAdd(e: React.MouseEvent) {
     e.stopPropagation();
     if (outOfStock) return;
+    const check = useCartStore.getState().canAdd({ id: product.id, is_digital: product.is_digital }, storeSlug);
+    if (!check.ok) {
+      toast.error(check.reason!);
+      return;
+    }
     addItem(
       { id: product.id, name: displayName, price_cents: product.price_cents,
-        image_url: primaryImage || "", quantity: 1 },
+        image_url: primaryImage || "", quantity: 1, is_digital: product.is_digital },
       storeSlug,
     );
     setAdded(true);

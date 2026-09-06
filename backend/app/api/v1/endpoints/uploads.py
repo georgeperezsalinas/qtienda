@@ -101,6 +101,64 @@ async def upload_review_photo(
     return {"url": url, "filename": filename}
 
 
+ALLOWED_DIGITAL_EXTENSIONS = {".pdf", ".epub", ".mobi", ".zip", ".docx", ".mp3", ".mp4"}
+PRIVATE_UPLOADS_DIR = Path(settings.PRIVATE_UPLOADS_DIR)
+
+
+@router.post("/digital-file")
+async def upload_digital_file(
+    file: UploadFile = File(...),
+    _=Depends(require_vendor),
+):
+    """Archivo digital de un producto (ebook, etc.) — a diferencia de /image,
+    devuelve una `key` privada, nunca una URL pública: el archivo solo se
+    sirve a través del endpoint de descarga del pedido, que valida que esté
+    confirmado (ver public.py download_digital_file)."""
+    ext = Path(file.filename or "").suffix.lower()
+    if ext not in ALLOWED_DIGITAL_EXTENSIONS:
+        allowed = ", ".join(sorted(ALLOWED_DIGITAL_EXTENSIONS))
+        raise HTTPException(status_code=422, detail=f"Tipo de archivo no permitido. Use: {allowed}")
+
+    content = await file.read()
+    max_bytes = settings.MAX_DIGITAL_SIZE_MB * 1024 * 1024
+    if len(content) > max_bytes:
+        raise HTTPException(status_code=422, detail=f"Archivo muy grande. Máximo {settings.MAX_DIGITAL_SIZE_MB}MB.")
+
+    key = f"digital/{uuid.uuid4()}{ext}"
+
+    if settings.S3_ENDPOINT and settings.S3_ACCESS_KEY:
+        content_type = file.content_type or "application/octet-stream"
+        await _upload_r2(content, Path(key).name, content_type, object_key=key)
+    else:
+        dest = PRIVATE_UPLOADS_DIR / key
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(content)
+
+    return {"key": key, "filename": file.filename, "size": len(content)}
+
+
+def presigned_download_url(key: str, expires_in: int = 300) -> str:
+    """URL de GET prefirmada para un objeto privado de R2 (archivo digital).
+    Corta duración a propósito: se regenera en cada click al link de
+    descarga, el control de acceso real vive en el estado del pedido, no acá."""
+    import boto3
+    from botocore.config import Config
+
+    s3 = boto3.client(
+        "s3",
+        endpoint_url=settings.S3_ENDPOINT,
+        aws_access_key_id=settings.S3_ACCESS_KEY,
+        aws_secret_access_key=settings.S3_SECRET_KEY,
+        region_name="auto",
+        config=Config(signature_version="s3v4", s3={"addressing_style": "path"}),
+    )
+    return s3.generate_presigned_url(
+        "get_object",
+        Params={"Bucket": settings.S3_BUCKET, "Key": key},
+        ExpiresIn=expires_in,
+    )
+
+
 def is_own_upload_url(url: str) -> bool:
     """Confirma que una URL de foto realmente viene de nuestro storage (local,
     R2/CDN) y no es un link arbitrario que el cliente intenta colar — se usa

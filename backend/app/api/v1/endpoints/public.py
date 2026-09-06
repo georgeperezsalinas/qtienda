@@ -8,6 +8,7 @@ import secrets
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, Query
+from fastapi.responses import RedirectResponse, FileResponse
 from urllib.parse import quote
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import case, func, select, and_, or_
@@ -725,6 +726,7 @@ async def get_store_products(
             "sale_ends_at": p.sale_ends_at,
             "stock": p.stock,
             "is_featured": p.is_featured,
+            "is_digital": p.is_digital,
             "category_id": p.category_id,
             "sold_count": sold_map.get(p.id, 0),
             "created_at": p.created_at,
@@ -1003,6 +1005,15 @@ async def create_order(
     if len(products_map) != len(set(product_ids)):
         raise HTTPException(status_code=422, detail="Producto no disponible")
 
+    # v1: un pedido es 100% digital o 100% físico — mezclar complica delivery,
+    # dirección y el flujo de entrega, y no hay ningún caso de uso que lo pida.
+    is_digital_order = any(p.is_digital for p in products_map.values())
+    if is_digital_order and not all(p.is_digital for p in products_map.values()):
+        raise HTTPException(
+            status_code=422,
+            detail="No puedes combinar productos digitales y físicos en el mismo pedido. Complétalos en pedidos separados.",
+        )
+
     # Load & validate variants (opcional por línea) — mismo lock que los
     # productos, para que el chequeo de stock sea consistente bajo carga.
     variant_ids = [item.variant_id for item in payload.items if item.variant_id]
@@ -1057,6 +1068,12 @@ async def create_order(
                 product_sku=product.sku,
                 variant_label=variant.label if variant else None,
                 variant_sku=variant.sku if variant else None,
+                # Snapshot del archivo + token de descarga — impredecible, el
+                # acceso real lo controla el estado del pedido (ver
+                # download_digital_file más abajo), no el token en sí.
+                download_token=secrets.token_urlsafe(32) if product.is_digital else None,
+                digital_file_key=product.digital_file_key if product.is_digital else None,
+                digital_file_name=product.digital_file_name if product.is_digital else None,
                 unit_price=effective_price,
                 quantity=item.quantity,
                 subtotal=line,
@@ -1069,14 +1086,19 @@ async def create_order(
 
     settings = store.settings
 
-    # Recojo en tienda: solo valido si el vendedor lo activó — evita que se
-    # pueda esquivar el costo de delivery pidiendo pickup en una tienda que
-    # nunca lo ofreció.
-    service_type = payload.service_type or "delivery"
-    if service_type == "pickup" and not (settings and settings.accept_pickup):
-        raise HTTPException(status_code=422, detail="Esta tienda no ofrece recojo en tienda")
+    # Digital: se fuerza sin importar lo que haya mandado el cliente — no hay
+    # envío, dirección ni recojo posibles para este pedido.
+    if is_digital_order:
+        service_type = "digital"
+    else:
+        # Recojo en tienda: solo valido si el vendedor lo activó — evita que se
+        # pueda esquivar el costo de delivery pidiendo pickup en una tienda que
+        # nunca lo ofreció.
+        service_type = payload.service_type or "delivery"
+        if service_type == "pickup" and not (settings and settings.accept_pickup):
+            raise HTTPException(status_code=422, detail="Esta tienda no ofrece recojo en tienda")
 
-    if service_type == "pickup":
+    if service_type in ("pickup", "digital"):
         delivery_cents = 0
     else:
         delivery_cents = settings.delivery_fee_cents if settings else 0
@@ -1418,6 +1440,16 @@ async def _check_order_limit(store: Store, db: AsyncSession) -> None:
             )
 
 
+# Un pedido digital solo desbloquea la descarga una vez que el vendedor
+# revisó el comprobante de pago y lo confirmó — mismo hito que dispara el
+# WhatsApp de "tu pedido fue confirmado" para pedidos físicos.
+DOWNLOAD_UNLOCKED_STATUSES = ("confirmed", "delivered")
+
+
+def build_download_url(store_slug: str, order_number: str, token: str) -> str:
+    return f"{app_settings.API_PUBLIC_URL}/public/store/{store_slug}/orders/{order_number}/descargar/{token}"
+
+
 @router.get("/store/{slug}/orders/{order_number}/track")
 @limiter.limit("30/minute")
 async def track_order(request: Request, slug: str, order_number: str, db: AsyncSession = Depends(get_db)):
@@ -1442,18 +1474,70 @@ async def track_order(request: Request, slug: str, order_number: str, db: AsyncS
     if not order:
         raise HTTPException(status_code=404, detail="Pedido no encontrado")
 
+    unlocked = order.status in DOWNLOAD_UNLOCKED_STATUSES
     return {
         "order_number": order.order_number,
         "status": order.status,
+        "service_type": order.service_type,
         "created_at": order.created_at,
         "total_cents": order.total_cents,
         "store_country": store_country,
         "store_currency": store_currency,
         "items": [
-            {"name": i.product_name, "qty": i.quantity, "image_url": i.image_url}
+            {
+                "name": i.product_name,
+                "qty": i.quantity,
+                "image_url": i.image_url,
+                "digital_file_name": i.digital_file_name,
+                "download_url": (
+                    build_download_url(slug, order.order_number, i.download_token)
+                    if i.download_token and unlocked
+                    else None
+                ),
+            }
             for i in order.items
         ],
     }
+
+
+@router.get("/store/{slug}/orders/{order_number}/descargar/{token}")
+@limiter.limit("30/minute")
+async def download_digital_file(
+    request: Request, slug: str, order_number: str, token: str, db: AsyncSession = Depends(get_db)
+):
+    """Descarga de un producto digital comprado — el token es impredecible,
+    pero el candado real es el estado del pedido: nadie descarga nada hasta
+    que el vendedor confirma que el pago llegó."""
+    item_q = await db.execute(
+        select(OrderItem, Order.status)
+        .join(Order, Order.id == OrderItem.order_id)
+        .join(Store, Store.id == Order.store_id)
+        .where(
+            Store.slug == slug,
+            Order.order_number == order_number,
+            OrderItem.download_token == token,
+        )
+    )
+    row = item_q.first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Enlace de descarga no válido")
+    item, order_status = row
+
+    if order_status not in DOWNLOAD_UNLOCKED_STATUSES:
+        raise HTTPException(status_code=403, detail="Tu pedido todavía no fue confirmado por el vendedor")
+    if not item.digital_file_key:
+        raise HTTPException(status_code=404, detail="Archivo no disponible")
+
+    if app_settings.S3_ENDPOINT and app_settings.S3_ACCESS_KEY:
+        from app.api.v1.endpoints.uploads import presigned_download_url
+        url = presigned_download_url(item.digital_file_key)
+        return RedirectResponse(url, status_code=307)
+
+    from pathlib import Path
+    path = Path(app_settings.PRIVATE_UPLOADS_DIR) / item.digital_file_key
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="Archivo no disponible")
+    return FileResponse(path, filename=item.digital_file_name or path.name)
 
 
 # ── Analytics de tienda (QT-008) ──────────────────────────────

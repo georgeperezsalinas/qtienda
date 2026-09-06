@@ -38,6 +38,9 @@ def _serialize(p: Product) -> dict:
         "sku": p.sku,
         "stock": p.stock,
         "status": p.status,
+        "is_digital": p.is_digital,
+        "digital_file_name": p.digital_file_name,
+        "digital_file_size": p.digital_file_size,
         "is_featured": p.is_featured,
         "sort_order": p.sort_order,
         "category_id": p.category_id,
@@ -232,9 +235,14 @@ async def create_product(
         compare_price=payload.compare_price,
         sale_ends_at=payload.sale_ends_at,
         sku=payload.sku,
-        stock=payload.stock,
+        # Digital = descarga ilimitada, no hay noción de inventario.
+        stock=None if payload.is_digital else payload.stock,
         is_featured=payload.is_featured,
         status=payload.status,
+        is_digital=payload.is_digital,
+        digital_file_key=payload.digital_file_key if payload.is_digital else None,
+        digital_file_name=payload.digital_file_name if payload.is_digital else None,
+        digital_file_size=payload.digital_file_size if payload.is_digital else None,
     )
     db.add(product)
     await db.flush()
@@ -314,6 +322,15 @@ async def update_product(
             raise HTTPException(status_code=422, detail="Categoría no válida")
 
     update_data = payload.model_dump(exclude_unset=True)
+
+    # Digital = descarga ilimitada, no hay noción de inventario.
+    will_be_digital = update_data.get("is_digital", product.is_digital)
+    if will_be_digital:
+        has_file = update_data.get("digital_file_key", product.digital_file_key)
+        if not has_file:
+            raise HTTPException(status_code=422, detail="Un producto digital necesita un archivo — súbelo antes de guardar")
+        update_data["stock"] = None
+
     # Tocar el stock a mano "reinicia" la alerta de stock bajo — si vuelve a
     # caer bajo el umbral más adelante, se puede volver a avisar.
     if "stock" in update_data and update_data["stock"] != product.stock:

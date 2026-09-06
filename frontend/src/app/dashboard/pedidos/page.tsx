@@ -61,6 +61,21 @@ const NEXT_ACTION: Record<string, { next: string; label: string } | undefined> =
 /* Estados desde los que aún se puede cancelar */
 const CAN_CANCEL = new Set(["pending", "confirmed", "preparing", "on_the_way"]);
 
+/* Un pedido digital no tiene preparación ni envío — confirmar el pago ya
+   desbloquea la descarga, así que la ruta es mucho más corta. */
+const DIGITAL_FLOW = [
+  { key: "pending",   label: "Pendiente",  desc: "Nuevo pedido, esperando que confirmes el pago" },
+  { key: "confirmed", label: "Confirmado", desc: "Se desbloqueó la descarga para el comprador" },
+  { key: "delivered", label: "Completado", desc: "Diste el pedido por finalizado" },
+] as const;
+
+const DIGITAL_FLOW_IDX: Record<string, number> = { pending: 0, confirmed: 1, delivered: 2 };
+
+const DIGITAL_NEXT_ACTION: Record<string, { next: string; label: string } | undefined> = {
+  pending:   { next: "confirmed", label: "Confirmar pago" },
+  confirmed: { next: "delivered", label: "Marcar como completado" },
+};
+
 interface Order {
   id: string;
   order_number: string;
@@ -119,6 +134,7 @@ function toISODate(d: Date) {
    (un repartidor de su equipo o él mismo). Sin repartidores registrados no hay fricción. */
 function StatusRoadmap({
   status,
+  serviceType,
   updating,
   staff,
   assignedToId,
@@ -129,6 +145,7 @@ function StatusRoadmap({
   onReactivate,
 }: {
   status: string;
+  serviceType?: string;
   updating: boolean;
   staff: Staff[];
   assignedToId: string | null;
@@ -139,6 +156,10 @@ function StatusRoadmap({
   onReactivate: () => void;
 }) {
   const [choosing, setChoosing] = useState(false);
+  const isDigital = serviceType === "digital";
+  const flow = isDigital ? DIGITAL_FLOW : FLOW;
+  const flowIdx = isDigital ? DIGITAL_FLOW_IDX : FLOW_IDX;
+  const nextActionMap = isDigital ? DIGITAL_NEXT_ACTION : NEXT_ACTION;
   if (status === "cancelled") {
     return (
       <div className="rounded-xl p-4 mb-4 text-center" style={{ background: "var(--danger-soft)" }}>
@@ -158,8 +179,8 @@ function StatusRoadmap({
     );
   }
 
-  const currentIdx = FLOW_IDX[status] ?? 0;
-  const action = NEXT_ACTION[status];
+  const currentIdx = flowIdx[status] ?? 0;
+  const action = nextActionMap[status];
 
   return (
     <div className="rounded-xl p-4 mb-4" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
@@ -167,7 +188,7 @@ function StatusRoadmap({
         Ruta del pedido
       </p>
 
-      {FLOW.map((step, i) => {
+      {flow.map((step, i) => {
         const done   = i < currentIdx;
         const active = i === currentIdx;
         const isNext = i === currentIdx + 1;
@@ -185,7 +206,7 @@ function StatusRoadmap({
               >
                 {done ? "✓" : i + 1}
               </div>
-              {i < FLOW.length - 1 && (
+              {i < flow.length - 1 && (
                 <div
                   className="w-0.5 flex-1"
                   style={{ background: done ? "var(--ink)" : "var(--line-2)", minHeight: 12 }}
@@ -193,7 +214,7 @@ function StatusRoadmap({
               )}
             </div>
             {/* Texto del paso */}
-            <div className={i < FLOW.length - 1 ? "pb-2.5" : ""} style={{ minWidth: 0 }}>
+            <div className={i < flow.length - 1 ? "pb-2.5" : ""} style={{ minWidth: 0 }}>
               <p
                 className="text-sm font-semibold leading-5"
                 style={{ color: done || active ? "var(--ink)" : "var(--ink-4)" }}
@@ -562,7 +583,7 @@ export default function PedidosPage() {
         o.buyer_phone,
         (o.total_cents / 100).toFixed(2),
         STATUS_LABELS[o.status]?.label ?? o.status,
-        o.service_type === "pickup" ? "Recojo en tienda" : "Delivery",
+        o.service_type === "digital" ? "Digital" : o.service_type === "pickup" ? "Recojo en tienda" : "Delivery",
       ]);
       const csv = [header, ...rows].map((r) => r.map(csvField).join(",")).join("\n");
       const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
@@ -598,7 +619,9 @@ export default function PedidosPage() {
       </tr>
     `).join("");
 
-    const deliveryLine = o.service_type === "pickup"
+    const deliveryLine = o.service_type === "digital"
+      ? "<strong>Producto digital</strong> — sin envío"
+      : o.service_type === "pickup"
       ? "<strong>Recojo en tienda</strong> — no enviar"
       : [o.buyer_address, [o.buyer_district, o.buyer_province, o.buyer_department].filter(Boolean).join(", ")]
           .filter(Boolean).join("<br>") || "Sin dirección registrada";
@@ -676,6 +699,7 @@ export default function PedidosPage() {
       <StatusRoadmap
         key={selected.id}
         status={selected.status}
+        serviceType={selected.service_type}
         updating={updating}
         staff={staff}
         assignedToId={selected.assigned_to_id ?? null}
@@ -702,6 +726,14 @@ export default function PedidosPage() {
           <div className="flex items-center gap-2 text-sm" style={{ color: "var(--ink-2)" }}>
             <span className="text-xs font-semibold" style={{ color: "var(--ink-4)" }}>DNI</span>
             {selected.buyer_dni}
+          </div>
+        )}
+        {selected.service_type === "digital" && (
+          <div
+            className="flex items-center gap-2 text-sm font-bold px-3 py-2 rounded-xl"
+            style={{ background: "var(--accent-soft, var(--tint))", color: "var(--accent)" }}
+          >
+            ⬇️ Producto digital — sin envío, se entrega por descarga
           </div>
         )}
         {selected.service_type === "pickup" && (
@@ -762,7 +794,7 @@ export default function PedidosPage() {
           <span>Subtotal</span><span>{formatPrice(selected.subtotal_cents, storeCurrency.code, storeCurrency.locale)}</span>
         </div>
         <div className="flex justify-between" style={{ color: "var(--ink-2)" }}>
-          <span>{selected.service_type === "pickup" ? "Recojo en tienda" : "Delivery"}</span>
+          <span>{selected.service_type === "digital" ? "Digital" : selected.service_type === "pickup" ? "Recojo en tienda" : "Delivery"}</span>
           <span>{formatPrice(selected.delivery_cents, storeCurrency.code, storeCurrency.locale)}</span>
         </div>
         {!!selected.discount_cents && (
@@ -875,6 +907,9 @@ export default function PedidosPage() {
                     <div className="flex items-center gap-2 mb-1">
                       <span className="font-bold text-sm" style={{ color: "var(--ink)" }}>#{order.order_number}</span>
                       <span className={`badge ${s.cls}`}>{s.label}</span>
+                      {order.service_type === "digital" && (
+                        <span className="badge badge-info">⬇️ Digital</span>
+                      )}
                       {order.service_type === "pickup" && (
                         <span className="badge badge-info">🏪 Recojo</span>
                       )}

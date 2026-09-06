@@ -299,6 +299,13 @@ class ProductCreate(BaseModel):
     sku: Optional[str] = None
     stock: Optional[int] = None
     is_featured: bool = False
+    # Producto digital (ebook, etc.): sin envío, se entrega por descarga.
+    # digital_file_key sale de POST /uploads/digital-file — nunca es una URL
+    # pública, así que no se valida como tal.
+    is_digital: bool = False
+    digital_file_key: Optional[str] = None
+    digital_file_name: Optional[str] = None
+    digital_file_size: Optional[int] = None
     # Publicar es una decision explicita del vendedor, nunca automatica:
     # el producto nace en borrador hasta que decide hacerlo visible.
     status: str = "inactive"
@@ -309,6 +316,12 @@ class ProductCreate(BaseModel):
         if v <= 0:
             raise ValueError("Precio debe ser mayor a 0")
         return v
+
+    @model_validator(mode="after")
+    def digital_requires_file(self):
+        if self.is_digital and not self.digital_file_key:
+            raise ValueError("Un producto digital necesita un archivo — súbelo antes de guardar")
+        return self
 
     @field_validator("status")
     @classmethod
@@ -340,6 +353,10 @@ class ProductUpdate(BaseModel):
     status: Optional[str] = None
     is_featured: Optional[bool] = None
     sort_order: Optional[int] = None
+    is_digital: Optional[bool] = None
+    digital_file_key: Optional[str] = None
+    digital_file_name: Optional[str] = None
+    digital_file_size: Optional[int] = None
 
 
 class ProductVariantIn(BaseModel):
@@ -526,14 +543,16 @@ class PublicOrderCreate(BaseModel):
     # session_id del carrito (analyticsSession.ts) — permite marcar el
     # AbandonedCart de esta sesión como 'recovered' al completar el pedido.
     cart_session_id: Optional[str] = None
-    # 'delivery' (default, compatible con clientes viejos como la app móvil)
-    # o 'pickup' — si es pickup, el backend no cobra delivery_cents.
+    # 'delivery' (default, compatible con clientes viejos como la app móvil),
+    # 'pickup' (no cobra delivery_cents) o 'digital' (sin envío; el backend lo
+    # fuerza igual si el carrito es 100% digital, así que este valor es más
+    # que nada informativo para clientes que ya lo mandan).
     service_type: Optional[str] = "delivery"
 
     @field_validator("service_type")
     @classmethod
     def valid_service_type(cls, v):
-        if v not in ("delivery", "pickup"):
+        if v not in ("delivery", "pickup", "digital"):
             raise ValueError("Tipo de servicio inválido")
         return v
 

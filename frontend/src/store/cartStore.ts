@@ -9,6 +9,7 @@ interface CartItem {
   price_cents: number;
   image_url: string;
   quantity: number;
+  is_digital?: boolean;
 }
 
 // Identidad de una línea de carrito: mismo producto pero variante distinta
@@ -26,6 +27,10 @@ interface CartStore {
   clearCart: () => void;
   totalItems: () => number;
   totalCents: () => number;
+  // No se puede mezclar productos digitales y físicos en un mismo pedido
+  // (ver backend/app/api/v1/endpoints/public.py create_order) — se valida acá
+  // también para avisar ANTES de llegar al checkout, no recién al pagar.
+  canAdd: (item: { id: string; is_digital?: boolean }, storeSlug: string) => { ok: boolean; reason?: string };
 }
 
 export const useCartStore = create<CartStore>()(
@@ -75,6 +80,20 @@ export const useCartStore = create<CartStore>()(
       totalItems: () => get().items.reduce((acc, i) => acc + i.quantity, 0),
       totalCents: () =>
         get().items.reduce((acc, i) => acc + i.price_cents * i.quantity, 0),
+
+      canAdd(item, storeSlug) {
+        const { items, storeSlug: currentSlug } = get();
+        if (currentSlug !== null && currentSlug !== storeSlug) return { ok: true }; // carrito de otra tienda: se limpia al agregar
+        if (items.length === 0) return { ok: true };
+        const cartIsDigital = !!items[0].is_digital;
+        if (cartIsDigital === !!item.is_digital) return { ok: true };
+        return {
+          ok: false,
+          reason: cartIsDigital
+            ? "Tu carrito tiene productos digitales. Termina o vacía ese pedido antes de agregar productos físicos."
+            : "Tu carrito tiene productos físicos. Termina o vacía ese pedido antes de agregar productos digitales.",
+        };
+      },
     }),
     {
       name: "qtienda-cart",

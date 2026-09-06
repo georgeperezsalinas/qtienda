@@ -26,6 +26,7 @@ interface ProductForSheet {
   category_id?: string;
   sold_count?: number;
   created_at?: string;
+  is_digital?: boolean;
   images: { url: string; is_primary: boolean }[];
   variants?: { id: string; label: string; sku?: string; price_cents?: number; stock?: number }[];
 }
@@ -143,9 +144,15 @@ export default function ProductDetailSheet({
 
   function handleAdd() {
     if (outOfStock || (hasVariants && !selectedVariantId)) return;
+    const check = useCartStore.getState().canAdd({ id: product.id, is_digital: product.is_digital }, storeSlug);
+    if (!check.ok) {
+      toast.error(check.reason!);
+      return;
+    }
     addItem(
       { id: product.id, variant_id: selectedVariant?.id, variant_label: selectedVariant?.label,
-        name: displayName, price_cents: effectivePrice, image_url: primaryImage, quantity: qty },
+        name: displayName, price_cents: effectivePrice, image_url: primaryImage, quantity: qty,
+        is_digital: product.is_digital },
       storeSlug,
       qty,
     );

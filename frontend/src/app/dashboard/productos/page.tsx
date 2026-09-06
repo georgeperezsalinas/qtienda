@@ -33,6 +33,7 @@ interface Product {
   sku?: string;
   status: string;
   is_featured: boolean;
+  is_digital?: boolean;
   category_id?: string;
   images: ProductImage[];
   variants: ProductVariant[];
@@ -272,6 +273,14 @@ function ProductCard({
           )}
         </div>
         <div className="flex items-center gap-2 mt-1">
+          {product.is_digital && (
+            <span
+              className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+              style={{ background: "var(--accent-soft)", color: "var(--accent)" }}
+            >
+              Digital
+            </span>
+          )}
           {product.stock != null && (
             editingField === "stock" ? (
               <input

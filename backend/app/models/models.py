@@ -255,6 +255,13 @@ class Product(Base):
     # exceder el límite del plan tras un downgrade — permite reactivarlo solo
     # a él (nunca a los que el vendedor apagó a mano) si vuelve a subir de plan.
     hidden_by_plan_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    # Producto digital (ebook, PDF, etc.): sin envío, se entrega por descarga
+    # cuando el vendedor confirma el pedido. digital_file_key es la ruta/objeto
+    # privado en storage — nunca la URL pública de CDN (ver uploads.py).
+    is_digital: Mapped[bool]        = mapped_column(Boolean, default=False)
+    digital_file_key: Mapped[Optional[str]]  = mapped_column(Text)
+    digital_file_name: Mapped[Optional[str]] = mapped_column(Text)
+    digital_file_size: Mapped[Optional[int]] = mapped_column(Integer)
     created_at: Mapped[datetime]    = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime]    = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -371,6 +378,14 @@ class OrderItem(Base):
     variant_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("product_variants.id", ondelete="SET NULL"))
     variant_label: Mapped[Optional[str]] = mapped_column(String(120))
     variant_sku: Mapped[Optional[str]] = mapped_column(String(80))
+    # Snapshot del archivo digital comprado — mismo criterio que product_name/sku:
+    # el producto puede cambiar de archivo o borrarse después, el pedido
+    # conserva lo que el comprador realmente pagó. download_token es único e
+    # impredecible; el acceso real lo controla el estado del pedido (ver
+    # public.py download_digital_file), no el token en sí.
+    download_token: Mapped[Optional[str]]     = mapped_column(String(64), unique=True)
+    digital_file_key: Mapped[Optional[str]]   = mapped_column(Text)
+    digital_file_name: Mapped[Optional[str]]  = mapped_column(Text)
     unit_price: Mapped[int]         = mapped_column(Integer)
     quantity: Mapped[int]           = mapped_column(Integer, default=1)
     subtotal: Mapped[int]           = mapped_column(Integer)

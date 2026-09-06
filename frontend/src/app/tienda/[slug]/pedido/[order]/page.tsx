@@ -8,7 +8,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   CheckCircle2, Clock, Package, Bike, Home, XCircle,
-  MessageCircle, RefreshCw, Store as StoreIcon, ChevronLeft,
+  MessageCircle, RefreshCw, Store as StoreIcon, ChevronLeft, Download,
 } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { formatPrice, getStoreCurrency } from "@/lib/utils";
@@ -20,9 +20,13 @@ interface Props {
 interface TrackData {
   order_number: string;
   status: string;
+  service_type?: string;
   created_at: string;
   total_cents: number;
-  items: { name: string; qty: number; image_url?: string }[];
+  items: {
+    name: string; qty: number; image_url?: string;
+    digital_file_name?: string | null; download_url?: string | null;
+  }[];
 }
 
 interface StoreInfo {
@@ -46,6 +50,17 @@ const TIMELINE = [
 
 const STATUS_IDX: Record<string, number> = {
   pending: 0, confirmed: 1, preparing: 2, on_the_way: 3, delivered: 4,
+};
+
+// Un pedido digital no tiene preparación ni envío — el hito real es que el
+// vendedor confirme el pago, ahí se desbloquea la descarga.
+const DIGITAL_TIMELINE = [
+  { key: "pending",   label: "Pedido recibido", sub: "La tienda está revisando tu pago",  icon: Clock },
+  { key: "confirmed", label: "Pago confirmado", sub: "Ya puedes descargar tu compra",     icon: Download },
+] as const;
+
+const DIGITAL_STATUS_IDX: Record<string, number> = {
+  pending: 0, confirmed: 1, delivered: 1,
 };
 
 export default function TrackOrderPage({ params }: Props) {
@@ -90,7 +105,9 @@ export default function TrackOrderPage({ params }: Props) {
   const color = store?.primary_color || "#2563EB";
   const storeCurrency = getStoreCurrency(store);
   const cancelled = order?.status === "cancelled";
-  const currentIdx = order ? STATUS_IDX[order.status] ?? 0 : 0;
+  const isDigitalOrder = order?.service_type === "digital";
+  const timeline = isDigitalOrder ? DIGITAL_TIMELINE : TIMELINE;
+  const currentIdx = order ? (isDigitalOrder ? DIGITAL_STATUS_IDX : STATUS_IDX)[order.status] ?? 0 : 0;
 
   const waHref = store?.whatsapp
     ? `https://wa.me/${store.whatsapp}?text=${encodeURIComponent(
@@ -199,7 +216,7 @@ export default function TrackOrderPage({ params }: Props) {
                 className="rounded-2xl p-5 mb-4"
                 style={{ background: "var(--surface)", border: "1px solid var(--line)" }}
               >
-                {TIMELINE.map((s, i) => {
+                {timeline.map((s, i) => {
                   const done   = i < currentIdx;
                   const active = i === currentIdx;
                   const Icon   = s.icon;
@@ -217,7 +234,7 @@ export default function TrackOrderPage({ params }: Props) {
                         >
                           <Icon size={15} />
                         </div>
-                        {i < TIMELINE.length - 1 && (
+                        {i < timeline.length - 1 && (
                           <div
                             className="w-0.5 flex-1 my-1"
                             style={{ background: done ? color : "var(--line-2)", minHeight: 18 }}
@@ -225,7 +242,7 @@ export default function TrackOrderPage({ params }: Props) {
                         )}
                       </div>
                       {/* Texto */}
-                      <div className={i < TIMELINE.length - 1 ? "pb-4" : ""}>
+                      <div className={i < timeline.length - 1 ? "pb-4" : ""}>
                         <p
                           className="text-sm font-bold leading-8"
                           style={{ color: done || active ? "var(--ink)" : "var(--ink-4)" }}
@@ -260,23 +277,35 @@ export default function TrackOrderPage({ params }: Props) {
               </p>
               <div className="space-y-2.5">
                 {order.items.map((item, i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    {item.image_url ? (
-                      <img src={item.image_url} alt={item.name} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
-                    ) : (
-                      <div
-                        className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                        style={{ background: "var(--surface-2)" }}
+                  <div key={i}>
+                    <div className="flex items-center gap-3">
+                      {item.image_url ? (
+                        <img src={item.image_url} alt={item.name} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                      ) : (
+                        <div
+                          className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                          style={{ background: "var(--surface-2)" }}
+                        >
+                          🛍️
+                        </div>
+                      )}
+                      <p className="flex-1 text-sm font-medium truncate" style={{ color: "var(--ink)" }}>
+                        {item.name}
+                      </p>
+                      <span className="text-xs font-bold flex-shrink-0" style={{ color: "var(--ink-3)" }}>
+                        x{item.qty}
+                      </span>
+                    </div>
+                    {item.download_url && (
+                      <a
+                        href={item.download_url}
+                        className="flex items-center justify-center gap-1.5 rounded-xl text-xs font-bold py-2.5 mt-2"
+                        style={{ background: `${color}12`, color }}
                       >
-                        🛍️
-                      </div>
+                        <Download size={13} />
+                        Descargar {item.digital_file_name || "archivo"}
+                      </a>
                     )}
-                    <p className="flex-1 text-sm font-medium truncate" style={{ color: "var(--ink)" }}>
-                      {item.name}
-                    </p>
-                    <span className="text-xs font-bold flex-shrink-0" style={{ color: "var(--ink-3)" }}>
-                      x{item.qty}
-                    </span>
                   </div>
                 ))}
               </div>

@@ -525,6 +525,28 @@ async def update_order_status(
 
     await db.commit()
 
+    # Entrega de pedido digital — el hito es "confirmed" (vendedor revisó el
+    # comprobante de pago), igual que el WhatsApp de confirmación para
+    # pedidos físicos. El link en sí también queda disponible en la página
+    # pública de seguimiento sin depender del email.
+    if order.service_type == "digital" and new_status == "confirmed" and order.buyer_email:
+        from app.api.v1.endpoints.public import build_download_url
+        from app.services.email import send_digital_download_email
+        import asyncio as _asyncio
+        download_links = [
+            {
+                "name": item.digital_file_name or item.product_name,
+                "url": build_download_url(store.slug, order.order_number, item.download_token),
+            }
+            for item in order.items if item.download_token
+        ]
+        if download_links:
+            _asyncio.ensure_future(
+                send_digital_download_email(
+                    order.buyer_email, order.buyer_name, order.order_number, store.name, download_links
+                )
+            )
+
     # Push notification to buyer (fire-and-forget, uses its own DB session)
     # if order.buyer_email:
     #     from app.services.push import send_push_to_buyer

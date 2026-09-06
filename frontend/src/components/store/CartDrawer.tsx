@@ -196,13 +196,16 @@ export default function CartDrawer({ open, onClose, store }: Props) {
   // Checkout adaptado al país de la tienda: Perú usa DNI + ubigeo;
   // otros países ven etiquetas y validaciones genéricas.
   const isPE = (store.country || "PE") === "PE";
-  const canPickup = !!store.settings?.accept_pickup;
+  // Un carrito 100% digital no tiene envío ni recojo — el backend fuerza
+  // service_type="digital" igual, esto es solo para saltar los pasos de la UI.
+  const isDigitalOrder = items.length > 0 && items.every((i) => i.is_digital);
+  const canPickup = !isDigitalOrder && !!store.settings?.accept_pickup;
   const [serviceType, setServiceType] = useState<"delivery" | "pickup">("delivery");
   const isPickup = canPickup && serviceType === "pickup";
   const deliveryFee = store.settings?.delivery_fee_cents || 0;
   const freeAbove = store.settings?.free_delivery_above;
   const subtotal = totalCents();
-  const effectiveDel = isPickup ? 0 : (freeAbove && subtotal >= freeAbove ? 0 : deliveryFee);
+  const effectiveDel = isDigitalOrder || isPickup ? 0 : (freeAbove && subtotal >= freeAbove ? 0 : deliveryFee);
   const total = subtotal + effectiveDel;
   const minOrder = store.settings?.min_order_cents || 0;
   const belowMin = minOrder > 0 && total < minOrder;
@@ -296,8 +299,8 @@ export default function CartDrawer({ open, onClose, store }: Props) {
       toast.error("El DNI debe tener 8 dígitos");
       return false;
     }
-    // Recojo en tienda: no hay a dónde enviar, así que no se piden estos datos.
-    if (isPickup) return true;
+    // Recojo en tienda o pedido digital: no hay a dónde enviar, así que no se piden estos datos.
+    if (isPickup || isDigitalOrder) return true;
     if (isPE) {
       if (!form.buyer_department || !form.buyer_province.trim() || !form.buyer_district.trim()) {
         toast.error("Completa departamento, provincia y distrito");
@@ -336,7 +339,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
         buyer_reference: form.buyer_reference.trim() || undefined,
         notes: form.notes.trim() || undefined,
         payment_method: form.payment_method,
-        service_type: isPickup ? "pickup" : "delivery",
+        service_type: isDigitalOrder ? "digital" : isPickup ? "pickup" : "delivery",
         source: "tiktok",
         coupon_code: couponApplied?.code || undefined,
         cart_session_id: getSessionId(),
@@ -585,7 +588,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                               <span>Subtotal</span>
                               <span className="font-semibold">{formatPrice(subtotal, currency, locale)}</span>
                             </div>
-                            {deliveryFee > 0 && (
+                            {!isDigitalOrder && deliveryFee > 0 && (
                               <div className="flex justify-between text-sm" style={{ color: "var(--ink-2)" }}>
                                 <span>Delivery</span>
                                 <span className="font-semibold">
@@ -669,7 +672,10 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                         />
                       </Field>
 
-                      <Field label={user ? "Email (tu cuenta)" : "Email (opcional)"} icon={<Mail size={11} />}>
+                      <Field
+                        label={user ? "Email (tu cuenta)" : isDigitalOrder ? "Email (para recibir tu descarga)" : "Email (opcional)"}
+                        icon={<Mail size={11} />}
+                      >
                         <input
                           className="input"
                           type="email"
@@ -688,7 +694,18 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                         )}
                       </Field>
 
-                      {isPickup ? (
+                      {isDigitalOrder ? (
+                        <div
+                          className="rounded-2xl p-3.5 text-xs leading-relaxed"
+                          style={{ background: "var(--accent-soft, var(--tint))", color, border: "1px solid var(--line-2)" }}
+                        >
+                          <p className="font-bold mb-1">⬇️ Entrega digital — sin envío</p>
+                          <p>
+                            Apenas el vendedor confirme tu pago, verás el link de descarga en la página de
+                            seguimiento de tu pedido{form.buyer_email ? " y te lo mandaremos por email" : ""}.
+                          </p>
+                        </div>
+                      ) : isPickup ? (
                         <div
                           className="rounded-2xl p-3.5 text-xs leading-relaxed"
                           style={{ background: "var(--success-soft)", color: "var(--success)", border: "1px solid var(--line-2)" }}
@@ -1083,7 +1100,9 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                         )}
 
                         <p className="text-xs mt-3 leading-relaxed" style={{ color: "var(--ink-3)" }}>
-                          Te contactarán al {form.buyer_phone} para coordinar la entrega
+                          {isDigitalOrder
+                            ? "Apenas confirmen tu pago, verás el link de descarga en tu pedido"
+                            : `Te contactarán al ${form.buyer_phone} para coordinar la entrega`}
                         </p>
                       </motion.div>
 

@@ -114,6 +114,16 @@ class Settings(BaseSettings):
     UPLOADS_DIR: str = "/tmp/qtienda-uploads"
     UPLOADS_BASE_URL: str = "http://localhost:8000/uploads"
 
+    # Archivos digitales (ebooks, etc.) — a diferencia de UPLOADS_DIR, este
+    # directorio NUNCA se monta como estático en main.py: solo se sirve vía
+    # el endpoint de descarga, que valida que el pedido esté confirmado.
+    PRIVATE_UPLOADS_DIR: str = "/tmp/qtienda-private-uploads"
+    MAX_DIGITAL_SIZE_MB: int = 200
+    # Base pública del API — para armar links absolutos (ej. descarga de
+    # archivo digital) en emails, donde no hay un navegador que resuelva rutas
+    # relativas por nosotros.
+    API_PUBLIC_URL: str = "http://localhost:8000/api/v1"
+
     # Facebook Login — https://developers.facebook.com/apps
     # Opcional: si se configura, se agrega appsecret_proof a las llamadas a Graph API
     FACEBOOK_APP_SECRET: str = ""

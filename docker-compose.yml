@@ -11,10 +11,13 @@ services:
     environment:
       UPLOADS_DIR: /app/data/uploads
       UPLOADS_BASE_URL: https://qtienda.shop/uploads
+      PRIVATE_UPLOADS_DIR: /app/data/private-uploads
+      API_PUBLIC_URL: https://qtienda.shop/api/v1
     ports:
       - "127.0.0.1:8001:8000"
     volumes:
       - ./data/uploads:/app/data/uploads
+      - ./data/private-uploads:/app/data/private-uploads
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
