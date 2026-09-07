@@ -15,7 +15,7 @@ from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
 from app.core.security import require_vendor
-from app.models.models import Order, OrderItem, Product, ProductVariant, Store, AuditLog
+from app.models.models import Order, OrderItem, Payment, Product, ProductVariant, Store, AuditLog
 from app.services.whatsapp import send_whatsapp_message
 
 
@@ -456,7 +456,9 @@ async def update_order_status(
     store = await get_vendor_store(current_user, db)
 
     result = await db.execute(
-        select(Order).options(selectinload(Order.items)).where(Order.id == order_id, Order.store_id == store.id)
+        select(Order)
+        .options(selectinload(Order.items), selectinload(Order.payment))
+        .where(Order.id == order_id, Order.store_id == store.id)
     )
     order = result.scalar_one_or_none()
     if not order:
@@ -477,6 +479,21 @@ async def update_order_status(
     order.status = new_status
     if new_status == "delivered" and not order.delivered_at:
         order.delivered_at = datetime.now(timezone.utc)
+
+    # Un pedido digital no tiene entrega física que "cobre" el pago (a
+    # diferencia del COD físico, que lo registra delivery.py al marcar
+    # entregado) — confirmar ES el momento en que el vendedor certifica que
+    # el pago ya llegó, así que ahí se registra como pagado.
+    if new_status == "confirmed" and order.service_type == "digital":
+        now = datetime.now(timezone.utc)
+        if order.payment:
+            order.payment.status = "paid"
+            order.payment.paid_at = now
+        else:
+            db.add(Payment(
+                order_id=order.id, method=order.payment_method,
+                status="paid", amount_cents=order.total_cents, paid_at=now,
+            ))
 
     # Cancelar libera el stock que se había reservado al crear el pedido —
     # sin esto, un pedido cancelado dejaba esas unidades "perdidas" para

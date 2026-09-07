@@ -3,6 +3,7 @@ Public endpoints — accessed by buyers via /tienda/{slug}
 No authentication required.
 """
 import asyncio
+import logging
 import random
 import re
 import secrets
@@ -73,6 +74,7 @@ async def _trust_data_for_stores(db: AsyncSession, stores: list) -> dict:
     return out
 
 router = APIRouter()
+logger = logging.getLogger("qtienda")
 
 # Debajo de esta cantidad de reseñas, un promedio no es representativo —
 # se prefiere ocultarlo en vez de mostrar un número que una sola reseña
@@ -1342,6 +1344,20 @@ async def create_order(
         ]
         wa_link = f"https://wa.me/{store.whatsapp}?text={quote(chr(10).join(lines))}"
 
+    # Pago que requiere comprobante manual — Yape/Plin/transferencia no se
+    # verifican solos, así que sin este empujón el pedido se queda "pendiente"
+    # para siempre: el comprador vio el QR/número durante el checkout, pero
+    # nada le insiste después en que falta pagar y mandar la foto.
+    requires_proof = _method in ("yape", "plin", "transfer")
+    payment_proof_wa_link = None
+    if store.whatsapp:
+        _method_short = {"yape": "💜 Yape", "plin": "💚 Plin", "transfer": "🏦 Transferencia"}.get(_method, _method)
+        proof_text = (
+            f"Hola! 👋 Aquí mi comprobante de pago del pedido #{order_number} "
+            f"({_method_short}) por S/ {total/100:.2f}"
+        )
+        payment_proof_wa_link = f"https://wa.me/{store.whatsapp}?text={quote(proof_text)}"
+
     # Comprobante automático al comprador — antes esto dependía de que él
     # mismo reenviara el pedido a la tienda por WhatsApp; ahora le llega solo,
     # como comprobante, sin que tenga que hacer nada. No depende de que la
@@ -1353,6 +1369,24 @@ async def create_order(
             "━━━━━━━━━━━━━━━━━━━━━━",
             f"📋 Pedido: *#{order_number}*",
             f"🏪 Tienda: {store.name}",
+        ]
+        if requires_proof:
+            _how_to_pay = {
+                "yape": f"💜 Paga por *Yape*{f' al {settings.yape_phone}' if settings and settings.yape_phone else ''}",
+                "plin": f"💚 Paga por *Plin*{f' al {settings.plin_phone}' if settings and settings.plin_phone else ''}",
+                "transfer": "🏦 Paga por *transferencia*" + (f":\n{settings.bank_account}" if settings and settings.bank_account else ""),
+            }[_method]
+            buyer_lines += ["", "⚠️ *Este pedido todavía no está pagado*", _how_to_pay]
+            if payment_proof_wa_link:
+                buyer_lines += [
+                    "",
+                    "🚫 *No respondas a este mensaje* — este número es solo de avisos, la tienda no lo lee.",
+                    "👉 Toca este link para mandar tu comprobante directo a la tienda:",
+                    payment_proof_wa_link,
+                ]
+            else:
+                buyer_lines.append("Envía tu comprobante a la tienda por el medio que te indicó al comprar.")
+        buyer_lines += [
             "",
             "🛒 *Productos:*",
             items_text,
@@ -1386,6 +1420,8 @@ async def create_order(
         "delivery_cents": order.delivery_cents,
         "discount_cents": order.discount_cents,
         "whatsapp_link": wa_link,
+        "requires_payment_proof": requires_proof,
+        "payment_proof_wa_link": payment_proof_wa_link,
         "payment_methods": {
             "cash": settings.accept_cash if settings else True,
             "yape": settings.accept_yape if settings else False,
@@ -1547,6 +1583,7 @@ async def download_digital_file(
         from pathlib import Path
         path = Path(app_settings.PRIVATE_UPLOADS_DIR) / item.digital_file_key
         if not path.is_file():
+            logger.error("Archivo digital no encontrado en disco: %s (pedido %s)", path, order_number)
             raise HTTPException(status_code=404, detail="Archivo no disponible")
         return FileResponse(path, filename=filename)
 
@@ -1555,13 +1592,15 @@ async def download_digital_file(
     if use_r2:
         from app.api.v1.endpoints.uploads import download_object_bytes
         try:
-            content = await asyncio.to_thread(download_object_bytes, item.digital_file_key)
+            content = await download_object_bytes(item.digital_file_key)
         except Exception:
+            logger.exception("No se pudo bajar de R2 el archivo digital %s (pedido %s)", item.digital_file_key, order_number)
             raise HTTPException(status_code=404, detail="Archivo no disponible")
     else:
         from pathlib import Path
         path = Path(app_settings.PRIVATE_UPLOADS_DIR) / item.digital_file_key
         if not path.is_file():
+            logger.error("Archivo digital no encontrado en disco: %s (pedido %s)", path, order_number)
             raise HTTPException(status_code=404, detail="Archivo no disponible")
         content = path.read_bytes()
 

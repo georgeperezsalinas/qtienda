@@ -2,6 +2,7 @@
 import asyncio
 import io
 import os
+import tempfile
 import uuid
 from pathlib import Path
 
@@ -159,23 +160,41 @@ def presigned_download_url(key: str, expires_in: int = 300) -> str:
     )
 
 
-def download_object_bytes(key: str) -> bytes:
+async def download_object_bytes(key: str) -> bytes:
     """Baja el contenido de un objeto privado de R2 — usado cuando hay que
     procesar el archivo en el backend (ej. sellar un PDF) en vez de solo
-    redirigir a una URL prefirmada."""
-    import boto3
-    from botocore.config import Config
+    redirigir a una URL prefirmada.
 
-    s3 = boto3.client(
-        "s3",
-        endpoint_url=settings.S3_ENDPOINT,
-        aws_access_key_id=settings.S3_ACCESS_KEY,
-        aws_secret_access_key=settings.S3_SECRET_KEY,
-        region_name="auto",
-        config=Config(signature_version="s3v4", s3={"addressing_style": "path"}),
-    )
-    obj = s3.get_object(Bucket=settings.S3_BUCKET, Key=key)
-    return obj["Body"].read()
+    Igual que _upload_r2: boto3/urllib3 pegándole directo a R2 falla acá con
+    handshake_failure (ClientHello de OpenSSL 3.5+ con ML-KEM, que Cloudflare
+    rechaza), así que la URL prefirmada se genera local con boto3 (sin red)
+    y el GET real lo hace curl con los mismos flags TLS que ya funcionan
+    para el PUT de subida."""
+    import certifi
+
+    presigned_url = presigned_download_url(key)
+    _openssl_cnf = "/app/openssl-compat.cnf"
+    _env = {**os.environ, "OPENSSL_CONF": _openssl_cnf}
+
+    with tempfile.NamedTemporaryFile() as tmp:
+        proc = await asyncio.create_subprocess_exec(
+            "curl", "--http1.1", "--tlsv1.2",
+            "--curves", "X25519:P-256:P-384",
+            "-s", "-S",
+            "--cacert", certifi.where(),
+            "-o", tmp.name,
+            "-w", "%{http_code}",
+            presigned_url,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            env=_env,
+        )
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
+        http_code = stdout.decode().strip()
+        if http_code != "200":
+            raise Exception(f"HTTP {http_code} al descargar {key}: {stderr.decode()[:300]}")
+        tmp.seek(0)
+        return tmp.read()
 
 
 def is_own_upload_url(url: str) -> bool:

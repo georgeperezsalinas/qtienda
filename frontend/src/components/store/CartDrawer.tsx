@@ -1104,6 +1104,16 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                             ? "Apenas confirmen tu pago, verás el link de descarga en tu pedido"
                             : `Te contactarán al ${form.buyer_phone} para coordinar la entrega`}
                         </p>
+
+                        {orderResult.requires_payment_proof && (
+                          <div
+                            className="rounded-2xl p-3.5 mt-4 text-xs leading-relaxed text-left"
+                            style={{ background: "var(--warn-soft, #FEF3C7)", color: "var(--ink-2)", border: "1px solid var(--line-2)" }}
+                          >
+                            <p className="font-bold mb-1">⚠️ Tu pedido todavía no está pagado</p>
+                            <p>Paga por {form.payment_method === "yape" ? "Yape" : form.payment_method === "plin" ? "Plin" : "transferencia"} y manda tu comprobante a la tienda con el botón de abajo.</p>
+                          </div>
+                        )}
                       </motion.div>
 
                       <motion.div
@@ -1112,17 +1122,30 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                         transition={{ delay: 0.4 }}
                         className="w-full mt-8 space-y-3"
                       >
-                        {orderResult.whatsapp_link && (
+                        {orderResult.requires_payment_proof && orderResult.payment_proof_wa_link ? (
                           <a
-                            href={orderResult.whatsapp_link}
+                            href={orderResult.payment_proof_wa_link}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center justify-center gap-2 w-full rounded-2xl py-4 font-bold text-sm text-white transition-all active:scale-[.98]"
                             style={{ background: "#25D366", boxShadow: "0 4px 16px rgba(37,211,102,.35)" }}
                           >
                             <MessageCircle size={18} />
-                            Ver en WhatsApp
+                            Enviar comprobante de pago
                           </a>
+                        ) : (
+                          orderResult.whatsapp_link && (
+                            <a
+                              href={orderResult.whatsapp_link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center justify-center gap-2 w-full rounded-2xl py-4 font-bold text-sm text-white transition-all active:scale-[.98]"
+                              style={{ background: "#25D366", boxShadow: "0 4px 16px rgba(37,211,102,.35)" }}
+                            >
+                              <MessageCircle size={18} />
+                              Ver en WhatsApp
+                            </a>
+                          )
                         )}
                         <a
                           href={`/pedido/${orderResult.order_number}`}
