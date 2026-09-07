@@ -931,7 +931,7 @@ export default function PedidosPage() {
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mb-1">
                       <span className="font-bold text-sm" style={{ color: "var(--ink)" }}>#{order.order_number}</span>
                       <span className={`badge ${s.cls}`}>{s.label}</span>
                       {order.service_type === "digital" && (

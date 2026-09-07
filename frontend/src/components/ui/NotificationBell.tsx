@@ -33,7 +33,11 @@ export default function NotificationBell({
   align = "right",
   directLink = false,
 }: {
-  align?: "left" | "right";
+  /** "sidebar": la campanita vive en una columna angosta (240px) — el panel
+   * de 320px no cabe al lado, así que se ancla por posición fija al borde
+   * izquierdo de esa columna en vez de "colgar" desde el ícono, que lo
+   * hacía invadir la mitad del contenido de la página de al lado. */
+  align?: "left" | "right" | "sidebar";
   /** En vez de abrir el desplegable, el ícono es un link directo a
    * /dashboard/notificaciones — pensado para toolbars angostas (mobile)
    * donde la campanita no queda pegada al borde de la pantalla, así el
@@ -46,6 +50,8 @@ export default function NotificationBell({
   const [open, setOpen] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [sidebarPos, setSidebarPos] = useState<{ top: number; left: number } | null>(null);
 
   function fetchNotifications() {
     apiClient
@@ -75,6 +81,13 @@ export default function NotificationBell({
   }, [open]);
 
   function toggleOpen() {
+    if (align === "sidebar" && buttonRef.current) {
+      const r = buttonRef.current.getBoundingClientRect();
+      // Alineado con el padding del header del sidebar (20px 14px), no con
+      // el ícono en sí — así el panel se ve pegado a la columna, no colgando
+      // de un punto cualquiera dentro de ella.
+      setSidebarPos({ top: r.bottom + 8, left: 14 });
+    }
     setOpen((v) => {
       if (!v) fetchNotifications(); // refresca al abrir
       return !v;
@@ -123,6 +136,7 @@ export default function NotificationBell({
   return (
     <div ref={rootRef} style={{ position: "relative" }}>
       <button
+        ref={buttonRef}
         onClick={toggleOpen}
         className="relative flex items-center justify-center rounded-full"
         style={{ width: 36, height: 36, background: "var(--surface)", border: "1px solid var(--line)" }}
@@ -141,9 +155,12 @@ export default function NotificationBell({
         <div
           className="card animate-fade-in"
           style={{
-            position: "absolute",
-            top: 44,
-            ...(align === "left" ? { left: 0 } : { right: 0 }),
+            position: align === "sidebar" ? "fixed" : "absolute",
+            ...(align === "sidebar"
+              ? { top: sidebarPos?.top ?? 44, left: sidebarPos?.left ?? 14 }
+              : align === "left"
+              ? { top: 44, left: 0 }
+              : { top: 44, right: 0 }),
             width: 320,
             maxWidth: "calc(100vw - 32px)",
             maxHeight: 420,

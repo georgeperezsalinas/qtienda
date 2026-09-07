@@ -298,7 +298,7 @@ export default function DashboardLayout({
           <Logo size="md" variant="brand" />
           <div className="flex items-center gap-1.5">
             <ThemeToggle />
-            <NotificationBell align="left" />
+            <NotificationBell align="sidebar" />
           </div>
         </div>
 
