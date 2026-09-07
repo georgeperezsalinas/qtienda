@@ -1,6 +1,7 @@
 """Image upload endpoint — local storage o Cloudflare R2."""
 import asyncio
 import io
+import logging
 import os
 import tempfile
 import uuid
@@ -13,6 +14,7 @@ from app.core.config import settings
 from app.core.security import require_vendor, get_current_user
 
 router = APIRouter()
+logger = logging.getLogger("qtienda")
 
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 MAX_SIZE_MB = 5
@@ -127,10 +129,20 @@ async def upload_digital_file(
 
     key = f"digital/{uuid.uuid4()}{ext}"
 
+    uploaded_to_r2 = False
     if settings.S3_ENDPOINT and settings.S3_ACCESS_KEY:
         content_type = file.content_type or "application/octet-stream"
-        await _upload_r2(content, Path(key).name, content_type, object_key=key)
-    else:
+        try:
+            await _upload_r2_raw(content, Path(key).name, content_type, object_key=key)
+            uploaded_to_r2 = True
+        except Exception:
+            logger.warning("Fallo la subida a R2 del archivo digital %s — guardando en disco privado", key)
+
+    if not uploaded_to_r2:
+        # Nunca cae a _upload_r2 (su fallback es el storage PÚBLICO) — un
+        # archivo digital pagado no puede terminar servible por cualquiera
+        # desde /uploads. Si R2 falla, el único fallback válido es acá,
+        # en el disco privado que solo sirve el endpoint de descarga.
         dest = PRIVATE_UPLOADS_DIR / key
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(content)
@@ -213,75 +225,82 @@ def _save_local(content: bytes, filename: str) -> str:
     return f"{settings.UPLOADS_BASE_URL}/{filename}"
 
 
-async def _upload_r2(content: bytes, filename: str, content_type: str, object_key: str | None = None) -> str:
+async def _upload_r2_raw(content: bytes, filename: str, content_type: str, object_key: str | None = None) -> str:
     """
-    Sube a Cloudflare R2.
+    Sube a Cloudflare R2 — a diferencia de _upload_r2, no cae a disco local
+    si falla: propaga la excepción. _upload_r2 (fotos, públicas) sí puede
+    resolver un fallo cayendo a un archivo público sin que importe; un
+    archivo digital privado NO puede caer ahí (terminaría servible por
+    cualquiera desde /uploads), así que ese caller decide su propio fallback
+    (ver upload_digital_file).
+
     - boto3 genera la URL presignada localmente (sin red).
     - curl hace el PUT con --curves para excluir ML-KEM de OpenSSL 3.5,
       cuyo ClientHello de ~1600 bytes Cloudflare R2 rechaza con handshake_failure.
     """
+    import certifi
+    import boto3
+    from botocore.config import Config
+
+    key = object_key or f"products/{filename}"
+    cache_control = "public, max-age=31536000, immutable"
+
+    s3 = boto3.client(
+        "s3",
+        endpoint_url=settings.S3_ENDPOINT,
+        aws_access_key_id=settings.S3_ACCESS_KEY,
+        aws_secret_access_key=settings.S3_SECRET_KEY,
+        region_name="auto",
+        config=Config(
+            signature_version="s3v4",
+            s3={"addressing_style": "path"},
+        ),
+    )
+    presigned_url = s3.generate_presigned_url(
+        "put_object",
+        Params={
+            "Bucket": settings.S3_BUCKET, "Key": key, "ContentType": content_type,
+            "CacheControl": cache_control,
+        },
+        ExpiresIn=300,
+    )
+
+    # OPENSSL_CONF per-proceso excluye X25519MLKEM768 (OpenSSL 3.5+)
+    # que Cloudflare R2 rechaza con handshake_failure.
+    _openssl_cnf = "/app/openssl-compat.cnf"
+    _env = {**os.environ, "OPENSSL_CONF": _openssl_cnf}
+
+    proc = await asyncio.create_subprocess_exec(
+        "curl", "--http1.1", "--tlsv1.2",
+        "--curves", "X25519:P-256:P-384",
+        "-s", "-S", "-X", "PUT",
+        "--cacert", certifi.where(),
+        "-H", f"Content-Type: {content_type}",
+        "-H", f"Cache-Control: {cache_control}",
+        "--data-binary", "@-",
+        "-o", "/dev/null",
+        "-w", "%{http_code}",
+        presigned_url,
+        stdin=asyncio.subprocess.PIPE,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+        env=_env,
+    )
+    stdout, stderr = await asyncio.wait_for(proc.communicate(content), timeout=30)
+    http_code = int(stdout.decode().strip())
+
+    if http_code not in (200, 201, 204):
+        raise Exception(f"HTTP {http_code}: {stderr.decode()[:300]}")
+
+    base = settings.CDN_URL or f"{settings.S3_ENDPOINT}/{settings.S3_BUCKET}"
+    return f"{base}/{key}"
+
+
+async def _upload_r2(content: bytes, filename: str, content_type: str, object_key: str | None = None) -> str:
+    """Wrapper público: si R2 falla, cae a disco local público — válido para
+    fotos (siempre debieron ser accesibles por cualquiera), NUNCA para
+    archivos privados como los digitales."""
     try:
-        import certifi
-        import boto3
-        from botocore.config import Config
-
-        key = object_key or f"products/{filename}"
-        cache_control = "public, max-age=31536000, immutable"
-
-        s3 = boto3.client(
-            "s3",
-            endpoint_url=settings.S3_ENDPOINT,
-            aws_access_key_id=settings.S3_ACCESS_KEY,
-            aws_secret_access_key=settings.S3_SECRET_KEY,
-            region_name="auto",
-            config=Config(
-                signature_version="s3v4",
-                s3={"addressing_style": "path"},
-            ),
-        )
-        presigned_url = s3.generate_presigned_url(
-            "put_object",
-            Params={
-                "Bucket": settings.S3_BUCKET, "Key": key, "ContentType": content_type,
-                "CacheControl": cache_control,
-            },
-            ExpiresIn=300,
-        )
-
-        # OPENSSL_CONF per-proceso excluye X25519MLKEM768 (OpenSSL 3.5+)
-        # que Cloudflare R2 rechaza con handshake_failure.
-        #_openssl_cnf = str(Path(__file__).resolve().parents[4] / "openssl-compat.cnf")
-        _openssl_cnf = "/app/openssl-compat.cnf"
-        _env = {**os.environ, "OPENSSL_CONF": _openssl_cnf}
-
-        proc = await asyncio.create_subprocess_exec(
-            #"curl", "-s", "-S", "-X", "PUT",
-            "curl", "--http1.1", "--tlsv1.2",
-            "--curves", "X25519:P-256:P-384",
-            "-s", "-S", "-X", "PUT",
-            "--cacert", certifi.where(),
-            "-H", f"Content-Type: {content_type}",
-            "-H", f"Cache-Control: {cache_control}",
-            "--data-binary", "@-",
-            "-o", "/dev/null",
-            "-w", "%{http_code}",
-            presigned_url,
-            stdin=asyncio.subprocess.PIPE,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            env=_env,
-        )
-        stdout, stderr = await asyncio.wait_for(proc.communicate(content), timeout=30)
-        http_code = int(stdout.decode().strip())
-
-        if http_code not in (200, 201, 204):
-            raise Exception(f"HTTP {http_code}: {stderr.decode()[:300]}")
-
-        base = settings.CDN_URL or f"{settings.S3_ENDPOINT}/{settings.S3_BUCKET}"
-        return f"{base}/{key}"
-
-    #except Exception as exc:
-    #    raise HTTPException(status_code=500, detail=f"Error al subir imagen: {exc}")
-    
-    except Exception as exc:
-       return _save_local(content, filename)
+        return await _upload_r2_raw(content, filename, content_type, object_key)
+    except Exception:
+        return _save_local(content, filename)
