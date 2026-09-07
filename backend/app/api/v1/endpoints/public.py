@@ -1347,14 +1347,22 @@ async def create_order(
     # verifican solos, así que sin este empujón el pedido se queda "pendiente"
     # para siempre: el comprador vio el QR/número durante el checkout, pero
     # nada le insiste después en que falta pagar y mandar la foto.
+    #
+    # El link SIEMPRE abre el WhatsApp del comprador con un mensaje ya armado
+    # hacia la tienda — nunca un bot que le escribe a él. Así, aunque cierre
+    # esta pantalla sin anotar nada, si toca el botón le queda el pedido
+    # guardado en su propio historial de WhatsApp con la tienda real.
     requires_proof = _method in ("yape", "plin", "transfer")
     payment_proof_wa_link = None
     if store.whatsapp:
-        _method_short = {"yape": "💜 Yape", "plin": "💚 Plin", "transfer": "🏦 Transferencia"}.get(_method, _method)
-        proof_text = (
-            f"Hola! 👋 Aquí mi comprobante de pago del pedido #{order_number} "
-            f"({_method_short}) por S/ {total/100:.2f}"
-        )
+        if requires_proof:
+            _method_short = {"yape": "💜 Yape", "plin": "💚 Plin", "transfer": "🏦 Transferencia"}.get(_method, _method)
+            proof_text = (
+                f"Hola! 👋 Aquí mi comprobante de pago del pedido #{order_number} "
+                f"({_method_short}) por S/ {total/100:.2f}"
+            )
+        else:
+            proof_text = f"Hola! 👋 Te aviso que hice el pedido #{order_number} en tu tienda, por S/ {total/100:.2f}"
         payment_proof_wa_link = f"https://wa.me/{store.whatsapp}?text={quote(proof_text)}"
 
     # Ya NO se manda automáticamente por WhatsApp desde el número compartido
@@ -1474,9 +1482,18 @@ async def track_order(request: Request, slug: str, order_number: str, db: AsyncS
     # sobre a quién responder), esta página es el único lugar donde el
     # comprador ve el recordatorio si vuelve más tarde sin haber pagado.
     requires_proof = order.status == "pending" and order.payment_method in ("yape", "plin", "transfer")
+
+    # El link SIEMPRE abre el WhatsApp del propio comprador con un mensaje ya
+    # armado hacia la tienda (nunca al revés) — sirve tanto para mandar el
+    # comprobante como, en cualquier otro pedido activo, de respaldo si
+    # cerró la pantalla de éxito sin anotar el número: apenas lo toca, el
+    # pedido queda guardado en su propio chat de WhatsApp con la tienda.
     payment_proof_wa_link = None
-    if requires_proof and store_whatsapp:
-        proof_text = f"Hola! 👋 Aquí mi comprobante de pago del pedido #{order.order_number} por S/ {order.total_cents/100:.2f}"
+    if order.status != "cancelled" and store_whatsapp:
+        if requires_proof:
+            proof_text = f"Hola! 👋 Aquí mi comprobante de pago del pedido #{order.order_number} por S/ {order.total_cents/100:.2f}"
+        else:
+            proof_text = f"Hola! 👋 Te aviso que hice el pedido #{order.order_number} en tu tienda, por S/ {order.total_cents/100:.2f}"
         payment_proof_wa_link = f"https://wa.me/{store_whatsapp}?text={quote(proof_text)}"
 
     return {

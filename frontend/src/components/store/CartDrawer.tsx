@@ -325,6 +325,12 @@ export default function CartDrawer({ open, onClose, store }: Props) {
       toast.error("Selecciona un método de pago");
       return;
     }
+    // Se abre en blanco YA, en el mismo tick del click (si no, el navegador
+    // lo bloquea como pop-up al llegar recién con la respuesta del POST) —
+    // apenas se sabe el link real, se le pone la URL. Así, aunque el
+    // comprador cierre la pantalla de éxito sin anotar nada, el pedido ya
+    // quedó guardado en su propio chat de WhatsApp con la tienda.
+    const waWindow = window.open("", "_blank");
     setLoading(true);
     try {
       const result = await apiClient.post(`/public/store/${store.slug}/orders`, {
@@ -346,6 +352,13 @@ export default function CartDrawer({ open, onClose, store }: Props) {
         items: items.map((i) => ({ product_id: i.id, variant_id: i.variant_id, quantity: i.quantity })),
       });
 
+      const waLink: string | undefined = result.data.payment_proof_wa_link || result.data.whatsapp_link;
+      if (waWindow && waLink) {
+        waWindow.location.href = waLink;
+      } else {
+        waWindow?.close();
+      }
+
       setOrderResult(result.data);
       pixelPurchase(result.data.order_number, result.data.total_cents ?? total);
       recordPurchase(store.slug, items.map((i) => i.id));
@@ -359,6 +372,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
       go("success");
 
     } catch (err: any) {
+      waWindow?.close();
       const detail: string = err.response?.data?.detail || "";
       if (detail.startsWith("PHONE_NOT_VERIFIED")) {
         // La verificación expiró justo en el medio — que la repita en vez
@@ -1111,7 +1125,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                             style={{ background: "var(--warn-soft, #FEF3C7)", color: "var(--ink-2)", border: "1px solid var(--line-2)" }}
                           >
                             <p className="font-bold mb-1">⚠️ Tu pedido todavía no está pagado</p>
-                            <p>Paga por {form.payment_method === "yape" ? "Yape" : form.payment_method === "plin" ? "Plin" : "transferencia"} y manda tu comprobante a la tienda con el botón de abajo.</p>
+                            <p>Paga por {form.payment_method === "yape" ? "Yape" : form.payment_method === "plin" ? "Plin" : "transferencia"} y avísale a la tienda con el botón de abajo.</p>
                           </div>
                         )}
                       </motion.div>
@@ -1122,30 +1136,21 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                         transition={{ delay: 0.4 }}
                         className="w-full mt-8 space-y-3"
                       >
-                        {orderResult.requires_payment_proof && orderResult.payment_proof_wa_link ? (
+                        {/* Abre el WhatsApp del propio comprador con el mensaje ya armado
+                            hacia la tienda — nunca un bot que le escribe a él. Si cierra
+                            esta pantalla sin anotar nada, tocar este botón le deja el
+                            pedido guardado en su propio chat de WhatsApp con la tienda. */}
+                        {(orderResult.payment_proof_wa_link || orderResult.whatsapp_link) && (
                           <a
-                            href={orderResult.payment_proof_wa_link}
+                            href={orderResult.payment_proof_wa_link || orderResult.whatsapp_link}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center justify-center gap-2 w-full rounded-2xl py-4 font-bold text-sm text-white transition-all active:scale-[.98]"
                             style={{ background: "#25D366", boxShadow: "0 4px 16px rgba(37,211,102,.35)" }}
                           >
                             <MessageCircle size={18} />
-                            Enviar comprobante de pago
+                            {orderResult.requires_payment_proof ? "Enviar comprobante de pago" : "Avisar a la tienda por WhatsApp"}
                           </a>
-                        ) : (
-                          orderResult.whatsapp_link && (
-                            <a
-                              href={orderResult.whatsapp_link}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center justify-center gap-2 w-full rounded-2xl py-4 font-bold text-sm text-white transition-all active:scale-[.98]"
-                              style={{ background: "#25D366", boxShadow: "0 4px 16px rgba(37,211,102,.35)" }}
-                            >
-                              <MessageCircle size={18} />
-                              Ver en WhatsApp
-                            </a>
-                          )
                         )}
                         <a
                           href={`/pedido/${orderResult.order_number}`}
