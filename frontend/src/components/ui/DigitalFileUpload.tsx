@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Upload, FileText, X } from "lucide-react";
+import { Upload, FileText, X, CheckCircle2, AlertTriangle } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
 
@@ -9,6 +9,10 @@ export interface DigitalFile {
   key: string;
   name: string;
   size: number;
+  // undefined = archivo ya existente (no se subió en esta sesión, no hay
+  // forma de saber si sigue íntegro sin volver a bajarlo) — solo se marca
+  // true/false para un archivo recién subido ahora mismo.
+  verified?: boolean;
 }
 
 const ALLOWED_EXT = [".pdf", ".epub", ".mobi", ".zip", ".docx", ".mp3", ".mp4"];
@@ -46,7 +50,10 @@ export function DigitalFileUpload({
       const { data } = await apiClient.post("/uploads/digital-file", fd, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      onChange({ key: data.key, name: data.filename, size: data.size });
+      onChange({ key: data.key, name: data.filename, size: data.size, verified: !!data.verified });
+      if (!data.verified) {
+        toast.error("El archivo se subió pero no se pudo confirmar que quedó accesible — vuelve a intentarlo antes de publicar.", { duration: 6000 });
+      }
     } catch (err: any) {
       toast.error(err.response?.data?.detail ?? "Error al subir el archivo");
     } finally {
@@ -61,24 +68,36 @@ export function DigitalFileUpload({
 
   if (file) {
     return (
-      <div
-        className="flex items-center gap-2.5 rounded-xl p-3"
-        style={{ border: "1.5px solid var(--line-2)", background: "var(--surface-2)" }}
-      >
-        <FileText size={18} style={{ color: "var(--accent)" }} className="flex-shrink-0" />
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-bold truncate" style={{ color: "var(--ink)" }}>{file.name}</p>
-          <p className="text-[10px]" style={{ color: "var(--ink-3)" }}>{formatSize(file.size)}</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => onChange(null)}
-          className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-          style={{ background: "var(--danger-soft)" }}
-          aria-label="Quitar archivo"
+      <div>
+        <div
+          className="flex items-center gap-2.5 rounded-xl p-3"
+          style={{ border: "1.5px solid var(--line-2)", background: "var(--surface-2)" }}
         >
-          <X size={13} style={{ color: "var(--danger)" }} />
-        </button>
+          <FileText size={18} style={{ color: "var(--accent)" }} className="flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-bold truncate" style={{ color: "var(--ink)" }}>{file.name}</p>
+            <p className="text-[10px]" style={{ color: "var(--ink-3)" }}>{formatSize(file.size)}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => onChange(null)}
+            className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+            style={{ background: "var(--danger-soft)" }}
+            aria-label="Quitar archivo"
+          >
+            <X size={13} style={{ color: "var(--danger)" }} />
+          </button>
+        </div>
+        {file.verified === true && (
+          <p className="text-[10px] mt-1.5 flex items-center gap-1" style={{ color: "var(--success)" }}>
+            <CheckCircle2 size={11} /> Verificado — se pudo volver a descargar sin problema
+          </p>
+        )}
+        {file.verified === false && (
+          <p className="text-[10px] mt-1.5 flex items-center gap-1" style={{ color: "var(--danger)" }}>
+            <AlertTriangle size={11} /> No se pudo confirmar que quedó accesible — quítalo y súbelo de nuevo antes de publicar
+          </p>
+        )}
       </div>
     );
   }

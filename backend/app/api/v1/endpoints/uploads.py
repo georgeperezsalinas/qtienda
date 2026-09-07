@@ -147,7 +147,23 @@ async def upload_digital_file(
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(content)
 
-    return {"key": key, "filename": file.filename, "size": len(content)}
+    # Round-trip real: ya nos pasó dos veces que un archivo quedaba
+    # "subido" pero luego no se podía volver a bajar (handshake_failure con
+    # R2, o key/local desalineados) — el vendedor no se enteraba hasta que
+    # un comprador ya había pagado. Se verifica acá mismo, antes de
+    # devolverle la respuesta, en vez de confiar en que la subida bastó.
+    if uploaded_to_r2:
+        try:
+            check = await download_object_bytes(key)
+            verified = len(check) == len(content)
+        except Exception:
+            logger.warning("No se pudo verificar el archivo digital recién subido a R2: %s", key)
+            verified = False
+    else:
+        dest = PRIVATE_UPLOADS_DIR / key
+        verified = dest.is_file() and dest.stat().st_size == len(content)
+
+    return {"key": key, "filename": file.filename, "size": len(content), "verified": verified}
 
 
 def presigned_download_url(key: str, expires_in: int = 300) -> str:

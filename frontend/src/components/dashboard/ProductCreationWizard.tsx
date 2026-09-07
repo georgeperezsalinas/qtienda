@@ -137,7 +137,7 @@ export function ProductCreationWizard({
   const canAdvance2 = form.name.trim().length > 0;
   const canAdvance3 =
     !!parseFloat(form.price_cents) && parseFloat(form.price_cents) > 0 &&
-    (!form.is_digital || !!digitalFile);
+    (!form.is_digital || (!!digitalFile && digitalFile.verified !== false));
 
   async function handleCreate() {
     setCreating(true);

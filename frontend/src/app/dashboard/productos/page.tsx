@@ -689,6 +689,10 @@ export default function ProductosPage() {
       toast.error("Sube un archivo para el producto digital");
       return;
     }
+    if (form.is_digital && digitalFile?.verified === false) {
+      toast.error("El archivo subido no quedó verificado — quítalo y súbelo de nuevo antes de guardar");
+      return;
+    }
 
     setSaving(true);
     try {
