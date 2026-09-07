@@ -7,6 +7,7 @@ import {
   X, Minus, Plus, ShoppingBag, MessageCircle,
   CheckCircle2, ChevronRight, MapPin, User, Phone, Package, LogOut,
   Mail, FileText, ArrowLeft, CreditCard, Landmark, AlertTriangle, Tag,
+  ShieldCheck, Star,
 } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
 import { useRecentPurchasesStore } from "@/store/recentPurchasesStore";
@@ -45,6 +46,37 @@ const DEPARTAMENTOS = [
   "La Libertad", "Lambayeque", "Lima", "Loreto", "Madre de Dios", "Moquegua",
   "Pasco", "Piura", "Puno", "San Martín", "Tacna", "Tumbes", "Ucayali",
 ];
+
+/* ── Señales de confianza de la tienda ── */
+// Existen en el storefront (StoreDoor/StorePage) pero desaparecían justo al
+// abrir el carrito — el momento donde más duda tiene el comprador antes de
+// dar sus datos y pagar es exactamente donde no veía nada que lo tranquilice.
+function TrustBadges({ store }: { store: any }) {
+  const hasRating = (store.rating_count ?? 0) > 0 && store.rating_avg != null;
+  // Menos de 5 pedidos no es una señal de nada — mostrarlo ("1 pedido
+  // entregado") se siente más a tienda vacía que a confianza.
+  const hasOrders = (store.orders_delivered_count ?? 0) >= 5;
+  if (!store.is_verified && !hasRating && !hasOrders) return null;
+  return (
+    <div className="flex items-center gap-3 px-5 pb-3 flex-wrap flex-shrink-0">
+      {store.is_verified && (
+        <span className="flex items-center gap-1 text-[11px] font-bold" style={{ color: "var(--success)" }}>
+          <ShieldCheck size={13} /> Verificada por qtienda
+        </span>
+      )}
+      {hasRating && (
+        <span className="flex items-center gap-1 text-[11px] font-bold" style={{ color: "var(--ink-2)" }}>
+          <Star size={12} fill="currentColor" /> {store.rating_avg.toFixed(1)} ({store.rating_count})
+        </span>
+      )}
+      {hasOrders && (
+        <span className="text-[11px] font-semibold" style={{ color: "var(--ink-3)" }}>
+          {store.orders_delivered_count}+ pedidos entregados
+        </span>
+      )}
+    </div>
+  );
+}
 
 /* ── Step indicator ── */
 function Stepper({ step, color }: { step: Step; color: string }) {
@@ -457,6 +489,9 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                 <X size={17} style={{ color: "var(--ink-2)" }} />
               </button>
             </div>
+
+            {/* Confianza de la tienda */}
+            {step !== "success" && <TrustBadges store={store} />}
 
             {/* Stepper */}
             <div className="flex-shrink-0">
