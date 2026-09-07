@@ -17,6 +17,7 @@ import { useStoreCurrency } from "@/hooks/useStoreCurrency";
 import { MultiImageUpload, type FormImage } from "@/components/ui/MultiImageUpload";
 import { RichTextEditor } from "@/components/ui/RichTextEditor";
 import { DigitalFileUpload, type DigitalFile } from "@/components/ui/DigitalFileUpload";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { ProductCreationWizard } from "@/components/dashboard/ProductCreationWizard";
 
 /* ── Types ── */
@@ -397,44 +398,13 @@ function ProductCard({
         </div>
       )}
 
-      {/* Confirmar eliminación — reemplaza el confirm() nativo del navegador */}
-      {confirmDelete && (
-        <>
-          <div
-            className="fixed inset-0 z-[70]"
-            style={{ background: "rgba(20,19,15,.5)", backdropFilter: "blur(2px)" }}
-            onClick={(e) => { e.stopPropagation(); setConfirmDelete(false); }}
-          />
-          <div
-            className="fixed z-[71] left-1/2 top-1/2 w-[88vw] max-w-xs rounded-[24px] p-5"
-            style={{ background: "var(--surface)", boxShadow: "var(--shadow-float)", transform: "translate(-50%,-50%)" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="font-display font-extrabold text-base mb-1" style={{ color: "var(--ink)" }}>
-              ¿Eliminar producto?
-            </h3>
-            <p className="text-xs mb-4" style={{ color: "var(--ink-3)" }}>
-              "{product.name}" se eliminará. Esta acción no se puede deshacer.
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setConfirmDelete(false)}
-                className="flex-1 rounded-xl py-3 text-sm font-bold"
-                style={{ background: "var(--surface-2)", color: "var(--ink-2)", border: "1.5px solid var(--line-2)" }}
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={() => { setConfirmDelete(false); onDelete(); }}
-                className="flex-1 rounded-xl py-3 text-sm font-bold text-white"
-                style={{ background: "var(--danger)" }}
-              >
-                Eliminar
-              </button>
-            </div>
-          </div>
-        </>
-      )}
+      <ConfirmModal
+        open={confirmDelete}
+        title="¿Eliminar producto?"
+        message={`"${product.name}" se eliminará. Esta acción no se puede deshacer.`}
+        onCancel={() => setConfirmDelete(false)}
+        onConfirm={() => { setConfirmDelete(false); onDelete(); }}
+      />
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { apiClient } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
 import { useStoreCurrency } from "@/hooks/useStoreCurrency";
 import { ImageUpload } from "@/components/ui/ImageUpload";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 
 interface Service {
   id: string;
@@ -52,6 +53,7 @@ export default function ServiciosPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
@@ -140,7 +142,6 @@ export default function ServiciosPage() {
   }
 
   async function removeService(id: string) {
-    if (!confirm("¿Eliminar este servicio? Las citas ya reservadas no se pierden, solo deja de estar disponible para nuevas citas.")) return;
     try {
       await apiClient.delete(`/services/${id}`);
       toast.success("Servicio eliminado");
@@ -250,7 +251,7 @@ export default function ServiciosPage() {
               <button onClick={() => openEdit(s)} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "var(--surface-2)" }}>
                 <Pencil size={13} style={{ color: "var(--ink-2)" }} />
               </button>
-              <button onClick={() => removeService(s.id)} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "var(--danger-soft)" }}>
+              <button onClick={() => setConfirmDeleteId(s.id)} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "var(--danger-soft)" }}>
                 <Trash2 size={13} style={{ color: "var(--danger)" }} />
               </button>
             </div>
@@ -373,6 +374,14 @@ export default function ServiciosPage() {
           </div>
         </>
       )}
+
+      <ConfirmModal
+        open={!!confirmDeleteId}
+        title="¿Eliminar servicio?"
+        message="Las citas ya reservadas no se pierden, solo deja de estar disponible para nuevas citas."
+        onCancel={() => setConfirmDeleteId(null)}
+        onConfirm={() => { const id = confirmDeleteId!; setConfirmDeleteId(null); removeService(id); }}
+      />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
 import { useStoreCurrency } from "@/hooks/useStoreCurrency";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 
 interface Coupon {
   id: string;
@@ -136,6 +137,7 @@ export default function CuponesPage() {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [confirmDeleteCoupon, setConfirmDeleteCoupon] = useState<Coupon | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
 
@@ -201,7 +203,6 @@ export default function CuponesPage() {
   }
 
   async function deleteCoupon(coupon: Coupon) {
-    if (!confirm(`¿Eliminar el cupón ${coupon.code}?`)) return;
     try {
       await apiClient.delete(`/coupons/${coupon.id}`);
       setCoupons((cs) => cs.filter((c) => c.id !== coupon.id));
@@ -256,7 +257,7 @@ export default function CuponesPage() {
               key={c.id}
               coupon={c}
               onToggle={() => toggleActive(c)}
-              onDelete={() => deleteCoupon(c)}
+              onDelete={() => setConfirmDeleteCoupon(c)}
               currency={currency}
               locale={locale}
             />
@@ -430,6 +431,14 @@ export default function CuponesPage() {
           </div>
         </>
       )}
+
+      <ConfirmModal
+        open={!!confirmDeleteCoupon}
+        title="¿Eliminar cupón?"
+        message={confirmDeleteCoupon ? `El cupón "${confirmDeleteCoupon.code}" se eliminará. Esta acción no se puede deshacer.` : ""}
+        onCancel={() => setConfirmDeleteCoupon(null)}
+        onConfirm={() => { const c = confirmDeleteCoupon!; setConfirmDeleteCoupon(null); deleteCoupon(c); }}
+      />
     </div>
   );
 }

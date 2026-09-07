@@ -10,6 +10,7 @@ import { COUNTRIES } from "@/lib/countries";
 import { ThemePreviewGrid, type StoreTheme } from "@/components/dashboard/ThemePreviewGrid";
 import { StoreCreationWizard } from "@/components/dashboard/StoreCreationWizard";
 import { useStore, QK } from "@/hooks/useDashboardQueries";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { useQueryClient } from "@tanstack/react-query";
 import { track } from "@vercel/analytics";
 
@@ -160,8 +161,10 @@ export default function ConfiguracionPage() {
   const [categories, setCategories] = useState<{ id: string; name: string; icon?: string }[]>([]);
   const [catForm, setCatForm] = useState<CategoryForm>({ name: "", icon: "" });
   const [addingCat, setAddingCat] = useState(false);
+  const [confirmDeleteCategory, setConfirmDeleteCategory] = useState<{ id: string; name: string } | null>(null);
 
   const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [confirmRemoveStaff, setConfirmRemoveStaff] = useState<{ id: string; name: string } | null>(null);
   const [staffForm, setStaffForm] = useState({
     full_name: "", email: "", password: "", phone: "",
     vehicle_type: "", vehicle_plate: "",
@@ -386,7 +389,6 @@ export default function ConfiguracionPage() {
   }
 
   async function removeStaff(id: string) {
-    if (!confirm("¿Desactivar este repartidor?")) return;
     try {
       await apiClient.delete(`/delivery/staff/${id}`);
       setStaff((prev) => prev.filter((s) => s.id !== id));
@@ -397,7 +399,6 @@ export default function ConfiguracionPage() {
   }
 
   async function deleteCategory(id: string) {
-    if (!confirm("¿Eliminar esta categoría? Los productos quedarán sin categoría.")) return;
     try {
       await apiClient.delete(`/categories/${id}`);
       setCategories((prev) => prev.filter((c) => c.id !== id));
@@ -1117,7 +1118,7 @@ export default function ConfiguracionPage() {
                   {c.name}
                 </span>
                 <button
-                  onClick={() => deleteCategory(c.id)}
+                  onClick={() => setConfirmDeleteCategory({ id: c.id, name: c.name })}
                   className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
                   style={{ background: "var(--danger-soft)", border: "1.5px solid var(--line-2)" }}
                   title="Eliminar categoría"
@@ -1224,7 +1225,7 @@ export default function ConfiguracionPage() {
                   </p>
                 </div>
                 <button
-                  onClick={() => removeStaff(s.id)}
+                  onClick={() => setConfirmRemoveStaff({ id: s.id, name: s.full_name })}
                   className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
                   style={{ background: "var(--danger-soft)", border: "1.5px solid var(--line-2)" }}
                   title="Desactivar repartidor"
@@ -1448,6 +1449,22 @@ export default function ConfiguracionPage() {
       )}
       </div>{/* /contenido */}
       </div>{/* /md:flex */}
+
+      <ConfirmModal
+        open={!!confirmDeleteCategory}
+        title="¿Eliminar categoría?"
+        message={confirmDeleteCategory ? `"${confirmDeleteCategory.name}" se eliminará. Los productos quedarán sin categoría.` : ""}
+        onCancel={() => setConfirmDeleteCategory(null)}
+        onConfirm={() => { const id = confirmDeleteCategory!.id; setConfirmDeleteCategory(null); deleteCategory(id); }}
+      />
+      <ConfirmModal
+        open={!!confirmRemoveStaff}
+        title="¿Desactivar repartidor?"
+        message={confirmRemoveStaff ? `"${confirmRemoveStaff.name}" ya no podrá acceder ni recibir entregas asignadas.` : ""}
+        confirmLabel="Desactivar"
+        onCancel={() => setConfirmRemoveStaff(null)}
+        onConfirm={() => { const id = confirmRemoveStaff!.id; setConfirmRemoveStaff(null); removeStaff(id); }}
+      />
     </div>
   );
 }
