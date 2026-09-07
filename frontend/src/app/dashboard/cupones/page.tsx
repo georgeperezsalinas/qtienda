@@ -7,6 +7,7 @@ import { apiClient } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
 import { useStoreCurrency } from "@/hooks/useStoreCurrency";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { PageHeader } from "@/components/dashboard/PageHeader";
 
 interface Coupon {
   id: string;
@@ -219,24 +220,15 @@ export default function CuponesPage() {
 
   return (
     <div style={{ background: "var(--bg)", minHeight: "100%" }}>
-      <div
-        className="sticky top-0 z-10 px-5 pt-[max(20px,env(safe-area-inset-top))] md:pt-[max(28px,env(safe-area-inset-top))] pb-4"
-        style={{ background: "var(--surface)", borderBottom: "1px solid var(--line)" }}
-      >
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="font-display font-extrabold text-xl" style={{ color: "var(--ink)" }}>
-              Cupones
-            </h1>
-            <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
-              {total} cupón{total !== 1 ? "es" : ""} creado{total !== 1 ? "s" : ""}
-            </p>
-          </div>
+      <PageHeader
+        title="Cupones"
+        subtitle={`${total} cupón${total !== 1 ? "es" : ""} creado${total !== 1 ? "s" : ""}`}
+        actions={
           <button onClick={openCreate} className="btn-primary" style={{ width: "auto", padding: "10px 16px" }}>
             <Plus size={16} /> Nuevo
           </button>
-        </div>
-      </div>
+        }
+      />
 
       <div className="px-5 pt-4 pb-8 space-y-2.5 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0 xl:grid-cols-3">
         {loading ? (

@@ -35,6 +35,31 @@ export default function CompradorLayout({ children }: { children: React.ReactNod
         }}
       >
         <Logo size="sm" />
+
+        {/* Nav inline — en mobile la navegación vive en la bottom bar; en
+            desktop una bottom bar fija se ve fuera de lugar, así que estos
+            mismos 2 destinos van acá arriba en su lugar. */}
+        {accessToken && (
+          <nav className="hidden md:flex items-center gap-1">
+            {NAV.map(({ href, label, icon: Icon, exact }) => {
+              const active = isActive(pathname, href, exact);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-semibold transition-colors"
+                  style={{
+                    background: active ? "#F5F3FF" : "transparent",
+                    color: active ? "#7C3AED" : "var(--ink-3)",
+                  }}
+                >
+                  <Icon size={15} /> {label}
+                </Link>
+              );
+            })}
+          </nav>
+        )}
+
         <Link
           href="/tiendas"
           className="text-xs font-semibold px-3 py-1.5 rounded-xl transition-all"
@@ -49,12 +74,13 @@ export default function CompradorLayout({ children }: { children: React.ReactNod
       </header>
 
       {/* Content */}
-      <main className="flex-1 pb-24">{children}</main>
+      <main className="flex-1 pb-24 md:pb-8">{children}</main>
 
-      {/* Bottom nav — solo para usuarios logueados */}
+      {/* Bottom nav (mobile) — en desktop estos mismos 2 destinos ya están
+          arriba en el header */}
       {accessToken && (
         <nav
-          className="fixed bottom-0 left-0 right-0 pb-safe z-40 flex"
+          className="md:hidden fixed bottom-0 left-0 right-0 pb-safe z-40 flex"
           style={{
             background:  "rgba(255,255,255,0.92)",
             backdropFilter: "blur(16px)",

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { RefreshCw } from "lucide-react";
 import { apiClient } from "@/lib/api";
+import { PageHeader } from "@/components/dashboard/PageHeader";
 
 interface NotifItem {
   id: number;
@@ -61,10 +62,9 @@ export default function NotificacionesPage() {
   }
 
   return (
-    <div className="px-5 md:px-8 py-5 max-w-2xl mx-auto animate-fade-in lg:max-w-3xl">
-      <h1 className="font-display font-bold text-xl lg:text-2xl mb-4" style={{ color: "var(--ink)" }}>
-        Notificaciones
-      </h1>
+    <div>
+      <PageHeader title="Notificaciones" />
+      <div className="px-5 md:px-8 py-5 max-w-2xl mx-auto animate-fade-in lg:max-w-3xl">
 
       {loading ? (
         <div className="space-y-2">
@@ -124,6 +124,7 @@ export default function NotificacionesPage() {
           Cargar más
         </button>
       )}
+      </div>
     </div>
   );
 }

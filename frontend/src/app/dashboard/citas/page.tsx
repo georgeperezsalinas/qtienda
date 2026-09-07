@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { CalendarCheck, MessageCircle, Check, X as XIcon, CalendarDays } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
+import { PageHeader } from "@/components/dashboard/PageHeader";
 
 interface Appointment {
   id: string;
@@ -69,41 +70,40 @@ export default function CitasPage() {
   }
 
   return (
-    <div className="p-5 md:p-8 max-w-3xl mx-auto pb-24 lg:max-w-5xl">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="font-display font-extrabold text-xl" style={{ color: "var(--ink)" }}>Citas</h1>
-      </div>
-
-      <div className="flex items-center gap-2 mb-5 flex-wrap">
-        <button
-          onClick={() => setOnlyToday(true)}
-          className="px-3 py-2 rounded-xl text-xs font-bold transition-all"
-          style={{
-            background: onlyToday ? "var(--ink)" : "var(--surface)",
-            color: onlyToday ? "var(--bg)" : "var(--ink-3)",
-            border: `1.5px solid ${onlyToday ? "var(--ink)" : "var(--line-2)"}`,
-          }}
-        >
-          <CalendarDays size={12} className="inline mr-1" /> Hoy
-        </button>
-        <button
-          onClick={() => setOnlyToday(false)}
-          className="px-3 py-2 rounded-xl text-xs font-bold transition-all"
-          style={{
-            background: !onlyToday ? "var(--ink)" : "var(--surface)",
-            color: !onlyToday ? "var(--bg)" : "var(--ink-3)",
-            border: `1.5px solid ${!onlyToday ? "var(--ink)" : "var(--line-2)"}`,
-          }}
-        >
-          Todas
-        </button>
-        <select className="input text-xs py-2 w-auto ml-auto" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-          <option value="">Todos los estados</option>
-          {Object.entries(STATUS_LABELS).map(([k, v]) => (
-            <option key={k} value={k}>{v.label}</option>
-          ))}
-        </select>
-      </div>
+    <div>
+      <PageHeader title="Citas">
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => setOnlyToday(true)}
+            className="px-3 py-2 rounded-xl text-xs font-bold transition-all"
+            style={{
+              background: onlyToday ? "var(--ink)" : "var(--surface)",
+              color: onlyToday ? "var(--bg)" : "var(--ink-3)",
+              border: `1.5px solid ${onlyToday ? "var(--ink)" : "var(--line-2)"}`,
+            }}
+          >
+            <CalendarDays size={12} className="inline mr-1" /> Hoy
+          </button>
+          <button
+            onClick={() => setOnlyToday(false)}
+            className="px-3 py-2 rounded-xl text-xs font-bold transition-all"
+            style={{
+              background: !onlyToday ? "var(--ink)" : "var(--surface)",
+              color: !onlyToday ? "var(--bg)" : "var(--ink-3)",
+              border: `1.5px solid ${!onlyToday ? "var(--ink)" : "var(--line-2)"}`,
+            }}
+          >
+            Todas
+          </button>
+          <select className="input text-xs py-2 w-auto ml-auto" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="">Todos los estados</option>
+            {Object.entries(STATUS_LABELS).map(([k, v]) => (
+              <option key={k} value={k}>{v.label}</option>
+            ))}
+          </select>
+        </div>
+      </PageHeader>
+      <div className="p-5 md:p-8 max-w-3xl mx-auto pb-24 lg:max-w-5xl">
 
       {loading ? (
         <p className="text-sm" style={{ color: "var(--ink-3)" }}>Cargando…</p>
@@ -171,6 +171,7 @@ export default function CitasPage() {
           })}
         </div>
       )}
+      </div>
     </div>
   );
 }

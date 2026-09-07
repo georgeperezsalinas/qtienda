@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
 import { useStoreCurrency } from "@/hooks/useStoreCurrency";
+import { PageHeader } from "@/components/dashboard/PageHeader";
 
 interface Claim {
   id: string;
@@ -159,17 +160,10 @@ export default function ReclamosPage() {
 
   return (
     <div style={{ background: "var(--bg)", minHeight: "100%" }}>
-      <div
-        className="sticky top-0 z-10 px-5 pt-[max(20px,env(safe-area-inset-top))] md:pt-[max(28px,env(safe-area-inset-top))] pb-4"
-        style={{ background: "var(--surface)", borderBottom: "1px solid var(--line)" }}
-      >
-        <h1 className="font-display font-extrabold text-xl" style={{ color: "var(--ink)" }}>
-          Libro de Reclamaciones
-        </h1>
-        <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
-          {total} registro{total !== 1 ? "s" : ""} — visible para tus compradores en el pie de tu tienda
-        </p>
-      </div>
+      <PageHeader
+        title="Libro de Reclamaciones"
+        subtitle={`${total} registro${total !== 1 ? "s" : ""} — visible para tus compradores en el pie de tu tienda`}
+      />
 
       <div className="px-5 pt-4 pb-8 space-y-2.5 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
         {loading ? (

@@ -12,6 +12,7 @@ import { apiClient } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
 import { useStoreCurrency } from "@/hooks/useStoreCurrency";
 import { useFinanzasStats, useSubscription, useOrders } from "@/hooks/useDashboardQueries";
+import { PageHeader } from "@/components/dashboard/PageHeader";
 
 /* ── Types ── */
 interface PaymentEntry {
@@ -593,17 +594,9 @@ export default function FinanzasPage() {
   const ordersThisMonth = period === "this_month" ? (stats?.total_orders ?? 0) : 0;
 
   return (
-    <div className="max-w-lg lg:max-w-5xl mx-auto pb-10">
-
-      {/* ── Header ── */}
-      <div className="px-5 pt-6 pb-2">
-        <h1 className="font-display font-extrabold text-xl" style={{ color: "var(--ink)" }}>
-          Finanzas
-        </h1>
-        <p className="text-sm mt-0.5" style={{ color: "var(--ink-3)" }}>
-          Resumen económico de tu tienda
-        </p>
-      </div>
+    <div>
+      <PageHeader title="Finanzas" subtitle="Resumen económico de tu tienda" />
+      <div className="max-w-lg lg:max-w-5xl mx-auto pb-10">
 
       {/* ── Period selector ── */}
       <div className="flex gap-2 overflow-x-auto pb-1 px-5 pt-3 scrollbar-hide">
@@ -876,6 +869,7 @@ export default function FinanzasPage() {
           )}
         </div>
 
+      </div>
       </div>
     </div>
   );

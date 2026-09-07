@@ -13,6 +13,7 @@ import { useStore, QK } from "@/hooks/useDashboardQueries";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { useQueryClient } from "@tanstack/react-query";
 import { track } from "@vercel/analytics";
+import { PageHeader } from "@/components/dashboard/PageHeader";
 
 interface StoreData {
   id: string;
@@ -434,22 +435,24 @@ export default function ConfiguracionPage() {
   ];
 
   return (
-    <div className="p-5 md:p-8 max-w-lg md:max-w-4xl lg:max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="font-display font-bold text-xl" style={{ color: "var(--ink)" }}>Configuración</h1>
-        {store && (
-          <a
-            href={`https://${store.slug}.qtienda.shop/`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-xs font-bold"
-            style={{ color: "var(--accent)" }}
-          >
-            Ver tienda <ExternalLink size={12} />
-          </a>
-        )}
-      </div>
+    <div>
+      <PageHeader
+        title="Configuración"
+        actions={
+          store && (
+            <a
+              href={`https://${store.slug}.qtienda.shop/`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-xs font-bold"
+              style={{ color: "var(--accent)" }}
+            >
+              Ver tienda <ExternalLink size={12} />
+            </a>
+          )
+        }
+      />
+      <div className="p-5 md:p-8 max-w-lg md:max-w-4xl lg:max-w-5xl mx-auto">
 
       {/* Tabs — fila de pills en móvil/tablet: activo = capsula solida de color,
           inactivo = con borde propio para que se lea como boton, no como texto suelto */}
@@ -1465,6 +1468,7 @@ export default function ConfiguracionPage() {
         onCancel={() => setConfirmRemoveStaff(null)}
         onConfirm={() => { const id = confirmRemoveStaff!.id; setConfirmRemoveStaff(null); removeStaff(id); }}
       />
+      </div>
     </div>
   );
 }

@@ -19,6 +19,7 @@ import { RichTextEditor } from "@/components/ui/RichTextEditor";
 import { DigitalFileUpload, type DigitalFile } from "@/components/ui/DigitalFileUpload";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { ProductCreationWizard } from "@/components/dashboard/ProductCreationWizard";
+import { PageHeader } from "@/components/dashboard/PageHeader";
 
 /* ── Types ── */
 interface Category { id: string; name: string; icon?: string }
@@ -849,20 +850,11 @@ export default function ProductosPage() {
     >
 
       {/* ── Header ── */}
-      <div
-        className="sticky top-0 z-10 px-5 pt-[max(20px,env(safe-area-inset-top))] md:pt-[max(28px,env(safe-area-inset-top))] pb-4"
-        style={{ background: "var(--surface)", borderBottom: "1px solid var(--line)" }}
-      >
-        <div className="flex items-center justify-between gap-2 flex-wrap mb-4">
-          <div className="min-w-0">
-            <h1 className="font-display font-extrabold text-xl" style={{ color: "var(--ink)" }}>
-              Productos
-            </h1>
-            <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
-              {products.length} producto{products.length !== 1 ? "s" : ""}
-            </p>
-          </div>
-          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+      <PageHeader
+        title="Productos"
+        subtitle={`${products.length} producto${products.length !== 1 ? "s" : ""}`}
+        actions={
+          <>
             {products.length > 0 && (
               <button
                 onClick={exportCSV}
@@ -901,9 +893,9 @@ export default function ProductosPage() {
             >
               <Plus size={16} /> Agregar
             </button>
-          </div>
-        </div>
-
+          </>
+        }
+      >
         {/* Search + filter — apilados en móvil para no desbordar el ancho */}
         <div className="flex flex-col sm:flex-row gap-2">
           <div className="relative flex-1 min-w-0">
@@ -988,7 +980,7 @@ export default function ProductosPage() {
             />
           </div>
         </div>
-      </div>
+      </PageHeader>
 
       {/* ── List ── */}
       <div className="px-5 pt-4 space-y-3 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-3 xl:grid-cols-3 2xl:grid-cols-4">

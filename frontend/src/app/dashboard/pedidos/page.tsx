@@ -10,6 +10,7 @@ import { apiClient } from "@/lib/api";
 import { formatPrice, getStoreCurrency } from "@/lib/utils";
 import { playNewOrderBeep } from "@/lib/beep";
 import { useStore } from "@/hooks/useDashboardQueries";
+import { PageHeader } from "@/components/dashboard/PageHeader";
 
 const SOUND_KEY = "qtienda_order_sound_enabled";
 
@@ -834,29 +835,32 @@ export default function PedidosPage() {
   );
 
   return (
-    <div className="p-5 md:p-8 max-w-2xl lg:max-w-6xl mx-auto">
-      <div className="flex items-center justify-between mb-4 lg:mb-6">
-        <h1 className="font-display font-bold text-xl lg:text-2xl" style={{ color: "var(--ink)" }}>Pedidos</h1>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={toggleSound}
-            title={soundEnabled ? "Silenciar aviso de pedido nuevo" : "Activar aviso de pedido nuevo"}
-            className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: "var(--surface-2)", color: "var(--ink-2)", border: "1.5px solid var(--line-2)" }}
-          >
-            {soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
-          </button>
-          <button
-            onClick={exportCSV}
-            disabled={exporting}
-            title="Exportar pedidos (según filtros) a CSV"
-            className="rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50"
-            style={{ padding: "9px 12px", background: "var(--surface-2)", color: "var(--ink-2)", border: "1.5px solid var(--line-2)" }}
-          >
-            <Download size={14} /> {exporting ? "..." : "CSV"}
-          </button>
-        </div>
-      </div>
+    <div>
+      <PageHeader
+        title="Pedidos"
+        actions={
+          <>
+            <button
+              onClick={toggleSound}
+              title={soundEnabled ? "Silenciar aviso de pedido nuevo" : "Activar aviso de pedido nuevo"}
+              className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: "var(--surface-2)", color: "var(--ink-2)", border: "1.5px solid var(--line-2)" }}
+            >
+              {soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
+            </button>
+            <button
+              onClick={exportCSV}
+              disabled={exporting}
+              title="Exportar pedidos (según filtros) a CSV"
+              className="rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50"
+              style={{ padding: "9px 12px", background: "var(--surface-2)", color: "var(--ink-2)", border: "1.5px solid var(--line-2)" }}
+            >
+              <Download size={14} /> {exporting ? "..." : "CSV"}
+            </button>
+          </>
+        }
+      />
+      <div className="p-5 md:p-8 max-w-2xl lg:max-w-6xl mx-auto">
 
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-6 lg:items-start">
       <div>
@@ -1042,6 +1046,7 @@ export default function PedidosPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

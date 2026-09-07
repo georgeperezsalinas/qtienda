@@ -8,6 +8,7 @@ import { formatPrice } from "@/lib/utils";
 import { useStoreCurrency } from "@/hooks/useStoreCurrency";
 import { ImageUpload } from "@/components/ui/ImageUpload";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { PageHeader } from "@/components/dashboard/PageHeader";
 
 interface Service {
   id: string;
@@ -208,19 +209,17 @@ export default function ServiciosPage() {
   }
 
   return (
-    <div className="p-5 md:p-8 max-w-3xl mx-auto pb-24 lg:max-w-5xl">
-      <div className="flex items-center justify-between mb-1">
-        <h1 className="font-display font-extrabold text-xl" style={{ color: "var(--ink)" }}>
-          Servicios con cita
-        </h1>
-        <button onClick={openCreate} className="btn-primary" style={{ width: "auto", padding: "10px 16px" }}>
-          <Plus size={16} /> Agregar
-        </button>
-      </div>
-      <p className="text-xs mb-6" style={{ color: "var(--ink-3)" }}>
-        Define lo que ofreces con cita (ej. una limpieza dental, un corte de cabello) — tus clientes van a poder
-        reservar directo desde tu tienda.
-      </p>
+    <div>
+      <PageHeader
+        title="Servicios con cita"
+        subtitle="Define lo que ofreces con cita — tus clientes van a poder reservar directo desde tu tienda."
+        actions={
+          <button onClick={openCreate} className="btn-primary" style={{ width: "auto", padding: "10px 16px" }}>
+            <Plus size={16} /> Agregar
+          </button>
+        }
+      />
+      <div className="p-5 md:p-8 max-w-3xl mx-auto pb-24 lg:max-w-5xl">
 
       {loading ? (
         <p className="text-sm" style={{ color: "var(--ink-3)" }}>Cargando…</p>
@@ -384,6 +383,7 @@ export default function ServiciosPage() {
         onCancel={() => setConfirmDeleteId(null)}
         onConfirm={() => { const id = confirmDeleteId!; setConfirmDeleteId(null); removeService(id); }}
       />
+      </div>
     </div>
   );
 }

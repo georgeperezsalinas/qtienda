@@ -5,6 +5,7 @@ import { Sparkles, Plus, Trash2, Save } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
 import WheelPreview, { type WheelSegment as Segment } from "@/components/store/WheelPreview";
+import { PageHeader } from "@/components/dashboard/PageHeader";
 
 const COLORS = ["#C5613B", "#3E6B8A", "#6B4F8A", "#4A8B5F", "#B8944A", "#8A5050"];
 
@@ -80,19 +81,14 @@ export default function RuletaPage() {
 
   return (
     <div style={{ background: "var(--bg)", minHeight: "100%" }}>
-      <div
-        className="sticky top-0 z-10 px-5 pt-[max(20px,env(safe-area-inset-top))] md:pt-[max(28px,env(safe-area-inset-top))] pb-4"
-        style={{ background: "var(--surface)", borderBottom: "1px solid var(--line)" }}
-      >
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="font-display font-extrabold text-xl flex items-center gap-2" style={{ color: "var(--ink)" }}>
-              <Sparkles size={19} style={{ color: "var(--accent)" }} /> Ruleta de premios
-            </h1>
-            <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
-              Un giro por visitante — gana un cupón automático si le toca premio
-            </p>
-          </div>
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2">
+            <Sparkles size={19} style={{ color: "var(--accent)" }} /> Ruleta de premios
+          </span>
+        }
+        subtitle="Un giro por visitante — gana un cupón automático si le toca premio"
+        actions={
           <button
             onClick={() => setEnabled((e) => !e)}
             className="text-xs font-bold px-3 py-2 rounded-xl transition-all flex-shrink-0"
@@ -100,8 +96,8 @@ export default function RuletaPage() {
           >
             {enabled ? "Activada" : "Desactivada"}
           </button>
-        </div>
-      </div>
+        }
+      />
 
       <div className="px-5 pt-4 pb-8 space-y-2.5 max-w-2xl mx-auto lg:max-w-4xl">
         {/* Preview en vivo — exactamente lo que ve el comprador, se actualiza
