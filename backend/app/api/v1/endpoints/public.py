@@ -7,9 +7,10 @@ import logging
 import random
 import re
 import secrets
+import uuid
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, Query, UploadFile
 from urllib.parse import quote
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import case, func, select, and_, or_
@@ -1538,6 +1539,8 @@ async def track_order(request: Request, slug: str, order_number: str, db: AsyncS
         "payment_method": order.payment_method,
         "requires_payment_proof": requires_proof,
         "payment_proof_wa_link": payment_proof_wa_link,
+        "payment_proof_url": order.payment_proof_url,
+        "payment_proof_uploaded_at": order.payment_proof_uploaded_at,
         "created_at": order.created_at,
         "total_cents": order.total_cents,
         "store_country": store_country,
@@ -1557,6 +1560,59 @@ async def track_order(request: Request, slug: str, order_number: str, db: AsyncS
             for i in order.items
         ],
     }
+
+
+@router.post("/store/{slug}/orders/{order_number}/payment-proof")
+@limiter.limit("10/minute")
+async def upload_payment_proof(
+    request: Request,
+    slug: str,
+    order_number: str,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """Comprobante de pago subido directo desde la página de seguimiento —
+    alternativa a mandarlo por WhatsApp, que en laptop/desktop no siempre
+    abre solo (necesita una sesión de WhatsApp Web ya iniciada). Sin
+    autenticación (el comprador suele ser invitado); el candado real es
+    necesitar el slug de la tienda + el número de pedido exactos."""
+    from app.api.v1.endpoints.uploads import ALLOWED_TYPES, MAX_SIZE_MB, _process_image, _save_local, _upload_r2
+
+    store = (await db.execute(
+        select(Store).where(Store.slug == slug, Store.deleted_at.is_(None))
+    )).scalar_one_or_none()
+    if not store:
+        raise HTTPException(status_code=404, detail="Tienda no encontrada")
+
+    order = (await db.execute(
+        select(Order).where(Order.store_id == store.id, Order.order_number == order_number)
+    )).scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="Pedido no encontrado")
+
+    if file.content_type not in ALLOWED_TYPES:
+        raise HTTPException(status_code=422, detail="Tipo de archivo no permitido. Usa JPEG, PNG o WebP.")
+    content = await file.read()
+    if len(content) > MAX_SIZE_MB * 1024 * 1024:
+        raise HTTPException(status_code=422, detail=f"Imagen muy grande. Máximo {MAX_SIZE_MB}MB.")
+
+    content, ext, content_type = await asyncio.to_thread(_process_image, content)
+    filename = f"{uuid.uuid4()}.{ext}"
+    if app_settings.S3_ENDPOINT and app_settings.S3_ACCESS_KEY:
+        url = await _upload_r2(content, filename, content_type, object_key=f"payment-proofs/{filename}")
+    else:
+        url = _save_local(content, filename)
+
+    order.payment_proof_url = url
+    order.payment_proof_uploaded_at = datetime.now(timezone.utc)
+    await db.commit()
+
+    from app.services.notifications import emit_event
+    asyncio.ensure_future(
+        emit_event(str(store.id), "payment_proof_uploaded", order_number=order.order_number, buyer_name=order.buyer_name)
+    )
+
+    return {"payment_proof_url": url}
 
 
 @router.get("/store/{slug}/orders/{order_number}/descargar/{token}")

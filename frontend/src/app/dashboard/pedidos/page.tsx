@@ -107,6 +107,9 @@ interface OrderDetail extends Order {
   buyer_reference?: string;
   buyer_email?: string;
   notes?: string;
+  payment_method?: string;
+  payment_proof_url?: string | null;
+  payment_proof_uploaded_at?: string | null;
   subtotal_cents: number;
   delivery_cents: number;
   discount_cents?: number;
@@ -792,6 +795,29 @@ export default function PedidosPage() {
           <p className="text-sm italic" style={{ color: "var(--ink-3)" }}>"{selected.notes}"</p>
         )}
       </div>
+
+      {/* Comprobante de pago — subido por el comprador desde la página de
+          seguimiento cuando el pago requiere verificación manual (Yape,
+          Plin, transferencia, PayPal). */}
+      {selected.payment_proof_url && (
+        <a
+          href={selected.payment_proof_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-3 p-3 rounded-2xl mb-4"
+          style={{ background: "var(--success-soft)", border: "1px solid var(--line)" }}
+        >
+          <img
+            src={selected.payment_proof_url}
+            alt="Comprobante de pago"
+            className="w-14 h-14 rounded-xl object-cover flex-shrink-0"
+          />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold" style={{ color: "var(--success)" }}>🧾 Comprobante de pago</p>
+            <p className="text-xs" style={{ color: "var(--ink-3)" }}>Toca para ver en tamaño completo</p>
+          </div>
+        </a>
+      )}
 
       <div className="space-y-2 mb-4">
         {selected.items.map((item, i) => (

@@ -10,8 +10,9 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   CheckCircle2, Clock, Package, Bike, Home, XCircle,
-  MessageCircle, RefreshCw, Store as StoreIcon, ChevronLeft, Download,
+  MessageCircle, RefreshCw, Store as StoreIcon, ChevronLeft, Download, Upload,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
 import { formatPrice, getStoreCurrency } from "@/lib/utils";
 
@@ -26,6 +27,8 @@ interface TrackData {
   payment_method?: string;
   requires_payment_proof?: boolean;
   payment_proof_wa_link?: string | null;
+  payment_proof_url?: string | null;
+  payment_proof_uploaded_at?: string | null;
   created_at: string;
   total_cents: number;
   items: {
@@ -74,6 +77,26 @@ export default function TrackOrderPage({ params }: Props) {
   const [error, setError]     = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [uploadingProof, setUploadingProof] = useState(false);
+
+  async function uploadProof(file: File) {
+    setUploadingProof(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const { data } = await apiClient.post(
+        `/public/store/${params.slug}/orders/${params.order}/payment-proof`,
+        form,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
+      setOrder((o) => (o ? { ...o, payment_proof_url: data.payment_proof_url, payment_proof_uploaded_at: new Date().toISOString() } : o));
+      toast.success("Comprobante enviado — la tienda ya puede verlo");
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || "No se pudo enviar el comprobante");
+    } finally {
+      setUploadingProof(false);
+    }
+  }
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setRefreshing(true);
@@ -207,25 +230,64 @@ export default function TrackOrderPage({ params }: Props) {
             {order.requires_payment_proof && (
               <div
                 className="rounded-2xl p-4 mb-4"
-                style={{ background: "var(--warn-soft, #FEF3C7)", border: "1px solid var(--line)" }}
+                style={{
+                  background: order.payment_proof_url ? "var(--success-soft)" : "var(--warn-soft, #FEF3C7)",
+                  border: "1px solid var(--line)",
+                }}
               >
-                <p className="font-bold text-sm mb-1" style={{ color: "var(--ink)" }}>
-                  ⚠️ Todavía no pagas este pedido
-                </p>
-                <p className="text-xs mb-3" style={{ color: "var(--ink-2)" }}>
-                  Paga por {order.payment_method === "yape" ? "Yape" : order.payment_method === "plin" ? "Plin" : order.payment_method === "paypal" ? "PayPal" : "transferencia"} y manda tu comprobante a la tienda.
-                </p>
-                {order.payment_proof_wa_link && (
-                  <a
-                    href={order.payment_proof_wa_link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 w-full rounded-xl py-3 font-bold text-sm text-white transition-all active:scale-[.98]"
-                    style={{ background: "#25D366" }}
-                  >
-                    <MessageCircle size={16} />
-                    Enviar comprobante de pago
-                  </a>
+                {order.payment_proof_url ? (
+                  <>
+                    <p className="font-bold text-sm mb-1" style={{ color: "var(--success)" }}>
+                      ✅ Comprobante recibido
+                    </p>
+                    <p className="text-xs" style={{ color: "var(--ink-2)" }}>
+                      La tienda ya puede verlo — te avisamos apenas confirme tu pedido.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-bold text-sm mb-1" style={{ color: "var(--ink)" }}>
+                      ⚠️ Todavía no pagas este pedido
+                    </p>
+                    <p className="text-xs mb-3" style={{ color: "var(--ink-2)" }}>
+                      Paga por {order.payment_method === "yape" ? "Yape" : order.payment_method === "plin" ? "Plin" : order.payment_method === "paypal" ? "PayPal" : "transferencia"} y envía tu comprobante a la tienda.
+                    </p>
+                    <div className="space-y-2">
+                      {order.payment_proof_wa_link && (
+                        <a
+                          href={order.payment_proof_wa_link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-center gap-2 w-full rounded-xl py-3 font-bold text-sm text-white transition-all active:scale-[.98]"
+                          style={{ background: "#25D366" }}
+                        >
+                          <MessageCircle size={16} />
+                          Enviar por WhatsApp
+                        </a>
+                      )}
+                      {/* Respaldo sin WhatsApp — en laptop/desktop wa.me no
+                          siempre abre solo (necesita una sesión de WhatsApp
+                          Web ya iniciada). Sube la captura directo acá. */}
+                      <label
+                        className="flex items-center justify-center gap-2 w-full rounded-xl py-3 font-bold text-sm cursor-pointer transition-all active:scale-[.98]"
+                        style={{ background: "var(--surface)", border: "1.5px solid var(--line-2)", color: "var(--ink)" }}
+                      >
+                        {uploadingProof ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />}
+                        {uploadingProof ? "Enviando…" : "O sube la captura aquí"}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={uploadingProof}
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) uploadProof(f);
+                            e.target.value = "";
+                          }}
+                        />
+                      </label>
+                    </div>
+                  </>
                 )}
               </div>
             )}

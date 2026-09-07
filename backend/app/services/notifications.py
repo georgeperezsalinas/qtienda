@@ -205,6 +205,12 @@ TEMPLATES: dict[str, NotifTemplate] = {
         action_url="/dashboard/reclamos",
         email=True,
     ),
+    "payment_proof_uploaded": NotifTemplate(
+        icon="🧾",
+        title=lambda ctx: f"Comprobante recibido — #{ctx.get('order_number', '')}",
+        body=lambda ctx: f"{ctx.get('buyer_name', 'Un cliente')} subió el comprobante de pago de su pedido #{ctx.get('order_number', '')} desde la página de seguimiento. Revísalo para confirmarlo.",
+        action_url="/dashboard/pedidos",
+    ),
     "announcement": NotifTemplate(
         icon="✨",
         title=lambda ctx: ctx.get("title", "Novedades en QTienda"),

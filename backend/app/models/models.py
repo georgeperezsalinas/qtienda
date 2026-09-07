@@ -352,6 +352,10 @@ class Order(Base):
     ip_address: Mapped[Optional[str]] = mapped_column(INET)
     user_agent: Mapped[Optional[str]] = mapped_column(Text)
     payment_method: Mapped[str]      = mapped_column(String(30), default="cash")
+    # Comprobante subido por el comprador desde la página de seguimiento —
+    # respaldo de mandarlo por WhatsApp, que en laptop no siempre abre solo.
+    payment_proof_url: Mapped[Optional[str]] = mapped_column(Text)
+    payment_proof_uploaded_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     assigned_to_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
