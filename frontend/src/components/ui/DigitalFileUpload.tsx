@@ -49,6 +49,11 @@ export function DigitalFileUpload({
       fd.append("file", f);
       const { data } = await apiClient.post("/uploads/digital-file", fd, {
         headers: { "Content-Type": "multipart/form-data" },
+        // El timeout global del cliente (15s) es para requests normales —
+        // acá se sube el archivo Y el backend lo vuelve a bajar para
+        // verificarlo, así que en una conexión lenta con un PDF de varios
+        // MB se pasa fácil. Generoso a propósito: hasta 200MB permitidos.
+        timeout: 300_000,
       });
       onChange({ key: data.key, name: data.filename, size: data.size, verified: !!data.verified });
       if (!data.verified) {
