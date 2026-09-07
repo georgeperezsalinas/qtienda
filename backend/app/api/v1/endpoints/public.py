@@ -1355,14 +1355,14 @@ async def create_order(
     requires_proof = _method in ("yape", "plin", "transfer")
     payment_proof_wa_link = None
     if store.whatsapp:
+        tracking_link = f"https://{store.slug}.qtienda.shop/pedido/{order_number}"
+        proof_text = (
+            f"Hola! 👋 Te aviso que acabo de hacer el pedido #{order_number} en tu tienda, por S/ {total/100:.2f}.\n"
+            f"Aquí lo puedes ver: {tracking_link}"
+        )
         if requires_proof:
             _method_short = {"yape": "💜 Yape", "plin": "💚 Plin", "transfer": "🏦 Transferencia"}.get(_method, _method)
-            proof_text = (
-                f"Hola! 👋 Aquí mi comprobante de pago del pedido #{order_number} "
-                f"({_method_short}) por S/ {total/100:.2f}"
-            )
-        else:
-            proof_text = f"Hola! 👋 Te aviso que hice el pedido #{order_number} en tu tienda, por S/ {total/100:.2f}"
+            proof_text += f"\n\nEn un momento te comparto la captura de mi pago por {_method_short} 📸"
         payment_proof_wa_link = f"https://wa.me/{store.whatsapp}?text={quote(proof_text)}"
 
     # Ya NO se manda automáticamente por WhatsApp desde el número compartido
@@ -1490,10 +1490,14 @@ async def track_order(request: Request, slug: str, order_number: str, db: AsyncS
     # pedido queda guardado en su propio chat de WhatsApp con la tienda.
     payment_proof_wa_link = None
     if order.status != "cancelled" and store_whatsapp:
+        tracking_link = f"https://{slug}.qtienda.shop/pedido/{order.order_number}"
+        proof_text = (
+            f"Hola! 👋 Te aviso que hice el pedido #{order.order_number} en tu tienda, por S/ {order.total_cents/100:.2f}.\n"
+            f"Aquí lo puedes ver: {tracking_link}"
+        )
         if requires_proof:
-            proof_text = f"Hola! 👋 Aquí mi comprobante de pago del pedido #{order.order_number} por S/ {order.total_cents/100:.2f}"
-        else:
-            proof_text = f"Hola! 👋 Te aviso que hice el pedido #{order.order_number} en tu tienda, por S/ {order.total_cents/100:.2f}"
+            _method_short = {"yape": "💜 Yape", "plin": "💚 Plin", "transfer": "🏦 Transferencia"}.get(order.payment_method, order.payment_method)
+            proof_text += f"\n\nEn un momento te comparto la captura de mi pago por {_method_short} 📸"
         payment_proof_wa_link = f"https://wa.me/{store_whatsapp}?text={quote(proof_text)}"
 
     return {
