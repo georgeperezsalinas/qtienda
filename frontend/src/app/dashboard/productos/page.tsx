@@ -16,6 +16,7 @@ import { useSaleCountdown } from "@/hooks/useSaleCountdown";
 import { useStoreCurrency } from "@/hooks/useStoreCurrency";
 import { MultiImageUpload, type FormImage } from "@/components/ui/MultiImageUpload";
 import { RichTextEditor } from "@/components/ui/RichTextEditor";
+import { DigitalFileUpload, type DigitalFile } from "@/components/ui/DigitalFileUpload";
 import { ProductCreationWizard } from "@/components/dashboard/ProductCreationWizard";
 
 /* ── Types ── */
@@ -34,6 +35,8 @@ interface Product {
   status: string;
   is_featured: boolean;
   is_digital?: boolean;
+  digital_file_name?: string;
+  digital_file_size?: number;
   category_id?: string;
   images: ProductImage[];
   variants: ProductVariant[];
@@ -86,6 +89,7 @@ const EMPTY_FORM = {
   category_id: "",
   is_featured: false,
   is_published: false,
+  is_digital: false,
 };
 
 /* datetime-local no acepta segundos/zona — recorta a "YYYY-MM-DDTHH:mm" en hora local */
@@ -506,6 +510,7 @@ export default function ProductosPage() {
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [formImages, setFormImages] = useState<FormImage[]>([]);
   const [formVariants, setFormVariants] = useState<VariantRow[]>([]);
+  const [digitalFile, setDigitalFile] = useState<DigitalFile | null>(null);
   const origVariantsRef = useRef<ProductVariant[]>([]);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -656,7 +661,16 @@ export default function ProductosPage() {
       category_id: p.category_id ?? "",
       is_featured: p.is_featured,
       is_published: p.status === "active",
+      is_digital: !!p.is_digital,
     });
+    // El backend nunca expone digital_file_key (es privado) — solo el nombre,
+    // que alcanza para mostrar "ya tiene un archivo" sin permitir descargarlo
+    // desde acá. Reemplazarlo sí manda una key nueva al guardar.
+    setDigitalFile(
+      p.is_digital && p.digital_file_name
+        ? { key: "", name: p.digital_file_name, size: p.digital_file_size ?? 0 }
+        : null
+    );
     setShowForm(true);
   }
 
@@ -669,6 +683,10 @@ export default function ProductosPage() {
     if (!price || price <= 0) { toast.error("Precio inválido"); return; }
     if (form.sale_ends_at && !form.compare_price) {
       toast.error("Para poner fecha de fin de oferta, primero define el precio antes del descuento");
+      return;
+    }
+    if (form.is_digital && !digitalFile) {
+      toast.error("Sube un archivo para el producto digital");
       return;
     }
 
@@ -684,7 +702,18 @@ export default function ProductosPage() {
         compare_price: form.compare_price ? Math.round(parseFloat(form.compare_price) * 100) : undefined,
         // null explicito (no undefined) para que se pueda borrar la fecha ya puesta
         sale_ends_at: form.sale_ends_at ? new Date(form.sale_ends_at).toISOString() : null,
-        stock: form.stock !== "" ? parseInt(form.stock) : undefined,
+        stock: form.is_digital ? undefined : (form.stock !== "" ? parseInt(form.stock) : undefined),
+        is_digital: form.is_digital,
+        // digitalFile.key solo viene lleno si se subió un archivo nuevo en
+        // esta sesión de edición — si no cambió, no se manda nada y el
+        // backend deja intacto lo que ya había (exclude_unset=True).
+        ...(form.is_digital && digitalFile?.key
+          ? {
+              digital_file_key: digitalFile.key,
+              digital_file_name: digitalFile.name,
+              digital_file_size: digitalFile.size,
+            }
+          : {}),
         sku: form.sku.trim() || undefined,
         category_id: form.category_id || undefined,
         is_featured: form.is_featured,
@@ -1270,18 +1299,39 @@ export default function ProductosPage() {
                 </Field>
               )}
 
+              {/* Digital toggle */}
+              <div style={{ borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)" }}>
+                <Toggle
+                  checked={form.is_digital}
+                  onChange={() => setForm((f) => ({ ...f, is_digital: !f.is_digital }))}
+                  label="Producto digital"
+                  sub="Ebook, PDF u otro archivo — se entrega por descarga, sin envío"
+                />
+              </div>
+
+              {form.is_digital && (
+                <Field label="Archivo del producto" required>
+                  <DigitalFileUpload file={digitalFile} onChange={setDigitalFile} />
+                  <p className="text-[10px] mt-1" style={{ color: "var(--ink-3)" }}>
+                    Sube un archivo nuevo solo si quieres reemplazar el actual — máximo 200MB
+                  </p>
+                </Field>
+              )}
+
               {/* Stock + Category */}
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Stock">
-                  <input
-                    className="input"
-                    type="number"
-                    min="0"
-                    placeholder="Sin límite"
-                    value={form.stock}
-                    onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))}
-                  />
-                </Field>
+                {!form.is_digital && (
+                  <Field label="Stock">
+                    <input
+                      className="input"
+                      type="number"
+                      min="0"
+                      placeholder="Sin límite"
+                      value={form.stock}
+                      onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))}
+                    />
+                  </Field>
+                )}
                 <Field label="Categoría">
                   <div className="relative">
                     <select
