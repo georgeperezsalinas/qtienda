@@ -1369,6 +1369,31 @@ async def create_order(
             proof_text += f"\n\nEn un momento te comparto la captura de mi pago por {_method_short} 📸"
         payment_proof_wa_link = f"https://wa.me/{store.whatsapp}?text={quote(proof_text)}"
 
+    # Respaldo por correo — en laptop/desktop el link de wa.me no siempre abre
+    # solo (necesita una sesión de WhatsApp Web ya iniciada), y ahí el
+    # comprador se queda sin ninguna confirmación de su compra. Se manda
+    # aparte del WhatsApp, nunca en su reemplazo.
+    if payload.buyer_email:
+        from app.services.email import send_order_confirmation_email
+        import asyncio as _asyncio
+        _payment_note = None
+        if requires_proof:
+            _method_short = {"yape": "Yape", "plin": "Plin", "transfer": "transferencia", "paypal": "PayPal"}.get(_method, _method)
+            _payment_note = f"Todavía no pagas este pedido. Paga por {_method_short} y avísale a la tienda con el botón de abajo."
+        _asyncio.ensure_future(
+            send_order_confirmation_email(
+                payload.buyer_email,
+                payload.buyer_name,
+                order_number,
+                store.name,
+                store.slug,
+                [{"name": oi.product_name, "qty": oi.quantity, "subtotal_cents": oi.subtotal} for oi in order_items],
+                total,
+                payment_proof_wa_link or wa_link,
+                _payment_note,
+            )
+        )
+
     # Ya NO se manda automáticamente por WhatsApp desde el número compartido
     # de qtienda (Evolution API) — confundía al comprador sobre a quién
     # responder (¿la tienda o el bot de avisos?). Todo lo que antes iba en
