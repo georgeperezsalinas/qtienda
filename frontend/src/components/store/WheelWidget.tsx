@@ -6,6 +6,7 @@
 // animamos hacia un resultado que el servidor ya decidió.
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { X, Copy, ChevronRight as ChevronRightIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
@@ -28,6 +29,9 @@ export default function WheelWidget({ slug, accentColor, variant = "floating" }:
   const [spinning, setSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [result, setResult] = useState<{ prize_label: string; coupon_code: string | null } | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     const storageKey = `qtienda_wheel_spun_${slug}`;
@@ -128,6 +132,15 @@ export default function WheelWidget({ slug, accentColor, variant = "floating" }:
         </motion.button>
       )}
 
+      {/* Portal a document.body — si no, el "fixed" de este modal queda
+          atrapado dentro del contenedor animate-fade-up de la puerta de la
+          tienda (esa animación deja un transform:translateY(0) permanente
+          al terminar, que técnicamente para CSS no es "none", y cualquier
+          transform en un ancestro crea su propio contexto de posicionamiento
+          para los descendientes fixed — el modal terminaba encogido dentro
+          de ese bloque en vez de cubrir la pantalla, mezclado con lo que
+          viene después en el documento). */}
+      {mounted && createPortal(
       <AnimatePresence>
         {open && (
           <motion.div
@@ -214,7 +227,9 @@ export default function WheelWidget({ slug, accentColor, variant = "floating" }:
             </motion.div>
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body
+      )}
     </>
   );
 }
