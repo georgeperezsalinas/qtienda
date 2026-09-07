@@ -103,7 +103,7 @@ export default function RuletaPage() {
         </div>
       </div>
 
-      <div className="px-5 pt-4 pb-8 space-y-2.5 max-w-2xl">
+      <div className="px-5 pt-4 pb-8 space-y-2.5 max-w-2xl mx-auto lg:max-w-4xl">
         {/* Preview en vivo — exactamente lo que ve el comprador, se actualiza
             al tocar colores/premios/probabilidades de abajo */}
         <div className="rounded-2xl p-5 mb-2.5 flex flex-col items-center" style={{ background: "var(--surface)", border: "1px solid var(--line)" }}>
@@ -113,6 +113,7 @@ export default function RuletaPage() {
           </p>
         </div>
 
+        <div className="space-y-2.5 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
         {segments.map((s, i) => (
           <div key={i} className="rounded-2xl p-4" style={{ background: "var(--surface)", border: "1px solid var(--line)" }}>
             <div className="flex items-center gap-2 mb-3">
@@ -170,6 +171,7 @@ export default function RuletaPage() {
             </div>
           </div>
         ))}
+        </div>
 
         {segments.length < MAX_SEGMENTS && (
           <button

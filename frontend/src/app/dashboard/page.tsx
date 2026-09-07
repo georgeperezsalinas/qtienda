@@ -186,7 +186,7 @@ export default function DashboardPage() {
   /* ── Main dashboard ── */
   return (
     <div style={{ background: "var(--bg)", minHeight: "100%" }}>
-      <div className="px-5 md:px-10 pt-5 md:pt-8 pb-8 mx-auto max-w-[760px]">
+      <div className="px-5 md:px-10 pt-5 md:pt-8 pb-8 mx-auto max-w-[760px] lg:max-w-[960px]">
         {/* Greeting */}
         <div className="animate-fade-up mb-5">
           <p className="eyebrow">{getGreeting()}</p>

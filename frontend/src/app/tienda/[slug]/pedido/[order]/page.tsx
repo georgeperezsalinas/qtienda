@@ -129,7 +129,7 @@ export default function TrackOrderPage({ params }: Props) {
       {/* Franja de marca */}
       <div aria-hidden className="h-1" style={{ background: `linear-gradient(90deg, ${color}, ${color}66)` }} />
 
-      <div className="max-w-md mx-auto px-4 py-5">
+      <div className="max-w-md mx-auto px-4 py-5 lg:max-w-3xl">
         {/* Header tienda */}
         <Link
           href={`/tienda/${params.slug}`}
@@ -230,6 +230,7 @@ export default function TrackOrderPage({ params }: Props) {
               </div>
             )}
 
+            <div className="lg:grid lg:grid-cols-2 lg:gap-4 lg:items-start">
             {/* Estado cancelado */}
             {cancelled ? (
               <div
@@ -350,6 +351,7 @@ export default function TrackOrderPage({ params }: Props) {
                 <span>Total</span>
                 <span style={{ color }}>{formatPrice(order.total_cents, storeCurrency.code, storeCurrency.locale)}</span>
               </div>
+            </div>
             </div>
 
             {/* Contactar tienda */}

@@ -1226,7 +1226,7 @@ export default function StorePage({ store, initialProducts }: Props) {
                   initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.18 }}
-                  className="space-y-2 md:space-y-0 md:grid md:grid-cols-2 md:gap-3 lg:grid-cols-2 xl:grid-cols-3"
+                  className="space-y-2 md:space-y-0 md:grid md:grid-cols-2 md:gap-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
                 >
                   {visibleProducts.map((product, i) => (
                     <motion.div
@@ -1257,7 +1257,7 @@ export default function StorePage({ store, initialProducts }: Props) {
                   initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.18 }}
-                  className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-3 lg:gap-4 xl:grid-cols-4 xl:gap-5"
+                  className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-3 lg:gap-4 xl:grid-cols-4 xl:gap-5 2xl:grid-cols-5"
                 >
                   {visibleProducts.map((product, i) => (
                     <motion.div

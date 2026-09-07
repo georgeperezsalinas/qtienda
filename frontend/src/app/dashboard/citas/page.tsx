@@ -69,7 +69,7 @@ export default function CitasPage() {
   }
 
   return (
-    <div className="p-5 md:p-8 max-w-3xl mx-auto pb-24">
+    <div className="p-5 md:p-8 max-w-3xl mx-auto pb-24 lg:max-w-5xl">
       <div className="flex items-center justify-between mb-4">
         <h1 className="font-display font-extrabold text-xl" style={{ color: "var(--ink)" }}>Citas</h1>
       </div>
@@ -115,11 +115,11 @@ export default function CitasPage() {
           </p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
           {appointments.map((a) => {
             const st = STATUS_LABELS[a.status] || STATUS_LABELS.pending;
             return (
-              <div key={a.id} className="card p-4">
+              <div key={a.id} className="card p-4 lg:h-full">
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div>
                     <div className="flex items-center gap-1.5 flex-wrap">

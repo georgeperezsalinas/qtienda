@@ -61,7 +61,7 @@ export default function NotificacionesPage() {
   }
 
   return (
-    <div className="px-5 md:px-8 py-5 max-w-2xl mx-auto animate-fade-in">
+    <div className="px-5 md:px-8 py-5 max-w-2xl mx-auto animate-fade-in lg:max-w-3xl">
       <h1 className="font-display font-bold text-xl lg:text-2xl mb-4" style={{ color: "var(--ink)" }}>
         Notificaciones
       </h1>

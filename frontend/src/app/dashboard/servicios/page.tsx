@@ -208,7 +208,7 @@ export default function ServiciosPage() {
   }
 
   return (
-    <div className="p-5 md:p-8 max-w-3xl mx-auto pb-24">
+    <div className="p-5 md:p-8 max-w-3xl mx-auto pb-24 lg:max-w-5xl">
       <div className="flex items-center justify-between mb-1">
         <h1 className="font-display font-extrabold text-xl" style={{ color: "var(--ink)" }}>
           Servicios con cita
@@ -231,7 +231,7 @@ export default function ServiciosPage() {
           <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>Agrega el primero para empezar a recibir citas.</p>
         </div>
       ) : (
-        <div className="space-y-2 mb-8">
+        <div className="space-y-2 mb-8 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
           {services.map((s) => (
             <div key={s.id} className="card p-4 flex items-center gap-3">
               <div className="flex-1 min-w-0">
@@ -264,6 +264,7 @@ export default function ServiciosPage() {
         <p className="text-xs mb-4" style={{ color: "var(--ink-3)" }}>
           Define tus franjas disponibles por día (puedes agregar varias, ej. mañana y tarde con descanso al medio).
         </p>
+        <div className="lg:grid lg:grid-cols-2 lg:gap-x-6">
         {DAYS.map((d) => (
           <div key={d.key} className="mb-3 pb-3" style={{ borderBottom: "1px solid var(--line)" }}>
             <div className="flex items-center justify-between mb-2">
@@ -286,6 +287,7 @@ export default function ServiciosPage() {
             ))}
           </div>
         ))}
+        </div>
         <label className="flex items-center gap-2 mt-2 mb-4 text-xs font-medium" style={{ color: "var(--ink-2)" }}>
           <input type="checkbox" checked={autoConfirm} onChange={(e) => setAutoConfirm(e.target.checked)} />
           Confirmar citas automáticamente (si lo apagas, tienes que confirmarlas tú manualmente)
