@@ -173,6 +173,109 @@ function Field({ label, icon, children }: { label: string; icon: React.ReactNode
   );
 }
 
+/* ── Resumen del pedido (desktop) ──
+   En mobile el comprador ve el carrito completo en el paso "cart" y un
+   resumen dentro del paso "payment"; en escritorio los pasos "info" /
+   "verify" / "payment" se abren en dos columnas y esta es la columna
+   derecha fija, para que nunca pierda de vista qué está comprando ni
+   cuánto va a pagar mientras completa el formulario. */
+function OrderSummaryPanel({
+  items, currency, locale, color,
+  subtotal, deliveryFee, effectiveDel, isPickup, isDigitalOrder,
+  appliedDiscount, couponDiscountCents, checkingWelcome, displayTotal,
+}: {
+  items: ReturnType<typeof useCartStore.getState>["items"];
+  currency: string;
+  locale: string;
+  color: string;
+  subtotal: number;
+  deliveryFee: number;
+  effectiveDel: number;
+  isPickup: boolean;
+  isDigitalOrder: boolean;
+  appliedDiscount: number;
+  couponDiscountCents: number;
+  checkingWelcome: boolean;
+  displayTotal: number;
+}) {
+  return (
+    <div>
+      <p className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: "var(--ink-3)" }}>
+        Tu pedido ({items.reduce((n, i) => n + i.quantity, 0)})
+      </p>
+
+      <div className="space-y-3">
+        {items.map((item) => (
+          <div key={`${item.id}:${item.variant_id ?? ""}`} className="flex items-center gap-3">
+            {item.image_url ? (
+              <div className="relative w-12 h-12 rounded-xl overflow-hidden flex-shrink-0">
+                <Image src={item.image_url} alt={item.name} fill sizes="48px" className="object-cover" />
+              </div>
+            ) : (
+              <div
+                className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: "var(--surface-2)" }}
+              >
+                <ShoppingBag size={16} style={{ color: "var(--ink-4)" }} />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold leading-tight line-clamp-2" style={{ color: "var(--ink)" }}>
+                {item.quantity}× {item.name}
+              </p>
+              {item.variant_label && (
+                <p className="text-[11px] mt-0.5" style={{ color: "var(--ink-3)" }}>{item.variant_label}</p>
+              )}
+            </div>
+            <p className="text-xs font-bold flex-shrink-0" style={{ color: "var(--ink)" }}>
+              {formatPrice(item.price_cents * item.quantity, currency, locale)}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      <div className="pt-3 mt-3 space-y-1.5" style={{ borderTop: "1px solid var(--line)" }}>
+        <div className="flex justify-between text-xs" style={{ color: "var(--ink-2)" }}>
+          <span>Subtotal</span>
+          <span className="font-semibold">{formatPrice(subtotal, currency, locale)}</span>
+        </div>
+        {!isDigitalOrder && !isPickup && deliveryFee > 0 && (
+          <div className="flex justify-between text-xs" style={{ color: "var(--ink-2)" }}>
+            <span>Delivery</span>
+            <span className="font-semibold">
+              {effectiveDel === 0
+                ? <span style={{ color: "var(--success)" }}>Gratis</span>
+                : formatPrice(effectiveDel, currency, locale)}
+            </span>
+          </div>
+        )}
+        {appliedDiscount > 0 && (
+          <div className="flex justify-between text-xs" style={{ color: "var(--success)" }}>
+            <span>Descuento bienvenida</span>
+            <span className="font-semibold">-{formatPrice(appliedDiscount, currency, locale)}</span>
+          </div>
+        )}
+        {couponDiscountCents > 0 && (
+          <div className="flex justify-between text-xs" style={{ color: "var(--success)" }}>
+            <span>Cupón</span>
+            <span className="font-semibold">-{formatPrice(couponDiscountCents, currency, locale)}</span>
+          </div>
+        )}
+        {checkingWelcome && (
+          <p className="text-[11px]" style={{ color: "var(--ink-4)" }}>Verificando descuento…</p>
+        )}
+        <div
+          className="flex justify-between font-extrabold text-base pt-2"
+          style={{ borderTop: "1px solid var(--line-2)", color: "var(--ink)" }}
+        >
+          <span>Total</span>
+          <span style={{ color }}>{formatPrice(displayTotal, currency, locale)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ════════════════════════════════════════
    CART DRAWER
 ════════════════════════════════════════ */
@@ -428,6 +531,12 @@ export default function CartDrawer({ open, onClose, store }: Props) {
     setTimeout(() => { setStep("cart"); setOrderResult(null); }, 350);
   }
 
+  // En escritorio, los pasos con formulario (info/verify/payment) se abren
+  // en dos columnas con un resumen del pedido fijo a la derecha — si no,
+  // quedan como una tarjetita de mobile perdida en el centro de la pantalla.
+  const wideStep = step === "info" || step === "verify" || step === "payment";
+  const desktopWidthClass = wideStep ? "lg:max-w-[860px]" : step === "cart" ? "lg:max-w-[600px]" : "lg:max-w-[480px]";
+
   const slideVariants = {
     enter: (d: number) => ({ x: d * 40, opacity: 0 }),
     center: { x: 0, opacity: 1 },
@@ -452,7 +561,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 30, stiffness: 320 }}
-            className="fixed bottom-0 left-0 right-0 z-50 flex flex-col rounded-t-[28px] lg:inset-0 lg:bottom-auto lg:m-auto lg:h-fit lg:max-w-[480px] lg:rounded-[24px]"
+            className={`fixed bottom-0 left-0 right-0 z-50 flex flex-col rounded-t-[28px] lg:inset-0 lg:bottom-auto lg:m-auto lg:h-fit lg:rounded-[24px] ${desktopWidthClass}`}
             style={{
               background: "var(--surface)",
               maxHeight: "90dvh",
@@ -503,7 +612,8 @@ export default function CartDrawer({ open, onClose, store }: Props) {
             <div className="flex-shrink-0" style={{ borderTop: "1px solid var(--line)" }} />
 
             {/* Scrollable content */}
-            <div className="flex-1 overflow-y-auto overscroll-contain">
+            <div className="flex-1 overflow-y-auto overscroll-contain lg:flex lg:items-start">
+              <div className="lg:flex-1 lg:min-w-0">
               <AnimatePresence mode="wait" custom={direction}>
                 <motion.div
                   key={step}
@@ -887,8 +997,9 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                   {step === "payment" && (
                     <div className="px-4 py-4 space-y-3">
                       {/* Resumen de lo que se está por confirmar — antes solo se veía
-                          el total acá, sin poder revisar qué se está comprando. */}
-                      <div className="rounded-2xl p-3" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
+                          el total acá, sin poder revisar qué se está comprando.
+                          En escritorio esto ya se ve en el panel lateral fijo. */}
+                      <div className="lg:hidden rounded-2xl p-3" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
                         <p className="text-xs font-bold uppercase tracking-wider mb-2 px-0.5" style={{ color: "var(--ink-3)" }}>
                           Tu pedido ({items.reduce((n, i) => n + i.quantity, 0)} producto{items.reduce((n, i) => n + i.quantity, 0) !== 1 ? "s" : ""})
                         </p>
@@ -1231,6 +1342,30 @@ export default function CartDrawer({ open, onClose, store }: Props) {
 
                 </motion.div>
               </AnimatePresence>
+              </div>
+
+              {wideStep && (
+                <aside
+                  className="hidden lg:block lg:w-[300px] lg:flex-shrink-0 lg:sticky lg:top-0 lg:self-start lg:p-5"
+                  style={{ borderLeft: "1px solid var(--line)", background: "var(--bg)" }}
+                >
+                  <OrderSummaryPanel
+                    items={items}
+                    currency={currency}
+                    locale={locale}
+                    color={color}
+                    subtotal={subtotal}
+                    deliveryFee={deliveryFee}
+                    effectiveDel={effectiveDel}
+                    isPickup={isPickup}
+                    isDigitalOrder={isDigitalOrder}
+                    appliedDiscount={appliedDiscount}
+                    couponDiscountCents={couponDiscountCents}
+                    checkingWelcome={checkingWelcome}
+                    displayTotal={displayTotal}
+                  />
+                </aside>
+              )}
             </div>
 
             {/* ── Footer CTA ── */}
