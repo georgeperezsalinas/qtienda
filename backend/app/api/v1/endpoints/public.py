@@ -1357,58 +1357,15 @@ async def create_order(
         )
         payment_proof_wa_link = f"https://wa.me/{store.whatsapp}?text={quote(proof_text)}"
 
-    # Comprobante automático al comprador — antes esto dependía de que él
-    # mismo reenviara el pedido a la tienda por WhatsApp; ahora le llega solo,
-    # como comprobante, sin que tenga que hacer nada. No depende de que la
-    # tienda tenga su propio WhatsApp configurado (usa el número de qtienda).
-    # Fire-and-forget: no bloquea el checkout esperando la API externa.
-    if payload.buyer_phone:
-        buyer_lines = [
-            "✅ *¡Recibimos tu pedido!*",
-            "━━━━━━━━━━━━━━━━━━━━━━",
-            f"📋 Pedido: *#{order_number}*",
-            f"🏪 Tienda: {store.name}",
-        ]
-        if requires_proof:
-            _how_to_pay = {
-                "yape": f"💜 Paga por *Yape*{f' al {settings.yape_phone}' if settings and settings.yape_phone else ''}",
-                "plin": f"💚 Paga por *Plin*{f' al {settings.plin_phone}' if settings and settings.plin_phone else ''}",
-                "transfer": "🏦 Paga por *transferencia*" + (f":\n{settings.bank_account}" if settings and settings.bank_account else ""),
-            }[_method]
-            buyer_lines += ["", "⚠️ *Este pedido todavía no está pagado*", _how_to_pay]
-            if payment_proof_wa_link:
-                buyer_lines += [
-                    "",
-                    "🚫 *No respondas a este mensaje* — este número es solo de avisos, la tienda no lo lee.",
-                    "👉 Toca este link para mandar tu comprobante directo a la tienda:",
-                    payment_proof_wa_link,
-                ]
-            else:
-                buyer_lines.append("Envía tu comprobante a la tienda por el medio que te indicó al comprar.")
-        buyer_lines += [
-            "",
-            "🛒 *Productos:*",
-            items_text,
-            "",
-            f"💰 Subtotal: S/ {subtotal/100:.2f}",
-        ]
-        if delivery_cents > 0:
-            buyer_lines.append(f"🚚 Delivery: S/ {delivery_cents/100:.2f}")
-        if discount_cents > 0:
-            _discount_label = f"🏷️ Descuento (cupón {coupon_code})" if coupon_code else "🎁 Descuento de bienvenida"
-            buyer_lines.append(f"{_discount_label}: -S/ {discount_cents/100:.2f}")
-        buyer_lines += [
-            f"💵 *TOTAL: S/ {total/100:.2f}*",
-            "━━━━━━━━━━━━━━━━━━━━━━",
-            "📍 Sigue tu pedido aquí:",
-            f"https://{store.slug}.qtienda.shop/pedido/{order_number}",
-            "",
-            "Gracias por tu compra 🙏",
-            "",
-            f"_Este es el número de notificaciones de qtienda — no es el WhatsApp de {store.name}._",
-        ]
-        from app.services.whatsapp import send_whatsapp_message
-        asyncio.ensure_future(send_whatsapp_message(payload.buyer_phone, "\n".join(buyer_lines)))
+    # Ya NO se manda automáticamente por WhatsApp desde el número compartido
+    # de qtienda (Evolution API) — confundía al comprador sobre a quién
+    # responder (¿la tienda o el bot de avisos?). Todo lo que antes iba en
+    # ese mensaje (resumen, cómo pagar, link para mandar el comprobante) vive
+    # ahora en la pantalla de éxito del checkout y en la página pública de
+    # seguimiento — ambas bajo el dominio de la tienda, sin un tercero
+    # respondiendo en el medio. El único WhatsApp que sale es el que el
+    # comprador o el vendedor abren ellos mismos con un tap (payment_proof_wa_link,
+    # wa_link) — ese sí sale de SU propio número, no de un bot.
 
     return {
         "order_id": order.id,
@@ -1491,12 +1448,12 @@ def build_download_url(store_slug: str, order_number: str, token: str) -> str:
 async def track_order(request: Request, slug: str, order_number: str, db: AsyncSession = Depends(get_db)):
     """Buyer order tracking — public."""
     store_q = await db.execute(
-        select(Store.id, Store.country, Store.currency).where(Store.slug == slug)
+        select(Store.id, Store.name, Store.whatsapp, Store.country, Store.currency).where(Store.slug == slug)
     )
     store_row = store_q.first()
     if not store_row:
         raise HTTPException(status_code=404, detail="Tienda no encontrada")
-    store_id, store_country, store_currency = store_row
+    store_id, store_name, store_whatsapp, store_country, store_currency = store_row
 
     order_q = await db.execute(
         select(Order)
@@ -1511,10 +1468,24 @@ async def track_order(request: Request, slug: str, order_number: str, db: AsyncS
         raise HTTPException(status_code=404, detail="Pedido no encontrado")
 
     unlocked = order.status in DOWNLOAD_UNLOCKED_STATUSES
+
+    # Mismo criterio que en el checkout: Yape/Plin/transferencia no se
+    # verifican solos, y desde que se quitó el WhatsApp automático (confundía
+    # sobre a quién responder), esta página es el único lugar donde el
+    # comprador ve el recordatorio si vuelve más tarde sin haber pagado.
+    requires_proof = order.status == "pending" and order.payment_method in ("yape", "plin", "transfer")
+    payment_proof_wa_link = None
+    if requires_proof and store_whatsapp:
+        proof_text = f"Hola! 👋 Aquí mi comprobante de pago del pedido #{order.order_number} por S/ {order.total_cents/100:.2f}"
+        payment_proof_wa_link = f"https://wa.me/{store_whatsapp}?text={quote(proof_text)}"
+
     return {
         "order_number": order.order_number,
         "status": order.status,
         "service_type": order.service_type,
+        "payment_method": order.payment_method,
+        "requires_payment_proof": requires_proof,
+        "payment_proof_wa_link": payment_proof_wa_link,
         "created_at": order.created_at,
         "total_cents": order.total_cents,
         "store_country": store_country,

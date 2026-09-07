@@ -1,8 +1,10 @@
 "use client";
 
 // Página pública de seguimiento de pedido — /tienda/{slug}/pedido/{order_number}
-// Es el link que recibe el comprador por WhatsApp y en la pantalla de éxito
-// del checkout. No requiere cuenta: solo tienda + número de pedido.
+// Es el link que ve el comprador en la pantalla de éxito del checkout (y que
+// puede volver a abrir cuando quiera). No requiere cuenta: solo tienda +
+// número de pedido. No hay WhatsApp automático de por medio — si falta
+// pagar, el aviso y el botón para mandar el comprobante viven acá.
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
@@ -21,6 +23,9 @@ interface TrackData {
   order_number: string;
   status: string;
   service_type?: string;
+  payment_method?: string;
+  requires_payment_proof?: boolean;
+  payment_proof_wa_link?: string | null;
   created_at: string;
   total_cents: number;
   items: {
@@ -195,6 +200,35 @@ export default function TrackOrderPage({ params }: Props) {
                 Actualizar
               </button>
             </div>
+
+            {/* Falta pagar — sin WhatsApp automático de por medio, este es el
+                único lugar (junto con la pantalla de éxito del checkout)
+                donde el comprador ve esto si vuelve más tarde. */}
+            {order.requires_payment_proof && (
+              <div
+                className="rounded-2xl p-4 mb-4"
+                style={{ background: "var(--warn-soft, #FEF3C7)", border: "1px solid var(--line)" }}
+              >
+                <p className="font-bold text-sm mb-1" style={{ color: "var(--ink)" }}>
+                  ⚠️ Todavía no pagas este pedido
+                </p>
+                <p className="text-xs mb-3" style={{ color: "var(--ink-2)" }}>
+                  Paga por {order.payment_method === "yape" ? "Yape" : order.payment_method === "plin" ? "Plin" : "transferencia"} y manda tu comprobante a la tienda.
+                </p>
+                {order.payment_proof_wa_link && (
+                  <a
+                    href={order.payment_proof_wa_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full rounded-xl py-3 font-bold text-sm text-white transition-all active:scale-[.98]"
+                    style={{ background: "#25D366" }}
+                  >
+                    <MessageCircle size={16} />
+                    Enviar comprobante de pago
+                  </a>
+                )}
+              </div>
+            )}
 
             {/* Estado cancelado */}
             {cancelled ? (

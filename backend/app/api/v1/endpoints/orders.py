@@ -16,7 +16,6 @@ from sqlalchemy.orm import selectinload
 from app.db.session import get_db
 from app.core.security import require_vendor
 from app.models.models import Order, OrderItem, Payment, Product, ProductVariant, Store, AuditLog
-from app.services.whatsapp import send_whatsapp_message
 
 
 class OrderStatusUpdate(BaseModel):
@@ -594,21 +593,17 @@ async def update_order_status(
             )
         )
 
-    # Aviso al comprador (confirmado/entregado) — automático de verdad ahora
-    # que hay envío real por WhatsApp. Se espera la respuesta (no fire-and-
-    # forget) para poder avisarle al vendedor en el toast si de verdad se
-    # mandó o si tiene que usar el link manual de respaldo.
-    whatsapp_text = _buyer_wa_text(order, store)
-    whatsapp_sent = False
-    if whatsapp_text:
-        whatsapp_sent = await send_whatsapp_message(order.buyer_phone, whatsapp_text)
-
+    # Ya no se manda solo desde el número compartido de qtienda — confundía
+    # al comprador sobre a quién responder. El aviso real lo ve en la página
+    # de seguimiento (se actualiza sola); acá solo se arma el link para que,
+    # si el vendedor quiere avisarle por WhatsApp además, lo mande él mismo
+    # con un tap — sale de SU número, cerrando el círculo de verdad.
     buyer_wa_link = _buyer_wa_link(order, store)
     return {
         "order_id": order.id,
         "status": order.status,
         "buyer_wa_link": buyer_wa_link,
-        "whatsapp_sent": whatsapp_sent,
+        "whatsapp_sent": False,
     }
 
 
