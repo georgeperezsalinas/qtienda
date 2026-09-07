@@ -61,11 +61,24 @@ _BUYER_MESSAGES = {
         "━━━━━━━━━━━━━━━━━━━━━━\n"
         "¿Todo bien con tu pedido? Cuéntanos aquí 💬"
     ),
+    # No hay nada que "llegue" en digital — el link ya se mandó al
+    # confirmar, esto solo cierra el ciclo.
+    "delivered_digital": (
+        "🙌 *¡Gracias por tu compra!*\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "📋 Pedido: *#{num}*\n"
+        "🏪 Tienda: {store}\n\n"
+        "Esperamos que disfrutes tu compra 😊\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "¿Todo bien? Cuéntanos aquí 💬"
+    ),
 }
 
 
 def _buyer_wa_text(order, store) -> Optional[str]:
-    key = "confirmed_digital" if (order.status == "confirmed" and order.service_type == "digital") else order.status
+    key = order.status
+    if order.service_type == "digital" and order.status in ("confirmed", "delivered"):
+        key = f"{order.status}_digital"
     template = _BUYER_MESSAGES.get(key)
     if not template or not order.buyer_phone:
         return None
@@ -103,6 +116,17 @@ STATUS_TRANSITIONS = {
     "confirmed":  {"preparing", "cancelled"},
     "preparing":  {"on_the_way", "cancelled"},
     "on_the_way": {"delivered", "cancelled"},
+    "delivered":  set(),
+    "cancelled":  {"pending"},
+}
+
+# Digital no tiene preparación ni envío — confirmar YA es la entrega (ver
+# _BUYER_MESSAGES["confirmed_digital"] y el StatusRoadmap del frontend, que
+# ya asumía esta ruta corta). "delivered" acá solo significa "el vendedor
+# dio el pedido por cerrado", no que algo se haya enviado.
+DIGITAL_STATUS_TRANSITIONS = {
+    "pending":    {"confirmed", "cancelled"},
+    "confirmed":  {"delivered", "cancelled"},
     "delivered":  set(),
     "cancelled":  {"pending"},
 }
@@ -480,7 +504,8 @@ async def update_order_status(
     if new_status not in VALID_STATUSES:
         raise HTTPException(status_code=422, detail="Estado inválido")
 
-    allowed = STATUS_TRANSITIONS.get(order.status, set())
+    transitions = DIGITAL_STATUS_TRANSITIONS if order.service_type == "digital" else STATUS_TRANSITIONS
+    allowed = transitions.get(order.status, set())
     if new_status not in allowed:
         raise HTTPException(
             status_code=422,
