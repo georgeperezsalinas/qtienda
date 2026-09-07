@@ -498,25 +498,47 @@ export default function PedidosPage() {
     await changeStatus(orderId, "on_the_way");
   }
 
-  async function changeStatus(orderId: string, newStatus: string) {
+  async function changeStatus(orderId: string, newStatus: string, isDigital?: boolean) {
     if (newStatus === "cancelled") {
       if (!window.confirm("¿Seguro que deseas cancelar este pedido?\nPodrás reactivarlo después si fue un error.")) return;
     }
+    if (newStatus === "confirmed") {
+      // Irreversible (no existe "confirmed" → "pending") y, si es digital,
+      // desbloquea la descarga al toque — mejor pedir una confirmación
+      // explícita que dejar que un tap de más se cuele.
+      const msg = isDigital
+        ? "¿Confirmar este pedido?\nSe habilitará la descarga para el comprador de inmediato. No se puede deshacer."
+        : "¿Confirmar este pedido?\nEsta acción no se puede deshacer.";
+      if (!window.confirm(msg)) return;
+    }
+
+    // Al confirmar, se abre el WhatsApp del propio vendedor hacia el
+    // comprador — en blanco YA (antes del PATCH) para que el navegador no
+    // lo bloquee como pop-up al llegar tarde con la respuesta. Mismo truco
+    // que ya usa el checkout del comprador.
+    const waWindow = newStatus === "confirmed" ? window.open("", "_blank") : null;
+
     setUpdating(true);
     try {
       const res = await apiClient.patch(`/orders/${orderId}/status`, { status: newStatus });
       toast.success(`Pedido → ${STATUS_LABELS[newStatus]?.label ?? newStatus}`);
       patchOrder(orderId, { status: newStatus });
-      if (res.data?.whatsapp_sent) {
-        // Ya se mandó solo — mismo aviso quieto que el resto de notificaciones automáticas.
-        toast.success("Cliente notificado por WhatsApp", { icon: "💬", duration: 3000 });
+
+      if (waWindow) {
+        if (res.data?.buyer_wa_link) {
+          waWindow.location.href = res.data.buyer_wa_link;
+        } else {
+          waWindow.close();
+        }
       } else if (res.data?.buyer_wa_link) {
-        // El envío automático falló (o no hay WhatsApp configurado) — respaldo manual de siempre.
+        // Otros pasos (preparando, en camino, entregado): se ofrece como
+        // toast en vez de abrir solo, para no interrumpir si el vendedor
+        // está actualizando varios pedidos seguidos.
         const waUrl = res.data.buyer_wa_link;
         toast(
           (t) => (
             <span className="flex items-center gap-3">
-              <span className="text-sm font-medium">No se pudo notificar solo — ¿avisar manual?</span>
+              <span className="text-sm font-medium">¿Avisarle al cliente por WhatsApp?</span>
               <a
                 href={waUrl}
                 target="_blank"
@@ -537,6 +559,7 @@ export default function PedidosPage() {
         );
       }
     } catch (err: any) {
+      waWindow?.close();
       toast.error(err.response?.data?.detail || "Error al actualizar");
     } finally {
       setUpdating(false);
@@ -704,7 +727,7 @@ export default function PedidosPage() {
         staff={staff}
         assignedToId={selected.assigned_to_id ?? null}
         assignedToName={selected.assigned_to_name ?? null}
-        onAdvance={(next) => changeStatus(selected.id, next)}
+        onAdvance={(next) => changeStatus(selected.id, next, selected.service_type === "digital")}
         onSend={(staffId) => sendOrder(selected.id, staffId)}
         onCancel={() => changeStatus(selected.id, "cancelled")}
         onReactivate={() => changeStatus(selected.id, "pending")}
@@ -935,7 +958,7 @@ export default function PedidosPage() {
                     que se puede resolver en 1 toque sin abrir el detalle. */}
                 {order.status === "pending" ? (
                   <button
-                    onClick={(e) => { e.stopPropagation(); changeStatus(order.id, "confirmed"); }}
+                    onClick={(e) => { e.stopPropagation(); changeStatus(order.id, "confirmed", order.service_type === "digital"); }}
                     disabled={updating}
                     className="w-full mt-3 pt-2.5 flex items-center justify-center gap-1.5 text-xs font-bold disabled:opacity-50"
                     style={{ borderTop: "1px solid var(--line)", color: "var(--success)" }}

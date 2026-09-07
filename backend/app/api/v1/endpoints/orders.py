@@ -39,6 +39,18 @@ _BUYER_MESSAGES = {
         "━━━━━━━━━━━━━━━━━━━━━━\n"
         "Gracias por tu compra 🙏"
     ),
+    # Digital no tiene "lo estamos alistando" — el pago confirmado ES la
+    # entrega, así que el mensaje va directo a que ya puede descargar.
+    "confirmed_digital": (
+        "✅ *¡Tu pago fue confirmado!*\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "📋 Pedido: *#{num}*\n"
+        "🏪 Tienda: {store}\n\n"
+        "Ya puedes descargar tu compra 📥\n\n"
+        "👉 qtienda.shop/tienda/{slug}/pedido/{num}\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "Gracias por tu compra 🙏"
+    ),
     "delivered": (
         "📦 *¡Tu pedido llegó!*\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n"
@@ -53,7 +65,8 @@ _BUYER_MESSAGES = {
 
 
 def _buyer_wa_text(order, store) -> Optional[str]:
-    template = _BUYER_MESSAGES.get(order.status)
+    key = "confirmed_digital" if (order.status == "confirmed" and order.service_type == "digital") else order.status
+    template = _BUYER_MESSAGES.get(key)
     if not template or not order.buyer_phone:
         return None
     return template.format(num=order.order_number, store=store.name, slug=store.slug)
