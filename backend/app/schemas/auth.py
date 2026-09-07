@@ -248,11 +248,13 @@ class StoreSettingsUpdate(BaseModel):
     accept_plin: Optional[bool] = None
     accept_transfer: Optional[bool] = None
     accept_card: Optional[bool] = None
+    accept_paypal: Optional[bool] = None
     require_prepayment: Optional[bool] = None
     yape_phone: Optional[str] = None
     plin_phone: Optional[str] = None
     yape_qr_url: Optional[str] = None
     plin_qr_url: Optional[str] = None
+    paypal_email: Optional[str] = None
     bank_account: Optional[str] = None
     min_order_cents: Optional[int] = None
     delivery_fee_cents: Optional[int] = None

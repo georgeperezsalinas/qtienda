@@ -574,11 +574,13 @@ async def get_store(request: Request, slug: str, db: AsyncSession = Depends(get_
             "accept_plin": store.settings.accept_plin if store.settings else False,
             "accept_transfer": store.settings.accept_transfer if store.settings else False,
             "accept_card": store.settings.accept_card if store.settings else False,
+            "accept_paypal": store.settings.accept_paypal if store.settings else False,
             "require_prepayment": store.settings.require_prepayment if store.settings else False,
             "yape_phone": store.settings.yape_phone if store.settings else None,
             "plin_phone": store.settings.plin_phone if store.settings else None,
             "yape_qr_url": store.settings.yape_qr_url if store.settings else None,
             "plin_qr_url": store.settings.plin_qr_url if store.settings else None,
+            "paypal_email": store.settings.paypal_email if store.settings else None,
             "bank_account": store.settings.bank_account if store.settings else None,
             "delivery_fee_cents": store.settings.delivery_fee_cents if store.settings else 0,
             "min_order_cents": store.settings.min_order_cents if store.settings else 0,
@@ -1162,6 +1164,7 @@ async def create_order(
     if settings and settings.accept_plin:        _allowed.append("plin")
     if settings and settings.accept_transfer:    _allowed.append("transfer")
     if settings and settings.accept_card:        _allowed.append("card")
+    if settings and settings.accept_paypal:      _allowed.append("paypal")
     if _method not in _allowed:
         raise HTTPException(status_code=422, detail="Método de pago no disponible en esta tienda")
 
@@ -1322,6 +1325,7 @@ async def create_order(
             "plin": "💚 Plin",
             "transfer": "🏦 Transferencia",
             "card": "💳 Tarjeta",
+            "paypal": "🌐 PayPal",
         }.get(_method, _method)
         lines += [
             f"💳 *Pago:* {_method_label}",
@@ -1352,7 +1356,7 @@ async def create_order(
     # hacia la tienda — nunca un bot que le escribe a él. Así, aunque cierre
     # esta pantalla sin anotar nada, si toca el botón le queda el pedido
     # guardado en su propio historial de WhatsApp con la tienda real.
-    requires_proof = _method in ("yape", "plin", "transfer")
+    requires_proof = _method in ("yape", "plin", "transfer", "paypal")
     payment_proof_wa_link = None
     if store.whatsapp:
         tracking_link = f"https://{store.slug}.qtienda.shop/pedido/{order_number}"
@@ -1361,7 +1365,7 @@ async def create_order(
             f"Aquí lo puedes ver: {tracking_link}"
         )
         if requires_proof:
-            _method_short = {"yape": "💜 Yape", "plin": "💚 Plin", "transfer": "🏦 Transferencia"}.get(_method, _method)
+            _method_short = {"yape": "💜 Yape", "plin": "💚 Plin", "transfer": "🏦 Transferencia", "paypal": "🌐 PayPal"}.get(_method, _method)
             proof_text += f"\n\nEn un momento te comparto la captura de mi pago por {_method_short} 📸"
         payment_proof_wa_link = f"https://wa.me/{store.whatsapp}?text={quote(proof_text)}"
 
@@ -1390,8 +1394,10 @@ async def create_order(
             "cash": settings.accept_cash if settings else True,
             "yape": settings.accept_yape if settings else False,
             "plin": settings.accept_plin if settings else False,
+            "paypal": settings.accept_paypal if settings else False,
             "yape_phone": settings.yape_phone if settings else None,
             "plin_phone": settings.plin_phone if settings else None,
+            "paypal_email": settings.paypal_email if settings else None,
         },
     }
 
@@ -1481,7 +1487,7 @@ async def track_order(request: Request, slug: str, order_number: str, db: AsyncS
     # verifican solos, y desde que se quitó el WhatsApp automático (confundía
     # sobre a quién responder), esta página es el único lugar donde el
     # comprador ve el recordatorio si vuelve más tarde sin haber pagado.
-    requires_proof = order.status == "pending" and order.payment_method in ("yape", "plin", "transfer")
+    requires_proof = order.status == "pending" and order.payment_method in ("yape", "plin", "transfer", "paypal")
 
     # El link SIEMPRE abre el WhatsApp del propio comprador con un mensaje ya
     # armado hacia la tienda (nunca al revés) — sirve tanto para mandar el
@@ -1496,7 +1502,7 @@ async def track_order(request: Request, slug: str, order_number: str, db: AsyncS
             f"Aquí lo puedes ver: {tracking_link}"
         )
         if requires_proof:
-            _method_short = {"yape": "💜 Yape", "plin": "💚 Plin", "transfer": "🏦 Transferencia"}.get(order.payment_method, order.payment_method)
+            _method_short = {"yape": "💜 Yape", "plin": "💚 Plin", "transfer": "🏦 Transferencia", "paypal": "🌐 PayPal"}.get(order.payment_method, order.payment_method)
             proof_text += f"\n\nEn un momento te comparto la captura de mi pago por {_method_short} 📸"
         payment_proof_wa_link = f"https://wa.me/{store_whatsapp}?text={quote(proof_text)}"
 

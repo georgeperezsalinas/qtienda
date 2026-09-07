@@ -131,8 +131,8 @@ export default function ConfiguracionPage() {
 
   const [settings, setSettings] = useState({
     accept_cash: true, accept_yape: false, accept_plin: false,
-    accept_transfer: false, accept_card: false, require_prepayment: false,
-    yape_phone: "", plin_phone: "", yape_qr_url: "", plin_qr_url: "", bank_account: "",
+    accept_transfer: false, accept_card: false, accept_paypal: false, require_prepayment: false,
+    yape_phone: "", plin_phone: "", yape_qr_url: "", plin_qr_url: "", paypal_email: "", bank_account: "",
     delivery_fee_cents: "0", min_order_cents: "0", free_delivery_above: "",
     welcome_discount_enabled: false, welcome_discount_cents: "5",
     delivery_zones: [] as string[],
@@ -207,11 +207,13 @@ export default function ConfiguracionPage() {
         accept_plin: storeData.settings.accept_plin,
         accept_transfer: storeData.settings.accept_transfer ?? false,
         accept_card: storeData.settings.accept_card ?? false,
+        accept_paypal: storeData.settings.accept_paypal ?? false,
         require_prepayment: storeData.settings.require_prepayment ?? false,
         yape_phone: storeData.settings.yape_phone || "",
         plin_phone: storeData.settings.plin_phone || "",
         yape_qr_url: storeData.settings.yape_qr_url || "",
         plin_qr_url: storeData.settings.plin_qr_url || "",
+        paypal_email: storeData.settings.paypal_email || "",
         bank_account: storeData.settings.bank_account || "",
         delivery_fee_cents: String(storeData.settings.delivery_fee_cents / 100),
         min_order_cents: String(storeData.settings.min_order_cents / 100),
@@ -292,11 +294,13 @@ export default function ConfiguracionPage() {
         accept_plin: settings.accept_plin,
         accept_transfer: settings.accept_transfer,
         accept_card: settings.accept_card,
+        accept_paypal: settings.accept_paypal,
         require_prepayment: settings.require_prepayment,
         yape_phone: settings.yape_phone || undefined,
         plin_phone: settings.plin_phone || undefined,
         yape_qr_url: settings.yape_qr_url || undefined,
         plin_qr_url: settings.plin_qr_url || undefined,
+        paypal_email: settings.paypal_email || undefined,
         bank_account: settings.bank_account || undefined,
         delivery_fee_cents: Math.round(parseFloat(settings.delivery_fee_cents || "0") * 100),
         min_order_cents: Math.round(parseFloat(settings.min_order_cents || "0") * 100),
@@ -833,7 +837,7 @@ export default function ConfiguracionPage() {
       {activeTab === "pagos" && (
         <section className="card p-5">
           <h2 className="font-semibold text-[var(--ink)] mb-4">Métodos de pago y delivery</h2>
-          {!(settings.accept_cash || settings.accept_yape || settings.accept_plin || settings.accept_transfer || settings.accept_card) && (
+          {!(settings.accept_cash || settings.accept_yape || settings.accept_plin || settings.accept_transfer || settings.accept_card || settings.accept_paypal) && (
             <div
               className="rounded-xl px-4 py-3 mb-4 text-xs font-semibold"
               style={{ background: "var(--danger-soft)", color: "var(--danger)" }}
@@ -893,6 +897,20 @@ export default function ConfiguracionPage() {
               </div>
             )}
             <Toggle value={settings.accept_card} onChange={(v) => setSettings({ ...settings, accept_card: v })} label="Aceptar tarjeta (POS en entrega)" />
+            <Toggle value={settings.accept_paypal} onChange={(v) => setSettings({ ...settings, accept_paypal: v })} label="Aceptar PayPal" />
+            {settings.accept_paypal && (
+              <div className="space-y-2">
+                <p className="text-[11px]" style={{ color: "var(--ink-3)" }}>
+                  Para compradores fuera de Perú — Yape y Plin no les sirven.
+                </p>
+                <input className="input" placeholder="tu@email.com o paypal.me/tu-usuario" value={settings.paypal_email} onChange={(e) => setSettings({ ...settings, paypal_email: e.target.value })} />
+                {!settings.paypal_email.trim() && (
+                  <p className="text-[11px] font-semibold" style={{ color: "var(--warn)" }}>
+                    ⚠️ Sin este dato, tus clientes no sabrán a dónde pagarte por PayPal.
+                  </p>
+                )}
+              </div>
+            )}
             <div className="pt-1 border-t border-gray-100">
               <Toggle
                 value={settings.require_prepayment}

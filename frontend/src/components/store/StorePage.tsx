@@ -70,6 +70,7 @@ interface StoreData {
     accept_plin?:     boolean;
     accept_transfer?: boolean;
     accept_card?:     boolean;
+    accept_paypal?:   boolean;
     delivery_zones?:  string[];
     tiktok_pixel_id?:      string | null;
     meta_pixel_id?:        string | null;
@@ -429,6 +430,7 @@ export default function StorePage({ store, initialProducts }: Props) {
     store.settings?.accept_card && "tarjeta",
     store.settings?.accept_transfer && "transferencia",
     store.settings?.accept_cash && "efectivo",
+    store.settings?.accept_paypal && "PayPal",
   ].filter((m): m is string => !!m);
   const paymentMethodsLabel = enabledPaymentMethods.length > 0
     ? `Pago seguro por ${joinSpanish(enabledPaymentMethods)}`

@@ -213,7 +213,7 @@ export default function TrackOrderPage({ params }: Props) {
                   ⚠️ Todavía no pagas este pedido
                 </p>
                 <p className="text-xs mb-3" style={{ color: "var(--ink-2)" }}>
-                  Paga por {order.payment_method === "yape" ? "Yape" : order.payment_method === "plin" ? "Plin" : "transferencia"} y manda tu comprobante a la tienda.
+                  Paga por {order.payment_method === "yape" ? "Yape" : order.payment_method === "plin" ? "Plin" : order.payment_method === "paypal" ? "PayPal" : "transferencia"} y manda tu comprobante a la tienda.
                 </p>
                 {order.payment_proof_wa_link && (
                   <a

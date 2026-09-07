@@ -313,6 +313,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
     store.settings?.accept_plin && { value: "plin", label: "Plin", icon: "💚", sub: store.settings?.plin_phone ? `Plin: ${store.settings.plin_phone}` : "Te enviamos el número" },
     store.settings?.accept_transfer && { value: "transfer", label: "Transferencia", icon: "🏦", sub: "Datos bancarios al confirmar" },
     store.settings?.accept_card && { value: "card", label: "Tarjeta", icon: "💳", sub: "POS al momento de la entrega" },
+    store.settings?.accept_paypal && { value: "paypal", label: "PayPal", icon: "🌐", sub: store.settings?.paypal_email ? `Pagas a: ${store.settings.paypal_email}` : "Te enviamos los datos" },
   ].filter(Boolean) as { value: string; label: string; icon: string; sub: string }[];
 
   function go(next: Step, dir = 1) {
@@ -1160,7 +1161,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                             style={{ background: "var(--warn-soft, #FEF3C7)", color: "var(--ink-2)", border: "1px solid var(--line-2)" }}
                           >
                             <p className="font-bold mb-1">⚠️ Tu pedido todavía no está pagado</p>
-                            <p>Paga por {form.payment_method === "yape" ? "Yape" : form.payment_method === "plin" ? "Plin" : "transferencia"} y avísale a la tienda con el botón de abajo.</p>
+                            <p>Paga por {form.payment_method === "yape" ? "Yape" : form.payment_method === "plin" ? "Plin" : form.payment_method === "paypal" ? "PayPal" : "transferencia"} y avísale a la tienda con el botón de abajo.</p>
                           </div>
                         )}
                       </motion.div>

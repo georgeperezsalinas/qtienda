@@ -73,6 +73,7 @@ export default async function TiendaDoorPage({ params, searchParams }: Props) {
       ["accept_yape", "Yape"],
       ["accept_plin", "Plin"],
       ["accept_transfer", "Bank Transfer"],
+      ["accept_paypal", "PayPal"],
     ];
     const paymentAccepted =
       paymentLabels

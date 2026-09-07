@@ -231,6 +231,7 @@ async def get_store(
             "accept_plin": store.settings.accept_plin,
             "accept_transfer": store.settings.accept_transfer,
             "accept_card": store.settings.accept_card,
+            "accept_paypal": store.settings.accept_paypal,
             "delivery_fee_cents": store.settings.delivery_fee_cents,
             "min_order_cents": store.settings.min_order_cents,
         } if store.settings else None,

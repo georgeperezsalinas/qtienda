@@ -172,11 +172,18 @@ class StoreSettings(Base):
     accept_plin: Mapped[bool]       = mapped_column(Boolean, default=False)
     accept_transfer: Mapped[bool]   = mapped_column(Boolean, default=False)
     accept_card: Mapped[bool]       = mapped_column(Boolean, default=False)
+    # Único método pensado para compradores fuera de Perú — sin él, un
+    # comprador del extranjero de un producto digital no tiene cómo pagar
+    # (Yape/Plin son apps peruanas, "transferencia" acá es cuenta local).
+    accept_paypal: Mapped[bool]     = mapped_column(Boolean, default=False)
     require_prepayment: Mapped[bool] = mapped_column(Boolean, default=False)
     yape_phone: Mapped[Optional[str]]    = mapped_column(String(20))
     plin_phone: Mapped[Optional[str]]    = mapped_column(String(20))
     yape_qr_url: Mapped[Optional[str]]   = mapped_column(Text)
     plin_qr_url: Mapped[Optional[str]]   = mapped_column(Text)
+    # Email de PayPal o link de PayPal.me — no hay QR, el comprador paga
+    # directo a ese destino y manda el comprobante como con Yape/Plin.
+    paypal_email: Mapped[Optional[str]]  = mapped_column(String(120))
     bank_account: Mapped[Optional[str]]  = mapped_column(Text)
     min_order_cents: Mapped[int]         = mapped_column(Integer, default=0)
     delivery_fee_cents: Mapped[int]      = mapped_column(Integer, default=0)

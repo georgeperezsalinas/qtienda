@@ -52,6 +52,7 @@ interface DoorStoreData {
     accept_plin?: boolean;
     accept_transfer?: boolean;
     accept_card?: boolean;
+    accept_paypal?: boolean;
     accept_pickup?: boolean;
   };
 }
@@ -118,6 +119,7 @@ export default function StoreDoor({ store }: { store: DoorStoreData }) {
     store.settings?.accept_card && "tarjeta",
     store.settings?.accept_transfer && "transferencia",
     store.settings?.accept_cash && "efectivo",
+    store.settings?.accept_paypal && "PayPal",
   ].filter((m): m is string => !!m);
   const paymentMethodsLabel =
     enabledPaymentMethods.length > 0
