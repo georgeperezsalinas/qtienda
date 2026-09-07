@@ -159,6 +159,25 @@ def presigned_download_url(key: str, expires_in: int = 300) -> str:
     )
 
 
+def download_object_bytes(key: str) -> bytes:
+    """Baja el contenido de un objeto privado de R2 — usado cuando hay que
+    procesar el archivo en el backend (ej. sellar un PDF) en vez de solo
+    redirigir a una URL prefirmada."""
+    import boto3
+    from botocore.config import Config
+
+    s3 = boto3.client(
+        "s3",
+        endpoint_url=settings.S3_ENDPOINT,
+        aws_access_key_id=settings.S3_ACCESS_KEY,
+        aws_secret_access_key=settings.S3_SECRET_KEY,
+        region_name="auto",
+        config=Config(signature_version="s3v4", s3={"addressing_style": "path"}),
+    )
+    obj = s3.get_object(Bucket=settings.S3_BUCKET, Key=key)
+    return obj["Body"].read()
+
+
 def is_own_upload_url(url: str) -> bool:
     """Confirma que una URL de foto realmente viene de nuestro storage (local,
     R2/CDN) y no es un link arbitrario que el cliente intenta colar — se usa

@@ -2,6 +2,7 @@
 Public endpoints — accessed by buyers via /tienda/{slug}
 No authentication required.
 """
+import asyncio
 import random
 import re
 import secrets
@@ -1507,9 +1508,14 @@ async def download_digital_file(
 ):
     """Descarga de un producto digital comprado — el token es impredecible,
     pero el candado real es el estado del pedido: nadie descarga nada hasta
-    que el vendedor confirma que el pago llegó."""
+    que el vendedor confirma que el pago llegó.
+
+    Si el archivo es un PDF, se le agrega una hoja final con el número de
+    pedido y el nombre de la tienda antes de servirlo (trazabilidad simple
+    contra reventa) — por eso los PDF nunca se redirigen directo a R2, se
+    bajan, se sellan y se devuelven desde acá."""
     item_q = await db.execute(
-        select(OrderItem, Order.status)
+        select(OrderItem, Order.status, Store.name)
         .join(Order, Order.id == OrderItem.order_id)
         .join(Store, Store.id == Order.store_id)
         .where(
@@ -1521,23 +1527,52 @@ async def download_digital_file(
     row = item_q.first()
     if not row:
         raise HTTPException(status_code=404, detail="Enlace de descarga no válido")
-    item, order_status = row
+    item, order_status, store_name = row
 
     if order_status not in DOWNLOAD_UNLOCKED_STATUSES:
         raise HTTPException(status_code=403, detail="Tu pedido todavía no fue confirmado por el vendedor")
     if not item.digital_file_key:
         raise HTTPException(status_code=404, detail="Archivo no disponible")
 
-    if app_settings.S3_ENDPOINT and app_settings.S3_ACCESS_KEY:
-        from app.api.v1.endpoints.uploads import presigned_download_url
-        url = presigned_download_url(item.digital_file_key)
-        return RedirectResponse(url, status_code=307)
+    filename = item.digital_file_name or "archivo"
+    is_pdf = filename.lower().endswith(".pdf")
+    use_r2 = bool(app_settings.S3_ENDPOINT and app_settings.S3_ACCESS_KEY)
 
-    from pathlib import Path
-    path = Path(app_settings.PRIVATE_UPLOADS_DIR) / item.digital_file_key
-    if not path.is_file():
-        raise HTTPException(status_code=404, detail="Archivo no disponible")
-    return FileResponse(path, filename=item.digital_file_name or path.name)
+    if not is_pdf:
+        if use_r2:
+            from app.api.v1.endpoints.uploads import presigned_download_url
+            url = await asyncio.to_thread(presigned_download_url, item.digital_file_key)
+            return RedirectResponse(url, status_code=307)
+
+        from pathlib import Path
+        path = Path(app_settings.PRIVATE_UPLOADS_DIR) / item.digital_file_key
+        if not path.is_file():
+            raise HTTPException(status_code=404, detail="Archivo no disponible")
+        return FileResponse(path, filename=filename)
+
+    # PDF: hay que tener los bytes en el backend para sellarlos, así que acá
+    # no cabe el atajo de redirigir a una URL prefirmada de R2.
+    if use_r2:
+        from app.api.v1.endpoints.uploads import download_object_bytes
+        try:
+            content = await asyncio.to_thread(download_object_bytes, item.digital_file_key)
+        except Exception:
+            raise HTTPException(status_code=404, detail="Archivo no disponible")
+    else:
+        from pathlib import Path
+        path = Path(app_settings.PRIVATE_UPLOADS_DIR) / item.digital_file_key
+        if not path.is_file():
+            raise HTTPException(status_code=404, detail="Archivo no disponible")
+        content = path.read_bytes()
+
+    from app.services.pdf_stamp import stamp_pdf_with_order
+    stamped = await asyncio.to_thread(stamp_pdf_with_order, content, order_number, store_name)
+
+    return Response(
+        content=stamped,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 # ── Analytics de tienda (QT-008) ──────────────────────────────

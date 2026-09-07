@@ -19,3 +19,5 @@ python-dotenv==1.0.1
 resend==2.4.0
 pywebpush==2.3.0
 py-vapid==1.9.4
+pypdf==6.17.0
+reportlab==5.0.1
