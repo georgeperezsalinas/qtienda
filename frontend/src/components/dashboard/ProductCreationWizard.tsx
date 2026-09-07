@@ -184,7 +184,7 @@ export function ProductCreationWizard({
   }
 
   return (
-    <div className="px-5 pt-5 pb-10 max-w-sm mx-auto">
+    <div className="px-5 pt-5 pb-10 max-w-sm mx-auto lg:max-w-none lg:mx-0">
       <div className="flex items-center justify-between mb-1">
         <h2 className="font-display font-extrabold text-lg" style={{ color: "var(--ink)" }}>Nuevo producto</h2>
         <button
@@ -227,42 +227,44 @@ export function ProductCreationWizard({
       {/* Paso 2 — Información */}
       {step === 2 && (
         <div className="space-y-4">
-          <Field label="Nombre del producto" required>
-            <input className="input" placeholder="Ej: Polera oversize negra" value={form.name} onChange={(e) => update("name", e.target.value)} />
-          </Field>
+          <div className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0 lg:items-start">
+            <Field label="Nombre del producto" required>
+              <input className="input" placeholder="Ej: Polera oversize negra" value={form.name} onChange={(e) => update("name", e.target.value)} />
+            </Field>
 
-          <Field label="Categoría">
-            <select className="input" value={form.category_id} onChange={(e) => update("category_id", e.target.value)}>
-              <option value="">Sin categoría</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>{c.icon ? `${c.icon} ` : ""}{c.name}</option>
-              ))}
-            </select>
-            {!showNewCategory ? (
-              <button type="button" onClick={() => setShowNewCategory(true)} className="text-xs font-bold mt-1.5" style={{ color: "var(--accent)" }}>
-                + Nueva categoría
-              </button>
-            ) : (
-              <div className="flex items-center gap-1.5 mt-1.5">
-                <input
-                  className="input flex-1"
-                  placeholder="Nombre de la categoría"
-                  value={newCategoryName}
-                  onChange={(e) => setNewCategoryName(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), createCategory())}
-                />
-                <button
-                  type="button"
-                  onClick={createCategory}
-                  disabled={creatingCategory || !newCategoryName.trim()}
-                  className="rounded-xl text-xs font-bold px-3 py-3 disabled:opacity-50 flex-shrink-0"
-                  style={{ background: "var(--accent)", color: "#fff" }}
-                >
-                  Crear
+            <Field label="Categoría">
+              <select className="input" value={form.category_id} onChange={(e) => update("category_id", e.target.value)}>
+                <option value="">Sin categoría</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>{c.icon ? `${c.icon} ` : ""}{c.name}</option>
+                ))}
+              </select>
+              {!showNewCategory ? (
+                <button type="button" onClick={() => setShowNewCategory(true)} className="text-xs font-bold mt-1.5" style={{ color: "var(--accent)" }}>
+                  + Nueva categoría
                 </button>
-              </div>
-            )}
-          </Field>
+              ) : (
+                <div className="flex items-center gap-1.5 mt-1.5">
+                  <input
+                    className="input flex-1"
+                    placeholder="Nombre de la categoría"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), createCategory())}
+                  />
+                  <button
+                    type="button"
+                    onClick={createCategory}
+                    disabled={creatingCategory || !newCategoryName.trim()}
+                    className="rounded-xl text-xs font-bold px-3 py-3 disabled:opacity-50 flex-shrink-0"
+                    style={{ background: "var(--accent)", color: "#fff" }}
+                  >
+                    Crear
+                  </button>
+                </div>
+              )}
+            </Field>
+          </div>
 
           <div>
             <label className="field-label">Descripción</label>
@@ -274,31 +276,33 @@ export function ProductCreationWizard({
       {/* Paso 3 — Precio y stock */}
       {step === 3 && (
         <div className="space-y-4">
-          <Field label="Precio de venta" required>
-            <div className="flex items-center rounded-xl overflow-hidden" style={{ border: "1.5px solid var(--line-2)", background: "var(--surface-2)" }}>
-              <span className="px-3 font-bold text-sm" style={{ color: "var(--ink-2)", borderRight: "1px solid var(--line-2)" }}>S/</span>
-              <input
-                className="flex-1 bg-transparent px-3 py-3 text-sm outline-none"
-                type="number" step="0.10" min="0.10" placeholder="0.00"
-                value={form.price_cents}
-                onChange={(e) => update("price_cents", e.target.value)}
-                style={{ color: "var(--ink)" }}
-              />
-            </div>
-          </Field>
+          <div className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0 lg:items-start">
+            <Field label="Precio de venta" required>
+              <div className="flex items-center rounded-xl overflow-hidden" style={{ border: "1.5px solid var(--line-2)", background: "var(--surface-2)" }}>
+                <span className="px-3 font-bold text-sm" style={{ color: "var(--ink-2)", borderRight: "1px solid var(--line-2)" }}>S/</span>
+                <input
+                  className="flex-1 bg-transparent px-3 py-3 text-sm outline-none"
+                  type="number" step="0.10" min="0.10" placeholder="0.00"
+                  value={form.price_cents}
+                  onChange={(e) => update("price_cents", e.target.value)}
+                  style={{ color: "var(--ink)" }}
+                />
+              </div>
+            </Field>
 
-          <Field label="Precio tachado (opcional)" hint="Para mostrar un descuento — déjalo vacío si no aplica.">
-            <div className="flex items-center rounded-xl overflow-hidden" style={{ border: "1.5px solid var(--line-2)", background: "var(--surface-2)" }}>
-              <span className="px-3 font-bold text-sm" style={{ color: "var(--ink-2)", borderRight: "1px solid var(--line-2)" }}>S/</span>
-              <input
-                className="flex-1 bg-transparent px-3 py-3 text-sm outline-none"
-                type="number" step="0.10" min="0" placeholder="0.00"
-                value={form.compare_price}
-                onChange={(e) => update("compare_price", e.target.value)}
-                style={{ color: "var(--ink)" }}
-              />
-            </div>
-          </Field>
+            <Field label="Precio tachado (opcional)" hint="Para mostrar un descuento — déjalo vacío si no aplica.">
+              <div className="flex items-center rounded-xl overflow-hidden" style={{ border: "1.5px solid var(--line-2)", background: "var(--surface-2)" }}>
+                <span className="px-3 font-bold text-sm" style={{ color: "var(--ink-2)", borderRight: "1px solid var(--line-2)" }}>S/</span>
+                <input
+                  className="flex-1 bg-transparent px-3 py-3 text-sm outline-none"
+                  type="number" step="0.10" min="0" placeholder="0.00"
+                  value={form.compare_price}
+                  onChange={(e) => update("compare_price", e.target.value)}
+                  style={{ color: "var(--ink)" }}
+                />
+              </div>
+            </Field>
+          </div>
 
           {!!form.compare_price && (
             <Field label="Oferta termina (opcional)" hint="Se muestra un contador real en tu tienda hasta esta fecha.">

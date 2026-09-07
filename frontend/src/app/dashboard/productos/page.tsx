@@ -1066,7 +1066,7 @@ export default function ProductosPage() {
             onClick={() => setShowWizard(false)}
           />
           <div
-            className="fixed bottom-0 left-0 right-0 z-50 animate-fade-up rounded-t-[28px] lg:inset-0 lg:bottom-auto lg:m-auto lg:h-fit lg:max-h-[85vh] lg:w-[560px] lg:rounded-[24px]"
+            className="fixed bottom-0 left-0 right-0 z-50 animate-fade-up rounded-t-[28px] lg:inset-0 lg:bottom-auto lg:m-auto lg:h-fit lg:max-h-[85vh] lg:w-[640px] lg:rounded-[24px]"
             style={{
               background: "var(--surface)",
               boxShadow: "var(--shadow-float)",
