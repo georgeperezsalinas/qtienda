@@ -42,11 +42,8 @@ export default function MasPage() {
       .then(({ data }) => setCitasHoy(Array.isArray(data) ? data.length : null))
       .catch(() => {});
     apiClient
-      .get("/claims/")
-      .then(({ data }) => {
-        const open = Array.isArray(data) ? data.filter((c: any) => c.status === "open").length : null;
-        setReclamosAbiertos(open);
-      })
+      .get("/claims/", { params: { status: "open", limit: 1 } })
+      .then(({ data }) => setReclamosAbiertos(typeof data.total === "number" ? data.total : null))
       .catch(() => {});
   }, []);
 

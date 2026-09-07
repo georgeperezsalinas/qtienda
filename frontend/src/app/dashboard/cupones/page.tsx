@@ -140,12 +140,17 @@ export default function CuponesPage() {
   const [confirmDeleteCoupon, setConfirmDeleteCoupon] = useState<Coupon | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [pages, setPages] = useState(1);
 
-  async function load() {
+  async function load(p = page) {
     setLoading(true);
     try {
-      const { data } = await apiClient.get("/coupons/");
-      setCoupons(data);
+      const { data } = await apiClient.get("/coupons/", { params: { page: p, limit: 20 } });
+      setCoupons(data.items ?? []);
+      setTotal(data.total ?? 0);
+      setPages(data.pages || 1);
     } catch {
       toast.error("No se pudieron cargar los cupones");
     } finally {
@@ -153,7 +158,7 @@ export default function CuponesPage() {
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(page); }, [page]);
 
   function openCreate() {
     setForm(EMPTY_FORM);
@@ -224,7 +229,7 @@ export default function CuponesPage() {
               Cupones
             </h1>
             <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
-              {coupons.length} cupón{coupons.length !== 1 ? "es" : ""} creado{coupons.length !== 1 ? "s" : ""}
+              {total} cupón{total !== 1 ? "es" : ""} creado{total !== 1 ? "s" : ""}
             </p>
           </div>
           <button onClick={openCreate} className="btn-primary" style={{ width: "auto", padding: "10px 16px" }}>
@@ -264,6 +269,30 @@ export default function CuponesPage() {
           ))
         )}
       </div>
+
+      {pages > 1 && (
+        <div className="flex items-center justify-between px-5 pb-6">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="text-xs font-semibold px-4 py-2 rounded-xl transition-all disabled:opacity-30"
+            style={{ background: "var(--surface)", border: "1.5px solid var(--line-2)", color: "var(--ink-2)" }}
+          >
+            Anterior
+          </button>
+          <span className="text-xs" style={{ color: "var(--ink-3)" }}>
+            Página {page} de {pages}
+          </span>
+          <button
+            onClick={() => setPage((p) => Math.min(pages, p + 1))}
+            disabled={page >= pages}
+            className="text-xs font-semibold px-4 py-2 rounded-xl transition-all disabled:opacity-30"
+            style={{ background: "var(--surface)", border: "1.5px solid var(--line-2)", color: "var(--ink-2)" }}
+          >
+            Siguiente
+          </button>
+        </div>
+      )}
 
       {showModal && (
         <>

@@ -4,9 +4,9 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, field_validator
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
@@ -82,14 +82,32 @@ class CouponUpdate(BaseModel):
 
 @router.get("/")
 async def list_coupons(
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, le=100),
     current_user=Depends(require_vendor),
     db: AsyncSession = Depends(get_db),
 ):
     store = await _get_store(current_user, db)
+
+    total = (await db.execute(
+        select(func.count()).select_from(Coupon).where(Coupon.store_id == store.id)
+    )).scalar()
+
     rows = (await db.execute(
-        select(Coupon).where(Coupon.store_id == store.id).order_by(Coupon.created_at.desc())
+        select(Coupon)
+        .where(Coupon.store_id == store.id)
+        .order_by(Coupon.created_at.desc())
+        .offset((page - 1) * limit)
+        .limit(limit)
     )).scalars().all()
-    return [_serialize(c) for c in rows]
+
+    return {
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "pages": -(-total // limit) if total else 0,
+        "items": [_serialize(c) for c in rows],
+    }
 
 
 @router.post("/", status_code=201)

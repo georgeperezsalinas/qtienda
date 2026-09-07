@@ -132,12 +132,17 @@ export default function ReclamosPage() {
   const { code: currency, locale } = useStoreCurrency();
   const [claims, setClaims] = useState<Claim[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [pages, setPages] = useState(1);
 
-  async function load() {
+  async function load(p = page) {
     setLoading(true);
     try {
-      const { data } = await apiClient.get("/claims/");
-      setClaims(data);
+      const { data } = await apiClient.get("/claims/", { params: { page: p, limit: 20 } });
+      setClaims(data.items ?? []);
+      setTotal(data.total ?? 0);
+      setPages(data.pages || 1);
     } catch {
       toast.error("No se pudieron cargar los reclamos");
     } finally {
@@ -145,7 +150,7 @@ export default function ReclamosPage() {
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(page); }, [page]);
 
   async function respond(id: string, response: string) {
     const { data } = await apiClient.post(`/claims/${id}/respond`, { vendor_response: response });
@@ -162,7 +167,7 @@ export default function ReclamosPage() {
           Libro de Reclamaciones
         </h1>
         <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
-          {claims.length} registro{claims.length !== 1 ? "s" : ""} — visible para tus compradores en el pie de tu tienda
+          {total} registro{total !== 1 ? "s" : ""} — visible para tus compradores en el pie de tu tienda
         </p>
       </div>
 
@@ -187,6 +192,30 @@ export default function ReclamosPage() {
           ))
         )}
       </div>
+
+      {pages > 1 && (
+        <div className="flex items-center justify-between px-5 pb-6">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="text-xs font-semibold px-4 py-2 rounded-xl transition-all disabled:opacity-30"
+            style={{ background: "var(--surface)", border: "1.5px solid var(--line-2)", color: "var(--ink-2)" }}
+          >
+            Anterior
+          </button>
+          <span className="text-xs" style={{ color: "var(--ink-3)" }}>
+            Página {page} de {pages}
+          </span>
+          <button
+            onClick={() => setPage((p) => Math.min(pages, p + 1))}
+            disabled={page >= pages}
+            className="text-xs font-semibold px-4 py-2 rounded-xl transition-all disabled:opacity-30"
+            style={{ background: "var(--surface)", border: "1.5px solid var(--line-2)", color: "var(--ink-2)" }}
+          >
+            Siguiente
+          </button>
+        </div>
+      )}
     </div>
   );
 }
