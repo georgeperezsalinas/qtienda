@@ -27,7 +27,8 @@ export const QK = {
   orderDetail: (id: string)              => ["order", id] as const,
   products:    ["products"]              as const,
   categories:  ["categories"]            as const,
-  finanzas:    (period: string)          => ["finanzas", period] as const,
+  finanzas:    (period: string, from?: string, to?: string) => ["finanzas", period, from, to] as const,
+  subscription: ["subscription", "my"]   as const,
   analytics:   (days: number)            => ["analytics", days] as const,
   pendingAppointments: ["appointments", "pending"] as const,
 } as const;
@@ -225,27 +226,50 @@ export function useDeleteProduct() {
   });
 }
 
-// ── Stats de finanzas ────────────────────────────────────────
-export function useFinanzasStats(period: string, from?: string, to?: string) {
+// ── Stats de finanzas: período elegido + período anterior (para el badge
+// "+12% vs período anterior") + gráfico diario + top productos, las 4 en
+// paralelo — se consumen juntas en la misma pantalla y cambian juntas
+// cuando cambia el período. La lista paginada de "Movimientos" NO va acá:
+// no está filtrada por período, así que reutiliza useOrders() tal cual.
+export function useFinanzasStats(
+  period: string,
+  dates: { from: string; to: string } | null,
+  prevDates: { from: string; to: string } | null,
+) {
+  const params = dates ? { from_date: dates.from, to_date: dates.to } : {};
   return useQuery({
-    queryKey: QK.finanzas(period),
+    queryKey: QK.finanzas(period, dates?.from, dates?.to),
     queryFn: async () => {
-      const params: Record<string, string> = {};
-      if (from) params.from_date = from;
-      if (to)   params.to_date   = to;
-      const [statsRes, ordersRes, subRes] = await Promise.all([
+      const [statsRes, prevRes, dailyRes, topRes] = await Promise.all([
         apiClient.get("/orders/stats/summary", { params }),
-        apiClient.get("/orders/", {
-          params: { ...params, limit: 10, page: 1 },
-        }),
-        apiClient.get("/subscriptions/me").catch(() => ({ data: null })),
+        prevDates
+          ? apiClient.get("/orders/stats/summary", {
+              params: { from_date: prevDates.from, to_date: prevDates.to },
+            })
+          : Promise.resolve(null),
+        apiClient.get("/orders/stats/daily", { params }),
+        apiClient.get("/orders/stats/top-products", { params: { ...params, limit: 10 } }),
       ]);
       return {
-        stats:        statsRes.data,
-        orders:       ordersRes.data.items ?? [],
-        subscription: subRes.data,
+        stats:        statsRes.data.this_month,
+        prevStats:    prevRes ? prevRes.data.this_month : null,
+        daily:        dailyRes.data,
+        topProducts:  topRes.data,
       };
     },
-    staleTime: 2 * 60 * 1000,
+    staleTime: 60 * 1000,
+  });
+}
+
+// ── Suscripción/plan actual del vendedor ─────────────────────
+export function useSubscription() {
+  return useQuery({
+    queryKey: QK.subscription,
+    queryFn: async () => {
+      const { data } = await apiClient.get("/plans/my-subscription");
+      return data;
+    },
+    retry: 1,
+    staleTime: 5 * 60 * 1000,
   });
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import {
   TrendingUp, ShoppingBag, CheckCircle2,
@@ -11,6 +11,7 @@ import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
 import { useStoreCurrency } from "@/hooks/useStoreCurrency";
+import { useFinanzasStats, useSubscription, useOrders } from "@/hooks/useDashboardQueries";
 
 /* ── Types ── */
 interface PaymentEntry {
@@ -490,83 +491,30 @@ function TopProducts({ items, loading, currency, locale }: { items: TopProduct[]
 export default function FinanzasPage() {
   const { code: currency, locale } = useStoreCurrency();
   const [period,       setPeriod]       = useState<PeriodKey>("this_month");
-  const [stats,        setStats]        = useState<Stats | null>(null);
-  const [prevStats,    setPrevStats]    = useState<Stats | null>(null);
-  const [daily,        setDaily]        = useState<DailyPoint[]>([]);
-  const [sub,          setSub]          = useState<Subscription | null>(null);
-  const [orders,       setOrders]       = useState<Order[]>([]);
   const [statusFilter, setStatusFilter] = useState("");
   const [page,         setPage]         = useState(1);
-  const [totalOrders,  setTotalOrders]  = useState(0);
-  const [loadingStats, setLoadingStats] = useState(true);
-  const [loadingDaily, setLoadingDaily] = useState(true);
-  const [loadingList,  setLoadingList]  = useState(true);
   const [exporting,    setExporting]    = useState(false);
-  const [topProducts,  setTopProducts]  = useState<TopProduct[]>([]);
-  const [loadingTop,   setLoadingTop]   = useState(true);
 
-  /* ── Sub (once) ── */
-  useEffect(() => {
-    apiClient.get("/plans/my-subscription")
-      .then(({ data }) => setSub(data))
-      .catch(() => setSub(null));
-  }, []);
+  // Las 3 queries salen en paralelo — ninguna depende de las otras. Dentro
+  // de useFinanzasStats, sus 4 llamadas (stats, stats del período anterior,
+  // diario, top productos) también van en paralelo, con caché de 1 min.
+  const dates     = periodDates(period);
+  const prevDates = previousPeriodDates(period);
+  const { data: finData, isLoading: loadingFin } = useFinanzasStats(period, dates, prevDates);
+  const { data: sub } = useSubscription();
+  const { data: ordersData, isLoading: loadingList } = useOrders(statusFilter, "", page);
 
-  /* ── Stats + daily by period ── */
-  useEffect(() => {
-    const dates = periodDates(period);
-    const params = dates ? { from_date: dates.from, to_date: dates.to } : {};
-    const prevDates = previousPeriodDates(period);
-
-    setLoadingStats(true);
-    setLoadingDaily(true);
-
-    apiClient.get("/orders/stats/summary", { params })
-      .then(({ data }) => setStats(data.this_month))
-      .catch(() => setStats(null))
-      .finally(() => setLoadingStats(false));
-
-    // Período anterior equivalente, para el badge "+12% vs período anterior"
-    // — sin período (period "all") no hay nada contra qué comparar.
-    if (prevDates) {
-      apiClient
-        .get("/orders/stats/summary", { params: { from_date: prevDates.from, to_date: prevDates.to } })
-        .then(({ data }) => setPrevStats(data.this_month))
-        .catch(() => setPrevStats(null));
-    } else {
-      setPrevStats(null);
-    }
-
-    apiClient.get("/orders/stats/daily", { params })
-      .then(({ data }) => setDaily(data))
-      .catch(() => setDaily([]))
-      .finally(() => setLoadingDaily(false));
-
-    setLoadingTop(true);
-    apiClient.get("/orders/stats/top-products", { params: { ...params, limit: 10 } })
-      .then(({ data }) => setTopProducts(data))
-      .catch(() => setTopProducts([]))
-      .finally(() => setLoadingTop(false));
-  }, [period]);
-
-  /* ── Orders list ── */
-  const fetchOrders = useCallback(async () => {
-    setLoadingList(true);
-    try {
-      const params: Record<string, string | number> = { page, limit: 20 };
-      if (statusFilter) params.status = statusFilter;
-      const { data } = await apiClient.get("/orders/", { params });
-      setOrders(data.items ?? []);
-      setTotalOrders(data.total ?? 0);
-    } catch {
-      setOrders([]);
-    } finally {
-      setLoadingList(false);
-    }
-  }, [page, statusFilter]);
+  const stats: Stats | null       = finData?.stats ?? null;
+  const prevStats: Stats | null   = finData?.prevStats ?? null;
+  const daily: DailyPoint[]       = finData?.daily ?? [];
+  const topProducts: TopProduct[] = finData?.topProducts ?? [];
+  const loadingStats = loadingFin;
+  const loadingDaily = loadingFin;
+  const loadingTop   = loadingFin;
+  const orders: Order[] = ordersData?.items ?? [];
+  const totalOrders     = ordersData?.total ?? 0;
 
   useEffect(() => { setPage(1); }, [statusFilter]);
-  useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
   /* ── Exportar CSV ── */
   // Sigue el período elegido arriba (mismo que el gráfico), no la paginación
