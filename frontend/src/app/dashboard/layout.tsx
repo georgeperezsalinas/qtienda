@@ -276,18 +276,25 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-dvh md:flex" data-theme="panel-calido" style={{ background: "var(--bg)", color: "var(--ink)" }}>
-      {/* ═════════ Sidebar (desktop) ═════════ */}
+      {/* ═════════ Sidebar (desktop) ═════════
+          Tres zonas fijas como en el sidebar de Claude: header (logo) y
+          footer (cuenta) siempre visibles, solo la navegación del medio
+          scrollea cuando hay más grupos de los que caben en la pantalla —
+          antes todo el aside scrolleaba junto, así que al bajar para ver
+          "Ajustes"/"Planes" el logo se iba con el scroll. */}
       <aside
-        className="hidden md:flex flex-col sticky top-0 h-screen overflow-y-auto"
+        className="hidden md:flex flex-col sticky top-0 h-screen"
         style={{
           width: 240,
           background: "var(--surface)",
           borderRight: "1px solid var(--line)",
           flexShrink: 0,
-          padding: "20px 14px",
         }}
       >
-        <div className="flex items-center justify-between" style={{ padding: "4px 8px 22px" }}>
+        <div
+          className="flex items-center justify-between flex-shrink-0"
+          style={{ padding: "20px 14px 14px" }}
+        >
           <Logo size="md" variant="brand" />
           <div className="flex items-center gap-1.5">
             <ThemeToggle />
@@ -295,7 +302,7 @@ export default function DashboardLayout({
           </div>
         </div>
 
-        <nav className="flex-1 flex flex-col">
+        <nav className="flex-1 min-h-0 overflow-y-auto" style={{ padding: "6px 14px 14px" }}>
           {getVisibleGroups(sells).map((group, gi) => (
             <div key={group.label ?? gi} className={gi > 0 ? "mt-3" : ""}>
               {group.label && (
@@ -331,31 +338,35 @@ export default function DashboardLayout({
               </div>
             </div>
           ))}
+
+          {/* Enlaces secundarios — de uso ocasional, por eso van al final del
+              scroll en vez de competir por espacio fijo con la cuenta. */}
+          <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--line)" }}>
+            <a
+              href={storeSlug ? `https://${storeSlug}.qtienda.shop/` : "#"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl text-sm font-medium transition-colors"
+              style={{ color: "var(--ink-3)" }}
+            >
+              <ExternalLink size={15} strokeWidth={1.7} />
+              <span style={{ flex: 1 }}>Ver mi tienda</span>
+            </a>
+            <Link
+              href="/mis-pedidos"
+              className="flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl text-sm font-medium transition-colors"
+              style={{ color: "var(--ink-3)" }}
+            >
+              <ShoppingCart size={15} strokeWidth={1.7} />
+              <span style={{ flex: 1 }}>Mis compras</span>
+            </Link>
+          </div>
         </nav>
 
-        {/* User block */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <a
-            href={storeSlug ? `https://${storeSlug}.qtienda.shop/` : "#"}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl text-sm font-medium transition-colors"
-            style={{ color: "var(--ink-3)" }}
-          >
-            <ExternalLink size={15} strokeWidth={1.7} />
-            <span style={{ flex: 1 }}>Ver mi tienda</span>
-          </a>
-          <Link
-            href="/mis-pedidos"
-            className="flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl text-sm font-medium transition-colors"
-            style={{ color: "var(--ink-3)" }}
-          >
-            <ShoppingCart size={15} strokeWidth={1.7} />
-            <span style={{ flex: 1 }}>Mis compras</span>
-          </Link>
-
+        {/* Cuenta — fija al fondo, siempre alcanzable sin depender del scroll */}
+        <div className="flex-shrink-0" style={{ padding: "10px 14px 14px" }}>
           <div
-            className="mt-3 px-3 py-2.5 flex items-center gap-2.5 rounded-xl"
+            className="px-3 py-2.5 flex items-center gap-2.5 rounded-xl"
             style={{ background: "var(--bg)", border: "1px solid var(--line)" }}
           >
             <div
