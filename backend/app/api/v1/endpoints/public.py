@@ -10,7 +10,6 @@ import secrets
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, Query
-from fastapi.responses import RedirectResponse, FileResponse
 from urllib.parse import quote
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import case, func, select, and_, or_
@@ -1574,42 +1573,42 @@ async def download_digital_file(
     is_pdf = filename.lower().endswith(".pdf")
     use_r2 = bool(app_settings.S3_ENDPOINT and app_settings.S3_ACCESS_KEY)
 
-    if not is_pdf:
-        if use_r2:
-            from app.api.v1.endpoints.uploads import presigned_download_url
-            url = await asyncio.to_thread(presigned_download_url, item.digital_file_key)
-            return RedirectResponse(url, status_code=307)
-
-        from pathlib import Path
-        path = Path(app_settings.PRIVATE_UPLOADS_DIR) / item.digital_file_key
-        if not path.is_file():
-            logger.error("Archivo digital no encontrado en disco: %s (pedido %s)", path, order_number)
-            raise HTTPException(status_code=404, detail="Archivo no disponible")
-        return FileResponse(path, filename=filename)
-
-    # PDF: hay que tener los bytes en el backend para sellarlos, así que acá
-    # no cabe el atajo de redirigir a una URL prefirmada de R2.
+    # _upload_r2 (uploads.py) cae solo a disco local si R2 falla al subir —
+    # así que un archivo "subido a R2" puede en realidad estar en local. Acá
+    # se tolera lo mismo: se intenta R2 primero, y si falla por cualquier
+    # motivo (ej. el handshake_failure de TLS que ya se ve con las imágenes),
+    # se prueba el disco antes de recién ahí devolver 404.
+    from pathlib import Path
+    content: Optional[bytes] = None
     if use_r2:
         from app.api.v1.endpoints.uploads import download_object_bytes
         try:
             content = await download_object_bytes(item.digital_file_key)
         except Exception:
-            logger.exception("No se pudo bajar de R2 el archivo digital %s (pedido %s)", item.digital_file_key, order_number)
-            raise HTTPException(status_code=404, detail="Archivo no disponible")
-    else:
-        from pathlib import Path
+            logger.warning(
+                "No se pudo bajar de R2 el archivo digital %s (pedido %s) — probando disco local",
+                item.digital_file_key, order_number,
+            )
+    if content is None:
         path = Path(app_settings.PRIVATE_UPLOADS_DIR) / item.digital_file_key
-        if not path.is_file():
-            logger.error("Archivo digital no encontrado en disco: %s (pedido %s)", path, order_number)
-            raise HTTPException(status_code=404, detail="Archivo no disponible")
-        content = path.read_bytes()
+        if path.is_file():
+            content = path.read_bytes()
 
-    from app.services.pdf_stamp import stamp_pdf_with_order
-    stamped = await asyncio.to_thread(stamp_pdf_with_order, content, order_number, store_name)
+    if content is None:
+        logger.error("Archivo digital no disponible ni en R2 ni en disco: %s (pedido %s)", item.digital_file_key, order_number)
+        raise HTTPException(status_code=404, detail="Archivo no disponible")
+
+    if is_pdf:
+        from app.services.pdf_stamp import stamp_pdf_with_order
+        content = await asyncio.to_thread(stamp_pdf_with_order, content, order_number, store_name)
+        media_type = "application/pdf"
+    else:
+        import mimetypes
+        media_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
 
     return Response(
-        content=stamped,
-        media_type="application/pdf",
+        content=content,
+        media_type=media_type,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
