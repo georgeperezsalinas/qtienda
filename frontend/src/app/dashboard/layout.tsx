@@ -278,7 +278,7 @@ export default function DashboardLayout({
     <div className="min-h-dvh md:flex" data-theme="panel-calido" style={{ background: "var(--bg)", color: "var(--ink)" }}>
       {/* ═════════ Sidebar (desktop) ═════════ */}
       <aside
-        className="hidden md:flex flex-col sticky top-0 h-screen"
+        className="hidden md:flex flex-col sticky top-0 h-screen overflow-y-auto"
         style={{
           width: 240,
           background: "var(--surface)",
