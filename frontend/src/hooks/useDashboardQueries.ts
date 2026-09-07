@@ -28,6 +28,8 @@ export const QK = {
   products:    ["products"]              as const,
   categories:  ["categories"]            as const,
   finanzas:    (period: string)          => ["finanzas", period] as const,
+  analytics:   (days: number)            => ["analytics", days] as const,
+  pendingAppointments: ["appointments", "pending"] as const,
 } as const;
 
 // ── Store del vendedor ───────────────────────────────────────
@@ -44,7 +46,12 @@ export function useStore() {
 }
 
 // ── Stats del dashboard (hoy) ────────────────────────────────
-export function useDashboardStats(storeId: string | undefined) {
+// No depende de storeId: /orders/stats/summary, /orders/ y /products/ ya
+// resuelven la tienda del vendedor por su token, así que puede salir en
+// paralelo con useStore() en vez de esperar a que esa termine primero —
+// un vendedor sin tienda todavía recibe 404 acá, inofensivo (la pantalla
+// nunca llega a pintar esta sección en ese caso).
+export function useDashboardStats() {
   const today = new Date().toISOString().slice(0, 10);
   return useQuery({
     queryKey: QK.stats(today, today),
@@ -62,9 +69,37 @@ export function useDashboardStats(storeId: string | undefined) {
         productCount: prodsRes.data.total ?? 0,
       };
     },
-    enabled: !!storeId,          // Solo consulta cuando la tienda ya cargó
+    retry: 1,
     staleTime: 60 * 1000,        // 1 min — stats del día se actualizan seguido
     refetchOnWindowFocus: true,  // Al volver a la pestaña, refresca las stats
+  });
+}
+
+// ── Analytics de la tienda (30 días) ─────────────────────────
+export function useStoreAnalytics(days = 30) {
+  return useQuery({
+    queryKey: QK.analytics(days),
+    queryFn: async () => {
+      const { data } = await apiClient.get("/stores/me/analytics", { params: { days } });
+      return data;
+    },
+    retry: 1,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+// ── Citas pendientes de confirmar ────────────────────────────
+// Solo hay algo que contar si el vendedor ofrece servicios con cita — en
+// tiendas sin servicios esto siempre da 404/vacío, inofensivo.
+export function usePendingAppointments() {
+  return useQuery({
+    queryKey: QK.pendingAppointments,
+    queryFn: async () => {
+      const { data } = await apiClient.get("/services/appointments", { params: { status: "pending" } });
+      return Array.isArray(data) ? data.length : 0;
+    },
+    retry: 1,
+    staleTime: 60 * 1000,
   });
 }
 
@@ -122,7 +157,10 @@ export function useChangeOrderStatus() {
       // Invalida todos los queries de pedidos y el detalle del pedido modificado
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: QK.orderDetail(orderId) });
-      qc.invalidateQueries({ queryKey: QK.stats("", "") }); // refresca stats también
+      // ["stats"] solo (sin fechas) para que matchee por prefijo la key real
+      // ["stats", hoy, hoy] — QK.stats("", "") arma ["stats","",""], que
+      // nunca calza como prefijo y por eso nunca invalidaba nada.
+      qc.invalidateQueries({ queryKey: ["stats"] });
     },
   });
 }

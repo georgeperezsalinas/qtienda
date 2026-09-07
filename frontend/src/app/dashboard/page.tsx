@@ -3,7 +3,7 @@
 
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useState, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -24,37 +24,12 @@ import {
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { apiClient } from "@/lib/api";
+import { useStore, useDashboardStats, useStoreAnalytics, usePendingAppointments } from "@/hooks/useDashboardQueries";
 import { useAuthStore } from "@/store/authStore";
 import ReferralBanner from "@/components/ui/ReferralBanner";
 import PlanStatusBanner from "@/components/ui/PlanStatusBanner";
 import OnboardingProgress from "@/components/onboarding/OnboardingProgress";
 import toast from "react-hot-toast";
-
-/* ─── Types ─── */
-interface Stats {
-  total_orders: number;
-  pending: number;
-  delivered: number;
-  cancelled: number;
-  revenue_cents: number;
-}
-interface StoreData {
-  id: string;
-  slug: string;
-  name: string;
-  status: string;
-  primary_color: string;
-  logo_url?: string;
-  plan_slug?: string;
-}
-interface RecentOrder {
-  id: string;
-  order_number: string;
-  status: string;
-  buyer_name: string;
-  items_count: number;
-  created_at: string;
-}
 
 /* ─── Helpers ─── */
 function getGreeting(): string {
@@ -70,9 +45,6 @@ function timeAgo(iso: string): string {
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs}h`;
   return `${Math.floor(hrs / 24)}d`;
-}
-function toISO(d: Date) {
-  return d.toISOString().slice(0, 10);
 }
 function formatMoney(cents: number) {
   return `S/ ${(cents / 100).toFixed(2)}`;
@@ -95,9 +67,26 @@ function Skel({ h = 24, className = "" }: { h?: number; className?: string }) {
 export default function DashboardPage() {
   const { user } = useAuthStore();
 
-  const [store, setStore] = useState<StoreData | null>(null);
   const [showQrModal, setShowQrModal] = useState(false);
   const qrCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Las 4 llamadas salen en paralelo, ninguna depende de que otra termine
+  // antes — todas se resuelven por el token del vendedor, no por el store.id.
+  // Con caché (staleTime en cada hook), volver a esta pantalla dentro de la
+  // ventana de caché no vuelve a mostrar el spinner.
+  const { data: store, isLoading: loadingStore } = useStore();
+  const { data: dashData, isLoading: loadingStats } = useDashboardStats();
+  const { data: analytics } = useStoreAnalytics(30);
+  const { data: pendingAppointments = 0 } = usePendingAppointments();
+
+  const stats = dashData?.stats ?? null;
+  const recent: any[] = dashData?.recentOrders ?? [];
+  const productCount = dashData?.productCount ?? null;
+
+  const [resending, setResending] = useState(false);
+  const [resent, setResent] = useState(false);
+
+  const firstName = user?.full_name?.split(" ")[0] ?? "vendedor";
 
   function downloadQr() {
     const canvas = qrCanvasRef.current;
@@ -107,63 +96,6 @@ export default function DashboardPage() {
     a.download = `qr-${store.slug}.png`;
     a.click();
   }
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [recent, setRecent] = useState<RecentOrder[]>([]);
-  const [loadingStore, setLoadingStore] = useState(true);
-  const [loadingStats, setLoadingStats] = useState(true);
-  const [productCount, setProductCount] = useState<number | null>(null);
-  const [analytics, setAnalytics] = useState<{
-    store_views: number;
-    unique_visitors: number;
-    product_views: number;
-    add_to_cart: number;
-    orders_created: number;
-    devices: Record<string, number>;
-    top_products: { name: string; views: number }[];
-  } | null>(null);
-  const [resending, setResending] = useState(false);
-  const [resent, setResent] = useState(false);
-  const [pendingAppointments, setPendingAppointments] = useState(0);
-
-  const firstName = user?.full_name?.split(" ")[0] ?? "vendedor";
-
-  useEffect(() => {
-    apiClient
-      .get("/stores/me")
-      .then(({ data }) => setStore(data))
-      .catch(() => setStore(null))
-      .finally(() => setLoadingStore(false));
-  }, []);
-
-  useEffect(() => {
-    if (!store) return;
-    setLoadingStats(true);
-    const today = toISO(new Date());
-    Promise.all([
-      apiClient.get("/orders/stats/summary", { params: { from_date: today, to_date: today } }),
-      apiClient.get("/orders/", { params: { limit: 4, page: 1 } }),
-      apiClient.get("/products/", { params: { limit: 1, page: 1 } }),
-    ])
-      .then(([statsRes, ordersRes, prodsRes]) => {
-        setStats(statsRes.data.this_month);
-        setRecent(ordersRes.data.items ?? []);
-        setProductCount(prodsRes.data.total ?? 0);
-      })
-      .catch(() => { })
-      .finally(() => setLoadingStats(false));
-
-    apiClient
-      .get("/stores/me/analytics", { params: { days: 30 } })
-      .then(({ data }) => setAnalytics(data))
-      .catch(() => { });
-
-    // Solo hay algo que contar si el vendedor ofrece servicios con cita —
-    // en tiendas sin servicios esto siempre da 0, así que el aviso no aparece.
-    apiClient
-      .get("/services/appointments", { params: { status: "pending" } })
-      .then(({ data }) => setPendingAppointments(Array.isArray(data) ? data.length : 0))
-      .catch(() => { });
-  }, [store]);
 
   async function resendVerification() {
     setResending(true);
