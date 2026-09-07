@@ -181,7 +181,7 @@ export default function ProductDetailSheet({
         animate={{ y: 0 }}
         exit={{ y: "100%" }}
         transition={{ type: "spring", damping: 28, stiffness: 320 }}
-        className="fixed bottom-0 left-0 right-0 z-[60] flex flex-col max-w-xl mx-auto rounded-t-[24px] lg:inset-0 lg:bottom-auto lg:m-auto lg:h-fit lg:max-w-[520px] lg:rounded-[24px]"
+        className="fixed bottom-0 left-0 right-0 z-[60] flex flex-col max-w-xl mx-auto rounded-t-[24px] lg:inset-0 lg:bottom-auto lg:m-auto lg:flex-row lg:h-[600px] lg:max-h-[80dvh] lg:max-w-[900px] lg:rounded-[24px]"
         style={{
           background:    "var(--surface)",
           maxHeight:     "90dvh",
@@ -191,8 +191,8 @@ export default function ProductDetailSheet({
       >
         {/* ── Galería de imágenes ── */}
         <div
-          className="relative w-full flex-shrink-0"
-          style={{ height: 280, background: "var(--surface-2)" }}
+          className="relative w-full flex-shrink-0 h-[280px] lg:w-[400px] lg:h-full"
+          style={{ background: "var(--surface-2)" }}
           onTouchStart={onTouchStart}
           onTouchEnd={onTouchEnd}
         >
@@ -323,6 +323,13 @@ export default function ProductDetailSheet({
             <X size={16} color="white" />
           </button>
         </div>
+
+        {/* ── Columna derecha en escritorio: contenido + barra de acción ──
+            En mobile este wrapper es transparente al layout (mismo resultado
+            de siempre); en desktop convierte la galería + esta columna en
+            dos paneles lado a lado en vez de una tarjeta angosta flotando
+            en el centro de la pantalla. */}
+        <div className="relative flex flex-col flex-1 min-h-0 lg:min-w-0">
 
         {/* ── Contenido scrollable ── */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain">
@@ -554,6 +561,7 @@ export default function ProductDetailSheet({
               )}
             </motion.button>
           </div>
+        </div>
         </div>
       </motion.div>
       {/* Lightbox de imagen completa */}
