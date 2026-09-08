@@ -394,6 +394,10 @@ export default function CartDrawer({ open, onClose, store }: Props) {
 
   const couponDiscountCents = couponApplied ? Math.min(couponApplied.discount_cents, total - appliedDiscount) : 0;
   const displayTotal = total - appliedDiscount - couponDiscountCents;
+  // Producto digital gratis por tiempo limitado (todo el carrito quedó en
+  // S/0) — no hay nada que pagar, así que el paso de pago no muestra
+  // métodos ni cupón, solo confirma la descarga.
+  const isFreeOrder = isDigitalOrder && displayTotal === 0;
 
   useEffect(() => {
     if (step !== "payment" || !welcomeEnabled || isFirstOrder !== null || !form.buyer_phone.trim()) return;
@@ -1018,6 +1022,21 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                         </div>
                       </div>
 
+                      {isFreeOrder ? (
+                        <div
+                          className="rounded-2xl p-6 text-center"
+                          style={{ background: "var(--success-soft)", border: "1.5px solid var(--success)" }}
+                        >
+                          <p className="text-3xl mb-1">🎁</p>
+                          <p className="font-extrabold text-xl" style={{ color: "var(--success)", fontFamily: "var(--font-display)" }}>
+                            ¡Es gratis!
+                          </p>
+                          <p className="text-xs mt-1.5" style={{ color: "var(--ink-2)" }}>
+                            No necesitas pagar nada — al confirmar, descargas al toque.
+                          </p>
+                        </div>
+                      ) : (
+                        <>
                       {/* Total destacado */}
                       <div
                         className="rounded-2xl p-4 flex items-center justify-between"
@@ -1214,6 +1233,8 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                           🔒 Tu pedido se coordina directo con la tienda — nunca compartimos tus datos
                         </p>
                       )}
+                        </>
+                      )}
                     </div>
                   )}
 
@@ -1237,10 +1258,12 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                         transition={{ delay: 0.25 }}
                       >
                         <h3 className="font-extrabold text-2xl" style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}>
-                          ¡Pedido enviado!
+                          {orderResult.digital_downloads?.some((d: any) => d.download_url) ? "¡Ya es tuyo! 🎉" : "¡Pedido enviado!"}
                         </h3>
                         <p className="text-sm mt-1.5" style={{ color: "var(--ink-2)" }}>
-                          El vendedor está revisando tu pedido
+                          {orderResult.digital_downloads?.some((d: any) => d.download_url)
+                            ? "Descárgalo cuando quieras"
+                            : "El vendedor está revisando tu pedido"}
                         </p>
 
                         {/* Order number badge */}
@@ -1260,11 +1283,34 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                           </p>
                         )}
 
-                        <p className="text-xs mt-3 leading-relaxed" style={{ color: "var(--ink-3)" }}>
-                          {isDigitalOrder
-                            ? "Apenas confirmen tu pago, verás el link de descarga en tu pedido"
-                            : `Te contactarán al ${form.buyer_phone} para coordinar la entrega`}
-                        </p>
+                        {/* Descarga inmediata — pedidos gratis se autoconfirman al toque,
+                            sin esperar a que el vendedor revise ningún pago. */}
+                        {(orderResult.digital_downloads ?? []).some((d: any) => d.download_url) ? (
+                          <div className="w-full mt-4 space-y-2 text-left">
+                            {orderResult.digital_downloads
+                              .filter((d: any) => d.download_url)
+                              .map((d: any, i: number) => (
+                                <a
+                                  key={i}
+                                  href={d.download_url}
+                                  className="flex items-center justify-between gap-2 w-full rounded-2xl px-4 py-3.5 font-bold text-sm text-white transition-all active:scale-[.98]"
+                                  style={{ background: "var(--success)" }}
+                                >
+                                  <span className="truncate">⬇️ {d.name}</span>
+                                  <ChevronRight size={16} className="flex-shrink-0" />
+                                </a>
+                              ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs mt-3 leading-relaxed" style={{ color: "var(--ink-3)" }}>
+                            {/* orderResult.digital_downloads viene no-nulo solo en pedidos
+                                digitales (ver create_order) — no se puede usar isDigitalOrder
+                                acá porque el carrito ya se vació antes de llegar a este paso. */}
+                            {orderResult.digital_downloads != null
+                              ? "Apenas confirmen tu pago, verás el link de descarga en tu pedido"
+                              : `Te contactarán al ${form.buyer_phone} para coordinar la entrega`}
+                          </p>
+                        )}
 
                         {orderResult.requires_payment_proof && (
                           <div
@@ -1406,7 +1452,7 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                   <button
                     onClick={() => {
                       if (!validateInfo()) return;
-                      if (paymentOptions.length === 1 && !form.payment_method) {
+                      if ((isFreeOrder || paymentOptions.length === 1) && !form.payment_method && paymentOptions.length > 0) {
                         setForm((f) => ({ ...f, payment_method: paymentOptions[0].value }));
                       }
                       // Ya se verificó este teléfono hace poco (en este
@@ -1428,13 +1474,22 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                     onClick={placeOrder}
                     disabled={loading || !form.payment_method}
                     className="w-full flex items-center justify-between rounded-2xl px-5 py-4 font-bold text-white text-sm transition-all active:scale-[.98] disabled:opacity-50"
-                    style={{ background: color, boxShadow: form.payment_method ? `0 4px 16px ${color}40` : "none" }}
+                    style={{ background: isFreeOrder ? "var(--success)" : color, boxShadow: form.payment_method ? `0 4px 16px ${isFreeOrder ? "rgba(0,0,0,.15)" : `${color}40`}` : "none" }}
                   >
-                    <span>{loading ? "Procesando…" : "Confirmar pedido"}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="font-extrabold">{formatPrice(displayTotal, currency, locale)}</span>
-                      <ChevronRight size={18} />
-                    </div>
+                    {isFreeOrder ? (
+                      <>
+                        <span>{loading ? "Procesando…" : "Descargar gratis"}</span>
+                        <ChevronRight size={18} />
+                      </>
+                    ) : (
+                      <>
+                        <span>{loading ? "Procesando…" : "Confirmar pedido"}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-extrabold">{formatPrice(displayTotal, currency, locale)}</span>
+                          <ChevronRight size={18} />
+                        </div>
+                      </>
+                    )}
                   </button>
                 )}
               </div>

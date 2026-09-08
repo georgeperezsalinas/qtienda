@@ -8,7 +8,7 @@ import {
   MapPin, X, MessageCircle, Share2, Phone,
   LayoutGrid, List, Clock, Truck, ShieldCheck, PackageSearch,
   HelpCircle, CheckCircle2, Star, SlidersHorizontal, Package, LogOut,
-  Home, User,
+  Home, User, Gift,
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
@@ -25,7 +25,7 @@ import { useAuthStore } from "@/store/authStore";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
 import { trackStoreEvent } from "@/lib/storeAnalytics";
 import { apiClient } from "@/lib/api";
-import { formatPrice, getStoreCurrency } from "@/lib/utils";
+import { formatPrice, getStoreCurrency, isFreeNow } from "@/lib/utils";
 import { getOpenStatus } from "@/lib/storeHours";
 import FiestasPatriasFloatingBadge from "@/components/ui/FiestasPatriasFloatingBadge";
 import ThemeToggle from "@/components/ui/ThemeToggle";
@@ -94,6 +94,8 @@ interface ProductData {
   sale_ends_at?:  string;
   stock?:         number;
   is_featured:    boolean;
+  is_digital?:    boolean;
+  free_until?:    string;
   category_id?:   string;
   sold_count?:    number;
   created_at?:    string;
@@ -566,6 +568,7 @@ export default function StorePage({ store, initialProducts }: Props) {
   }, [initialProducts, activeCategory, debouncedSearch, showFavorites, favoriteIds, store.slug, priceMin, priceMax, sortBy]);
 
   const featured        = initialProducts.filter((p) => p.is_featured).slice(0, 8);
+  const freeDigital     = initialProducts.filter((p) => isFreeNow(p)).slice(0, 8);
   const hasCategories    = (store.categories?.length ?? 0) > 0;
   const hasPriceFilter   = priceMin != null || priceMax != null;
   const isFiltering      = !!debouncedSearch || activeCategory.length > 0 || showFavorites || hasPriceFilter;
@@ -1010,6 +1013,48 @@ export default function StorePage({ store, initialProducts }: Props) {
             storeCurrency={storeCurrency}
             storeLocale={storeLocale}
           />
+
+          {/* Gratis por tiempo limitado — productos digitales que se pueden
+              descargar gratis ahora mismo, directo desde la home. */}
+          <AnimatePresence>
+            {freeDigital.length > 0 && !isFiltering && (
+              <motion.section
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="pt-3 pb-3 md:pb-5 lg:rounded-2xl lg:mt-5"
+                style={{ background: "var(--success-soft)" }}
+              >
+                <div className="flex items-center gap-2 px-4 mb-2 lg:px-6">
+                  <div
+                    className="w-6 h-6 rounded-lg flex items-center justify-center"
+                    style={{ background: "var(--success)" }}
+                  >
+                    <Gift size={13} color="white" />
+                  </div>
+                  <span className="text-xs font-extrabold uppercase tracking-widest" style={{ color: "var(--success)" }}>
+                    Gratis por tiempo limitado
+                  </span>
+                </div>
+
+                <div className="flex gap-3 overflow-x-auto px-4 pb-1 snap-x snap-mandatory scrollbar-hide lg:px-6">
+                  {freeDigital.map((p) => (
+                    <ProductCard
+                      key={p.id}
+                      product={p}
+                      storeColor={color}
+                      storeSlug={store.slug}
+                      storeCurrency={storeCurrency}
+                      storeLocale={storeLocale}
+                      featured
+                      onTap={() => setViewProduct(p)}
+                      onOpenCart={() => setCartOpen(true)}
+                    />
+                  ))}
+                </div>
+              </motion.section>
+            )}
+          </AnimatePresence>
 
           {/* Featured carousel */}
           <AnimatePresence>

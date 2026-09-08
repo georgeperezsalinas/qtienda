@@ -5,7 +5,7 @@ import Image from "next/image";
 import { X, ChevronLeft, ChevronRight, Check, ShoppingCart, ShoppingBag, ZoomIn, Share2, Clock, Minus, Plus } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCartStore } from "@/store/cartStore";
-import { formatPrice, stripHtml } from "@/lib/utils";
+import { formatPrice, stripHtml, isFreeNow } from "@/lib/utils";
 import { useSaleCountdown } from "@/hooks/useSaleCountdown";
 import toast from "react-hot-toast";
 import ProductCard from "./ProductCard";
@@ -27,6 +27,7 @@ interface ProductForSheet {
   sold_count?: number;
   created_at?: string;
   is_digital?: boolean;
+  free_until?: string;
   images: { url: string; is_primary: boolean }[];
   variants?: { id: string; label: string; sku?: string; price_cents?: number; stock?: number }[];
 }
@@ -93,6 +94,9 @@ export default function ProductDetailSheet({
     : null;
   const maxQty = effectiveStock && effectiveStock > 0 ? effectiveStock : 99;
   const countdown = useSaleCountdown(product.sale_ends_at);
+  const freeCountdown = useSaleCountdown(product.free_until);
+  const isFree = isFreeNow(product) && !!freeCountdown;
+  const finalPrice = isFree ? 0 : effectivePrice;
   const hasImages = product.images.length > 0;
   const hasDescription = !!product.description?.trim();
   const displayName = stripHtml(product.name);
@@ -151,7 +155,7 @@ export default function ProductDetailSheet({
     }
     addItem(
       { id: product.id, variant_id: selectedVariant?.id, variant_label: selectedVariant?.label,
-        name: displayName, price_cents: effectivePrice, image_url: primaryImage, quantity: qty,
+        name: displayName, price_cents: finalPrice, image_url: primaryImage, quantity: qty,
         is_digital: product.is_digital },
       storeSlug,
       qty,
@@ -263,24 +267,38 @@ export default function ProductDetailSheet({
           )}
 
           {/* Badge de descuento */}
-          {discount && (
+          {isFree ? (
+            <span
+              className="absolute top-3 left-3 z-10 text-white text-xs font-bold px-2.5 py-1 rounded-full"
+              style={{ background: "var(--success)" }}
+            >
+              🎁 GRATIS
+            </span>
+          ) : discount ? (
             <span
               className="absolute top-3 left-3 z-10 text-white text-xs font-bold px-2.5 py-1 rounded-full"
               style={{ background: "var(--danger)" }}
             >
               -{discount}%
             </span>
-          )}
+          ) : null}
 
-          {/* Countdown real de oferta — solo si el vendedor definió fecha de fin */}
-          {countdown && (
+          {/* Countdown real — de la promo gratis si está activa, si no el de oferta */}
+          {isFree ? (
+            <span
+              className="absolute bottom-3 left-3 z-10 flex items-center gap-1 text-white text-xs font-bold px-2.5 py-1 rounded-full"
+              style={{ background: "var(--success)" }}
+            >
+              <Clock size={12} /> Gratis por {freeCountdown}
+            </span>
+          ) : countdown ? (
             <span
               className="absolute bottom-3 left-3 z-10 flex items-center gap-1 text-white text-xs font-bold px-2.5 py-1 rounded-full"
               style={{ background: "var(--warn)" }}
             >
               <Clock size={12} /> Termina en {countdown}
             </span>
-          )}
+          ) : null}
 
           {/* Botón zoom */}
           {hasImages && (
@@ -347,16 +365,16 @@ export default function ProductDetailSheet({
             <div className="flex items-baseline gap-3 mt-2">
               <span
                 className="font-display font-extrabold text-2xl"
-                style={{ color: storeColor }}
+                style={{ color: isFree ? "var(--success)" : storeColor }}
               >
-                {formatPrice(effectivePrice, storeCurrency, storeLocale)}
+                {isFree ? "GRATIS" : formatPrice(effectivePrice, storeCurrency, storeLocale)}
               </span>
-              {product.compare_price && (
+              {!isFree && product.compare_price && (
                 <span className="text-sm line-through" style={{ color: "var(--ink-4)" }}>
                   {formatPrice(product.compare_price, storeCurrency, storeLocale)}
                 </span>
               )}
-              {discount && (
+              {!isFree && discount && (
                 <span
                   className="text-xs font-bold px-2 py-0.5 rounded-full"
                   style={{ background: "var(--danger-soft)", color: "var(--danger)" }}
@@ -545,9 +563,9 @@ export default function ProductDetailSheet({
               className="flex-1 flex items-center justify-center gap-2.5 rounded-2xl py-4
                          font-display font-bold text-sm transition-colors"
               style={{
-                background: outOfStock ? "var(--line-2)" : storeColor,
+                background: outOfStock ? "var(--line-2)" : isFree ? "var(--success)" : storeColor,
                 color:      outOfStock ? "var(--ink-3)" : "white",
-                boxShadow:  outOfStock ? "none" : `0 6px 20px ${storeColor}44`,
+                boxShadow:  outOfStock ? "none" : isFree ? "0 6px 20px rgba(0,0,0,.15)" : `0 6px 20px ${storeColor}44`,
               }}
             >
               {added ? (
@@ -556,6 +574,8 @@ export default function ProductDetailSheet({
                 "Producto agotado"
               ) : hasVariants && !selectedVariantId ? (
                 "Elige una opción"
+              ) : isFree ? (
+                <><ShoppingCart size={18} /> Descargar gratis</>
               ) : (
                 <><ShoppingCart size={18} /> Agregar · {formatPrice(effectivePrice * qty, storeCurrency, storeLocale)}</>
               )}

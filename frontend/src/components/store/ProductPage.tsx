@@ -16,7 +16,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import { useCartStore } from "@/store/cartStore";
-import { formatPrice, stripHtml, getStoreCurrency } from "@/lib/utils";
+import { formatPrice, stripHtml, getStoreCurrency, isFreeNow } from "@/lib/utils";
 import { useSaleCountdown } from "@/hooks/useSaleCountdown";
 import { fetchProductViewers, trackStoreEvent } from "@/lib/storeAnalytics";
 import { pixelAddToCart, pixelViewContent } from "@/lib/marketingPixels";
@@ -37,6 +37,7 @@ interface FullProduct {
   sold_count?: number;
   created_at?: string;
   is_digital?: boolean;
+  free_until?: string;
   images: { url: string; is_primary: boolean }[];
   variants?: { id: string; label: string; sku?: string; price_cents?: number; stock?: number }[];
 }
@@ -101,6 +102,9 @@ export default function ProductPage({
     : null;
   const maxQty = effectiveStock && effectiveStock > 0 ? effectiveStock : 99;
   const countdown = useSaleCountdown(product.sale_ends_at);
+  const freeCountdown = useSaleCountdown(product.free_until);
+  const isFree = isFreeNow(product) && !!freeCountdown;
+  const finalPrice = isFree ? 0 : effectivePrice;
   const hasImages = product.images.length > 0;
   const hasDescription = !!product.description?.trim();
   const displayName = stripHtml(product.name);
@@ -135,7 +139,7 @@ export default function ProductPage({
     }
     addItem(
       { id: product.id, variant_id: selectedVariant?.id, variant_label: selectedVariant?.label,
-        name: displayName, price_cents: effectivePrice, image_url: primaryImage, quantity: qty,
+        name: displayName, price_cents: finalPrice, image_url: primaryImage, quantity: qty,
         is_digital: product.is_digital },
       store.slug,
       qty,
@@ -145,7 +149,7 @@ export default function ProductPage({
       product_id: i.id, name: i.name, qty: i.quantity, price_cents: i.price_cents,
     }));
     trackStoreEvent(store.slug, "add_to_cart", product.id, { cart_items: cartItems });
-    pixelAddToCart({ id: product.id, name: displayName, price_cents: effectivePrice }, qty, storeCurrency);
+    pixelAddToCart({ id: product.id, name: displayName, price_cents: finalPrice }, qty, storeCurrency);
     toast.custom(
       (t) => (
         <div
@@ -248,14 +252,20 @@ export default function ProductPage({
               </>
             )}
 
-            {discount && (
+            {isFree ? (
+              <span className="absolute top-3 left-3 z-10 text-white text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: "var(--success)" }}>🎁 GRATIS</span>
+            ) : discount ? (
               <span className="absolute top-3 left-3 z-10 text-white text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: "var(--danger)" }}>-{discount}%</span>
-            )}
-            {countdown && (
+            ) : null}
+            {isFree ? (
+              <span className="absolute bottom-3 left-3 z-10 flex items-center gap-1 text-white text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: "var(--success)" }}>
+                <Clock size={12} /> Gratis por {freeCountdown}
+              </span>
+            ) : countdown ? (
               <span className="absolute bottom-3 left-3 z-10 flex items-center gap-1 text-white text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: "var(--warn)" }}>
                 <Clock size={12} /> Termina en {countdown}
               </span>
-            )}
+            ) : null}
             {hasImages && (
               <button onClick={() => setZoomOpen(true)} className="absolute top-3 right-14 z-10 w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "rgba(15,23,42,.48)" }} aria-label="Ver imagen completa">
                 <ZoomIn size={16} color="white" />
@@ -291,15 +301,15 @@ export default function ProductPage({
           </h1>
 
           <div className="flex items-baseline gap-3 mt-2">
-            <span className="font-display font-extrabold text-3xl" style={{ color }}>
-              {formatPrice(effectivePrice, storeCurrency, storeLocale)}
+            <span className="font-display font-extrabold text-3xl" style={{ color: isFree ? "var(--success)" : color }}>
+              {isFree ? "GRATIS" : formatPrice(effectivePrice, storeCurrency, storeLocale)}
             </span>
-            {product.compare_price && (
+            {!isFree && product.compare_price && (
               <span className="text-base line-through" style={{ color: "var(--ink-4)" }}>
                 {formatPrice(product.compare_price, storeCurrency, storeLocale)}
               </span>
             )}
-            {discount && (
+            {!isFree && discount && (
               <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "var(--danger-soft)", color: "var(--danger)" }}>
                 {discount}% OFF
               </span>
@@ -398,9 +408,13 @@ export default function ProductPage({
             onClick={handleAdd}
             disabled={outOfStock || (hasVariants && !selectedVariantId)}
             className="flex-1 flex items-center justify-center gap-2.5 rounded-2xl py-4 font-display font-bold text-sm transition-colors"
-            style={{ background: outOfStock ? "var(--line-2)" : color, color: outOfStock ? "var(--ink-3)" : "white", boxShadow: outOfStock ? "none" : `0 6px 20px ${color}44` }}
+            style={{
+              background: outOfStock ? "var(--line-2)" : isFree ? "var(--success)" : color,
+              color: outOfStock ? "var(--ink-3)" : "white",
+              boxShadow: outOfStock ? "none" : isFree ? "0 6px 20px rgba(0,0,0,.15)" : `0 6px 20px ${color}44`,
+            }}
           >
-            {added ? (<><Check size={18} /> En el carrito</>) : outOfStock ? "Producto agotado" : hasVariants && !selectedVariantId ? "Elige una opción" : (<><ShoppingCart size={18} /> Agregar · {formatPrice(effectivePrice * qty, storeCurrency, storeLocale)}</>)}
+            {added ? (<><Check size={18} /> En el carrito</>) : outOfStock ? "Producto agotado" : hasVariants && !selectedVariantId ? "Elige una opción" : isFree ? (<><ShoppingCart size={18} /> Descargar gratis</>) : (<><ShoppingCart size={18} /> Agregar · {formatPrice(effectivePrice * qty, storeCurrency, storeLocale)}</>)}
           </motion.button>
         </div>
       </div>

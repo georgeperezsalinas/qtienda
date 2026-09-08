@@ -5,7 +5,7 @@ import { Plus, Check, Images, Heart, Clock, Package } from "lucide-react";
 import { useState } from "react";
 import { useCartStore } from "@/store/cartStore";
 import { useFavoritesStore } from "@/store/favoritesStore";
-import { formatPrice, stripHtml } from "@/lib/utils";
+import { formatPrice, stripHtml, isFreeNow } from "@/lib/utils";
 import { trackStoreEvent } from "@/lib/storeAnalytics";
 import { pixelAddToCart } from "@/lib/marketingPixels";
 import { useSaleCountdown } from "@/hooks/useSaleCountdown";
@@ -24,6 +24,7 @@ interface Props {
     sold_count?: number;
     created_at?: string;
     is_digital?: boolean;
+    free_until?: string;
     images: { url: string; is_primary: boolean }[];
     variants?: { id: string; label: string; sku?: string; price_cents?: number; stock?: number }[];
   };
@@ -73,6 +74,8 @@ export default function ProductCard({
   const isFavorite = useFavoritesStore((s) => s.isFavorite(storeSlug, product.id));
   const toggleFavorite = useFavoritesStore((s) => s.toggle);
   const countdown = useSaleCountdown(product.sale_ends_at);
+  const freeCountdown = useSaleCountdown(product.free_until);
+  const isFree = isFreeNow(product) && !!freeCountdown;
 
   function handleFavorite(e: React.MouseEvent) {
     e.stopPropagation();
@@ -134,7 +137,7 @@ export default function ProductCard({
       return;
     }
     addItem(
-      { id: product.id, name: displayName, price_cents: product.price_cents,
+      { id: product.id, name: displayName, price_cents: isFree ? 0 : product.price_cents,
         image_url: primaryImage || "", quantity: 1, is_digital: product.is_digital },
       storeSlug,
     );
@@ -203,22 +206,36 @@ export default function ProductCard({
             ) : (
               <div className="w-full h-full flex items-center justify-center"><Package size={28} style={{ color: "var(--ink-4)" }} /></div>
             )}
-            {discount && (
+            {isFree ? (
+              <span
+                className="absolute top-2 left-2 text-[10px] font-extrabold text-white px-2 py-0.5 rounded-full"
+                style={{ background: "var(--success)" }}
+              >
+                🎁 GRATIS
+              </span>
+            ) : discount ? (
               <span
                 className="absolute top-2 left-2 text-[10px] font-extrabold text-white px-2 py-0.5 rounded-full"
                 style={{ background: "var(--danger)" }}
               >
                 -{discount}%
               </span>
-            )}
-            {countdown && (
+            ) : null}
+            {isFree ? (
+              <span
+                className="absolute bottom-2 left-2 flex items-center gap-1 text-[10px] font-bold text-white px-2 py-0.5 rounded-full"
+                style={{ background: "var(--success)" }}
+              >
+                <Clock size={9} /> {freeCountdown}
+              </span>
+            ) : countdown ? (
               <span
                 className="absolute bottom-2 left-2 flex items-center gap-1 text-[10px] font-bold text-white px-2 py-0.5 rounded-full"
                 style={{ background: "var(--warn)" }}
               >
                 <Clock size={9} /> {countdown}
               </span>
-            )}
+            ) : null}
             {multipleImages && primaryImage && (
               <span
                 className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full
@@ -244,10 +261,10 @@ export default function ProductCard({
             {socialBadge && <div className="mt-1">{socialBadge}</div>}
             <div className="flex items-center justify-between mt-2">
               <div>
-                <span className="font-extrabold text-sm lg:text-base" style={{ color: storeColor }}>
-                  {formatPrice(product.price_cents, storeCurrency, storeLocale)}
+                <span className="font-extrabold text-sm lg:text-base" style={{ color: isFree ? "var(--success)" : storeColor }}>
+                  {isFree ? "GRATIS" : formatPrice(product.price_cents, storeCurrency, storeLocale)}
                 </span>
-                {product.compare_price && (
+                {!isFree && product.compare_price && (
                   <span className="block text-[11px] line-through" style={{ color: "var(--ink-4)" }}>
                     {formatPrice(product.compare_price, storeCurrency, storeLocale)}
                   </span>
@@ -321,10 +338,10 @@ export default function ProductCard({
             </p>
           )}
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-            <span className="font-extrabold text-sm lg:text-base" style={{ color: storeColor }}>
-              {formatPrice(product.price_cents, storeCurrency, storeLocale)}
+            <span className="font-extrabold text-sm lg:text-base" style={{ color: isFree ? "var(--success)" : storeColor }}>
+              {isFree ? "GRATIS" : formatPrice(product.price_cents, storeCurrency, storeLocale)}
             </span>
-            {discount && (
+            {!isFree && discount && (
               <span
                 className="text-[10px] font-bold text-white px-1.5 py-0.5 rounded-full"
                 style={{ background: "var(--danger)" }}
@@ -332,19 +349,26 @@ export default function ProductCard({
                 -{discount}%
               </span>
             )}
-            {product.compare_price && (
+            {!isFree && product.compare_price && (
               <span className="text-xs line-through" style={{ color: "var(--ink-4)" }}>
                 {formatPrice(product.compare_price, storeCurrency, storeLocale)}
               </span>
             )}
-            {countdown && (
+            {isFree ? (
+              <span
+                className="flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                style={{ background: "var(--success-soft)", color: "var(--success)" }}
+              >
+                <Clock size={9} /> {freeCountdown}
+              </span>
+            ) : countdown ? (
               <span
                 className="flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full"
                 style={{ background: "var(--warn-soft)", color: "var(--warn)" }}
               >
                 <Clock size={9} /> {countdown}
               </span>
-            )}
+            ) : null}
             {socialBadge}
           </div>
         </div>
@@ -384,22 +408,36 @@ export default function ProductCard({
         ) : (
           <div className="w-full h-full flex items-center justify-center"><Package size={36} style={{ color: "var(--ink-4)" }} /></div>
         )}
-        {discount && (
+        {isFree ? (
+          <span
+            className="absolute top-2 left-2 text-[10px] font-extrabold text-white px-2 py-0.5 rounded-full"
+            style={{ background: "var(--success)" }}
+          >
+            🎁 GRATIS
+          </span>
+        ) : discount ? (
           <span
             className="absolute top-2 left-2 text-[10px] font-extrabold text-white px-2 py-0.5 rounded-full"
             style={{ background: "var(--danger)" }}
           >
             -{discount}%
           </span>
-        )}
-        {countdown && (
+        ) : null}
+        {isFree ? (
+          <span
+            className="absolute bottom-2 left-2 flex items-center gap-1 text-[10px] font-bold text-white px-2 py-0.5 rounded-full"
+            style={{ background: "var(--success)" }}
+          >
+            <Clock size={9} /> {freeCountdown}
+          </span>
+        ) : countdown ? (
           <span
             className="absolute bottom-2 left-2 flex items-center gap-1 text-[10px] font-bold text-white px-2 py-0.5 rounded-full"
             style={{ background: "var(--warn)" }}
           >
             <Clock size={9} /> {countdown}
           </span>
-        )}
+        ) : null}
         {multipleImages && primaryImage && (
           <span
             className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full
@@ -430,10 +468,10 @@ export default function ProductCard({
         )}
         <div className="mt-2 flex items-center justify-between gap-1">
           <div>
-            <span className="font-extrabold text-base lg:text-lg" style={{ color: storeColor }}>
-              {formatPrice(product.price_cents, storeCurrency, storeLocale)}
+            <span className="font-extrabold text-base lg:text-lg" style={{ color: isFree ? "var(--success)" : storeColor }}>
+              {isFree ? "GRATIS" : formatPrice(product.price_cents, storeCurrency, storeLocale)}
             </span>
-            {product.compare_price && (
+            {!isFree && product.compare_price && (
               <span className="block text-xs line-through" style={{ color: "var(--ink-4)" }}>
                 {formatPrice(product.compare_price, storeCurrency, storeLocale)}
               </span>

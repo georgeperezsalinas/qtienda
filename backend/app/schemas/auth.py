@@ -308,6 +308,9 @@ class ProductCreate(BaseModel):
     digital_file_key: Optional[str] = None
     digital_file_name: Optional[str] = None
     digital_file_size: Optional[int] = None
+    # Gratis por tiempo limitado — solo tiene sentido en digital (sin envío
+    # ni stock que gestionar mientras dura la promo).
+    free_until: Optional[datetime] = None
     # Publicar es una decision explicita del vendedor, nunca automatica:
     # el producto nace en borrador hasta que decide hacerlo visible.
     status: str = "inactive"
@@ -340,6 +343,12 @@ class ProductCreate(BaseModel):
             raise ValueError("Para poner fecha de fin de oferta, define primero el precio antes del descuento")
         return self
 
+    @model_validator(mode="after")
+    def free_until_requires_digital(self):
+        if self.free_until and not self.is_digital:
+            raise ValueError("Gratis por tiempo limitado solo aplica a productos digitales")
+        return self
+
 
 class ProductUpdate(BaseModel):
     name: Optional[str] = None
@@ -359,6 +368,8 @@ class ProductUpdate(BaseModel):
     digital_file_key: Optional[str] = None
     digital_file_name: Optional[str] = None
     digital_file_size: Optional[int] = None
+    # Enviar null explicito quita la promo (misma semántica que sale_ends_at).
+    free_until: Optional[datetime] = None
 
 
 class ProductVariantIn(BaseModel):

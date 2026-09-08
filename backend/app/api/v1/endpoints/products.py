@@ -41,6 +41,8 @@ def _serialize(p: Product) -> dict:
         "is_digital": p.is_digital,
         "digital_file_name": p.digital_file_name,
         "digital_file_size": p.digital_file_size,
+        "free_until": p.free_until,
+        "is_free_now": bool(p.is_digital and p.free_until and p.free_until > datetime.now(timezone.utc)),
         "is_featured": p.is_featured,
         "sort_order": p.sort_order,
         "category_id": p.category_id,
@@ -243,6 +245,7 @@ async def create_product(
         digital_file_key=payload.digital_file_key if payload.is_digital else None,
         digital_file_name=payload.digital_file_name if payload.is_digital else None,
         digital_file_size=payload.digital_file_size if payload.is_digital else None,
+        free_until=payload.free_until if payload.is_digital else None,
     )
     db.add(product)
     await db.flush()
@@ -366,6 +369,15 @@ async def update_product(
         raise HTTPException(
             status_code=422,
             detail="Para poner fecha de fin de oferta, define primero el precio antes del descuento",
+        )
+
+    # Mismo criterio: "gratis por tiempo limitado" solo tiene sentido en un
+    # producto digital, y se evalúa sobre el estado final por la misma razón
+    # (is_digital y free_until pueden llegar en PATCHes separados).
+    if product.free_until and not product.is_digital:
+        raise HTTPException(
+            status_code=422,
+            detail="Gratis por tiempo limitado solo aplica a productos digitales",
         )
 
     await db.commit()

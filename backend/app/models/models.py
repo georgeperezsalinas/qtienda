@@ -269,6 +269,10 @@ class Product(Base):
     digital_file_key: Mapped[Optional[str]]  = mapped_column(Text)
     digital_file_name: Mapped[Optional[str]] = mapped_column(Text)
     digital_file_size: Mapped[Optional[int]] = mapped_column(Integer)
+    # Gratis por tiempo limitado (solo digital): mientras now() < free_until,
+    # el pedido se cobra S/0 y se autoconfirma — price_cents no se toca, es
+    # el precio normal al que vuelve el producto cuando pase la fecha.
+    free_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime]    = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime]    = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

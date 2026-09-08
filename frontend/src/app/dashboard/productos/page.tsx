@@ -39,6 +39,8 @@ interface Product {
   is_digital?: boolean;
   digital_file_name?: string;
   digital_file_size?: number;
+  free_until?: string;
+  is_free_now?: boolean;
   category_id?: string;
   images: ProductImage[];
   variants: ProductVariant[];
@@ -92,6 +94,7 @@ const EMPTY_FORM = {
   is_featured: false,
   is_published: false,
   is_digital: false,
+  free_until: "",
 };
 
 /* datetime-local no acepta segundos/zona — recorta a "YYYY-MM-DDTHH:mm" en hora local */
@@ -101,6 +104,11 @@ function toDatetimeLocal(iso?: string): string {
   if (isNaN(d.getTime())) return "";
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// Valor inicial al activar "gratis por tiempo limitado" — 24h desde ahora.
+function defaultFreeUntil(): string {
+  return toDatetimeLocal(new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString());
 }
 
 type FilterStatus = "all" | "active" | "inactive";
@@ -285,6 +293,14 @@ function ProductCard({
               style={{ background: "var(--accent-soft)", color: "var(--accent)" }}
             >
               Digital
+            </span>
+          )}
+          {product.is_free_now && (
+            <span
+              className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+              style={{ background: "var(--success-soft)", color: "var(--success)" }}
+            >
+              🎁 Gratis
             </span>
           )}
           {product.stock != null && (
@@ -633,6 +649,7 @@ export default function ProductosPage() {
       is_featured: p.is_featured,
       is_published: p.status === "active",
       is_digital: !!p.is_digital,
+      free_until: toDatetimeLocal(p.free_until),
     });
     // El backend nunca expone digital_file_key (es privado) — solo el nombre,
     // que alcanza para mostrar "ya tiene un archivo" sin permitir descargarlo
@@ -679,6 +696,8 @@ export default function ProductosPage() {
         sale_ends_at: form.sale_ends_at ? new Date(form.sale_ends_at).toISOString() : null,
         stock: form.is_digital ? undefined : (form.stock !== "" ? parseInt(form.stock) : undefined),
         is_digital: form.is_digital,
+        // null explicito (no undefined) para poder quitar la promo ya puesta
+        free_until: form.is_digital && form.free_until ? new Date(form.free_until).toISOString() : null,
         // digitalFile.key solo viene lleno si se subió un archivo nuevo en
         // esta sesión de edición — si no cambió, no se manda nada y el
         // backend deja intacto lo que ya había (exclude_unset=True).
@@ -1280,6 +1299,32 @@ export default function ProductosPage() {
                   <DigitalFileUpload file={digitalFile} onChange={setDigitalFile} />
                   <p className="text-[10px] mt-1" style={{ color: "var(--ink-3)" }}>
                     Sube un archivo nuevo solo si quieres reemplazar el actual — máximo 200MB
+                  </p>
+                </Field>
+              )}
+
+              {/* Gratis por tiempo limitado — solo aplica a digitales */}
+              {form.is_digital && (
+                <div style={{ borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)" }}>
+                  <Toggle
+                    checked={!!form.free_until}
+                    onChange={() => setForm((f) => ({ ...f, free_until: f.free_until ? "" : defaultFreeUntil() }))}
+                    label="Gratis por tiempo limitado"
+                    sub="Aparece en la home de tu tienda para que lo descarguen gratis"
+                  />
+                </div>
+              )}
+
+              {form.is_digital && !!form.free_until && (
+                <Field label="Gratis hasta">
+                  <input
+                    className="input"
+                    type="datetime-local"
+                    value={form.free_until}
+                    onChange={(e) => setForm((f) => ({ ...f, free_until: e.target.value }))}
+                  />
+                  <p className="text-[10px] mt-1" style={{ color: "var(--ink-3)" }}>
+                    Después de esta fecha vuelve a costar el precio de venta de arriba.
                   </p>
                 </Field>
               )}

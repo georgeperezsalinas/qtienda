@@ -732,6 +732,7 @@ async def get_store_products(
             "stock": p.stock,
             "is_featured": p.is_featured,
             "is_digital": p.is_digital,
+            "free_until": p.free_until,
             "category_id": p.category_id,
             "sold_count": sold_map.get(p.id, 0),
             "created_at": p.created_at,
@@ -1056,6 +1057,10 @@ async def create_order(
 
         effective_stock = variant.stock if variant else product.stock
         effective_price = variant.price_cents if (variant and variant.price_cents is not None) else product.price_cents
+        # Gratis por tiempo limitado — gana sobre cualquier precio de
+        # variante mientras dure, la promo es del producto completo.
+        if product.is_digital and product.free_until and product.free_until > datetime.now(timezone.utc):
+            effective_price = 0
 
         if effective_stock is not None and effective_stock < item.quantity:
             detail = f"Stock insuficiente para '{product.name}'"
@@ -1114,7 +1119,9 @@ async def create_order(
 
     # Min order check — validate against total (subtotal + delivery) ANTES del
     # descuento de bienvenida: el mínimo aplica siempre, el descuento no lo esquiva.
-    if settings and settings.min_order_cents and total < settings.min_order_cents:
+    # subtotal 0 solo puede venir de un producto gratis por tiempo limitado
+    # (price_cents siempre es > 0) — ese caso nunca lo bloquea el mínimo.
+    if subtotal > 0 and settings and settings.min_order_cents and total < settings.min_order_cents:
         raise HTTPException(
             status_code=422,
             detail=f"Monto mínimo S/ {settings.min_order_cents / 100:.2f}",
@@ -1157,17 +1164,25 @@ async def create_order(
         coupon_code = coupon.code
         applied_coupon = coupon
 
+    # Pedido gratis (producto digital con free_until vigente, total S/0):
+    # no hay nada que pagar ni que verificar, así que se autoconfirma al
+    # crearlo — el comprador descarga al toque en vez de esperar a que el
+    # vendedor confirme un pago que nunca existió. El método de pago elegido
+    # queda solo como etiqueta informativa, no se valida contra la tienda.
+    is_free_order = is_digital_order and total == 0
+
     # Validate payment method
     _method = (payload.payment_method or "cash").lower().strip()
-    _allowed: list[str] = []
-    if not settings or settings.accept_cash:     _allowed.append("cash")
-    if settings and settings.accept_yape:        _allowed.append("yape")
-    if settings and settings.accept_plin:        _allowed.append("plin")
-    if settings and settings.accept_transfer:    _allowed.append("transfer")
-    if settings and settings.accept_card:        _allowed.append("card")
-    if settings and settings.accept_paypal:      _allowed.append("paypal")
-    if _method not in _allowed:
-        raise HTTPException(status_code=422, detail="Método de pago no disponible en esta tienda")
+    if not is_free_order:
+        _allowed: list[str] = []
+        if not settings or settings.accept_cash:     _allowed.append("cash")
+        if settings and settings.accept_yape:        _allowed.append("yape")
+        if settings and settings.accept_plin:        _allowed.append("plin")
+        if settings and settings.accept_transfer:    _allowed.append("transfer")
+        if settings and settings.accept_card:        _allowed.append("card")
+        if settings and settings.accept_paypal:      _allowed.append("paypal")
+        if _method not in _allowed:
+            raise HTTPException(status_code=422, detail="Método de pago no disponible en esta tienda")
 
     # Generate order number
     from sqlalchemy import text
@@ -1180,6 +1195,7 @@ async def create_order(
     order = Order(
         store_id=store.id,
         order_number=order_number,
+        status="confirmed" if is_free_order else "pending",
         buyer_id=current_user.id if current_user else None,
         buyer_name=payload.buyer_name,
         buyer_phone=payload.buyer_phone,
@@ -1247,8 +1263,9 @@ async def create_order(
     db.add(Payment(
         order_id=order.id,
         method=_method,
-        status="pending",
+        status="paid" if is_free_order else "pending",
         amount_cents=total,
+        paid_at=datetime.now(timezone.utc) if is_free_order else None,
     ))
 
     # Analytics: pedido creado (server-side, no depende del navegador)
@@ -1357,7 +1374,7 @@ async def create_order(
     # hacia la tienda — nunca un bot que le escribe a él. Así, aunque cierre
     # esta pantalla sin anotar nada, si toca el botón le queda el pedido
     # guardado en su propio historial de WhatsApp con la tienda real.
-    requires_proof = _method in ("yape", "plin", "transfer", "paypal")
+    requires_proof = not is_free_order and _method in ("yape", "plin", "transfer", "paypal")
     payment_proof_wa_link = None
     if store.whatsapp:
         tracking_link = f"https://{store.slug}.qtienda.shop/pedido/{order_number}"
@@ -1405,6 +1422,22 @@ async def create_order(
     # comprador o el vendedor abren ellos mismos con un tap (payment_proof_wa_link,
     # wa_link) — ese sí sale de SU propio número, no de un bot.
 
+    # Solo se arma si el pedido ya quedó confirmado (el caso gratis, siempre
+    # — un pedido digital pagado sigue esperando la confirmación manual del
+    # vendedor y no debe listar links de descarga todavía).
+    digital_downloads = None
+    if is_digital_order:
+        unlocked = order.status in DOWNLOAD_UNLOCKED_STATUSES
+        digital_downloads = [
+            {
+                "name": oi.product_name,
+                "digital_file_name": oi.digital_file_name,
+                "download_url": build_download_url(store.slug, order.order_number, oi.download_token)
+                if oi.download_token and unlocked else None,
+            }
+            for oi in order_items
+        ]
+
     return {
         "order_id": order.id,
         "order_number": order.order_number,
@@ -1416,6 +1449,7 @@ async def create_order(
         "whatsapp_link": wa_link,
         "requires_payment_proof": requires_proof,
         "payment_proof_wa_link": payment_proof_wa_link,
+        "digital_downloads": digital_downloads,
         "payment_methods": {
             "cash": settings.accept_cash if settings else True,
             "yape": settings.accept_yape if settings else False,

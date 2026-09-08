@@ -30,11 +30,13 @@ interface WizardForm {
   is_featured: boolean;
   is_published: boolean;
   is_digital: boolean;
+  free_until: string;
 }
 
 const EMPTY_FORM: WizardForm = {
   name: "", description: "", price_cents: "", compare_price: "", sale_ends_at: "",
   stock: "", sku: "", category_id: "", is_featured: false, is_published: false, is_digital: false,
+  free_until: "",
 };
 
 interface VariantDraft {
@@ -47,6 +49,14 @@ interface VariantDraft {
 
 function emptyVariant(): VariantDraft {
   return { key: crypto.randomUUID(), label: "", sku: "", price_cents: "", stock: "" };
+}
+
+// Valor inicial al activar "gratis por tiempo limitado" — 24h desde ahora,
+// en formato local (datetime-local no acepta ISO con "Z").
+function defaultFreeUntil(): string {
+  const d = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 16);
 }
 
 function Field({ label, required, children, hint }: {
@@ -158,6 +168,7 @@ export function ProductCreationWizard({
         digital_file_key: form.is_digital ? digitalFile?.key : undefined,
         digital_file_name: form.is_digital ? digitalFile?.name : undefined,
         digital_file_size: form.is_digital ? digitalFile?.size : undefined,
+        free_until: form.is_digital && form.free_until ? new Date(form.free_until).toISOString() : undefined,
       });
 
       for (let i = 0; i < images.length; i++) {
@@ -320,9 +331,26 @@ export function ProductCreationWizard({
           </div>
 
           {form.is_digital ? (
-            <Field label="Archivo del producto" required hint={`Máximo 200MB — PDF, EPUB, MOBI, ZIP, DOCX, MP3 o MP4`}>
-              <DigitalFileUpload file={digitalFile} onChange={setDigitalFile} />
-            </Field>
+            <>
+              <Field label="Archivo del producto" required hint={`Máximo 200MB — PDF, EPUB, MOBI, ZIP, DOCX, MP3 o MP4`}>
+                <DigitalFileUpload file={digitalFile} onChange={setDigitalFile} />
+              </Field>
+
+              <div style={{ borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)" }}>
+                <Toggle
+                  checked={!!form.free_until}
+                  onChange={() => update("free_until", form.free_until ? "" : defaultFreeUntil())}
+                  label="Gratis por tiempo limitado"
+                  sub="Aparece en la home de tu tienda para que lo descarguen gratis"
+                />
+              </div>
+
+              {!!form.free_until && (
+                <Field label="Gratis hasta" hint="Después de esta fecha vuelve a costar el precio de venta de arriba.">
+                  <input className="input" type="datetime-local" value={form.free_until} onChange={(e) => update("free_until", e.target.value)} />
+                </Field>
+              )}
+            </>
           ) : (
             <div className="grid grid-cols-2 gap-3">
               <Field label="Stock" hint="Vacío = sin límite">

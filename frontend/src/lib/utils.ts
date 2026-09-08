@@ -56,6 +56,15 @@ export function formatPrice(cents: number, currency = "PEN", locale = "es-PE"): 
   }).format(cents / 100);
 }
 
+/** Producto digital "gratis por tiempo limitado" vigente ahora mismo —
+ *  misma condición que el backend evalúa al crear el pedido, para que lo
+ *  que el comprador ve en la tienda sea siempre lo que se le va a cobrar. */
+export function isFreeNow(product: { is_digital?: boolean; free_until?: string | null }): boolean {
+  if (!product.is_digital || !product.free_until) return false;
+  const t = new Date(product.free_until).getTime();
+  return !isNaN(t) && t > Date.now();
+}
+
 export function stripHtml(html?: string | null): string {
   if (!html) return "";
   return html.replace(/<[^>]*>/g, " ").replace(/\s{2,}/g, " ").trim();
