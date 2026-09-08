@@ -396,6 +396,9 @@ export default function TrackOrderPage({ params }: Props) {
                     {item.download_url && (
                       <a
                         href={item.download_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => toast.success("📥 Tu descarga empezó — revisa la nueva pestaña o tus descargas", { duration: 4000 })}
                         className="flex items-center justify-center gap-1.5 rounded-xl text-xs font-bold py-2.5 mt-2"
                         style={{ background: `${color}12`, color }}
                       >

@@ -1293,6 +1293,9 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                                 <a
                                   key={i}
                                   href={d.download_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={() => toast.success("📥 Tu descarga empezó — revisa la nueva pestaña o tus descargas", { duration: 4000 })}
                                   className="flex items-center justify-between gap-2 w-full rounded-2xl px-4 py-3.5 font-bold text-sm text-white transition-all active:scale-[.98]"
                                   style={{ background: "var(--success)" }}
                                 >
