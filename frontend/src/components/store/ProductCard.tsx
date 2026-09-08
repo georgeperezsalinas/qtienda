@@ -25,6 +25,7 @@ interface Props {
     created_at?: string;
     is_digital?: boolean;
     free_until?: string;
+    is_featured?: boolean;
     images: { url: string; is_primary: boolean }[];
     variants?: { id: string; label: string; sku?: string; price_cents?: number; stock?: number }[];
   };
@@ -127,6 +128,18 @@ export default function ProductCard({
         NUEVO
       </span>
     ) : null;
+
+  // Antes vivía en un carrusel de "Destacados" aparte, arriba de toda la
+  // grilla — el vendedor lo marca en el dashboard, acá solo se resalta
+  // dentro de la misma grilla en vez de sacarlo a su propia sección.
+  const featuredBadge = product.is_featured ? (
+    <span
+      className="text-[9px] lg:text-[10px] font-extrabold px-1.5 py-0.5 rounded-full whitespace-nowrap"
+      style={{ background: `${storeColor}18`, color: storeColor }}
+    >
+      ⭐ Destacado
+    </span>
+  ) : null;
 
   function handleAdd(e: React.MouseEvent) {
     e.stopPropagation();
@@ -258,7 +271,12 @@ export default function ProductCard({
             <p className="font-semibold text-xs md:text-sm lg:text-[15px] leading-tight line-clamp-2" style={{ color: "var(--ink)" }}>
               {displayName}
             </p>
-            {socialBadge && <div className="mt-1">{socialBadge}</div>}
+            {(featuredBadge || socialBadge) && (
+              <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                {featuredBadge}
+                {socialBadge}
+              </div>
+            )}
             <div className="flex items-center justify-between mt-2">
               <div>
                 <span className="font-extrabold text-sm lg:text-base" style={{ color: isFree ? "var(--success)" : storeColor }}>
@@ -293,7 +311,7 @@ export default function ProductCard({
         className="flex items-center gap-3 lg:gap-4 p-3 lg:p-4 rounded-2xl transition-all active:scale-[.99] lg:hover:shadow-md cursor-pointer h-full"
         style={{
           background: "var(--surface)",
-          border: "1px solid var(--line)",
+          border: product.is_featured ? `1.5px solid ${storeColor}` : "1px solid var(--line)",
           boxShadow: "var(--shadow-sm)",
         }}
         onClick={onTap}
@@ -369,6 +387,7 @@ export default function ProductCard({
                 <Clock size={9} /> {countdown}
               </span>
             ) : null}
+            {featuredBadge}
             {socialBadge}
           </div>
         </div>
@@ -393,7 +412,9 @@ export default function ProductCard({
       className="group rounded-2xl overflow-hidden flex flex-col cursor-pointer transition-all active:scale-[.98] lg:hover:-translate-y-1 lg:hover:shadow-lg"
       style={{
         background: "var(--surface)",
-        boxShadow: "var(--shadow-md), 0 0 0 1px var(--line)",
+        boxShadow: product.is_featured
+          ? `var(--shadow-md), 0 0 0 1.5px ${storeColor}`
+          : "var(--shadow-md), 0 0 0 1px var(--line)",
       }}
       onClick={onTap}
     >
@@ -460,7 +481,12 @@ export default function ProductCard({
         <p className="text-sm lg:text-[15px] font-semibold leading-tight line-clamp-2 flex-1" style={{ color: "var(--ink)" }}>
           {displayName}
         </p>
-        {socialBadge && <div className="mt-1">{socialBadge}</div>}
+        {(featuredBadge || socialBadge) && (
+          <div className="flex items-center gap-1.5 flex-wrap mt-1">
+            {featuredBadge}
+            {socialBadge}
+          </div>
+        )}
         {lowStock && (
           <p className="text-[10px] lg:text-[11px] font-bold mt-1" style={{ color: "var(--warn)" }}>
             ¡Quedan {product.stock}!

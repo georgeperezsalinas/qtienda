@@ -4,11 +4,11 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
-  ShoppingCart, Search, ChevronRight, Zap, Heart,
+  ShoppingCart, Search, ChevronRight, Heart,
   MapPin, X, MessageCircle, Share2, Phone,
   LayoutGrid, List, Clock, Truck, ShieldCheck, PackageSearch,
   HelpCircle, CheckCircle2, Star, SlidersHorizontal, Package, LogOut,
-  Home, User, Gift,
+  Home, User,
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
@@ -564,11 +564,17 @@ export default function StorePage({ store, initialProducts }: Props) {
     if (priceMax != null) items = items.filter((p) => p.price_cents <= priceMax);
     if (sortBy === "price_asc") items = [...items].sort((a, b) => a.price_cents - b.price_cents);
     else if (sortBy === "price_desc") items = [...items].sort((a, b) => b.price_cents - a.price_cents);
+    else {
+      // Orden por defecto: gratis-ahora y destacados primero, en la misma
+      // grilla — antes vivían en carruseles aparte que empujaban el resto
+      // del catálogo muy abajo. El sort es estable, así que dentro de cada
+      // grupo se conserva el orden que ya trae el backend (sort_order manual).
+      const priority = (p: ProductData) => (isFreeNow(p) ? 2 : p.is_featured ? 1 : 0);
+      items = [...items].sort((a, b) => priority(b) - priority(a));
+    }
     return items;
   }, [initialProducts, activeCategory, debouncedSearch, showFavorites, favoriteIds, store.slug, priceMin, priceMax, sortBy]);
 
-  const featured        = initialProducts.filter((p) => p.is_featured).slice(0, 8);
-  const freeDigital     = initialProducts.filter((p) => isFreeNow(p)).slice(0, 8);
   const hasCategories    = (store.categories?.length ?? 0) > 0;
   const hasPriceFilter   = priceMin != null || priceMax != null;
   const isFiltering      = !!debouncedSearch || activeCategory.length > 0 || showFavorites || hasPriceFilter;
@@ -1013,89 +1019,6 @@ export default function StorePage({ store, initialProducts }: Props) {
             storeCurrency={storeCurrency}
             storeLocale={storeLocale}
           />
-
-          {/* Gratis por tiempo limitado — productos digitales que se pueden
-              descargar gratis ahora mismo, directo desde la home. */}
-          <AnimatePresence>
-            {freeDigital.length > 0 && !isFiltering && (
-              <motion.section
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="pt-3 pb-3 md:pb-5 lg:rounded-2xl lg:mt-5"
-                style={{ background: "var(--success-soft)" }}
-              >
-                <div className="flex items-center gap-2 px-4 mb-2 lg:px-6">
-                  <div
-                    className="w-6 h-6 rounded-lg flex items-center justify-center"
-                    style={{ background: "var(--success)" }}
-                  >
-                    <Gift size={13} color="white" />
-                  </div>
-                  <span className="text-xs font-extrabold uppercase tracking-widest" style={{ color: "var(--success)" }}>
-                    Gratis por tiempo limitado
-                  </span>
-                </div>
-
-                <div className="flex gap-3 overflow-x-auto px-4 pb-1 snap-x snap-mandatory scrollbar-hide lg:px-6">
-                  {freeDigital.map((p) => (
-                    <ProductCard
-                      key={p.id}
-                      product={p}
-                      storeColor={color}
-                      storeSlug={store.slug}
-                      storeCurrency={storeCurrency}
-                      storeLocale={storeLocale}
-                      featured
-                      onTap={() => setViewProduct(p)}
-                      onOpenCart={() => setCartOpen(true)}
-                    />
-                  ))}
-                </div>
-              </motion.section>
-            )}
-          </AnimatePresence>
-
-          {/* Featured carousel */}
-          <AnimatePresence>
-            {featured.length > 0 && !isFiltering && (
-              <motion.section
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="pt-3 pb-3 md:pb-5 lg:rounded-2xl lg:mt-5"
-                style={{ background: `${color}07` }}
-              >
-                <div className="flex items-center gap-2 px-4 mb-2 lg:px-6">
-                  <div
-                    className="w-6 h-6 rounded-lg flex items-center justify-center"
-                    style={{ background: color }}
-                  >
-                    <Zap size={13} color="white" fill="white" />
-                  </div>
-                  <span className="text-xs font-extrabold uppercase tracking-widest" style={{ color }}>
-                    Destacados
-                  </span>
-                </div>
-
-                <div className="flex gap-3 overflow-x-auto px-4 pb-1 snap-x snap-mandatory scrollbar-hide lg:px-6">
-                  {featured.map((p) => (
-                    <ProductCard
-                      key={p.id}
-                      product={p}
-                      storeColor={color}
-                      storeSlug={store.slug}
-                      storeCurrency={storeCurrency}
-                      storeLocale={storeLocale}
-                      featured
-                      onTap={() => setViewProduct(p)}
-                      onOpenCart={() => setCartOpen(true)}
-                    />
-                  ))}
-                </div>
-              </motion.section>
-            )}
-          </AnimatePresence>
 
           {/* Orden + rango de precio */}
           {initialProducts.length > 3 && (
