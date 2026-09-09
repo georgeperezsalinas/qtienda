@@ -15,6 +15,7 @@ import {
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
 import { formatPrice, getStoreCurrency } from "@/lib/utils";
+import DownloadButton from "@/components/store/DownloadButton";
 
 interface Props {
   params: { slug: string; order: string };
@@ -394,17 +395,15 @@ export default function TrackOrderPage({ params }: Props) {
                       </span>
                     </div>
                     {item.download_url && (
-                      <a
-                        href={item.download_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={() => toast.success("📥 Descargando...", { duration: 3000 })}
-                        className="flex items-center justify-center gap-1.5 rounded-xl text-xs font-bold py-2.5 mt-2"
+                      <DownloadButton
+                        url={item.download_url}
+                        filename={item.digital_file_name || "archivo"}
+                        className="flex items-center justify-center gap-1.5 w-full rounded-xl text-xs font-bold py-2.5 mt-2 disabled:cursor-wait"
                         style={{ background: `${color}12`, color }}
                       >
                         <Download size={13} />
                         Descargar {item.digital_file_name || "archivo"}
-                      </a>
+                      </DownloadButton>
                     )}
                   </div>
                 ))}

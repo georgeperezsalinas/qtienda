@@ -17,6 +17,7 @@ import { apiClient } from "@/lib/api";
 import toast from "react-hot-toast";
 import PhoneInput from "@/components/ui/PhoneInput";
 import PhoneVerifyStep from "./PhoneVerifyStep";
+import DownloadButton from "./DownloadButton";
 import { track } from "@vercel/analytics";
 import { pixelPurchase } from "@/lib/marketingPixels";
 import { getSessionId } from "@/lib/analyticsSession";
@@ -1293,18 +1294,16 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                             {orderResult.digital_downloads
                               .filter((d: any) => d.download_url)
                               .map((d: any, i: number) => (
-                                <a
+                                <DownloadButton
                                   key={i}
-                                  href={d.download_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={() => toast.success("📥 Descargando...", { duration: 3000 })}
-                                  className="flex items-center gap-2 w-full rounded-2xl px-4 py-3.5 font-bold text-sm text-white transition-all active:scale-[.98]"
+                                  url={d.download_url}
+                                  filename={d.digital_file_name || `${d.name}.pdf`}
+                                  className="flex items-center gap-2 w-full rounded-2xl px-4 py-3.5 font-bold text-sm text-white transition-all active:scale-[.98] disabled:cursor-wait"
                                   style={{ background: "var(--success)" }}
                                 >
                                   <span className="flex-1 min-w-0 truncate text-left">⬇️ {d.name}</span>
                                   <ChevronRight size={16} className="flex-shrink-0" />
-                                </a>
+                                </DownloadButton>
                               ))}
                           </div>
                         ) : (
