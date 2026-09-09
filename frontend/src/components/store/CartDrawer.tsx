@@ -470,7 +470,10 @@ export default function CartDrawer({ open, onClose, store }: Props) {
     // apenas se sabe el link real, se le pone la URL. Así, aunque el
     // comprador cierre la pantalla de éxito sin anotar nada, el pedido ya
     // quedó guardado en su propio chat de WhatsApp con la tienda.
-    const waWindow = window.open("", "_blank");
+    // Gratis es la excepción: no hay nada que avisarle a la tienda ni pago
+    // que coordinar, así que abrir WhatsApp (con la pantalla en blanco que
+    // deja mientras intenta lanzar la app) solo interrumpe la descarga.
+    const waWindow = isFreeOrder ? null : window.open("", "_blank");
     setLoading(true);
     try {
       const result = await apiClient.post(`/public/store/${store.slug}/orders`, {
@@ -1295,11 +1298,11 @@ export default function CartDrawer({ open, onClose, store }: Props) {
                                   href={d.download_url}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  onClick={() => toast.success("📥 Tu descarga empezó — revisa la nueva pestaña o tus descargas", { duration: 4000 })}
-                                  className="flex items-center justify-between gap-2 w-full rounded-2xl px-4 py-3.5 font-bold text-sm text-white transition-all active:scale-[.98]"
+                                  onClick={() => toast.success("📥 Descargando...", { duration: 3000 })}
+                                  className="flex items-center gap-2 w-full rounded-2xl px-4 py-3.5 font-bold text-sm text-white transition-all active:scale-[.98]"
                                   style={{ background: "var(--success)" }}
                                 >
-                                  <span className="truncate">⬇️ {d.name}</span>
+                                  <span className="flex-1 min-w-0 truncate text-left">⬇️ {d.name}</span>
                                   <ChevronRight size={16} className="flex-shrink-0" />
                                 </a>
                               ))}

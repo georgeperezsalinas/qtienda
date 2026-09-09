@@ -1315,9 +1315,13 @@ async def create_order(
         for oi in order_items
     )
 
-    # WhatsApp deep-link for vendor notification
+    # WhatsApp deep-link for vendor notification — un pedido gratis se
+    # autoconfirma solo, no hay nada que avisarle a la tienda ni que el
+    # comprador tenga que coordinar, así que no tiene sentido interrumpirlo
+    # con este link (en el celular, wa.me suele mostrar una pantalla en
+    # blanco mientras intenta abrir la app de WhatsApp).
     wa_link = None
-    if store.whatsapp:
+    if store.whatsapp and not is_free_order:
         lines = [
             f"🛍️ *NUEVO PEDIDO #{order_number}*",
             "━━━━━━━━━━━━━━━━━━━━━━",
@@ -1376,7 +1380,7 @@ async def create_order(
     # guardado en su propio historial de WhatsApp con la tienda real.
     requires_proof = not is_free_order and _method in ("yape", "plin", "transfer", "paypal")
     payment_proof_wa_link = None
-    if store.whatsapp:
+    if store.whatsapp and not is_free_order:
         tracking_link = f"https://{store.slug}.qtienda.shop/pedido/{order_number}"
         proof_text = (
             f"Hola! 👋 Te aviso que acabo de hacer el pedido #{order_number} en tu tienda, por S/ {total/100:.2f}.\n"
