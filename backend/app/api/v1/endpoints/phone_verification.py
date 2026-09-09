@@ -76,7 +76,7 @@ async def send_code(request: Request, payload: SendCodeRequest, db: AsyncSession
     db.add(verification)
     await db.commit()
 
-    sent = await send_whatsapp_message(
+    sent, reason = await send_whatsapp_message(
         phone,
         "🔐 *Verificación qtienda*\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n"
@@ -85,6 +85,14 @@ async def send_code(request: Request, payload: SendCodeRequest, db: AsyncSession
         "_Este es el número de notificaciones de qtienda — no es el WhatsApp de ninguna tienda en particular._",
     )
     if not sent:
+        if reason == "not_on_whatsapp":
+            # 422 y no 502: el problema es el dato que escribió el comprador,
+            # no el gateway — "intenta de nuevo" con el mismo número nunca va
+            # a funcionar, lo que necesita es corregirlo.
+            raise HTTPException(
+                status_code=422,
+                detail="Ese número no tiene WhatsApp. Revisa que esté bien escrito o usa otro número.",
+            )
         raise HTTPException(status_code=502, detail="No se pudo enviar el código, intenta de nuevo")
 
     return {"sent": True}

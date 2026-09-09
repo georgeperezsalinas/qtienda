@@ -28,12 +28,26 @@ def normalize_phone_pe(phone: str) -> str:
     return digits
 
 
-async def send_whatsapp_message(phone: str, text: str) -> bool:
-    """Best-effort: no levanta excepción, devuelve False si falla (el
-    endpoint que use esto decide qué responder al usuario)."""
+def _is_not_on_whatsapp(resp: httpx.Response) -> bool:
+    """Evolution contesta 400 con esta forma cuando el número está bien
+    formado pero simplemente no tiene WhatsApp — distinto de una falla real
+    del gateway, y el único caso donde reintentar nunca va a funcionar:
+    {"response": {"message": [{"jid": "...", "exists": false, ...}]}}"""
+    try:
+        entries = resp.json().get("response", {}).get("message", [])
+        return any(entry.get("exists") is False for entry in entries)
+    except Exception:
+        return False
+
+
+async def send_whatsapp_message(phone: str, text: str) -> tuple[bool, str | None]:
+    """Best-effort: no levanta excepción. Devuelve (ok, motivo) — motivo es
+    "not_on_whatsapp" cuando Evolution confirma que el número no tiene
+    WhatsApp (reintentar no sirve de nada), o None en cualquier otra falla
+    (el endpoint que use esto decide qué responder al usuario)."""
     if not settings.EVOLUTION_API_URL or not settings.EVOLUTION_API_KEY or not settings.EVOLUTION_INSTANCE:
         log.warning("[whatsapp] Evolution API no configurada — omitiendo envío")
-        return False
+        return False, None
 
     number = normalize_phone_pe(phone)
     url = f"{settings.EVOLUTION_API_URL.rstrip('/')}/message/sendText/{settings.EVOLUTION_INSTANCE}"
@@ -46,8 +60,10 @@ async def send_whatsapp_message(phone: str, text: str) -> bool:
             )
         if resp.status_code >= 300:
             log.warning("[whatsapp] Evolution API respondió %s: %s", resp.status_code, resp.text[:300])
-            return False
-        return True
+            if resp.status_code == 400 and _is_not_on_whatsapp(resp):
+                return False, "not_on_whatsapp"
+            return False, None
+        return True, None
     except Exception:
         log.exception("[whatsapp] error enviando mensaje a %s", number)
-        return False
+        return False, None
