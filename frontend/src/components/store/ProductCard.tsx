@@ -11,6 +11,9 @@ import { pixelAddToCart } from "@/lib/marketingPixels";
 import { useSaleCountdown } from "@/hooks/useSaleCountdown";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
+import { Download, Loader2 } from "lucide-react";
+import { freeDownloadUrl } from "@/lib/api";
+import { fetchAndSaveFile } from "@/lib/download";
 
 interface Props {
   product: {
@@ -25,6 +28,7 @@ interface Props {
     created_at?: string;
     is_digital?: boolean;
     free_until?: string;
+    digital_file_name?: string;
     is_featured?: boolean;
     images: { url: string; is_primary: boolean }[];
     variants?: { id: string; label: string; sku?: string; price_cents?: number; stock?: number }[];
@@ -71,6 +75,7 @@ export default function ProductCard({
   product, storeColor, storeSlug, storeCurrency = "PEN", storeLocale = "es-PE", featured, compact, onTap, onOpenCart,
 }: Props) {
   const [added, setAdded] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const addItem = useCartStore((s) => s.addItem);
   const isFavorite = useFavoritesStore((s) => s.isFavorite(storeSlug, product.id));
   const toggleFavorite = useFavoritesStore((s) => s.toggle);
@@ -194,6 +199,27 @@ export default function ProductCard({
     handleAdd(e);
   }
 
+  // Gratis por tiempo limitado: nada de carrito ni checkout — se baja
+  // directo, sin pedido ni datos del comprador (ver descargar-gratis en
+  // public.py). e.stopPropagation() porque el botón vive dentro de una
+  // tarjeta que abre el detalle al tocarla.
+  async function handleFreeDownload(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      await fetchAndSaveFile(
+        freeDownloadUrl(storeSlug, product.id),
+        product.digital_file_name || `${displayName}.pdf`,
+      );
+      toast.success("📥 Listo — revisa tus descargas", { duration: 3000 });
+    } catch {
+      toast.error("No se pudo descargar, intenta de nuevo");
+    } finally {
+      setDownloading(false);
+    }
+  }
+
   /* ── Featured card (horizontal carousel) ── */
   if (featured) {
     return (
@@ -290,12 +316,14 @@ export default function ProductCard({
               </div>
               <motion.button
                 whileTap={{ scale: 0.85 }}
-                onClick={handleAddClick}
-                disabled={outOfStock}
+                onClick={isFree ? handleFreeDownload : handleAddClick}
+                disabled={outOfStock || downloading}
                 className="w-8 h-8 lg:w-9 lg:h-9 rounded-full flex items-center justify-center text-white"
-                style={{ background: outOfStock ? "var(--ink-4)" : storeColor }}
+                style={{ background: outOfStock ? "var(--ink-4)" : isFree ? "var(--success)" : storeColor }}
               >
-                {added ? <Check size={14} /> : <Plus size={14} />}
+                {isFree ? (
+                  downloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />
+                ) : added ? <Check size={14} /> : <Plus size={14} />}
               </motion.button>
             </div>
           </div>
@@ -392,15 +420,17 @@ export default function ProductCard({
           </div>
         </div>
 
-        {/* Add to cart */}
+        {/* Add to cart / descarga gratis */}
         <motion.button
           whileTap={{ scale: 0.85 }}
-          onClick={handleAddClick}
-          disabled={outOfStock}
+          onClick={isFree ? handleFreeDownload : handleAddClick}
+          disabled={outOfStock || downloading}
           className="flex-shrink-0 w-9 h-9 lg:w-10 lg:h-10 rounded-full flex items-center justify-center text-white transition-colors"
-          style={{ background: outOfStock ? "var(--ink-4)" : storeColor }}
+          style={{ background: outOfStock ? "var(--ink-4)" : isFree ? "var(--success)" : storeColor }}
         >
-          {added ? <Check size={16} /> : <Plus size={16} />}
+          {isFree ? (
+            downloading ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />
+          ) : added ? <Check size={16} /> : <Plus size={16} />}
         </motion.button>
       </div>
     );
@@ -505,12 +535,14 @@ export default function ProductCard({
           </div>
           <motion.button
             whileTap={{ scale: 0.85 }}
-            onClick={handleAddClick}
-            disabled={outOfStock}
+            onClick={isFree ? handleFreeDownload : handleAddClick}
+            disabled={outOfStock || downloading}
             className="flex-shrink-0 w-9 h-9 lg:w-10 lg:h-10 rounded-full flex items-center justify-center text-white"
-            style={{ background: outOfStock ? "var(--ink-4)" : storeColor }}
+            style={{ background: outOfStock ? "var(--ink-4)" : isFree ? "var(--success)" : storeColor }}
           >
-            {added ? <Check size={16} /> : <Plus size={16} />}
+            {isFree ? (
+              downloading ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />
+            ) : added ? <Check size={16} /> : <Plus size={16} />}
           </motion.button>
         </div>
       </div>

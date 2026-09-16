@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import Image from "next/image";
-import { X, ChevronLeft, ChevronRight, Check, ShoppingCart, ShoppingBag, ZoomIn, Share2, Clock, Minus, Plus } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Check, ShoppingCart, ShoppingBag, ZoomIn, Share2, Clock, Minus, Plus, Download, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCartStore } from "@/store/cartStore";
 import { formatPrice, stripHtml, isFreeNow } from "@/lib/utils";
@@ -11,6 +11,8 @@ import toast from "react-hot-toast";
 import ProductCard from "./ProductCard";
 import { fetchProductViewers } from "@/lib/storeAnalytics";
 import { pixelAddToCart } from "@/lib/marketingPixels";
+import { freeDownloadUrl } from "@/lib/api";
+import { fetchAndSaveFile } from "@/lib/download";
 
 /** Umbral para no mostrar numeros bajos que se sienten peor que no mostrar nada */
 const VIEWERS_THRESHOLD = 3;
@@ -28,6 +30,7 @@ interface ProductForSheet {
   created_at?: string;
   is_digital?: boolean;
   free_until?: string;
+  digital_file_name?: string;
   images: { url: string; is_primary: boolean }[];
   variants?: { id: string; label: string; sku?: string; price_cents?: number; stock?: number }[];
 }
@@ -70,6 +73,7 @@ export default function ProductDetailSheet({
     () => Math.max(0, product.images.findIndex((i) => i.is_primary))
   );
   const [added, setAdded] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [zoomOpen, setZoomOpen] = useState(false);
   const [viewers, setViewers] = useState(0);
   const [qty, setQty] = useState(1);
@@ -165,6 +169,25 @@ export default function ProductDetailSheet({
     toast.success(qty > 1 ? `${qty} agregados al carrito` : "Agregado al carrito", { duration: 1500 });
     setTimeout(() => setAdded(false), 2000);
     setQty(1);
+  }
+
+  // Gratis por tiempo limitado: nada de carrito ni checkout — se baja
+  // directo, sin pedido ni datos del comprador (ver descargar-gratis en
+  // public.py).
+  async function handleFreeDownload() {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      await fetchAndSaveFile(
+        freeDownloadUrl(storeSlug, product.id),
+        product.digital_file_name || `${displayName}.pdf`,
+      );
+      toast.success("📥 Listo — revisa tus descargas", { duration: 3000 });
+    } catch {
+      toast.error("No se pudo descargar, intenta de nuevo");
+    } finally {
+      setDownloading(false);
+    }
   }
 
   return (
@@ -530,7 +553,8 @@ export default function ProductDetailSheet({
           }}
         >
           <div className="flex items-center gap-2.5">
-            {!outOfStock && (
+            {/* Gratis: sin cantidad, es una descarga, no un carrito */}
+            {!outOfStock && !isFree && (
               <div
                 className="flex items-center gap-0.5 rounded-2xl flex-shrink-0"
                 style={{ background: "var(--surface-2)", height: 52 }}
@@ -558,8 +582,8 @@ export default function ProductDetailSheet({
             )}
             <motion.button
               whileTap={{ scale: 0.97 }}
-              onClick={handleAdd}
-              disabled={outOfStock || (hasVariants && !selectedVariantId)}
+              onClick={isFree ? handleFreeDownload : handleAdd}
+              disabled={outOfStock || (hasVariants && !selectedVariantId) || downloading}
               className="flex-1 flex items-center justify-center gap-2.5 rounded-2xl py-4
                          font-display font-bold text-sm transition-colors"
               style={{
@@ -568,14 +592,18 @@ export default function ProductDetailSheet({
                 boxShadow:  outOfStock ? "none" : isFree ? "0 6px 20px rgba(0,0,0,.15)" : `0 6px 20px ${storeColor}44`,
               }}
             >
-              {added ? (
+              {isFree ? (
+                downloading ? (
+                  <><Loader2 size={18} className="animate-spin" /> Descargando…</>
+                ) : (
+                  <><Download size={18} /> Descargar gratis</>
+                )
+              ) : added ? (
                 <><Check size={18} /> En el carrito</>
               ) : outOfStock ? (
                 "Producto agotado"
               ) : hasVariants && !selectedVariantId ? (
                 "Elige una opción"
-              ) : isFree ? (
-                <><ShoppingCart size={18} /> Descargar gratis</>
               ) : (
                 <><ShoppingCart size={18} /> Agregar · {formatPrice(effectivePrice * qty, storeCurrency, storeLocale)}</>
               )}

@@ -63,3 +63,9 @@ apiClient.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// URL de descarga directa de un producto digital gratis por tiempo limitado —
+// sin pedido de por medio, ver GET .../descargar-gratis en public.py.
+export function freeDownloadUrl(storeSlug: string, productId: string) {
+  return `${BASE}/public/store/${storeSlug}/products/${productId}/descargar-gratis`;
+}

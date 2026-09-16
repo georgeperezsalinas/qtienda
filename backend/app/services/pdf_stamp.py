@@ -6,13 +6,16 @@ a la compra que la generó. No toca el contenido original del vendedor
 (se agrega una hoja nueva, nunca se dibuja encima de las existentes).
 """
 import io
+from typing import Optional
 
 from pypdf import PdfReader, PdfWriter
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 
 
-def stamp_pdf_with_order(pdf_bytes: bytes, order_number: str, store_name: str) -> bytes:
+def stamp_pdf_with_order(pdf_bytes: bytes, order_number: Optional[str], store_name: str) -> bytes:
+    """order_number en None es la descarga gratuita anónima (sin pedido) —
+    ver descargar-gratis en public.py."""
     try:
         reader = PdfReader(io.BytesIO(pdf_bytes))
         if len(reader.pages) == 0:
@@ -31,7 +34,7 @@ def stamp_pdf_with_order(pdf_bytes: bytes, order_number: str, store_name: str) -
     lines = [
         "Copia personal — no distribuir",
         f"Tienda: {store_name}",
-        f"Pedido: #{order_number}",
+        f"Pedido: #{order_number}" if order_number else "Descarga gratuita",
     ]
     c.setFont("Helvetica", 11)
     line_height = 18

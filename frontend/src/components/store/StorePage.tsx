@@ -96,6 +96,7 @@ interface ProductData {
   is_featured:    boolean;
   is_digital?:    boolean;
   free_until?:    string;
+  digital_file_name?: string;
   category_id?:   string;
   sold_count?:    number;
   created_at?:    string;

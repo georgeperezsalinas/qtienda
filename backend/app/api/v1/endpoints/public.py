@@ -733,6 +733,7 @@ async def get_store_products(
             "is_featured": p.is_featured,
             "is_digital": p.is_digital,
             "free_until": p.free_until,
+            "digital_file_name": p.digital_file_name if p.is_digital else None,
             "category_id": p.category_id,
             "sold_count": sold_map.get(p.id, 0),
             "created_at": p.created_at,
@@ -1718,6 +1719,76 @@ async def download_digital_file(
     if is_pdf:
         from app.services.pdf_stamp import stamp_pdf_with_order
         content = await asyncio.to_thread(stamp_pdf_with_order, content, order_number, store_name)
+        media_type = "application/pdf"
+    else:
+        import mimetypes
+        media_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/store/{slug}/products/{product_id}/descargar-gratis")
+@limiter.limit("20/minute")
+async def download_free_product(
+    request: Request, slug: str, product_id: str, db: AsyncSession = Depends(get_db)
+):
+    """Descarga directa de un producto digital gratis por tiempo limitado —
+    sin pedido, sin datos del comprador. El candado es que el producto siga
+    vigente como gratis; el rate-limit por IP es la única protección
+    anti-abuso (a propósito: no hay formulario que llenar antes de bajar
+    algo que ya es gratis)."""
+    row = (await db.execute(
+        select(Product, Store.name)
+        .join(Store, Store.id == Product.store_id)
+        .where(
+            Store.slug == slug,
+            Store.deleted_at.is_(None),
+            Product.id == product_id,
+            Product.store_id == Store.id,
+            Product.status == "active",
+            Product.deleted_at.is_(None),
+        )
+    )).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+    product, store_name = row
+
+    if not product.is_digital or not product.free_until or product.free_until <= datetime.now(timezone.utc):
+        raise HTTPException(status_code=403, detail="Este producto ya no está disponible gratis")
+    if not product.digital_file_key:
+        raise HTTPException(status_code=404, detail="Archivo no disponible")
+
+    filename = product.digital_file_name or "archivo"
+    is_pdf = filename.lower().endswith(".pdf")
+    use_r2 = bool(app_settings.S3_ENDPOINT and app_settings.S3_ACCESS_KEY)
+
+    from pathlib import Path
+    content: Optional[bytes] = None
+    if use_r2:
+        from app.api.v1.endpoints.uploads import download_object_bytes
+        try:
+            content = await download_object_bytes(product.digital_file_key)
+        except Exception:
+            logger.warning(
+                "No se pudo bajar de R2 el archivo digital gratis %s (producto %s) — probando disco local",
+                product.digital_file_key, product_id,
+            )
+    if content is None:
+        path = Path(app_settings.PRIVATE_UPLOADS_DIR) / product.digital_file_key
+        if path.is_file():
+            content = path.read_bytes()
+
+    if content is None:
+        logger.error("Archivo digital gratis no disponible ni en R2 ni en disco: %s (producto %s)", product.digital_file_key, product_id)
+        raise HTTPException(status_code=404, detail="Archivo no disponible")
+
+    if is_pdf:
+        from app.services.pdf_stamp import stamp_pdf_with_order
+        content = await asyncio.to_thread(stamp_pdf_with_order, content, None, store_name)
         media_type = "application/pdf"
     else:
         import mimetypes

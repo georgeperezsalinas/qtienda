@@ -11,7 +11,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   ChevronLeft, ChevronLeft as ChevronLeftSmall, ChevronRight, Check, ShoppingCart,
-  ZoomIn, Share2, Clock, Minus, Plus, X, ShoppingBag,
+  ZoomIn, Share2, Clock, Minus, Plus, X, ShoppingBag, Download, Loader2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
@@ -20,6 +20,8 @@ import { formatPrice, stripHtml, getStoreCurrency, isFreeNow } from "@/lib/utils
 import { useSaleCountdown } from "@/hooks/useSaleCountdown";
 import { fetchProductViewers, trackStoreEvent } from "@/lib/storeAnalytics";
 import { pixelAddToCart, pixelViewContent } from "@/lib/marketingPixels";
+import { freeDownloadUrl } from "@/lib/api";
+import { fetchAndSaveFile } from "@/lib/download";
 import ProductCard from "./ProductCard";
 
 const VIEWERS_THRESHOLD = 3;
@@ -38,6 +40,7 @@ interface FullProduct {
   created_at?: string;
   is_digital?: boolean;
   free_until?: string;
+  digital_file_name?: string;
   images: { url: string; is_primary: boolean }[];
   variants?: { id: string; label: string; sku?: string; price_cents?: number; stock?: number }[];
 }
@@ -77,6 +80,7 @@ export default function ProductPage({
     () => Math.max(0, product.images.findIndex((i) => i.is_primary))
   );
   const [added, setAdded] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [zoomOpen, setZoomOpen] = useState(false);
   const [viewers, setViewers] = useState(0);
   const [qty, setQty] = useState(1);
@@ -169,6 +173,25 @@ export default function ProductPage({
     );
     setTimeout(() => setAdded(false), 2000);
     setQty(1);
+  }
+
+  // Gratis por tiempo limitado: nada de carrito ni checkout — se baja
+  // directo, sin pedido ni datos del comprador (ver descargar-gratis en
+  // public.py).
+  async function handleFreeDownload() {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      await fetchAndSaveFile(
+        freeDownloadUrl(store.slug, product.id),
+        product.digital_file_name || `${displayName}.pdf`,
+      );
+      toast.success("📥 Listo — revisa tus descargas", { duration: 3000 });
+    } catch {
+      toast.error("No se pudo descargar, intenta de nuevo");
+    } finally {
+      setDownloading(false);
+    }
   }
 
   function handleShare() {
@@ -392,7 +415,7 @@ export default function ProductPage({
         style={{ background: "color-mix(in srgb, var(--surface) 97%, transparent)", backdropFilter: "blur(8px)", borderTop: "1px solid var(--line)" }}
       >
         <div className="max-w-xl lg:max-w-4xl mx-auto flex items-center gap-2.5">
-          {!outOfStock && (
+          {!outOfStock && !isFree && (
             <div className="flex items-center gap-0.5 rounded-2xl flex-shrink-0" style={{ background: "var(--surface-2)", height: 52 }}>
               <button onClick={() => setQty((q) => Math.max(1, q - 1))} disabled={qty <= 1} aria-label="Restar cantidad" className="w-10 h-full flex items-center justify-center disabled:opacity-30">
                 <Minus size={15} style={{ color: "var(--ink-2)" }} />
@@ -405,8 +428,8 @@ export default function ProductPage({
           )}
           <motion.button
             whileTap={{ scale: 0.97 }}
-            onClick={handleAdd}
-            disabled={outOfStock || (hasVariants && !selectedVariantId)}
+            onClick={isFree ? handleFreeDownload : handleAdd}
+            disabled={outOfStock || (hasVariants && !selectedVariantId) || downloading}
             className="flex-1 flex items-center justify-center gap-2.5 rounded-2xl py-4 font-display font-bold text-sm transition-colors"
             style={{
               background: outOfStock ? "var(--line-2)" : isFree ? "var(--success)" : color,
@@ -414,7 +437,17 @@ export default function ProductPage({
               boxShadow: outOfStock ? "none" : isFree ? "0 6px 20px rgba(0,0,0,.15)" : `0 6px 20px ${color}44`,
             }}
           >
-            {added ? (<><Check size={18} /> En el carrito</>) : outOfStock ? "Producto agotado" : hasVariants && !selectedVariantId ? "Elige una opción" : isFree ? (<><ShoppingCart size={18} /> Descargar gratis</>) : (<><ShoppingCart size={18} /> Agregar · {formatPrice(effectivePrice * qty, storeCurrency, storeLocale)}</>)}
+            {isFree
+              ? downloading
+                ? (<><Loader2 size={18} className="animate-spin" /> Descargando…</>)
+                : (<><Download size={18} /> Descargar gratis</>)
+              : added
+                ? (<><Check size={18} /> En el carrito</>)
+                : outOfStock
+                  ? "Producto agotado"
+                  : hasVariants && !selectedVariantId
+                    ? "Elige una opción"
+                    : (<><ShoppingCart size={18} /> Agregar · {formatPrice(effectivePrice * qty, storeCurrency, storeLocale)}</>)}
           </motion.button>
         </div>
       </div>
