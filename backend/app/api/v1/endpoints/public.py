@@ -1692,25 +1692,27 @@ async def download_digital_file(
     use_r2 = bool(app_settings.S3_ENDPOINT and app_settings.S3_ACCESS_KEY)
 
     # _upload_r2 (uploads.py) cae solo a disco local si R2 falla al subir —
-    # así que un archivo "subido a R2" puede en realidad estar en local. Acá
-    # se tolera lo mismo: se intenta R2 primero, y si falla por cualquier
-    # motivo (ej. el handshake_failure de TLS que ya se ve con las imágenes),
-    # se prueba el disco antes de recién ahí devolver 404.
+    # así que un archivo "subido a R2" puede en realidad estar solo en local.
+    # El disco es un stat instantáneo; R2 es un subprocess de curl con
+    # handshake TLS real que, cuando el archivo nunca llegó a subirse ahí,
+    # falla siempre y tarda varios segundos en hacerlo (ver download_object_bytes)
+    # — probarlo primero convertía cada descarga en una espera de varios
+    # segundos sin motivo. Se prueba el disco primero (gratis) y solo se
+    # paga el costo de R2 cuando localmente no está.
     from pathlib import Path
     content: Optional[bytes] = None
-    if use_r2:
+    path = Path(app_settings.PRIVATE_UPLOADS_DIR) / item.digital_file_key
+    if path.is_file():
+        content = path.read_bytes()
+    if content is None and use_r2:
         from app.api.v1.endpoints.uploads import download_object_bytes
         try:
             content = await download_object_bytes(item.digital_file_key)
         except Exception:
             logger.warning(
-                "No se pudo bajar de R2 el archivo digital %s (pedido %s) — probando disco local",
+                "No se pudo bajar de R2 el archivo digital %s (pedido %s) y tampoco está en disco",
                 item.digital_file_key, order_number,
             )
-    if content is None:
-        path = Path(app_settings.PRIVATE_UPLOADS_DIR) / item.digital_file_key
-        if path.is_file():
-            content = path.read_bytes()
 
     if content is None:
         logger.error("Archivo digital no disponible ni en R2 ni en disco: %s (pedido %s)", item.digital_file_key, order_number)
@@ -1766,21 +1768,24 @@ async def download_free_product(
     is_pdf = filename.lower().endswith(".pdf")
     use_r2 = bool(app_settings.S3_ENDPOINT and app_settings.S3_ACCESS_KEY)
 
+    # Disco primero (stat instantáneo): R2 es un subprocess de curl con
+    # handshake TLS real que, si el archivo nunca se subió ahí, falla
+    # siempre y tarda varios segundos en hacerlo — probarlo primero
+    # convertía cada descarga gratis en una espera larga sin motivo.
     from pathlib import Path
     content: Optional[bytes] = None
-    if use_r2:
+    path = Path(app_settings.PRIVATE_UPLOADS_DIR) / product.digital_file_key
+    if path.is_file():
+        content = path.read_bytes()
+    if content is None and use_r2:
         from app.api.v1.endpoints.uploads import download_object_bytes
         try:
             content = await download_object_bytes(product.digital_file_key)
         except Exception:
             logger.warning(
-                "No se pudo bajar de R2 el archivo digital gratis %s (producto %s) — probando disco local",
+                "No se pudo bajar de R2 el archivo digital gratis %s (producto %s) y tampoco está en disco",
                 product.digital_file_key, product_id,
             )
-    if content is None:
-        path = Path(app_settings.PRIVATE_UPLOADS_DIR) / product.digital_file_key
-        if path.is_file():
-            content = path.read_bytes()
 
     if content is None:
         logger.error("Archivo digital gratis no disponible ni en R2 ni en disco: %s (producto %s)", product.digital_file_key, product_id)
