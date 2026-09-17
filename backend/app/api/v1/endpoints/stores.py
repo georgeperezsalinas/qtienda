@@ -361,7 +361,7 @@ async def update_banners(
     current_user=Depends(require_vendor),
     db: AsyncSession = Depends(get_db),
 ):
-    """Reemplaza los banners de la tienda. Limite por plan: free 1, pro/elite 3."""
+    """Reemplaza los banners de la tienda. Limite por plan: free 1, pro/elite 5."""
     result = await db.execute(
         select(Store)
         .options(selectinload(Store.plan), selectinload(Store.banners))
@@ -372,11 +372,11 @@ async def update_banners(
         raise HTTPException(status_code=404, detail="Tienda no encontrada")
 
     plan_slug = store.plan.slug if store.plan else "free"
-    max_banners = 1 if plan_slug == "free" else 3
+    max_banners = 1 if plan_slug == "free" else 5
     if len(payload.banners) > max_banners:
         raise HTTPException(
             status_code=403,
-            detail=f"Tu plan permite hasta {max_banners} banner{'s' if max_banners > 1 else ''}. Mejora a Pro para usar hasta 3.",
+            detail=f"Tu plan permite hasta {max_banners} banner{'s' if max_banners > 1 else ''}. Mejora a Pro para usar hasta 5.",
         )
 
     store.banners.clear()

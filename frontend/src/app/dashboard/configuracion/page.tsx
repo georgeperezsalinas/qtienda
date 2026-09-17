@@ -665,9 +665,9 @@ export default function ConfiguracionPage() {
               />
             </div>
 
-            {/* Banners (free: 1, pro/elite: hasta 3 rotando) */}
+            {/* Banners (free: 1, pro/elite: hasta 5 rotando) */}
             {(() => {
-              const maxBanners = planSlug === "free" ? 1 : 3;
+              const maxBanners = planSlug === "free" ? 1 : 5;
               return (
                 <div>
                   <label className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide block mb-1.5">
@@ -675,8 +675,8 @@ export default function ConfiguracionPage() {
                   </label>
                   <p className="text-[11px] text-[var(--ink-4)] mb-2">
                     {maxBanners > 1
-                      ? "Hasta 3 banners que rotan automáticamente en tu tienda. Cada uno puede tener su enlace."
-                      : "Tu plan incluye 1 banner. Mejora a Pro para usar hasta 3 banners rotando."}
+                      ? "Hasta 5 banners que rotan automáticamente en tu tienda. Cada uno puede tener su enlace."
+                      : "Tu plan incluye 1 banner. Mejora a Pro para usar hasta 5 banners rotando."}
                   </p>
                   <div className="space-y-3">
                     {banners.map((b, i) => (
