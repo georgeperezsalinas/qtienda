@@ -43,6 +43,7 @@ def _serialize(p: Product) -> dict:
         "digital_file_size": p.digital_file_size,
         "free_until": p.free_until,
         "is_free_now": bool(p.is_digital and p.free_until and p.free_until > datetime.now(timezone.utc)),
+        "free_download_count": p.free_download_count,
         "is_featured": p.is_featured,
         "sort_order": p.sort_order,
         "category_id": p.category_id,

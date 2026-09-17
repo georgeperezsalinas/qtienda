@@ -41,6 +41,7 @@ interface Product {
   digital_file_size?: number;
   free_until?: string;
   is_free_now?: boolean;
+  free_download_count?: number;
   category_id?: string;
   images: ProductImage[];
   variants: ProductVariant[];
@@ -301,6 +302,15 @@ function ProductCard({
               style={{ background: "var(--success-soft)", color: "var(--success)" }}
             >
               🎁 Gratis
+            </span>
+          )}
+          {product.is_digital && !!product.free_download_count && (
+            <span
+              className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
+              style={{ background: "var(--accent-soft)", color: "var(--accent)" }}
+              title="Descargas de la promo gratis (no cuenta ventas pagadas)"
+            >
+              <Download size={10} /> {product.free_download_count} descarga{product.free_download_count === 1 ? "" : "s"}
             </span>
           )}
           {product.stock != null && (

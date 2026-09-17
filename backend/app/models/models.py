@@ -273,6 +273,11 @@ class Product(Base):
     # el pedido se cobra S/0 y se autoconfirma — price_cents no se toca, es
     # el precio normal al que vuelve el producto cuando pase la fecha.
     free_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    # Contador de descargas gratis (ver descargar-gratis en public.py) — no
+    # hay Order de por medio en ese flujo, así que sold_count (que cuenta
+    # OrderItem) nunca las ve; este es el único registro de cuántas veces
+    # se usó la promo.
+    free_download_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     created_at: Mapped[datetime]    = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime]    = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

@@ -1791,6 +1791,16 @@ async def download_free_product(
         logger.error("Archivo digital gratis no disponible ni en R2 ni en disco: %s (producto %s)", product.digital_file_key, product_id)
         raise HTTPException(status_code=404, detail="Archivo no disponible")
 
+    # Update atómico (sin lock de fila, no hace falta: es un contador de
+    # visibilidad para el vendedor, no algo que dispare stock ni cobros) —
+    # se cuenta acá, ya con el archivo en mano, para no inflar el número con
+    # intentos que terminaron en 404/403 más arriba.
+    from sqlalchemy import update as sa_update
+    await db.execute(
+        sa_update(Product).where(Product.id == product.id).values(free_download_count=Product.free_download_count + 1)
+    )
+    await db.commit()
+
     if is_pdf:
         from app.services.pdf_stamp import stamp_pdf_with_order
         content = await asyncio.to_thread(stamp_pdf_with_order, content, None, store_name)
