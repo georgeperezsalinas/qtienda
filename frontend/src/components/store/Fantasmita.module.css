@@ -37,15 +37,40 @@
   height: 88%;
   overflow: hidden;
   background:
-    radial-gradient(circle at 34% 25%, rgba(255, 255, 255, 0.95) 0 18%, transparent 28%),
-    linear-gradient(145deg, #ffffff 0%, #f4f7ff 48%, #dfe8ff 100%);
-  border: 1px solid rgba(255, 255, 255, 0.72);
-  border-radius: 50% 50% 18% 18% / 62% 62% 18% 18%;
+    radial-gradient(circle at 34% 22%, rgba(255, 255, 255, 0.82) 0 14%, transparent 27%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.84) 0%, rgba(244, 247, 255, 0.72) 48%, rgba(207, 222, 255, 0.62) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.58);
+  border-radius: 48% 52% 24% 20% / 50% 54% 22% 20%;
   box-shadow:
-    inset -16px -12px 0 rgba(119, 138, 194, 0.18),
-    inset 10px 8px 18px rgba(255, 255, 255, 0.85),
-    0 14px 32px rgba(80, 90, 140, 0.22);
+    inset -18px -12px 0 rgba(119, 138, 194, 0.12),
+    inset 12px 8px 20px rgba(255, 255, 255, 0.48),
+    0 14px 32px rgba(80, 90, 140, 0.18);
+  backdrop-filter: blur(1.5px);
   animation: flotar 2.4s ease-in-out infinite, respirar 4.2s ease-in-out infinite;
+}
+
+.cuerpo::before,
+.cuerpo::after {
+  content: "";
+  position: absolute;
+  top: 16%;
+  bottom: 13%;
+  width: 28%;
+  opacity: 0.5;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.cuerpo::before {
+  left: 10%;
+  border-left: 2px solid rgba(255, 255, 255, 0.56);
+  transform: rotate(7deg);
+}
+
+.cuerpo::after {
+  right: 12%;
+  border-right: 2px solid rgba(93, 112, 168, 0.13);
+  transform: rotate(-8deg);
 }
 
 .brillo {
@@ -65,7 +90,7 @@
   top: 45%;
   width: 22%;
   height: 18%;
-  background: #eef4ff;
+  background: rgba(238, 244, 255, 0.7);
   border-radius: 999px;
   box-shadow: inset -4px -3px 0 rgba(119, 138, 194, 0.12);
 }
@@ -155,27 +180,40 @@
   right: 0;
   bottom: -1px;
   left: 0;
-  height: 22%;
+  height: 25%;
   display: flex;
   overflow: hidden;
 }
 
 .ondas span {
   flex: 1;
-  background: #f4f7ff;
-  border-radius: 0 0 50% 50%;
+  background: rgba(244, 247, 255, 0.76);
+  border-radius: 0 0 58% 46%;
+  box-shadow: inset -3px -3px 0 rgba(119, 138, 194, 0.08);
 }
 
 .ondas span:nth-child(even) {
-  transform: translateY(35%);
+  transform: translateY(42%);
+}
+
+.ondas span:nth-child(1) {
+  transform: translateY(20%) rotate(4deg);
 }
 
 .ondas span:nth-child(2) {
-  background: #edf3ff;
+  background: rgba(237, 243, 255, 0.68);
+  border-radius: 0 0 38% 62%;
+}
+
+.ondas span:nth-child(3) {
+  transform: translateY(8%) rotate(-3deg);
+  border-radius: 0 0 68% 36%;
 }
 
 .ondas span:nth-child(4) {
-  background: #e8efff;
+  background: rgba(232, 239, 255, 0.62);
+  transform: translateY(48%) rotate(-4deg);
+  border-radius: 0 0 42% 70%;
 }
 
 .sombra {
