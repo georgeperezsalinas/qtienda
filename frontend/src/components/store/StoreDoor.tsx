@@ -23,6 +23,7 @@ import { useInstallPrompt } from "@/hooks/useInstallPrompt";
 import { apiClient } from "@/lib/api";
 import WheelWidget from "./WheelWidget";
 import { SocialLinks } from "./SocialLinks";
+import Fantasmita from "./Fantasmita";
 import Logo from "@/components/ui/Logo";
 import PublicBottomNav from "@/components/ui/PublicBottomNav";
 import ThemeToggle from "@/components/ui/ThemeToggle";
@@ -80,6 +81,7 @@ export default function StoreDoor({ store }: { store: DoorStoreData }) {
   const color = store.primary_color || "#2563EB";
   const openStatus = getOpenStatus(store.store_hours);
   const storeUrl = `${store.slug}.qtienda.shop`;
+  const showFantasmita = store.slug === "historiasocultas";
   const isLoggedIn = useAuthStore((s) => s.isAuthenticated());
   const cartCount = useCartStore((s) => s.totalItems());
   const { installPrompt, dismissed: installDismissed, install, dismiss: dismissInstall } =
@@ -291,6 +293,12 @@ export default function StoreDoor({ store }: { store: DoorStoreData }) {
               {store.name}
             </h1>
 
+            {showFantasmita && (
+              <div className="lg:hidden mt-3 animate-fade-up delay-150">
+                <Fantasmita size={96} />
+              </div>
+            )}
+
             {/* Fila de confianza real — rating y pedidos entregados, solo si
                 existen de verdad (nunca "0.0" ni "0 pedidos" inventado) */}
             {(store.city || store.address || hasTrustSignal) && (
@@ -491,7 +499,18 @@ export default function StoreDoor({ store }: { store: DoorStoreData }) {
               si no hay fotos, un panel decorativo con el color de marca en vez
               de dejar la mitad de la pantalla vacía. */}
           <div className="hidden lg:flex items-center justify-center h-full">
-            {mounted && previewPhotos.length > 0 ? (
+            {showFantasmita ? (
+              <div className="relative w-full aspect-square flex items-center justify-center">
+                <div
+                  aria-hidden
+                  className="absolute inset-8 rounded-full"
+                  style={{
+                    background: `radial-gradient(circle, ${color}22 0%, transparent 68%)`,
+                  }}
+                />
+                <Fantasmita size={190} className="relative z-10" />
+              </div>
+            ) : mounted && previewPhotos.length > 0 ? (
               <Vitrina size={168} />
             ) : (
               <div
