@@ -32,6 +32,7 @@ import ThemeToggle from "@/components/ui/ThemeToggle";
 import WheelWidget from "./WheelWidget";
 import ClaimsModal from "./ClaimsModal";
 import ServicesSection from "./ServicesSection";
+import Fantasmita from "./Fantasmita";
 import IdleRedirectOverlay from "./IdleRedirectOverlay";
 import { useIdleRedirect } from "@/hooks/useIdleRedirect";
 import Logo from "@/components/ui/Logo";
@@ -423,6 +424,12 @@ export default function StorePage({ store, initialProducts }: Props) {
   const color      = store.primary_color || "#2563EB";
   const openStatus = getOpenStatus(store.store_hours);
   const storeUrl   = `https://${store.slug}.qtienda.shop/`;
+  const showFantasmita = store.slug === "historiasocultas";
+  const [fantasmitaCameo, setFantasmitaCameo] = useState<{
+    visible: boolean;
+    side: "left" | "right";
+    top: number;
+  }>({ visible: false, side: "right", top: 42 });
 
   // Métodos de pago reales de la tienda — antes decía "Yape, Plin o efectivo"
   // fijo aunque el vendedor no los hubiera activado; ahora refleja lo que de
@@ -474,6 +481,32 @@ export default function StorePage({ store, initialProducts }: Props) {
     // En pantallas grandes la grilla aprovecha mejor el espacio que la lista
     if (window.innerWidth >= 1024) setListView(false);
   }, []);
+
+  useEffect(() => {
+    if (!showFantasmita) return;
+
+    let hideTimer: number | undefined;
+
+    function appear() {
+      setFantasmitaCameo({
+        visible: true,
+        side: Math.random() > 0.5 ? "right" : "left",
+        top: Math.round(22 + Math.random() * 34),
+      });
+      hideTimer = window.setTimeout(() => {
+        setFantasmitaCameo((prev) => ({ ...prev, visible: false }));
+      }, 4200);
+    }
+
+    const firstTimer = window.setTimeout(appear, 4200);
+    const interval = window.setInterval(appear, 13000);
+
+    return () => {
+      window.clearTimeout(firstTimer);
+      window.clearInterval(interval);
+      if (hideTimer) window.clearTimeout(hideTimer);
+    };
+  }, [showFantasmita]);
 
   useEffect(() => {
     const onScroll = () => setHeaderScrolled(window.scrollY > 80);
@@ -1486,6 +1519,18 @@ export default function StorePage({ store, initialProducts }: Props) {
           </motion.a>
         )}
       </AnimatePresence>
+
+      {mounted && showFantasmita && !cartOpen && !viewProduct && !trackOpen && !qrOpen && !accountOpen && !priceFilterOpen && (
+        <div
+          className="fixed z-10 pointer-events-none"
+          style={{
+            top: `${fantasmitaCameo.top}dvh`,
+            ...(fantasmitaCameo.side === "right" ? { right: 14 } : { left: 14 }),
+          }}
+        >
+          <Fantasmita size={64} mode="wander" visible={fantasmitaCameo.visible} />
+        </div>
+      )}
 
       {/* Barra inferior — accesos directos de una tienda pública, antes
           inexistente (solo estaba el CTA de carrito y el de WhatsApp). */}
