@@ -599,21 +599,38 @@ async def list_orders(
 
 @router.get("/users")
 async def list_users(
+    role: Optional[str] = Query(None),
+    without_store: Optional[bool] = Query(None),
     page: int = Query(1, ge=1),
     limit: int = Query(20, le=100),
     _=Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
+    filters = [User.deleted_at.is_(None)]
+    if role:
+        filters.append(Role.name == role)
+    if without_store is not None:
+        has_store = (
+            select(Store.id)
+            .where(Store.user_id == User.id, Store.deleted_at.is_(None))
+            .exists()
+        )
+        filters.append(~has_store if without_store else has_store)
+
     total = (
         await db.execute(
-            select(func.count()).select_from(User).where(User.deleted_at.is_(None))
+            select(func.count())
+            .select_from(User)
+            .join(Role, User.role_id == Role.id)
+            .where(and_(*filters))
         )
     ).scalar()
 
     result = await db.execute(
         select(User)
-        .options(selectinload(User.role))
-        .where(User.deleted_at.is_(None))
+        .join(Role, User.role_id == Role.id)
+        .options(selectinload(User.role), selectinload(User.store))
+        .where(and_(*filters))
         .order_by(User.created_at.desc())
         .offset((page - 1) * limit)
         .limit(limit)
@@ -634,6 +651,13 @@ async def list_users(
                 "is_active": u.is_active,
                 "created_at": u.created_at,
                 "last_login_at": u.last_login_at,
+                "store": {
+                    "id": u.store.id,
+                    "name": u.store.name,
+                    "slug": u.store.slug,
+                    "status": u.store.status,
+                    "deleted_at": u.store.deleted_at,
+                } if u.store and u.store.deleted_at is None else None,
             }
             for u in users
         ],

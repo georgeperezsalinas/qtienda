@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Users, ChevronLeft, ChevronRight as ChevronRightIcon, Ban, CheckCircle2 } from "lucide-react";
+import { Users, ChevronLeft, ChevronRight as ChevronRightIcon, Ban, CheckCircle2, Store as StoreIcon } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiClient } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
@@ -16,6 +16,13 @@ interface UserItem {
   is_active:     boolean;
   created_at:    string;
   last_login_at: string | null;
+  store: {
+    id:         string;
+    name:       string;
+    slug:       string;
+    status:     string;
+    deleted_at: string | null;
+  } | null;
 }
 
 interface UsersResponse {
@@ -51,13 +58,21 @@ export default function AdminUsuariosPage() {
   const [suspendTarget, setSuspendTarget] = useState<UserItem | null>(null);
   const { user: currentUser } = useAuthStore();
 
-  const page = Number(searchParams.get("page") ?? "1");
+  const page   = Number(searchParams.get("page") ?? "1");
+  const filter = searchParams.get("filter") ?? "";
+  const vendorWithoutStore = filter === "vendor-without-store";
+  const vendorOnly = filter === "vendor" || vendorWithoutStore;
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
       const { data } = await apiClient.get<UsersResponse>("/admin/users", {
-        params: { page, limit: 20 },
+        params: {
+          page,
+          limit: 20,
+          ...(vendorOnly ? { role: "vendor" } : {}),
+          ...(vendorWithoutStore ? { without_store: true } : {}),
+        },
       });
       setUsers(data.items);
       setTotal(data.total);
@@ -65,13 +80,21 @@ export default function AdminUsuariosPage() {
     } finally {
       setLoading(false);
     }
-  }, [page]);
+  }, [page, vendorOnly, vendorWithoutStore]);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
   function setPage(p: number) {
     const params = new URLSearchParams(searchParams.toString());
     params.set("page", String(p));
+    router.push(`/admin/usuarios?${params.toString()}`);
+  }
+
+  function setFilter(next: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (next) params.set("filter", next);
+    else params.delete("filter");
+    params.set("page", "1");
     router.push(`/admin/usuarios?${params.toString()}`);
   }
 
@@ -110,8 +133,32 @@ export default function AdminUsuariosPage() {
           Usuarios
         </h1>
         <p className="text-sm mt-1" style={{ color: "var(--ink-3)" }}>
-          {total} usuario{total !== 1 ? "s" : ""} registrados
+          {total} usuario{total !== 1 ? "s" : ""}{vendorWithoutStore ? " vendedores sin tienda" : vendorOnly ? " vendedores" : " registrados"}
         </p>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {[
+          { key: "", label: "Todos" },
+          { key: "vendor", label: "Vendedores" },
+          { key: "vendor-without-store", label: "Vendedores sin tienda" },
+        ].map((tab) => {
+          const active = filter === tab.key;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setFilter(tab.key)}
+              className="px-3 py-2 rounded-xl text-xs font-bold transition-all"
+              style={{
+                background: active ? "var(--ink)" : "var(--surface-0)",
+                color: active ? "white" : "var(--ink-2)",
+                border: "1.5px solid var(--line-2)",
+              }}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
       </div>
 
       {loading ? (
@@ -169,10 +216,21 @@ export default function AdminUsuariosPage() {
                         Inactivo
                       </span>
                     )}
+                    {u.role === "vendor" && !u.store && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "var(--warn-soft)", color: "var(--warn)" }}>
+                        <StoreIcon size={10} />
+                        Sin tienda
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs mt-0.5 truncate" style={{ color: "var(--ink-3)" }}>
                     {u.email}
                   </p>
+                  {u.store && (
+                    <p className="text-xs mt-0.5 truncate" style={{ color: "var(--ink-4)" }}>
+                      Tienda: {u.store.name} · /{u.store.slug}
+                    </p>
+                  )}
                   <p className="text-xs mt-0.5" style={{ color: "var(--ink-4)" }}>
                     Registro: {new Date(u.created_at).toLocaleDateString("es-PE")}
                     {u.last_login_at && (
@@ -219,6 +277,7 @@ export default function AdminUsuariosPage() {
             <tr style={{ background: "var(--surface-2)", borderBottom: "1px solid var(--line-2)" }}>
               <th className="text-left font-bold text-[11px] uppercase px-4 py-3" style={{ color: "var(--ink-3)" }}>Usuario</th>
               <th className="text-left font-bold text-[11px] uppercase px-4 py-3" style={{ color: "var(--ink-3)" }}>Rol</th>
+              <th className="text-left font-bold text-[11px] uppercase px-4 py-3" style={{ color: "var(--ink-3)" }}>Tienda</th>
               <th className="text-left font-bold text-[11px] uppercase px-4 py-3" style={{ color: "var(--ink-3)" }}>Estado</th>
               <th className="text-left font-bold text-[11px] uppercase px-4 py-3" style={{ color: "var(--ink-3)" }}>Registro</th>
               <th className="text-left font-bold text-[11px] uppercase px-4 py-3" style={{ color: "var(--ink-3)" }}>Último login</th>
@@ -257,6 +316,23 @@ export default function AdminUsuariosPage() {
                     >
                       {rs.label}
                     </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    {u.role === "vendor" ? (
+                      u.store ? (
+                        <div className="min-w-0">
+                          <p className="font-semibold truncate max-w-[160px]" style={{ color: "var(--ink)" }}>{u.store.name}</p>
+                          <p className="text-xs truncate max-w-[160px]" style={{ color: "var(--ink-4)" }}>/{u.store.slug}</p>
+                        </div>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "var(--warn-soft)", color: "var(--warn)" }}>
+                          <StoreIcon size={10} />
+                          Sin tienda
+                        </span>
+                      )
+                    ) : (
+                      <span className="text-xs" style={{ color: "var(--ink-4)" }}>—</span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     {u.is_active ? (
